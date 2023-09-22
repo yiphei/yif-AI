@@ -1,7 +1,7 @@
 class Value(object):
     def __init__(self, scalar, prevs = None, compute_gradient = None):
         self.scalar = scalar
-        self.grad = None
+        self.grad = 0
         self.prevs = prevs
         self.compute_gradient = compute_gradient
 
@@ -20,7 +20,7 @@ class Value(object):
         
         return out
     
-    def __relu__(self):
+    def relu(self):
         out  = Value(self.scalar if self.scalar >= 0 else 0, prevs=[self])
         self.compute_gradient = lambda last_grad: last_grad if self.scalar >= 0 else 0
 
@@ -61,7 +61,7 @@ class Value(object):
         if last_grad is None:
             self.grad = 1
         else:
-            self.grad = self.compute_gradient(last_grad)
+            self.grad += self.compute_gradient(last_grad)
 
         if not self.prevs:
             return
