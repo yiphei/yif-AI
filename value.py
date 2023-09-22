@@ -25,6 +25,20 @@ class Value(object):
         out.compute_prev_gradients = compute_prev_gradients
         return out
     
+    def tanh(self):
+        import math
+
+        x = self.scalar
+        t = (math.exp(2*x) - 1)/(math.exp(2*x) + 1)
+        out = Value(t, prevs= [self])
+        
+        def compute_prev_gradients(last_grad):
+            self.grad += (1 - t**2) * last_grad
+        
+        self.count += 1
+        out.compute_prev_gradients = compute_prev_gradients
+        return out
+    
     def relu(self):
         out  = Value(self.scalar if self.scalar >= 0 else 0, prevs=[self])
 
