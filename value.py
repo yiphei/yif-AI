@@ -4,6 +4,7 @@ class Value(object):
         self.grad = 0
         self.prevs = prevs
         self.compute_prev_gradients = compute_prev_gradients
+        self.count = 0
 
     def __repr__(self):
         return f"Value({self.scalar})"
@@ -18,9 +19,9 @@ class Value(object):
         def compute_prev_gradients(last_grad):
             self.grad += last_grad
             other.grad += last_grad
-            self.backward(is_first = False)
-            other.backward(is_first=False)
         
+        self.count += 1
+        other.count += 1
         out.compute_prev_gradients = compute_prev_gradients
         return out
     
@@ -29,8 +30,8 @@ class Value(object):
 
         def compute_prev_gradients(last_grad):
             self.grad += last_grad if self.scalar >= 0 else 0
-            self.backward(is_first = False)
 
+        self.count += 1
         out.compute_prev_gradients = compute_prev_gradients
         return out
     
@@ -40,8 +41,8 @@ class Value(object):
 
         def compute_prev_gradients(last_grad):
             self.grad += last_grad * (other * self.scalar ** (other - 1))
-            self.backward(is_first = False)
 
+        self.count += 1
         out.compute_prev_gradients = compute_prev_gradients
         return out
     
@@ -54,9 +55,10 @@ class Value(object):
         def compute_prev_gradients(last_grad):
             self.grad += last_grad * other.scalar
             other.grad += last_grad * self.scalar
-            self.backward(is_first = False)
-            other.backward(is_first=False)                
         
+        self.count += 1
+        other.count += 1
+
         out.compute_prev_gradients = compute_prev_gradients
 
         return out
@@ -77,12 +79,23 @@ class Value(object):
         return other / self
     
     def backward(self, is_first = True):
+        from queue import Queue
+
         if is_first:
             self.grad = 1
 
-        if self.compute_prev_gradients:
-            self.compute_prev_gradients(self.grad)
-    
+        q = Queue()
+        q.put(self)
+        while not q.empty():
+            value = q.get()
+            if value.compute_prev_gradients:
+                value.compute_prev_gradients(value.grad)
+            
+                for prev in value.prevs:
+                    prev.count -= 1
+                    if prev.count <= 0:
+                        q.put(prev)
+
     def __radd__(self, other):
         return self + other
 
