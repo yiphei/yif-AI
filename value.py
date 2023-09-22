@@ -74,7 +74,7 @@ class Value(object):
         return self * other ** -1
     
     def __rtruediv__(self,other):
-        return other / self
+        return self * other ** -1
     
     def backward(self):
         from queue import Queue
