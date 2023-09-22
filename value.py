@@ -47,8 +47,6 @@ class Value(object):
         return out
     
     def __mul__(self,other):
-        if other == self:
-            return self ** 2
         other = self.cast_to_value(other)
         out = Value(self.scalar * other.scalar, prevs=[self, other])
 
