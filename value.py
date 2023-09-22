@@ -37,7 +37,12 @@ class Value(object):
     def __pow__(self, other):
         assert isinstance(other, (int, float))
         out = Value(self.scalar ** other, prevs=[self])
-        self.compute_prev_gradients = lambda last_grad: last_grad * (other * self.scalar ** (other - 1))
+
+        def compute_prev_gradients(last_grad):
+            self.grad += last_grad * (other * self.scalar ** (other - 1))
+            self.backward(is_first = False)
+
+        out.compute_prev_gradients = compute_prev_gradients
         return out
     
     def __mul__(self,other):
