@@ -76,11 +76,10 @@ class Value(object):
     def __rtruediv__(self,other):
         return other / self
     
-    def backward(self, is_first = True):
+    def backward(self):
         from queue import Queue
 
-        if is_first:
-            self.grad = 1
+        self.grad = 1
 
         q = Queue()
         q.put(self)
