@@ -23,23 +23,23 @@ val_data = data[training_split:]
 torch.manual_seed(1337)
 
 # HYPERPARAMETERS
-batch_size = 64
-block_size = 256
-n_embed = 384
-training_steps = 5000
-estimation_interval = 500
-estimation_iter = 200
-vocab_size = len(chars)
-transform_block = 6
-lr = 3e-4
-dropout = 0.2
-n_head = 6
+BATCH_SIZE = 64
+BLOCK_SIZE = 256
+N_EMBED = 384
+TRAINING_STEPS = 5000
+EST_INTERVAL = 500
+EST_STEPS = 200
+TOKEN_SIZE = len(chars)
+TRANSFORM_BLOCKS = 6
+LR = 3e-4
+DROPOUT = 0.2
+N_HEAD = 6
 
 def get_batch(split="train"):
     data = train_data if split == "train" else val_data
-    idxs = torch.randint(0, data.shape[0] - block_size - 1, (batch_size,))
-    x = torch.stack([data[idx : idx + block_size] for idx in idxs])
-    y = torch.stack([data[idx + 1 : idx + block_size + 1] for idx in idxs])
+    idxs = torch.randint(0, data.shape[0] - BLOCK_SIZE - 1, (BATCH_SIZE,))
+    x = torch.stack([data[idx : idx + BLOCK_SIZE] for idx in idxs])
+    y = torch.stack([data[idx + 1 : idx + BLOCK_SIZE + 1] for idx in idxs])
     return x, y
 
 @torch.no_grad()
@@ -47,8 +47,8 @@ def estimate_loss(model):
     mean_losses = []
     model.eval()
     for split in ["train", "val"]:
-        losses = torch.zeros(estimation_iter)
-        for i in range(estimation_iter):
+        losses = torch.zeros(EST_STEPS)
+        for i in range(EST_STEPS):
             xb,yb = get_batch(split)
             _, loss = model(xb, yb)
             losses[i] = loss.item()
@@ -66,8 +66,8 @@ class AttentionHead(nn.Module):
         self.q_layer = nn.Linear(dim_in, head_size, bias = False)
         self.k_layer = nn.Linear(dim_in, head_size, bias=False)
         self.v_layer = nn.Linear(dim_in, head_size, bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
-        self.dropout = nn.Dropout(dropout)
+        self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
+        self.dropout = nn.Dropout(DROPOUT)
 
     def forward(self, x):
         _, T, _ = x.shape
@@ -88,7 +88,7 @@ class MultiAttentionHead(nn.Module):
         super().__init__()
         self.sa_heads = nn.ModuleList([AttentionHead(dim_in, head_size) for _ in range(n_heads)])
         self.proj = nn.Linear(dim_in, dim_in)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(DROPOUT)
 
     def forward(self, x):
         out = torch.cat([head(x) for head in self.sa_heads], dim=-1)
@@ -105,7 +105,7 @@ class FeedForward(nn.Module):
             nn.Linear(dim_in, dim_in * 4),
             nn.ReLU(),
             nn.Linear(dim_in * 4, dim_in),
-            nn.Dropout(dropout)
+            nn.Dropout(DROPOUT)
         )
 
     def forward(self, x):
@@ -129,11 +129,11 @@ class TransformerBlock(nn.Module):
 class BigramLanguageModel(nn.Module):
     def __init__(self):
         super().__init__()
-        self.token_embedding = nn.Embedding(vocab_size, n_embed)
-        self.positional_embedding = nn.Embedding(block_size, n_embed)
-        self.transformer_blocks = nn.Sequential( *[TransformerBlock(n_embed, n_head) for _ in range(transform_block)])
-        self.ln = nn.LayerNorm(n_embed)
-        self.output_layer = nn.Linear(n_embed, vocab_size)
+        self.token_embedding = nn.Embedding(TOKEN_SIZE, N_EMBED)
+        self.positional_embedding = nn.Embedding(BLOCK_SIZE, N_EMBED)
+        self.transformer_blocks = nn.Sequential( *[TransformerBlock(N_EMBED, N_HEAD) for _ in range(TRANSFORM_BLOCKS)])
+        self.ln = nn.LayerNorm(N_EMBED)
+        self.output_layer = nn.Linear(N_EMBED, TOKEN_SIZE)
 
     def forward(self, x, targets=None):
         token_embed = self.token_embedding(x)
@@ -152,7 +152,7 @@ class BigramLanguageModel(nn.Module):
 
     def generate(self, x, max_tokens):
         for _ in range(max_tokens):
-            logits, _ = self(x[:,-block_size:], None)
+            logits, _ = self(x[:,-BLOCK_SIZE:], None)
             probs = F.softmax(logits[:, -1, :], dim=-1)
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
@@ -160,11 +160,11 @@ class BigramLanguageModel(nn.Module):
 
 
 m = BigramLanguageModel()
-optimizer = torch.optim.Adam(m.parameters(), lr=lr)
+optimizer = torch.optim.Adam(m.parameters(), lr=LR)
 
-for steps in range(training_steps):
+for steps in range(TRAINING_STEPS):
 
-    if steps % estimation_interval == 0:
+    if steps % EST_INTERVAL == 0:
         train_loss, val_loss = estimate_loss(m)
         print(f"Train loss: {train_loss}, Val loss: {val_loss}")
 
