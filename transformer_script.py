@@ -23,6 +23,7 @@ val_data = data[training_split:]
 torch.manual_seed(1337)
 
 # HYPERPARAMETERS
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 BATCH_SIZE = 32
 BLOCK_SIZE = 100
 N_EMBED = 100
@@ -40,6 +41,7 @@ def get_batch(split="train"):
     idxs = torch.randint(0, data.shape[0] - BLOCK_SIZE - 1, (BATCH_SIZE,))
     x = torch.stack([data[idx : idx + BLOCK_SIZE] for idx in idxs])
     y = torch.stack([data[idx + 1 : idx + BLOCK_SIZE + 1] for idx in idxs])
+    x, y = x.to(device), y.to(device)
     return x, y
 
 @torch.no_grad()
@@ -148,7 +150,7 @@ class BigramLanguageModel(nn.Module):
 
     def forward(self, x, targets=None):
         token_embed = self.token_embedding(x)
-        pos_embed = self.positional_embedding(torch.arange(x.shape[1]))
+        pos_embed = self.positional_embedding(torch.arange(x.shape[1], device=device))
         embed = token_embed + pos_embed
         out = self.transformer_blocks(embed)
         out = self.ln(out)
@@ -170,21 +172,22 @@ class BigramLanguageModel(nn.Module):
         return x
 
 
-m = BigramLanguageModel()
-optimizer = torch.optim.Adam(m.parameters(), lr=LR)
+model = BigramLanguageModel()
+m = model.to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
 for steps in range(TRAINING_STEPS):
     if steps % EST_INTERVAL == 0:
-        train_loss, val_loss = estimate_loss(m)
+        train_loss, val_loss = estimate_loss(model)
         print(f"Train loss: {train_loss}, Val loss: {val_loss}")
 
     xb,yb = get_batch()
-    logits, loss = m(xb, yb)
+    logits, loss = model(xb, yb)
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
     optimizer.step()
 
 print(loss.item())
 
-generation = m.generate(torch.tensor([[0]]), 400)
+generation = model.generate(torch.tensor([[0]], device=device), 400)
 print(decoder(generation[0].tolist()))
