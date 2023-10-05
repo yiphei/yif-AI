@@ -23,13 +23,17 @@ val_data = data[training_split:]
 torch.manual_seed(1337)
 
 # HYPERPARAMETERS
-batch_size = 32
-block_size = 8
-n_embed = 64
+batch_size = 64
+block_size = 256
+n_embed = 384
 training_steps = 5000
 estimation_interval = 500
 estimation_iter = 200
-lr = 1e-3
+vocab_size = len(chars)
+transform_block = 6
+lr = 3e-4
+dropout = 0.2
+n_head = 6
 
 def get_batch(split="train"):
     data = train_data if split == "train" else val_data
@@ -63,7 +67,7 @@ class AttentionHead(nn.Module):
         self.k_layer = nn.Linear(dim_in, head_size, bias=False)
         self.v_layer = nn.Linear(dim_in, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
-    
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         _, T, _ = x.shape
@@ -73,6 +77,7 @@ class AttentionHead(nn.Module):
         wei = q @ k.transpose(-2, -1) * self.head_size ** -0.5
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
+        wei = self.dropout(wei)
         out = wei @ v 
         return out
 
@@ -83,10 +88,12 @@ class MultiAttentionHead(nn.Module):
         super().__init__()
         self.sa_heads = nn.ModuleList([AttentionHead(dim_in, head_size) for _ in range(n_heads)])
         self.proj = nn.Linear(dim_in, dim_in)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         out = torch.cat([head(x) for head in self.sa_heads], dim=-1)
         out = self.proj(out)
+        out = self.dropout(out)
         return out
     
 
@@ -97,7 +104,8 @@ class FeedForward(nn.Module):
         self.layers = nn.Sequential(
             nn.Linear(dim_in, dim_in * 4),
             nn.ReLU(),
-            nn.Linear(dim_in * 4, dim_in)
+            nn.Linear(dim_in * 4, dim_in),
+            nn.Dropout(dropout)
         )
 
     def forward(self, x):
@@ -110,21 +118,21 @@ class TransformerBlock(nn.Module):
         head_size = n_embed // n_heads
         self.sa_multi_head = MultiAttentionHead(n_embed, n_heads, head_size)
         self.feed_forward = FeedForward(n_embed)
+        self.ln1 = nn.LayerNorm(n_embed)
+        self.ln2 = nn.LayerNorm(n_embed)
 
     def forward(self, x):
-        x = x + self.sa_multi_head(x)
-        x = x + self.feed_forward(x)
+        x = x + self.sa_multi_head(self.ln1(x))
+        x = x + self.feed_forward(self.ln2(x))
         return x
 
 class BigramLanguageModel(nn.Module):
-    def __init__(self, vocab_size):
+    def __init__(self):
         super().__init__()
         self.token_embedding = nn.Embedding(vocab_size, n_embed)
         self.positional_embedding = nn.Embedding(block_size, n_embed)
-        n_heads = n_embed // 8
-        self.transformer_blocks = nn.Sequential(TransformerBlock(n_embed, n_heads),
-                                               TransformerBlock(n_embed, n_heads),
-                                               TransformerBlock(n_embed, n_heads))
+        self.transformer_blocks = nn.Sequential( *[TransformerBlock(n_embed, n_head) for _ in range(transform_block)])
+        self.ln = nn.LayerNorm(n_embed)
         self.output_layer = nn.Linear(n_embed, vocab_size)
 
     def forward(self, x, targets=None):
@@ -132,6 +140,7 @@ class BigramLanguageModel(nn.Module):
         pos_embed = self.positional_embedding(torch.arange(x.shape[1]))
         final_embed = token_embed + pos_embed
         out = self.transformer_blocks(final_embed)
+        out = self.ln(out)
         logits = self.output_layer(out)
         if targets is None:
             loss = None
