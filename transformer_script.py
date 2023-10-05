@@ -23,9 +23,9 @@ val_data = data[training_split:]
 torch.manual_seed(1337)
 
 # HYPERPARAMETERS
-BATCH_SIZE = 64
-BLOCK_SIZE = 256
-N_EMBED = 384
+BATCH_SIZE = 32
+BLOCK_SIZE = 100
+N_EMBED = 100
 TRAINING_STEPS = 5000
 EST_INTERVAL = 500
 EST_STEPS = 200
@@ -33,7 +33,7 @@ TOKEN_SIZE = len(chars)
 TRANSFORM_BLOCKS = 6
 LR = 3e-4
 DROPOUT = 0.2
-N_HEAD = 6
+N_HEAD = 5
 
 def get_batch(split="train"):
     data = train_data if split == "train" else val_data
@@ -134,6 +134,17 @@ class BigramLanguageModel(nn.Module):
         self.transformer_blocks = nn.Sequential( *[TransformerBlock(N_EMBED, N_HEAD) for _ in range(TRANSFORM_BLOCKS)])
         self.ln = nn.LayerNorm(N_EMBED)
         self.output_layer = nn.Linear(N_EMBED, TOKEN_SIZE)
+
+        self.apply(self._init_weights)
+
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)        
 
     def forward(self, x, targets=None):
         token_embed = self.token_embedding(x)
