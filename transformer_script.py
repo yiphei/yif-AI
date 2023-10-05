@@ -23,11 +23,11 @@ val_data = data[training_split:]
 torch.manual_seed(1337)
 
 # HYPERPARAMETERS
-batch_size = 4
+batch_size = 32
 block_size = 8
 n_embed = 64
-training_steps = 20000
-estimation_interval = 1000
+training_steps = 5000
+estimation_interval = 500
 estimation_iter = 200
 lr = 1e-3
 
@@ -55,18 +55,84 @@ def estimate_loss(model):
     
 
 
+class AttentionHead(nn.Module):
+    def __init__(self, dim_in, head_size):
+        super().__init__()
+        self.head_size = head_size
+        self.q_layer = nn.Linear(dim_in, head_size, bias = False)
+        self.k_layer = nn.Linear(dim_in, head_size, bias=False)
+        self.v_layer = nn.Linear(dim_in, head_size, bias=False)
+        self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
+    
+
+    def forward(self, x):
+        _, T, _ = x.shape
+        q = self.q_layer(x)
+        k = self.k_layer(x)
+        v = self.v_layer(x)
+        wei = q @ k.transpose(-2, -1) * self.head_size ** -0.5
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        wei = F.softmax(wei, dim=-1)
+        out = wei @ v 
+        return out
+
+
+class MultiAttentionHead(nn.Module):
+
+    def __init__(self, dim_in, n_heads, head_size):
+        super().__init__()
+        self.sa_heads = nn.ModuleList([AttentionHead(dim_in, head_size) for _ in range(n_heads)])
+        self.proj = nn.Linear(dim_in, dim_in)
+
+    def forward(self, x):
+        out = torch.cat([head(x) for head in self.sa_heads], dim=-1)
+        out = self.proj(out)
+        return out
+    
+
+class FeedForward(nn.Module):
+
+    def __init__(self, dim_in):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(dim_in, dim_in * 4),
+            nn.ReLU(),
+            nn.Linear(dim_in * 4, dim_in)
+        )
+
+    def forward(self, x):
+        return self.layers(x)
+    
+class TransformerBlock(nn.Module):
+
+    def __init__(self, n_embed, n_heads):
+        super().__init__()
+        head_size = n_embed // n_heads
+        self.sa_multi_head = MultiAttentionHead(n_embed, n_heads, head_size)
+        self.feed_forward = FeedForward(n_embed)
+
+    def forward(self, x):
+        x = x + self.sa_multi_head(x)
+        x = x + self.feed_forward(x)
+        return x
+
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size):
         super().__init__()
         self.token_embedding = nn.Embedding(vocab_size, n_embed)
         self.positional_embedding = nn.Embedding(block_size, n_embed)
-        self.lm_head = nn.Linear(n_embed, vocab_size)
+        n_heads = n_embed // 8
+        self.transformer_blocks = nn.Sequential(TransformerBlock(n_embed, n_heads),
+                                               TransformerBlock(n_embed, n_heads),
+                                               TransformerBlock(n_embed, n_heads))
+        self.output_layer = nn.Linear(n_embed, vocab_size)
 
     def forward(self, x, targets=None):
         token_embed = self.token_embedding(x)
         pos_embed = self.positional_embedding(torch.arange(x.shape[1]))
         final_embed = token_embed + pos_embed
-        logits = self.lm_head(final_embed)
+        out = self.transformer_blocks(final_embed)
+        logits = self.output_layer(out)
         if targets is None:
             loss = None
         else:
@@ -77,7 +143,7 @@ class BigramLanguageModel(nn.Module):
 
     def generate(self, x, max_tokens):
         for _ in range(max_tokens):
-            logits, _ = self(x[:,max(x.shape[1]-block_size, 0):], None)
+            logits, _ = self(x[:,-block_size:], None)
             probs = F.softmax(logits[:, -1, :], dim=-1)
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
