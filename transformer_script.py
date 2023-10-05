@@ -159,7 +159,7 @@ class BigramLanguageModel(nn.Module):
         return x
 
 
-m = BigramLanguageModel(len(chars))
+m = BigramLanguageModel()
 optimizer = torch.optim.Adam(m.parameters(), lr=lr)
 
 for steps in range(training_steps):
