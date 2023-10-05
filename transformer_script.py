@@ -25,6 +25,7 @@ torch.manual_seed(1337)
 # HYPERPARAMETERS
 batch_size = 4
 block_size = 8
+n_embed = 64
 training_steps = 20000
 estimation_interval = 1000
 estimation_iter = 200
@@ -57,14 +58,18 @@ def estimate_loss(model):
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size):
         super().__init__()
-        self.token_embedding = nn.Embedding(vocab_size, vocab_size)
+        self.token_embedding = nn.Embedding(vocab_size, n_embed)
+        self.positional_embedding = nn.Embedding(block_size, n_embed)
+        self.lm_head = nn.Linear(n_embed, vocab_size)
 
     def forward(self, x, targets=None):
+        token_embed = self.token_embedding(x)
+        pos_embed = self.positional_embedding(torch.arange(x.shape[1]))
+        final_embed = token_embed + pos_embed
+        logits = self.lm_head(final_embed)
         if targets is None:
             loss = None
-            logits = self.token_embedding(x)
         else:
-            logits = self.token_embedding(x)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
@@ -72,7 +77,7 @@ class BigramLanguageModel(nn.Module):
 
     def generate(self, x, max_tokens):
         for _ in range(max_tokens):
-            logits, _ = self(x, None)
+            logits, _ = self(x[:,max(x.shape[1]-block_size, 0):], None)
             probs = F.softmax(logits[:, -1, :], dim=-1)
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
