@@ -138,8 +138,8 @@ class BigramLanguageModel(nn.Module):
     def forward(self, x, targets=None):
         token_embed = self.token_embedding(x)
         pos_embed = self.positional_embedding(torch.arange(x.shape[1]))
-        final_embed = token_embed + pos_embed
-        out = self.transformer_blocks(final_embed)
+        embed = token_embed + pos_embed
+        out = self.transformer_blocks(embed)
         out = self.ln(out)
         logits = self.output_layer(out)
         if targets is None:
@@ -163,7 +163,6 @@ m = BigramLanguageModel()
 optimizer = torch.optim.Adam(m.parameters(), lr=LR)
 
 for steps in range(TRAINING_STEPS):
-
     if steps % EST_INTERVAL == 0:
         train_loss, val_loss = estimate_loss(m)
         print(f"Train loss: {train_loss}, Val loss: {val_loss}")
