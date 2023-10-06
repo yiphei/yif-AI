@@ -227,6 +227,8 @@ for steps in range(TRAINING_STEPS):
     xb,yb = get_batch()
     logits, loss = model(xb, yb)
     optimizer.zero_grad(set_to_none=True)
+    if device == "cuda" and torch.cuda.device_count() > 1:
+        loss = loss.mean()
     loss.backward()
     optimizer.step()
 
