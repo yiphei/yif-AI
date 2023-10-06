@@ -41,7 +41,10 @@ def get_batch(split="train"):
     idxs = torch.randint(0, data.shape[0] - BLOCK_SIZE - 1, (BATCH_SIZE,))
     x = torch.stack([data[idx : idx + BLOCK_SIZE] for idx in idxs])
     y = torch.stack([data[idx + 1 : idx + BLOCK_SIZE + 1] for idx in idxs])
-    x, y = x.to(device), y.to(device)
+    if device == "cuda":
+        x, y = x.to('cuda:0'), y.to('cuda:0')
+    else:
+        x, y = x.to(device), y.to(device)
     return x, y
 
 @torch.no_grad()
@@ -206,7 +209,11 @@ class BigramLanguageModel(nn.Module):
 
 
 model = BigramLanguageModel()
-m = model.to(device)
+if device == "cuda" and torch.cuda.device_count() > 1:
+    model = torch.nn.DataParallel(model)
+    model.to('cuda:0')
+else:
+    m = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
 for steps in range(TRAINING_STEPS):
