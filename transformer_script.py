@@ -27,14 +27,14 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 BATCH_SIZE = 32
 BLOCK_SIZE = 50
 N_EMBED = 100
-TRAINING_STEPS = 1000
+TRAINING_STEPS = 500
 EST_INTERVAL = 500
-EST_STEPS = 200
+EST_STEPS = 100
 TOKEN_SIZE = len(chars)
-TRANSFORM_BLOCKS = 6
+TRANSFORM_BLOCKS = 1
 LR = 3e-4
 DROPOUT = 0.2
-N_HEAD = 5
+N_HEAD = 1
 
 def get_batch(split="train"):
     data = train_data if split == "train" else val_data
@@ -106,14 +106,22 @@ class OptimizedMultiAttentionHead(nn.Module):
     def __init__(self, dim_in, n_heads, head_size):
         super().__init__()
         self.head_size = head_size
-        self.q_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size))
-        self.k_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size))
-        self.v_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size))
+        # self.q_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * dim_in ** -0.5)
+        # self.k_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * dim_in ** -0.5)
+        # self.v_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * dim_in ** -0.5)
+        q_weights = [nn.Linear(dim_in, head_size, bias=False).weight.T for _ in range(n_heads)]
+        self.q_weight = nn.Parameter(torch.stack(q_weights))
+
+        k_weights = [nn.Linear(dim_in, head_size, bias=False).weight.T for _ in range(n_heads)]
+        self.k_weight = nn.Parameter(torch.stack(k_weights))
+
+        v_weights = [nn.Linear(dim_in, head_size, bias=False).weight.T for _ in range(n_heads)]
+        self.v_weight = nn.Parameter(torch.stack(v_weights))
 
         self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
         self.dropout = nn.Dropout(DROPOUT)
         self.proj = nn.Linear(dim_in, dim_in)
-        self.dropout = nn.Dropout(DROPOUT)
+        self.dropout_2 = nn.Dropout(DROPOUT)
 
     def forward(self, x):
         _, T, _ = x.shape # B, T, C
@@ -130,7 +138,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         B,H,T,S = out.shape
         out = out.permute(0, 2, 1, 3).reshape(B, T, S*H) # B,H,T,S -> B,T,H,S -> B,T,H*S
         out = self.proj(out)
-        out = self.dropout(out)
+        out = self.dropout_2(out)
         return out
 
 class FeedForward(nn.Module):
@@ -169,9 +177,8 @@ class BigramLanguageModel(nn.Module):
         self.positional_embedding = nn.Embedding(BLOCK_SIZE, N_EMBED)
         self.transformer_blocks = nn.Sequential( *[TransformerBlock(N_EMBED, N_HEAD) for _ in range(TRANSFORM_BLOCKS)])
         self.ln = nn.LayerNorm(N_EMBED)
-        self.output_layer = nn.Linear(N_EMBED, TOKEN_SIZE)
-
-        self.apply(self._init_weights)
+        self.output_layer = nn.Linear(N_EMBED, TOKEN_SIZE)     
+        # self.apply(self._init_weights)
 
 
     def _init_weights(self, module):
@@ -179,8 +186,9 @@ class BigramLanguageModel(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
-        elif isinstance(module, nn.Embedding):
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)        
+
+        elif isinstance(module, (nn.Embedding)):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, x, targets=None):
         token_embed = self.token_embedding(x)
