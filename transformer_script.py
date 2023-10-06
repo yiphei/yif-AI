@@ -63,42 +63,42 @@ def estimate_loss(model):
     
 
 
-class AttentionHead(nn.Module):
-    def __init__(self, dim_in, head_size):
-        super().__init__()
-        self.head_size = head_size
-        self.q_layer = nn.Linear(dim_in, head_size, bias = False)
-        self.k_layer = nn.Linear(dim_in, head_size, bias=False)
-        self.v_layer = nn.Linear(dim_in, head_size, bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
-        self.dropout = nn.Dropout(DROPOUT)
+# class AttentionHead(nn.Module):
+#     def __init__(self, dim_in, head_size):
+#         super().__init__()
+#         self.head_size = head_size
+#         self.q_layer = nn.Linear(dim_in, head_size, bias = False)
+#         self.k_layer = nn.Linear(dim_in, head_size, bias=False)
+#         self.v_layer = nn.Linear(dim_in, head_size, bias=False)
+#         self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
+#         self.dropout = nn.Dropout(DROPOUT)
 
-    def forward(self, x):
-        _, T, _ = x.shape
-        q = self.q_layer(x)
-        k = self.k_layer(x)
-        v = self.v_layer(x)
-        wei = q @ k.transpose(-2, -1) * self.head_size ** -0.5
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
-        wei = F.softmax(wei, dim=-1)
-        wei = self.dropout(wei)
-        out = wei @ v 
-        return out
+#     def forward(self, x):
+#         _, T, _ = x.shape
+#         q = self.q_layer(x)
+#         k = self.k_layer(x)
+#         v = self.v_layer(x)
+#         wei = q @ k.transpose(-2, -1) * self.head_size ** -0.5
+#         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+#         wei = F.softmax(wei, dim=-1)
+#         wei = self.dropout(wei)
+#         out = wei @ v 
+#         return out
 
 
-class MultiAttentionHead(nn.Module):
+# class MultiAttentionHead(nn.Module):
 
-    def __init__(self, dim_in, n_heads, head_size):
-        super().__init__()
-        self.sa_heads = nn.ModuleList([AttentionHead(dim_in, head_size) for _ in range(n_heads)])
-        self.proj = nn.Linear(dim_in, dim_in)
-        self.dropout = nn.Dropout(DROPOUT)
+#     def __init__(self, dim_in, n_heads, head_size):
+#         super().__init__()
+#         self.sa_heads = nn.ModuleList([AttentionHead(dim_in, head_size) for _ in range(n_heads)])
+#         self.proj = nn.Linear(dim_in, dim_in)
+#         self.dropout = nn.Dropout(DROPOUT)
 
-    def forward(self, x):
-        out = torch.cat([head(x) for head in self.sa_heads], dim=-1)
-        out = self.proj(out)
-        out = self.dropout(out)
-        return out
+#     def forward(self, x):
+#         out = torch.cat([head(x) for head in self.sa_heads], dim=-1)
+#         out = self.proj(out)
+#         out = self.dropout(out)
+#         return out
     
 
 class OptimizedMultiAttentionHead(nn.Module):
