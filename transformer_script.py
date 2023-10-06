@@ -56,6 +56,8 @@ def estimate_loss(model):
         for i in range(EST_STEPS):
             xb,yb = get_batch(split)
             _, loss = model(xb, yb)
+            if device == "cuda" and torch.cuda.device_count() > 1:
+                loss = loss.mean()
             losses[i] = loss.item()
 
         mean_losses.append(losses.mean(dim=0).item())
@@ -228,6 +230,8 @@ for steps in range(TRAINING_STEPS):
     loss.backward()
     optimizer.step()
 
+if device == "cuda" and torch.cuda.device_count() > 1:
+    loss = loss.mean()
 print(loss.item())
 
 generation = model.generate(torch.tensor([[0]], device=device), 400)
