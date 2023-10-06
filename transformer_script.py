@@ -194,7 +194,8 @@ class BigramLanguageModel(nn.Module):
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
         return logits, loss
-
+    
+    @torch.no_grad()
     def generate(self, x, max_tokens):
         for _ in range(max_tokens):
             logits, _ = self(x[:,-BLOCK_SIZE:], None)
