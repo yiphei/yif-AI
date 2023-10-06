@@ -108,6 +108,8 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.v_layer = nn.ModuleList([nn.Linear(dim_in, head_size, bias=False) for _ in range(n_heads)])
         self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
         self.dropout = nn.Dropout(DROPOUT)
+        self.proj = nn.Linear(dim_in, dim_in)
+        self.dropout = nn.Dropout(DROPOUT)
 
     def forward(self, x):
         _, T, _ = x.shape # B, T, C
@@ -123,6 +125,8 @@ class OptimizedMultiAttentionHead(nn.Module):
         out = wei @ v # B,H,T,T @ B,H,T,S -> B,H,T,S
         B,H,T,S = out.shape
         out = out.permute(0, 2, 1, 3).reshape(B, T, S*H) # B,H,T,S -> B,T,H,S -> B,T,H*S
+        out = self.proj(out)
+        out = self.dropout(out)
         return out
 
 class FeedForward(nn.Module):
