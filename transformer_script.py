@@ -41,10 +41,7 @@ def get_batch(split="train"):
     idxs = torch.randint(0, data.shape[0] - BLOCK_SIZE - 1, (BATCH_SIZE,))
     x = torch.stack([data[idx : idx + BLOCK_SIZE] for idx in idxs])
     y = torch.stack([data[idx + 1 : idx + BLOCK_SIZE + 1] for idx in idxs])
-    if device == "cuda":
-        x, y = x.to('cuda:0'), y.to('cuda:0')
-    else:
-        x, y = x.to(device), y.to(device)
+    x, y = x.to(device), y.to(device)
     return x, y
 
 @torch.no_grad()
@@ -52,13 +49,13 @@ def estimate_loss(model):
     mean_losses = []
     model.eval()
     for split in ["train", "val"]:
-        losses = torch.zeros(EST_STEPS)
+        losses = torch.zeros(EST_STEPS, device = device)
         for i in range(EST_STEPS):
             xb,yb = get_batch(split)
             _, loss = model(xb, yb)
             if device == "cuda" and torch.cuda.device_count() > 1:
                 loss = loss.mean()
-            losses[i] = loss.item()
+            losses[i] = loss
 
         mean_losses.append(losses.mean(dim=0).item())
     model.train()
@@ -210,13 +207,10 @@ class BigramLanguageModel(nn.Module):
         return x
 
 
-model = BigramLanguageModel()
+model = BigramLanguageModel().to(device)
 if device == "cuda" and torch.cuda.device_count() > 1:
     print("YIFEI YANNNNNN YAYYYY")
     model = torch.nn.DataParallel(model)
-    model.to('cuda:0')
-else:
-    m = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
 for steps in range(TRAINING_STEPS):
