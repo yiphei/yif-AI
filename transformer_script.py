@@ -106,17 +106,9 @@ class OptimizedMultiAttentionHead(nn.Module):
     def __init__(self, dim_in, n_heads, head_size):
         super().__init__()
         self.head_size = head_size
-        # self.q_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * dim_in ** -0.5)
-        # self.k_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * dim_in ** -0.5)
-        # self.v_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * dim_in ** -0.5)
-        q_weights = [nn.Linear(dim_in, head_size, bias=False).weight.T for _ in range(n_heads)]
-        self.q_weight = nn.Parameter(torch.stack(q_weights))
-
-        k_weights = [nn.Linear(dim_in, head_size, bias=False).weight.T for _ in range(n_heads)]
-        self.k_weight = nn.Parameter(torch.stack(k_weights))
-
-        v_weights = [nn.Linear(dim_in, head_size, bias=False).weight.T for _ in range(n_heads)]
-        self.v_weight = nn.Parameter(torch.stack(v_weights))
+        self.q_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size)  * 0.02)
+        self.k_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * 0.02)
+        self.v_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size)* 0.02)
 
         self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
         self.dropout = nn.Dropout(DROPOUT)
@@ -160,7 +152,7 @@ class TransformerBlock(nn.Module):
     def __init__(self, n_embed, n_heads):
         super().__init__()
         head_size = n_embed // n_heads
-        self.sa_multi_head = MultiAttentionHead(n_embed, n_heads, head_size)
+        self.sa_multi_head = OptimizedMultiAttentionHead(n_embed, n_heads, head_size)
         self.feed_forward = FeedForward(n_embed)
         self.ln1 = nn.LayerNorm(n_embed)
         self.ln2 = nn.LayerNorm(n_embed)
@@ -178,7 +170,7 @@ class BigramLanguageModel(nn.Module):
         self.transformer_blocks = nn.Sequential( *[TransformerBlock(N_EMBED, N_HEAD) for _ in range(TRANSFORM_BLOCKS)])
         self.ln = nn.LayerNorm(N_EMBED)
         self.output_layer = nn.Linear(N_EMBED, TOKEN_SIZE)     
-        # self.apply(self._init_weights)
+        self.apply(self._init_weights)
 
 
     def _init_weights(self, module):
