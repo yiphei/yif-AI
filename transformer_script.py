@@ -210,6 +210,7 @@ class BigramLanguageModel(nn.Module):
 
 model = BigramLanguageModel()
 if device == "cuda" and torch.cuda.device_count() > 1:
+    print("YIFEI YANNNNNN YAYYYY")
     model = torch.nn.DataParallel(model)
     model.to('cuda:0')
 else:
