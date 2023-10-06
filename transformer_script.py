@@ -230,5 +230,5 @@ if device == "cuda" and torch.cuda.device_count() > 1:
     loss = loss.mean()
 print(loss.item())
 
-generation = model.generate(torch.tensor([[0]], device=device), 400)
+generation = model.module.generate(torch.tensor([[0]], device=device), 400) #this might not work if run on CPU
 print(decoder(generation[0].tolist()))
