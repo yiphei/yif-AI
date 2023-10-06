@@ -99,6 +99,32 @@ class MultiAttentionHead(nn.Module):
         return out
     
 
+class OptimizedMultiAttentionHead(nn.Module):
+
+    def __init__(self, dim_in, n_heads, head_size):
+        super().__init__()
+        self.q_layer = nn.ModuleList([nn.Linear(dim_in, head_size, bias=False) for _ in range(n_heads)])
+        self.k_layer = nn.ModuleList([nn.Linear(dim_in, head_size, bias=False) for _ in range(n_heads)])
+        self.v_layer = nn.ModuleList([nn.Linear(dim_in, head_size, bias=False) for _ in range(n_heads)])
+        self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
+        self.dropout = nn.Dropout(DROPOUT)
+
+    def forward(self, x):
+        _, T, _ = x.shape # B, T, C
+        x_expanded = x.unsqueeze(1) # B, 1, T, C
+        q = self.q_layer(x_expanded) # B,H,T,C @ H,C,S ->B, H, T, S
+        k = self.k_layer(x_expanded) # B,H,T,C @ H,C,S ->B, H, T, S
+        v = self.v_layer(x_expanded) # B,H,T,C @ H,C,S ->B, H, T, S
+
+        wei = q @ k.transpose(-2, -1) * self.head_size ** -0.5 # B,H,T,S @ B,H,S,T ->B, H, T, T
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        wei = F.softmax(wei, dim=-1)
+        wei = self.dropout(wei)
+        out = wei @ v # B,H,T,T @ B,H,T,S -> B,H,T,S
+        B,H,T,S = out.shape
+        out = out.permute(0, 2, 1, 3).reshape(B, T, S*H) # B,H,T,S -> B,T,H,S -> B,T,H*S
+        return out
+
 class FeedForward(nn.Module):
 
     def __init__(self, dim_in):
