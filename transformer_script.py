@@ -25,9 +25,9 @@ torch.manual_seed(1337)
 # HYPERPARAMETERS
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 BATCH_SIZE = 32
-BLOCK_SIZE = 100
+BLOCK_SIZE = 50
 N_EMBED = 100
-TRAINING_STEPS = 5000
+TRAINING_STEPS = 1000
 EST_INTERVAL = 500
 EST_STEPS = 200
 TOKEN_SIZE = len(chars)
@@ -103,9 +103,11 @@ class OptimizedMultiAttentionHead(nn.Module):
 
     def __init__(self, dim_in, n_heads, head_size):
         super().__init__()
-        self.q_layer = nn.ModuleList([nn.Linear(dim_in, head_size, bias=False) for _ in range(n_heads)])
-        self.k_layer = nn.ModuleList([nn.Linear(dim_in, head_size, bias=False) for _ in range(n_heads)])
-        self.v_layer = nn.ModuleList([nn.Linear(dim_in, head_size, bias=False) for _ in range(n_heads)])
+        self.head_size = head_size
+        self.q_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size))
+        self.k_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size))
+        self.v_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size))
+
         self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
         self.dropout = nn.Dropout(DROPOUT)
         self.proj = nn.Linear(dim_in, dim_in)
@@ -114,9 +116,9 @@ class OptimizedMultiAttentionHead(nn.Module):
     def forward(self, x):
         _, T, _ = x.shape # B, T, C
         x_expanded = x.unsqueeze(1) # B, 1, T, C
-        q = self.q_layer(x_expanded) # B,H,T,C @ H,C,S ->B, H, T, S
-        k = self.k_layer(x_expanded) # B,H,T,C @ H,C,S ->B, H, T, S
-        v = self.v_layer(x_expanded) # B,H,T,C @ H,C,S ->B, H, T, S
+        q = x_expanded @ self.q_weight # B,H,T,C @ H,C,S ->B, H, T, S
+        k = x_expanded @ self.k_weight # B,H,T,C @ H,C,S ->B, H, T, S
+        v = x_expanded @ self.v_weight # B,H,T,C @ H,C,S ->B, H, T, S
 
         wei = q @ k.transpose(-2, -1) * self.head_size ** -0.5 # B,H,T,S @ B,H,S,T ->B, H, T, T
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
