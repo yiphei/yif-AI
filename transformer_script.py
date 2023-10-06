@@ -24,17 +24,17 @@ torch.manual_seed(1337)
 
 # HYPERPARAMETERS
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-BATCH_SIZE = 32
-BLOCK_SIZE = 50
-N_EMBED = 100
-TRAINING_STEPS = 500
+BATCH_SIZE = 64
+BLOCK_SIZE = 256
+N_EMBED = 384
+TRAINING_STEPS = 5000
 EST_INTERVAL = 500
-EST_STEPS = 100
+EST_STEPS = 200
 TOKEN_SIZE = len(chars)
-TRANSFORM_BLOCKS = 1
+TRANSFORM_BLOCKS = 6
 LR = 3e-4
 DROPOUT = 0.2
-N_HEAD = 1
+N_HEAD = 6
 
 def get_batch(split="train"):
     data = train_data if split == "train" else val_data
@@ -231,7 +231,7 @@ if device == "cuda" and torch.cuda.device_count() > 1:
 print(loss.item())
 
 if device == "cuda" and torch.cuda.device_count() > 1:
-    generation = model.module.generate(torch.tensor([[0]], device=device), 400)
+    generation = model.module.generate(torch.tensor([[0]], device=device), 4000)
 else:
-    generation = model.generate(torch.tensor([[0]], device=device), 400)
+    generation = model.generate(torch.tensor([[0]], device=device), 4000)
 print(decoder(generation[0].tolist()))
