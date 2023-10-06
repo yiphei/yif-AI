@@ -57,7 +57,7 @@ def estimate_loss(model):
                 loss = loss.mean()
             losses[i] = loss
 
-        mean_losses.append(losses.mean(dim=0).item())
+        mean_losses.append(losses.mean().item())
     model.train()
     return mean_losses
     
@@ -230,5 +230,8 @@ if device == "cuda" and torch.cuda.device_count() > 1:
     loss = loss.mean()
 print(loss.item())
 
-generation = model.module.generate(torch.tensor([[0]], device=device), 400) #this might not work if run on CPU
+if device == "cuda" and torch.cuda.device_count() > 1:
+    generation = model.module.generate(torch.tensor([[0]], device=device), 400)
+else:
+    generation = model.generate(torch.tensor([[0]], device=device), 400)
 print(decoder(generation[0].tolist()))
