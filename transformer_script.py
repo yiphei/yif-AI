@@ -214,7 +214,7 @@ if device == "cuda" and torch.cuda.device_count() > 1:
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
 for steps in range(TRAINING_STEPS):
-    if steps % EST_INTERVAL == 0:
+    if steps % EST_INTERVAL == 0 and steps != (TRAINING_STEPS - 1):
         train_loss, val_loss = estimate_loss(model)
         print(f"Train loss: {train_loss}, Val loss: {val_loss}")
 
