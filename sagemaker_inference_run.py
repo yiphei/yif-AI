@@ -1,6 +1,8 @@
 import sagemaker
 from sagemaker.pytorch import PyTorchModel
 from sagemaker.predictor import Predictor
+from sagemaker.async_inference import AsyncInferenceConfig
+
 import boto3
 
 # Initialize the SageMaker session and role
@@ -29,8 +31,11 @@ pytorch_model = PyTorchModel(model_data=model_artifact,
                              entry_point='sagemaker_inference.py',  # replace with your inference script
                              sagemaker_session=sagemaker_session)
 
+
+async_config = AsyncInferenceConfig(output_path="s3://sagemaker-studio-mk6unewb9tb/inference_output/")
+
 # Deploy the model for asynchronous inference
 predictor = pytorch_model.deploy(initial_instance_count=1,
+                                 async_inference_config=async_config,
                                  instance_type='ml.p3.8xlarge',
-                                 endpoint_name='async-inference-endpoint',
-                                 asynchronous=True)
+                                 endpoint_name='async-inference-endpoint')
