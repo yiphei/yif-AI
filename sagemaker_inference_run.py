@@ -4,7 +4,7 @@ from sagemaker.predictor import Predictor
 
 # Initialize the SageMaker session and role
 sagemaker_session = sagemaker.Session()
-role = 'arn:aws:iam::252201027045:role/service-role/SageMaker-training-training-ML-2'  # replace with your SageMaker role ARN
+role = 's3://sagemaker-studio-mk6unewb9tb/pytorch-training-2023-10-29-17-41-10-561/output/model.tar.gz'  # replace with your SageMaker role ARN
 
 # Create a PyTorch model from the trained artifact
 model_artifact = 's3://sagemaker-studio-mk6unewb9tb/pytorch-training-2023-10-29-04-49-30-583/output/model.tar.gz'  # replace with the path to your trained model artifact
