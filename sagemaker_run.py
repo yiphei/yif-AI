@@ -5,14 +5,14 @@ import boto3
 
 role = "arn:aws:iam::252201027045:role/service-role/SageMaker-training-training-ML-2"
 
-my_region = 'us-west-2'  # change to your desired region
+my_region = 'us-east-1'  # change to your desired region
 
 # Creating the sagemaker client using boto3
 sagemaker_client = boto3.client('sagemaker', region_name=my_region)
 sagemaker_runtime_client = boto3.client('sagemaker-runtime', region_name=my_region)
 
 # Correcting the default bucket name, it shouldn't be a full S3 path
-default_bucket = 'sagemaker-studio-mk6unegrfwb9tb'  # Ensure this is your correct S3 bucket name
+default_bucket = 'sagemaker-studio-mk6unewb9tb'  # Ensure this is your correct S3 bucket name
 
 sagemaker_session = sagemaker.Session(default_bucket=default_bucket,
                                       sagemaker_client=sagemaker_client,
