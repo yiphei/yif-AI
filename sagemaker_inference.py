@@ -152,11 +152,11 @@ def input_fn(request_body, request_content_type):
     raise ValueError("Unsupported content type: {}".format(request_content_type))
 
 
-def predict_fn(input_data, model_and_itoc):
+def predict_fn(input_args, model_and_itoc):
     """
     Make prediction on the input data using the loaded model.
     """
-    data, output_length = input_data
+    data, output_length = input_args
 
     model = model_and_itoc["model"]
     itoc = model_and_itoc["itoc"]
@@ -167,10 +167,10 @@ def predict_fn(input_data, model_and_itoc):
     
     with torch.no_grad():
         # Convert input data to tensor
-        data = torch.tensor(input_data, device=device, dtype=torch.float32)
+        data_list = json.loads(data)
+        data = torch.tensor([data_list], device=device, dtype=torch.float32)
         
         # Get model predictions
         output = model.generate(data, output_length)
         
-    
     return decoder(output[0].tolist())
