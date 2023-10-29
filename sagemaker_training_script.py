@@ -126,12 +126,18 @@ def parse_arguments():
     parser.add_argument('--batch_size', type=int, default=64, help='Training batch size.')
     parser.add_argument('--block_size', type=int, default=256, help='Block size for sequences.')
     parser.add_argument('--n_embed', type=int, default=384, help='Embedding size.')
-    # ... (other parameters like learning rate, epochs, etc.)
+    parser.add_argument('--training_steps', type=int, default=5000, help='Training steps.')
+    parser.add_argument('--est_interval', type=int, default=500, help='Estimation interval.')
+    parser.add_argument('--est_steps', type=int, default=200, help='Estimation steps.')
+    parser.add_argument('--transform_blocks', type=int, default=6, help='Transform blocks.')
+    parser.add_argument('--lr', type=int, default=3e-4, help='Learning rate.')
+    parser.add_argument('--dropout', type=int, default=0.2, help='Dropout.')
+    parser.add_argument('--n_head', type=int, default=6, help='Number of heads.')
     
     args = parser.parse_args()
     return args
 
-def main():
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stdout)
     logger = logging.getLogger()
 
@@ -145,7 +151,9 @@ def main():
 
     chars = sorted(list(set(text)))
     ctoi = {c: i for i, c in enumerate(chars)}
+    itoc = {i: c for i, c in enumerate(chars)}
 
+    decoder = lambda x: "".join([itoc[i] for i in x])
     encoder = lambda x: [ctoi[c] for c in x]
 
     data = torch.tensor(encoder(text)).long()
@@ -162,14 +170,14 @@ def main():
     BATCH_SIZE = args.batch_size
     BLOCK_SIZE = args.block_size
     N_EMBED = args.n_embed
-    TRAINING_STEPS = 5000
-    EST_INTERVAL = 500
-    EST_STEPS = 200
+    TRAINING_STEPS = args.training_steps
+    EST_INTERVAL = args.est_interval
+    EST_STEPS = args.est_steps
     TOKEN_SIZE = len(chars)
-    TRANSFORM_BLOCKS = 6
-    LR = 3e-4
-    DROPOUT = 0.2
-    N_HEAD = 6
+    TRANSFORM_BLOCKS = args.transform_blocks
+    LR = args.lr
+    DROPOUT = args.dropout
+    N_HEAD = args.n_head
 
     def get_batch(split="train"):
         data = train_data if split == "train" else val_data
@@ -218,9 +226,21 @@ def main():
     if device == "cuda" and torch.cuda.device_count() > 1:
         loss = loss.mean()
     logger.info(loss.item())
-    return model
-
-if __name__ == "__main__":
-    model = main()
     model_dir = os.environ['SM_MODEL_DIR']
-    torch.save(model.state_dict(), os.path.join(model_dir, 'model.pth'))
+    torch.save({"state_dict": model.state_dict(),
+                "hyperparameters":
+                {
+                    "BATCH_SIZE": args.batch_size,
+                    "BLOCK_SIZE": args.block_size,
+                    "N_EMBED": args.n_embed,
+                    "TRAINING_STEPS": args.training_steps,
+                    "EST_INTERVAL": args.est_interval,
+                    "EST_STEPS": args.est_steps,
+                    "TOKEN_SIZE": len(chars),
+                    "TRANSFORM_BLOCKS": args.transform_blocks,
+                    "LR": args.lr,
+                    "DROPOUT": args.dropout,
+                    "N_HEAD": args.n_head,
+                },
+                "decoder": decoder,
+                }, os.path.join(model_dir, 'model.pth'))
