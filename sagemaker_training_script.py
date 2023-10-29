@@ -10,6 +10,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Training script for the custom model.")
         
     parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAIN'))
+    parser.add_argument('--train_file', type=str)
 
     # Add any other arguments you'd like to customize based on your script's parameters
     parser.add_argument('--batch_size', type=int, default=64, help='Training batch size.')
@@ -26,7 +27,7 @@ def main():
 
     args = parse_arguments()
 
-    train_file_path = os.path.join(args.train, "full_harry_potter.txt")
+    train_file_path = os.path.join(args.train, args.train_file)
 
     # Data preparation
     with open(train_file_path, "r", encoding="utf-8") as f:
@@ -34,9 +35,7 @@ def main():
 
     chars = sorted(list(set(text)))
     ctoi = {c: i for i, c in enumerate(chars)}
-    itoc = {i: c for i, c in enumerate(chars)}
 
-    decoder = lambda x: "".join([itoc[i] for i in x])
     encoder = lambda x: [ctoi[c] for c in x]
 
     data = torch.tensor(encoder(text)).long()
