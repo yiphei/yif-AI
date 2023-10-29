@@ -4,6 +4,7 @@ from torch.nn import functional as F
 import argparse
 import logging
 import os
+import sys
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Training script for the custom model.")
@@ -20,14 +21,15 @@ def parse_arguments():
     return args
 
 def main():
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stdout)
     logger = logging.getLogger()
 
     args = parse_arguments()
 
+    train_file_path = os.path.join(args.train, "full_harry_potter.txt")
 
     # Data preparation
-    with open(args.train, "r", encoding="utf-8") as f:
+    with open(train_file_path, "r", encoding="utf-8") as f:
         text = f.read()
 
     chars = sorted(list(set(text)))
