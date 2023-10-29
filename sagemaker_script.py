@@ -8,7 +8,7 @@ import os
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Training script for the custom model.")
         
-    parser.add_argument('--training', type=str, required=True, help='Path to the training data.')
+    parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAIN'))
 
     # Add any other arguments you'd like to customize based on your script's parameters
     parser.add_argument('--batch_size', type=int, default=64, help='Training batch size.')
@@ -27,7 +27,7 @@ def main():
 
 
     # Data preparation
-    with open(args.input_file, "r", encoding="utf-8") as f:
+    with open(args.train, "r", encoding="utf-8") as f:
         text = f.read()
 
     chars = sorted(list(set(text)))
