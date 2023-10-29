@@ -153,7 +153,6 @@ if __name__ == "__main__":
     ctoi = {c: i for i, c in enumerate(chars)}
     itoc = {i: c for i, c in enumerate(chars)}
 
-    decoder = lambda x: "".join([itoc[i] for i in x])
     encoder = lambda x: [ctoi[c] for c in x]
 
     data = torch.tensor(encoder(text)).long()
@@ -243,5 +242,5 @@ if __name__ == "__main__":
                     "DROPOUT": args.dropout,
                     "N_HEAD": args.n_head,
                 },
-                "decoder": decoder,
+                "itoc": itoc,
                 }, os.path.join(model_dir, 'model.pth'))
