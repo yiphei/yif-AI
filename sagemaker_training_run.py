@@ -31,6 +31,13 @@ pytorch_estimator = PyTorch(
                                 'batch_size': 64,
                                 'block_size': 256,
                                 'n_embed': 384,
+                                'training_steps': 5000,
+                                'est_interval': 500,
+                                'est_steps': 200,
+                                'transform_blocks': 6,
+                                'lr': 3e-4,
+                                'dropout': 0.2,
+                                'n_head': 6
                                 # add other hyperparameters you want to pass
                             })
 
