@@ -18,7 +18,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
         self.dropout = nn.Dropout(dropout)
         self.proj = nn.Linear(dim_in, dim_in)
-        self.dropout_2 = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         _, T, _ = x.shape # B, T, C
@@ -35,7 +35,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         B,H,T,S = out.shape
         out = out.permute(0, 2, 1, 3).reshape(B, T, S*H) # B,H,T,S -> B,T,H,S -> B,T,H*S
         out = self.proj(out)
-        out = self.dropout_2(out)
+        out = self.dropout(out)
         return out
 
 class FeedForward(nn.Module):
@@ -210,6 +210,7 @@ if __name__ == "__main__":
         model = torch.nn.DataParallel(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
+    model.train()
     for steps in range(TRAINING_STEPS):
         if steps % EST_INTERVAL == 0 and steps != (TRAINING_STEPS - 1):
             train_loss, val_loss = estimate_loss(model)
