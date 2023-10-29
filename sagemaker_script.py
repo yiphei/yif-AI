@@ -253,12 +253,6 @@ def main():
     if device == "cuda" and torch.cuda.device_count() > 1:
         loss = loss.mean()
     logger.info(loss.item())
-
-    if device == "cuda" and torch.cuda.device_count() > 1:
-        generation = model.module.generate(torch.tensor([[0]], device=device), 4000)
-    else:
-        generation = model.generate(torch.tensor([[0]], device=device), 4000)
-    logger.info(decoder(generation[0].tolist()))
     return model
 
 if __name__ == "__main__":
