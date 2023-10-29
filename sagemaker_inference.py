@@ -2,6 +2,7 @@ import torch
 import os
 import torch.nn as nn
 from torch.nn import functional as F
+import json
 
 class OptimizedMultiAttentionHead(nn.Module):
 
@@ -120,9 +121,14 @@ def model_fn(model_dir):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Assuming the model is saved as `model.pth` in the model directory
-    model_path = os.path.join(model_dir, 'model.pth')
+    model_file = torch.load(os.path.join(model_dir, 'model.pth'), map_location=device)
     
-    model = torch.load(model_path, map_location=device)
+    state_dict = model_file["state_dict"]
+    hyperparameters = model_file["hyperparameters"]
+    itoc = model_file["itoc"]
+
+    model = Transformer(**hyperparameters, device = device)
+    model.load_state_dict(state_dict)
     
     # Check if there are multiple GPUs available
     if torch.cuda.device_count() > 1:
@@ -130,34 +136,33 @@ def model_fn(model_dir):
         model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
 
     model.to(device)
-    
-    # Load training data (assuming it's saved as 'training_data.pth' in the model directory)
-    training_data_path = os.path.join(model_dir, 'training_data.pth')
-    training_data = torch.load(training_data_path)
 
-    return {"model": model, "training_data": training_data}
+    return {"model": model, "itoc": itoc}
 
 
-def predict_fn(input_data, model_and_data):
+def input_fn(request_body, request_content_type):
+    """
+    Parse and preprocess the input data.
+    """
+    if request_content_type == 'application/json':
+        payload = json.loads(request_body)
+        data = payload.get('data')
+        output_length = payload.get('output_length', 4000)  # you can set a default value
+        return data, output_length
+    raise ValueError("Unsupported content type: {}".format(request_content_type))
+
+
+def predict_fn(input_data, model_and_itoc):
     """
     Make prediction on the input data using the loaded model.
     """
-    model = model_and_data["model"]
-    training_data = model_and_data["training_data"]
+    data, output_length = input_data
 
-
-    # Data preparation
-    with open(training_data, "r", encoding="utf-8") as f:
-        text = f.read()
-
-    chars = sorted(list(set(text)))
-    itoc = {i: c for i, c in enumerate(chars)}
-
+    model = model_and_itoc["model"]
+    itoc = model_and_itoc["itoc"]
     decoder = lambda x: "".join([itoc[i] for i in x])
 
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
     model.eval()
     
     with torch.no_grad():
@@ -165,9 +170,7 @@ def predict_fn(input_data, model_and_data):
         data = torch.tensor(input_data, device=device, dtype=torch.float32)
         
         # Get model predictions
-        output = model(data)
+        output = model.generate(data, output_length)
         
-        # Convert tensor to list for return
-        result = output.cpu().numpy().tolist()
     
-    return result
+    return decoder(output[0].tolist())

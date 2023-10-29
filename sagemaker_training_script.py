@@ -68,7 +68,7 @@ class TransformerBlock(nn.Module):
         return x
 
 class Transformer(nn.Module):
-    def __init__(self, token_size, n_embed, block_size, n_head, transform_blocks, device, dropout):
+    def __init__(self, token_size, n_embed, block_size, n_head, transform_blocks, dropout, device):
         super().__init__()
         self.block_size = block_size
         self.device = device
@@ -203,7 +203,7 @@ if __name__ == "__main__":
         model.train()
         return mean_losses
         
-    model = Transformer(TOKEN_SIZE, N_EMBED, BLOCK_SIZE, N_HEAD, TRANSFORM_BLOCKS, device, DROPOUT).to(device)
+    model = Transformer(TOKEN_SIZE, N_EMBED, BLOCK_SIZE, N_HEAD, TRANSFORM_BLOCKS, DROPOUT, device).to(device)
     if device == "cuda" and torch.cuda.device_count() > 1:
         logger.info("YIFEI YANNNNNN YAYYYY")
         model = torch.nn.DataParallel(model)
@@ -230,17 +230,12 @@ if __name__ == "__main__":
     torch.save({"state_dict": model.state_dict(),
                 "hyperparameters":
                 {
-                    "BATCH_SIZE": args.batch_size,
-                    "BLOCK_SIZE": args.block_size,
-                    "N_EMBED": args.n_embed,
-                    "TRAINING_STEPS": args.training_steps,
-                    "EST_INTERVAL": args.est_interval,
-                    "EST_STEPS": args.est_steps,
-                    "TOKEN_SIZE": len(chars),
-                    "TRANSFORM_BLOCKS": args.transform_blocks,
-                    "LR": args.lr,
-                    "DROPOUT": args.dropout,
-                    "N_HEAD": args.n_head,
+                    "block_size": args.block_size,
+                    "n_embed": args.n_embed,
+                    "token_size": len(chars),
+                    "transform_blocks": args.transform_blocks,
+                    "dropout": args.dropout,
+                    "n_head": args.n_head,
                 },
                 "itoc": itoc,
                 }, os.path.join(model_dir, 'model.pth'))
