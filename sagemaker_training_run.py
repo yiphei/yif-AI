@@ -20,7 +20,7 @@ sagemaker_session = sagemaker.Session(default_bucket=default_bucket,
 
 pytorch_estimator = PyTorch(
                             sagemaker_session=sagemaker_session,
-                            entry_point='sagemaker_script.py', # the name of your script
+                            entry_point='sagemaker_training_script.py', # the name of your script
                             role=role,
                             framework_version='1.8.1', # select your PyTorch version
                             instance_count=1,
