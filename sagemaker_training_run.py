@@ -25,7 +25,7 @@ pytorch_estimator = PyTorch(
                             framework_version='1.9.0', # select your PyTorch version
                             instance_count=1,
                             instance_type='ml.p3.8xlarge', # choose a suitable instance type
-                            py_version='py3',
+                            py_version='py38',
                             hyperparameters={
                                 'train_file': 'full_harry_potter.txt',
                                 'batch_size': 64,
