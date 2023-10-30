@@ -130,8 +130,8 @@ def parse_arguments():
     parser.add_argument('--est_interval', type=int, default=500, help='Estimation interval.')
     parser.add_argument('--est_steps', type=int, default=200, help='Estimation steps.')
     parser.add_argument('--transform_blocks', type=int, default=6, help='Transform blocks.')
-    parser.add_argument('--lr', type=int, default=3e-4, help='Learning rate.')
-    parser.add_argument('--dropout', type=int, default=0.2, help='Dropout.')
+    parser.add_argument('--lr', type=float, default=3e-4, help='Learning rate.')
+    parser.add_argument('--dropout', type=float, default=0.2, help='Dropout.')
     parser.add_argument('--n_head', type=int, default=6, help='Number of heads.')
     
     args = parser.parse_args()
