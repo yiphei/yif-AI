@@ -3,6 +3,7 @@ import os
 import torch.nn as nn
 from torch.nn import functional as F
 import json
+import logging
 
 class OptimizedMultiAttentionHead(nn.Module):
 
@@ -112,12 +113,16 @@ class Transformer(nn.Module):
             x = torch.cat((x, next_t), dim=1)
         return x
 
-
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, 
+                    format='%(asctime)s [%(levelname)s]: %(message)s')
 
 def model_fn(model_dir):
     """
     Load the PyTorch model from the specified directory.
     """
+    logger.info("YIFEIIIIII: model_fn - START")
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Assuming the model is saved as `model.pth` in the model directory
@@ -137,6 +142,7 @@ def model_fn(model_dir):
 
     model.to(device)
 
+    logger.info("YIFEIIIIII: model_fn - END")
     return {"model": model, "itoc": itoc}
 
 
@@ -144,10 +150,13 @@ def input_fn(request_body, request_content_type):
     """
     Parse and preprocess the input data.
     """
+    logger.info("YIFEIIIIII: input_fn - START")
+
     if request_content_type == 'application/json':
         payload = json.loads(request_body)
         data = payload.get('data')
         output_length = payload.get('output_length', 4000)  # you can set a default value
+        logger.info("YIFEIIIIII: input_fn - END")
         return data, output_length
     raise ValueError("Unsupported content type: {}".format(request_content_type))
 
@@ -156,6 +165,7 @@ def predict_fn(input_args, model_and_itoc):
     """
     Make prediction on the input data using the loaded model.
     """
+    logger.info("YIFEIIIIII: predict_fn - START")
     data, output_length = input_args
 
     model = model_and_itoc["model"]
@@ -172,5 +182,6 @@ def predict_fn(input_args, model_and_itoc):
         
         # Get model predictions
         output = model.generate(data, output_length)
-        
+    
+    logger.info("YIFEIIIIII: predict_fn - END")
     return decoder(output[0].tolist())
