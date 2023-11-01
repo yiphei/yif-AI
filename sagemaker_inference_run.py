@@ -23,10 +23,10 @@ sagemaker_session = sagemaker.Session(default_bucket=default_bucket,
 
 
 # Create a PyTorch model from the trained artifact
-model_artifact = 's3://sagemaker-studio-mk6unewb9tb/pytorch-training-2023-10-29-04-49-30-583/output/model.tar.gz'  # replace with the path to your trained model artifact
+model_artifact = 's3://sagemaker-studio-mk6unewb9tb/pytorch-training-2023-10-30-23-11-36-961/output/model.tar.gz'  # replace with the path to your trained model artifact
 pytorch_model = PyTorchModel(model_data=model_artifact,
                              role=role,
-                             framework_version='1.9.0',  # replace with your PyTorch version
+                             framework_version='1.9',  # replace with your PyTorch version
                              py_version='py38',
                              entry_point='sagemaker_inference.py',  # replace with your inference script
                              sagemaker_session=sagemaker_session)
