@@ -179,8 +179,7 @@ def predict_fn(input_args, model_and_itoc):
     with torch.no_grad():
         # Convert input data to tensor
         data_list = json.loads(data)
-        data = torch.tensor([data_list], device=device, dtype=torch.float32)
-        
+        data = torch.tensor([data_list], device=device)
         # Get model predictions
         output = model.generate(data, output_length)
     
