@@ -1,9 +1,14 @@
+import logging
+logger = logging.getLogger()
+logging.basicConfig(level=logging.INFO, 
+                    format='YY %(asctime)s [%(levelname)s]: %(message)s')
+logger.setLevel(logging.INFO) 
+
 import torch
 import os
 import torch.nn as nn
 from torch.nn import functional as F
 import json
-import logging
 
 class OptimizedMultiAttentionHead(nn.Module):
 
@@ -112,10 +117,6 @@ class Transformer(nn.Module):
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
         return x
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, 
-                    format='%(asctime)s [%(levelname)s]: %(message)s')
 
 def model_fn(model_dir):
     """
