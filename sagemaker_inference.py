@@ -117,6 +117,10 @@ class Transformer(nn.Module):
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
         return x
+    
+
+def remove_module_prefix(state_dict):
+    return {k.replace("module.", ""): v for k, v in state_dict.items()}
 
 def model_fn(model_dir):
     """
@@ -134,13 +138,16 @@ def model_fn(model_dir):
     itoc = model_file["itoc"]
 
     model = Transformer(**hyperparameters, device = device)
-    model.load_state_dict(state_dict)
-    
+
     # Check if there are multiple GPUs available
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs for inference.")
         model = torch.nn.DataParallel(model)  # Wrap the model with DataParallel
 
+    if not (torch.cuda.is_available() and torch.cuda.device_count() > 1):
+        state_dict = remove_module_prefix(state_dict)
+    
+    model.load_state_dict(state_dict)
     model.to(device)
 
     logger.info("YIFEIIIIII: model_fn - END")
