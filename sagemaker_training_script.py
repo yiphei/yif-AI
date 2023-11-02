@@ -133,6 +133,7 @@ def parse_arguments():
     parser.add_argument('--lr', type=float, default=3e-4, help='Learning rate.')
     parser.add_argument('--dropout', type=float, default=0.2, help='Dropout.')
     parser.add_argument('--n_head', type=int, default=6, help='Number of heads.')
+    parser.add_argument('--is_local', type=bool, default=False, help='Number of heads.')
     
     args = parser.parse_args()
     return args
@@ -238,4 +239,4 @@ if __name__ == "__main__":
                     "n_head": args.n_head,
                 },
                 "itoc": itoc,
-                }, os.path.join(model_dir, 'model.pth'))
+                }, 'model.pth' if args.is_local else os.path.join(model_dir, 'model.pth'))
