@@ -25,20 +25,20 @@ pytorch_estimator = PyTorch(
                             role=role,
                             framework_version='1.9', # select your PyTorch version
                             instance_count=1,
-                            instance_type='ml.p3.8xlarge', # choose a suitable instance type
+                            instance_type='ml.p3dn.24xlarge', # choose a suitable instance type
                             py_version='py38',
                             hyperparameters={
                                 'train_file': 'full_harry_potter.txt',
                                 'batch_size': 64,
-                                'block_size': 256,
-                                'n_embed': 384,
-                                'training_steps': 5000,
+                                'block_size': 1000,
+                                'n_embed': 500,
+                                'training_steps': 6000,
                                 'est_interval': 500,
                                 'est_steps': 200,
-                                'transform_blocks': 6,
+                                'transform_blocks': 15,
                                 'lr': 3e-4,
                                 'dropout': 0.2,
-                                'n_head': 6
+                                'n_head': 10
                                 # add other hyperparameters you want to pass
                             })
 
