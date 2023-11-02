@@ -1,7 +1,7 @@
 import sagemaker
 from sagemaker.pytorch import PyTorchModel
 from sagemaker.predictor import Predictor
-from sagemaker.async_inference import AsyncInferenceConfig
+from sagemaker import image_uris
 
 import boto3
 
@@ -31,11 +31,54 @@ pytorch_model = PyTorchModel(model_data=model_artifact,
                              entry_point='sagemaker_inference.py',  # replace with your inference script
                              sagemaker_session=sagemaker_session)
 
+image_uri = image_uris.retrieve(
+    framework='pytorch',
+    region=my_region,
+    version='1.9',
+    py_version='py38',
+    instance_type='ml.p3.8xlarge',  # specify the instance type used for training
+    image_scope='inference'  # 'inference' or 'training' based on the context
+)
 
-async_config = AsyncInferenceConfig(output_path="s3://sagemaker-studio-mk6unewb9tb/inference_output/")
+model_name = 'yifei-model'
+create_model_response = sagemaker_client.create_model(
+    ModelName=model_name,
+    ExecutionRoleArn=role,
+    PrimaryContainer={
+        'Image': image_uri,
+        'ModelDataUrl': model_artifact,
+        'Environment': pytorch_model.env  # or other environment variables you want to set
+    }
+)
+
+endpoint_config_name = 'inference-endpoint-config'
+
+sagemaker_client.create_endpoint_config(
+    EndpointConfigName=endpoint_config_name,
+    ProductionVariants=[
+        {
+            'VariantName': 'AllTraffic',
+            'ModelName': model_name,  # This is obtained from the PyTorchModel object after initialization
+            'InitialInstanceCount': 1,
+            'InstanceType': 'ml.p3.8xlarge',
+            'ModelDataDownloadTimeoutInSeconds': 3600
+        }
+    ]
+)
+
+# async_config = AsyncInferenceConfig(output_path="s3://sagemaker-studio-mk6unewb9tb/inference_output/")
 
 # Deploy the model for asynchronous inference
-predictor = pytorch_model.deploy(initial_instance_count=1,
-                                 async_inference_config=async_config,
-                                 instance_type='ml.p3.8xlarge',
-                                 endpoint_name='async-inference-endpoint')
+# predictor = pytorch_model.deploy(endpoint_config_name = endpoint_config_name,
+#                                  endpoint_name='inference-endpoint',
+#                                 #   async_inference_config=async_config,
+#                                  )
+
+
+endpoint_name = 'inference-endpoint'
+
+# Create the SageMaker endpoint
+create_endpoint_response = sagemaker_client.create_endpoint(
+    EndpointName=endpoint_name,
+    EndpointConfigName=endpoint_config_name
+)
