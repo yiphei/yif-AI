@@ -82,3 +82,5 @@ create_endpoint_response = sagemaker_client.create_endpoint(
     EndpointName=endpoint_name,
     EndpointConfigName=endpoint_config_name
 )
+
+# pytorch_model.deploy(initial_instance_count=1, instance_type='ml.p3.8xlarge')
