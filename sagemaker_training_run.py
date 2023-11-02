@@ -1,7 +1,8 @@
 import sagemaker
 from sagemaker.pytorch import PyTorch
-from sagemaker import get_execution_role
+from sagemaker.s3 import S3Downloader
 import boto3
+import os
 
 role = "arn:aws:iam::252201027045:role/service-role/SageMaker-training-training-ML-2"
 
@@ -43,3 +44,15 @@ pytorch_estimator = PyTorch(
 
 # Now, we'll start a training job.
 pytorch_estimator.fit({'train': 's3://sagemaker-studio-mk6unewb9tb/training_data/full_harry_potter.txt'})
+
+job_name = pytorch_estimator.latest_training_job.name  # This gets the name of the last training job
+
+# Build the path where the training artifacts are stored
+s3_model_path = f"s3://{default_bucket}/{job_name}/output/model.tar.gz"
+
+# Set the local path where you want to download the model
+local_path = f"./model_artifacts/{job_name}/"
+os.makedirs(local_path, exist_ok=True)  # Create the local directory if it doesn't exist
+
+# Download the model artifact file
+S3Downloader.download(s3_model_path, local_path)
