@@ -141,6 +141,7 @@ def parse_arguments():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stdout)
     logger = logging.getLogger()
+    logger.info("Starting training script.")
 
     args = parse_arguments()
 
