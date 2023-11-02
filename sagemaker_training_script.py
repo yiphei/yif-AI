@@ -228,7 +228,6 @@ if __name__ == "__main__":
     if device == "cuda" and torch.cuda.device_count() > 1:
         loss = loss.mean()
     logger.info(loss.item())
-    model_dir = os.environ['SM_MODEL_DIR']
     torch.save({"state_dict": model.state_dict(),
                 "hyperparameters":
                 {
@@ -240,4 +239,4 @@ if __name__ == "__main__":
                     "n_head": args.n_head,
                 },
                 "itoc": itoc,
-                }, 'model.pth' if args.is_local else os.path.join(model_dir, 'model.pth'))
+                }, 'model.pth' if args.is_local else os.path.join(os.environ['SM_MODEL_DIR'], 'model.pth'))
