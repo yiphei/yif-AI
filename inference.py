@@ -192,3 +192,9 @@ def predict_fn(input_args, model_and_itoc):
     
     logger.info("YIFEIIIIII: predict_fn - END")
     return decoder(output[0].tolist())
+
+def output_fn(prediction, accept):
+    logger.info("output_fn - START")
+    content_type = 'text/plain'  # This specifies the MIME type of the output
+    logger.info("output_fn - END")
+    return prediction, content_type
