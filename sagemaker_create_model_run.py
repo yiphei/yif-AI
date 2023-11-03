@@ -28,8 +28,8 @@ pytorch_model = PyTorchModel(model_data=model_artifact,
                              role=role,
                              framework_version='1.9',  # replace with your PyTorch version
                              py_version='py38',
-                             entry_point='sagemaker_inference.py',  # specify your inference script
+                             entry_point='inference.py',  # specify your inference script
                              sagemaker_session=sagemaker_session)
 
 # Now, let's register this model with SageMaker
-sagemaker_session.create_model(name="big-harry-potter-model", role = role, container_defs=pytorch_model.prepare_container_def('ml.p4d.24xlarge'))
+sagemaker_session.create_model(name="big-harry-potter-model-cpu-inference", role = role, container_defs=pytorch_model.prepare_container_def('ml.c5.9xlarge'))
