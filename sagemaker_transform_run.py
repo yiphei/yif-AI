@@ -22,7 +22,7 @@ sagemaker_session = sagemaker.Session(default_bucket=default_bucket,
                                       sagemaker_runtime_client=sagemaker_runtime_client)
 
 
-model_name = 'yifei-model'
+model_name = 'big-harry-potter-model-cpu-inference'
 transformer = sagemaker.transformer.Transformer(
     model_name=model_name,
     instance_count=1, 
