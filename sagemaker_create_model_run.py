@@ -32,4 +32,4 @@ pytorch_model = PyTorchModel(model_data=model_artifact,
                              sagemaker_session=sagemaker_session)
 
 # Now, let's register this model with SageMaker
-sagemaker_session.create_model(name="big-harry-potter-model-cpu-inference", role = role, container_defs=pytorch_model.prepare_container_def('ml.c5.9xlarge'))
+sagemaker_session.create_model(name="new-big-harry-potter-model-cpu-inference", role = role, container_defs=pytorch_model.prepare_container_def('ml.c5.9xlarge'))
