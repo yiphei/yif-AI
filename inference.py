@@ -176,18 +176,24 @@ def predict_fn(input_args, model_and_itoc):
     logger.info("YIFEIIIIII: predict_fn - START")
     data, output_length = input_args
 
-    model = model_and_itoc["model"]
+    model_wrapper = model_and_itoc["model"]
     itoc = model_and_itoc["itoc"]
     decoder = lambda x: "".join([itoc[i] for i in x])
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.eval()
+    model_wrapper.eval()
     
     with torch.no_grad():
         # Convert input data to tensor
         data_list = json.loads(data)
         data = torch.tensor([data_list], device=device)
         # Get model predictions
+
+        if isinstance(model_wrapper, torch.nn.DataParallel):
+            model = model_wrapper.module
+        else:
+            model = model_wrapper
+        
         output = model.generate(data, output_length)
     
     logger.info("YIFEIIIIII: predict_fn - END")
