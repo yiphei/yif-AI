@@ -1,5 +1,5 @@
 import logging
-logger = logging.getLogger()
+logger = logging.getLogger('__name__')
 logging.basicConfig(level=logging.INFO, 
                     format='YY %(asctime)s [%(levelname)s]: %(message)s')
 logger.setLevel(logging.INFO) 
