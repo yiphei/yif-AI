@@ -23,19 +23,19 @@ sagemaker_session = sagemaker.Session(default_bucket=default_bucket,
                                       sagemaker_runtime_client=sagemaker_runtime_client)
 
 
-model_name = 'new-big-harry-potter-model-cpu-inference'
+model_name = 'new-new-new-big-harry-potter-model-cpu-inference'
 transformer = sagemaker.transformer.Transformer(
     model_name=model_name,
     instance_count=1, 
-    instance_type='ml.c5.9xlarge', 
+    instance_type='ml.c5.18xlarge', 
     strategy='SingleRecord',
     assemble_with='Line',
     output_path=f's3://sagemaker-studio-mk6unewb9tb/inference_output/transform/{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}',
     sagemaker_session=sagemaker_session,
 )
 
-input_data = "s3://sagemaker-studio-mk6unewb9tb/inference_input/input_4_length.json"
-transformer.transform(data=input_data, content_type='application/json', split_type='Line')
+input_data = "s3://sagemaker-studio-mk6unewb9tb/inference_input/input_2800_length.json"
+transformer.transform(data=input_data, content_type='application/json', split_type='Line', model_client_config = {"InvocationsTimeoutInSeconds": 3600})
 
 # Wait for the transform job to finish
 transformer.wait()
