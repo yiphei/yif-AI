@@ -46,7 +46,7 @@ class TsetlinLayer(TsetlinBase):
             addable_indices = [ i for i, (w, v) in enumerate(zip(update_W, updated_X)) if w == 0 and v == 0 and update_W[(i + self.in_dim) % (self.in_dim * 2)] == 0 ] if can_add_value else []
 
             add = random.choice([True, False]) and len(addable_indices) > 0
-            remove = random.choice([True, False]) and can_remove and (update_W.sum() > 1).item()
+            remove = random.choice([True, False]) and can_remove and (update_W > 1).sum().item() > 1
             if remove:
                 update_W[update_index] = 0
             elif add:
