@@ -2,7 +2,7 @@ import torch
 import random
 
 class TsetlinBase:
-    def conjunctin_mul(self, X, W):
+    def conjunction_mul(self, X, W):
         matrix_X = X.repeat(W.shape[0], 1)
         mask = W > 0 # TODO: Right now this is not a problem because whenever I make update W or X, the negation is always zero. But if I change that, I will prob need to compare and choose the clause with the highest weight
         masked_X = torch.where(mask, matrix_X, torch.tensor(1)) # theoretically, you should not replace it with 1 (it should just be omitted), but mathematically it works out fine because an extra 1 does not change the output of the multiplication
@@ -25,7 +25,7 @@ class TsetlinLayer(TsetlinBase):
     def forward(self, X):
         X_neg = 1 - X
         self.full_X = torch.cat((X, X_neg), dim=0)
-        out = self.conjunctin_mul(self.full_X.unsqueeze(0), self.W)
+        out = self.conjunction_mul(self.full_X.unsqueeze(0), self.W)
         self.out = out.squeeze(0)
         return self.out
     
@@ -78,7 +78,7 @@ class TsetlinLayer(TsetlinBase):
                 for update_idx in update_idxs:
                     self.helper(expected_X, update_idx, self.W[row_idx.item()], can_flip_value, True, False)
 
-            updated_out = self.conjunctin_mul(expected_X.unsqueeze(0), self.W).squeeze(0) if not torch.equal(expected_X, self.full_X) else self.out
+            updated_out = self.conjunction_mul(expected_X.unsqueeze(0), self.W).squeeze(0) if not torch.equal(expected_X, self.full_X) else self.out
             zero_Y_idxs = torch.nonzero((Y == 0) & (Y != updated_out)).squeeze(1)
 
             for row_idx in zero_Y_idxs:
