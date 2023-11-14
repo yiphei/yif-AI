@@ -1,13 +1,11 @@
 import torch
 import random
 
-#TODO: need to add a constant random seed
-
 class TsetlinBase:
     def conjunctin_mul(self, X, W):
         matrix_X = X.repeat(W.shape[0], 1)
-        mask = W > 0 # TODO: prob need to compare and choose the clause with the highest weight
-        masked_X = torch.where(mask, matrix_X, torch.tensor(1))
+        mask = W > 0 # TODO: Right now this is not a problem because whenever I make update W or X, the negation is always zero. But if I change that, I will prob need to compare and choose the clause with the highest weight
+        masked_X = torch.where(mask, matrix_X, torch.tensor(1)) # theoretically, you should not replace it with 1 (it should just be omitted), but mathematically it works out fine because an extra 1 does not change the output of the multiplication
         return torch.prod(masked_X, dim=1, keepdim=True).view(1,-1)
 
 class TsetlinLayer(TsetlinBase):
@@ -33,28 +31,28 @@ class TsetlinLayer(TsetlinBase):
     
     def helper(self, expected_X,update_idx, expected_W, can_flip_value, can_remove, can_add_value):
         # TODO: the random choice needs to be dynamic, otherwise if it is a very deep layer, it will be very hard to flip values in the earlier layers
-        flip_value = random.choice([True, False]) and can_flip_value
-        negation_index = (update_idx + self.in_dim) % (self.in_dim * 2)
-        if flip_value:
+        should_flip_value = random.choice([True, False]) and can_flip_value
+        negation_idx = (update_idx + self.in_dim) % (self.in_dim * 2)
+        if should_flip_value:
             expected_X[update_idx] = 1 - expected_X[update_idx]
-            expected_X[negation_index] = 1 - expected_X[negation_index]
+            expected_X[negation_idx] = 1 - expected_X[negation_idx]
 
             #TODO: should i set the weight back to 0, as to descrease the confidence of the new flipped clause?
             expected_W[update_idx] = 1
-            expected_W[negation_index] = 0
+            expected_W[negation_idx] = 0
         else:
-            addable_indices = [ i for i, (w, v) in enumerate(zip(expected_W, expected_X)) if w == 0 and v == 0 and expected_W[(i + self.in_dim) % (self.in_dim * 2)] == 0 ] if can_add_value else []
+            addable_idxs = [ i for i, (w, x) in enumerate(zip(expected_W, expected_X)) if w == 0 and x == 0 and expected_W[(i + self.in_dim) % (self.in_dim * 2)] == 0 ] if can_add_value else []
 
-            add = random.choice([True, False]) and len(addable_indices) > 0
-            remove = random.choice([True, False]) and can_remove and (expected_W > 1).sum().item() > 1
-            if remove:
+            should_add = random.choice([True, False]) and len(addable_idxs) > 0
+            should_remove = random.choice([True, False]) and can_remove and (expected_W > 1).sum().item() > 1
+            if should_remove:
                 expected_W[update_idx] = 0
-            elif add:
-                add_index = random.choice(addable_indices)
+            elif should_add:
+                add_index = random.choice(addable_idxs)
                 expected_W[add_index] = 1
             else:
                 expected_W[update_idx] = 0
-                expected_W[negation_index] = 1
+                expected_W[negation_idx] = 1
 
     def update(self, Y, is_first_layer = False):
         can_flip_value = not (is_first_layer or torch.equal(Y, self.out))
@@ -84,20 +82,19 @@ class TsetlinLayer(TsetlinBase):
             zero_Y_idxs = torch.nonzero((Y == 0) & (Y != updated_out)).squeeze(1)
 
             for row_idx in zero_Y_idxs:
-                target_indexes = []
-                min_confidence = 0
+                candidate_idxs = []
+                min_W = 0
                 for j in range(self.in_dim * 2):
                     W_value = self.W[row_idx.item()][j]
                     X_value = expected_X[j]
                     if W_value > 0 and X_value == 1:
-                        if W_value < min_confidence or len(target_indexes) == 0:
-                            target_indexes = [j]
-                            min_confidence = W_value
-                        elif W_value == min_confidence:
-                            target_indexes.append(j)
+                        if W_value < min_W or len(candidate_idxs) == 0:
+                            candidate_idxs = [j]
+                            min_W = W_value
+                        elif W_value == min_W:
+                            candidate_idxs.append(j)
 
-                # TODO: there's a bug here when the layer is l1. Fix it
-                update_idx = random.choice(target_indexes)
+                update_idx = random.choice(candidate_idxs)
                 self.helper(expected_X,update_idx, self.W[row_idx.item()], can_flip_value, False, True)
         return expected_X[:self.in_dim]
 
