@@ -75,15 +75,15 @@ class TsetlinLayer(TsetlinBase):
             # TODO: should this be done at every prior layer or should it stop at this layer?
             self.W[self.W > 0] += 1
         else:
-            for s, (single_Y, single_out, single_expected_X) in enumerate(zip(Y, self.out, expected_X)):
+            for single_Y, single_out, single_expected_X, single_can_flip_value in zip(Y, self.out, expected_X, can_flip_value):
                 one_Y_idxs = torch.nonzero((single_Y == 1) & (single_Y != single_out)).squeeze(1)
                 for row_idx in one_Y_idxs:
                     update_idxs = [ i for i, (w, v) in enumerate(zip(self.W[row_idx], single_expected_X)) if w > 0 and v == 0]
                     for update_idx in update_idxs:
-                        self.helper(single_expected_X, update_idx, self.W[row_idx.item()], can_flip_value[s], True, False)
+                        self.helper(single_expected_X, update_idx, self.W[row_idx.item()], single_can_flip_value, True, False)
 
             updated_out = self.conjunction_mul(expected_X.unsqueeze(1), self.W) if not torch.equal(expected_X, self.full_X) else self.out
-            for s, (single_Y, single_out, single_expected_X) in enumerate(zip(Y, updated_out, expected_X)):
+            for single_Y, single_out, single_expected_X, single_can_flip_value in zip(Y, updated_out, expected_X, can_flip_value):
                 zero_Y_idxs = torch.nonzero((single_Y == 0) & (single_Y != single_out)).squeeze(1)
                 for row_idx in zero_Y_idxs:
                     candidate_idxs = []
@@ -99,7 +99,7 @@ class TsetlinLayer(TsetlinBase):
                                 candidate_idxs.append(j)
 
                     update_idx = random.choice(candidate_idxs)
-                    self.helper(single_expected_X,update_idx, self.W[row_idx.item()], can_flip_value[s], False, True)
+                    self.helper(single_expected_X,update_idx, self.W[row_idx.item()], single_can_flip_value, False, True)
         return expected_X[:,:self.in_dim]
 
 class TsetlinMachine:
