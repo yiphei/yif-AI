@@ -4,7 +4,7 @@ import random
 class TsetlinBase:
     def conjunction_mul(self, X, W):
         matrix_X = X.repeat(W.shape[0], 1)
-        mask = W > 0 # TODO: Right now this is not a problem because whenever I make update W or X, the negation is always zero. But if I change that, I will prob need to compare and choose the clause with the highest weight
+        mask = W == 0 # TODO: Right now this is not a problem because whenever I make update W or X, the negation is always zero. But if I change that, I will prob need to compare and choose the clause with the highest weight
         masked_X = torch.where(mask, matrix_X, torch.tensor(1)) # theoretically, you should not replace it with 1 (it should just be omitted), but mathematically it works out fine because an extra 1 does not change the output of the multiplication
         return torch.prod(masked_X, dim=1, keepdim=True).view(1,-1)
 
@@ -38,21 +38,21 @@ class TsetlinLayer(TsetlinBase):
             expected_X[negation_idx] = 1 - expected_X[negation_idx]
 
             #TODO: should i set the weight back to 0, as to descrease the confidence of the new flipped clause?
-            expected_W[update_idx] = 1
-            expected_W[negation_idx] = 0
+            expected_W[negation_idx] = 1
+            expected_W[update_idx] = 0
         else:
             addable_idxs = [ i for i, (w, x) in enumerate(zip(expected_W, expected_X)) if w == 0 and x == 0 and expected_W[(i + self.in_dim) % (self.in_dim * 2)] == 0 ] if can_add_value else []
 
             should_add = random.choice([True, False]) and len(addable_idxs) > 0
             should_remove = random.choice([True, False]) and can_remove and (expected_W > 1).sum().item() > 1
             if should_remove:
-                expected_W[update_idx] = 0
+                expected_W[update_idx] = 1
             elif should_add:
                 add_index = random.choice(addable_idxs)
-                expected_W[add_index] = 1
+                expected_W[add_index] = 0
             else:
-                expected_W[update_idx] = 0
-                expected_W[negation_idx] = 1
+                expected_W[update_idx] = 1
+                expected_W[negation_idx] = 0
 
     def update(self, Y, is_first_layer = False):
         can_flip_value = not (is_first_layer or torch.equal(Y, self.out))
@@ -62,7 +62,7 @@ class TsetlinLayer(TsetlinBase):
             pos_W = W_halves[0]
             neg_W = W_halves[1]
             for w_1 in pos_W:
-                idxs = torch.nonzero(w_1 == 1).squeeze(1)
+                idxs = torch.nonzero(w_1 == 0).squeeze(1)
                 if any((w_1[idxs] == w_2[idxs]).any() for w_2 in neg_W):
                     can_flip_value = False
                     break
@@ -70,11 +70,11 @@ class TsetlinLayer(TsetlinBase):
         expected_X = torch.clone(self.full_X)
         if torch.equal(Y, self.out):
             # TODO: should this be done at every prior layer or should it stop at this layer?
-            self.W[self.W > 0] += 1
+            pass
         else:
             one_Y_idxs = torch.nonzero((Y == 1) & (Y != self.out)).squeeze(1)
             for row_idx in one_Y_idxs:
-                update_idxs = [ i for i, (w, v) in enumerate(zip(self.W[row_idx], expected_X)) if w > 0 and v == 0]
+                update_idxs = [ i for i, (w, v) in enumerate(zip(self.W[row_idx], expected_X)) if w == 0 and v == 0]
                 for update_idx in update_idxs:
                     self.helper(expected_X, update_idx, self.W[row_idx.item()], can_flip_value, True, False)
 
@@ -83,15 +83,15 @@ class TsetlinLayer(TsetlinBase):
 
             for row_idx in zero_Y_idxs:
                 candidate_idxs = []
-                min_W = 0
+                max_W = 0
                 for j in range(self.in_dim * 2):
                     W_value = self.W[row_idx.item()][j]
                     X_value = expected_X[j]
-                    if W_value > 0 and X_value == 1:
-                        if W_value < min_W or len(candidate_idxs) == 0:
+                    if W_value == 0 and X_value == 1:
+                        if W_value > max_W or len(candidate_idxs) == 0:
                             candidate_idxs = [j]
-                            min_W = W_value
-                        elif W_value == min_W:
+                            max_W = W_value
+                        elif W_value == max_W:
                             candidate_idxs.append(j)
 
                 update_idx = random.choice(candidate_idxs)
