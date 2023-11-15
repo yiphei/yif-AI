@@ -113,8 +113,7 @@ class TsetlinLayer(TsetlinBase):
 
 class TsetlinMachine:
 
-    def __init__(self, in_dim):
-        clause_dim = 10
+    def __init__(self, in_dim, clause_dim):
         self.l1 = TsetlinLayer(in_dim, clause_dim)
         self.l2 = TsetlinLayer(clause_dim, 1)
         self.out = None
