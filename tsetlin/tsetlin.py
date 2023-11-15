@@ -56,11 +56,11 @@ class TsetlinLayer(TsetlinBase):
     def update(self, Y, is_first_layer = False):
         can_flip_value = torch.full((Y.shape[0],), False)
         if not is_first_layer:
-            for i, (y_value, out_value) in enumerate(zip(Y, self.out)):
-                if not torch.equal(y_value, out_value):
+            for i, (single_Y, single_out) in enumerate(zip(Y, self.out)):
+                if not torch.equal(single_Y, single_out):
                     can_flip_value[i] = True
 
-                    one_Y_idxs = torch.nonzero(y_value == 1).squeeze(1)
+                    one_Y_idxs = torch.nonzero(single_Y == 1).squeeze(1)
                     W_halves = torch.split(self.W[one_Y_idxs], self.in_dim, dim=1)
                     pos_W = W_halves[0]
                     neg_W = W_halves[1]
@@ -75,22 +75,22 @@ class TsetlinLayer(TsetlinBase):
             # TODO: should this be done at every prior layer or should it stop at this layer?
             self.W[self.W > 0] += 1
         else:
-            for s, (y_value, out_value, expected_x_value) in enumerate(zip(Y, self.out, expected_X)):
-                one_Y_idxs = torch.nonzero((y_value == 1) & (y_value != out_value)).squeeze(1)
+            for s, (single_Y, single_out, single_expected_X) in enumerate(zip(Y, self.out, expected_X)):
+                one_Y_idxs = torch.nonzero((single_Y == 1) & (single_Y != single_out)).squeeze(1)
                 for row_idx in one_Y_idxs:
-                    update_idxs = [ i for i, (w, v) in enumerate(zip(self.W[row_idx], expected_x_value)) if w > 0 and v == 0]
+                    update_idxs = [ i for i, (w, v) in enumerate(zip(self.W[row_idx], single_expected_X)) if w > 0 and v == 0]
                     for update_idx in update_idxs:
-                        self.helper(expected_x_value, update_idx, self.W[row_idx.item()], can_flip_value[s], True, False)
+                        self.helper(single_expected_X, update_idx, self.W[row_idx.item()], can_flip_value[s], True, False)
 
             updated_out = self.conjunction_mul(expected_X.unsqueeze(1), self.W) if not torch.equal(expected_X, self.full_X) else self.out
-            for s, (y_value, out_value, expected_x_value) in enumerate(zip(Y, updated_out, expected_X)):
-                zero_Y_idxs = torch.nonzero((y_value == 0) & (y_value != out_value)).squeeze(1)
+            for s, (single_Y, single_out, single_expected_X) in enumerate(zip(Y, updated_out, expected_X)):
+                zero_Y_idxs = torch.nonzero((single_Y == 0) & (single_Y != single_out)).squeeze(1)
                 for row_idx in zero_Y_idxs:
                     candidate_idxs = []
                     min_W = 0
                     for j in range(self.in_dim * 2):
                         W_value = self.W[row_idx.item()][j]
-                        X_value = expected_x_value[j]
+                        X_value = single_expected_X[j]
                         if W_value > 0 and X_value == 1:
                             if W_value < min_W or len(candidate_idxs) == 0:
                                 candidate_idxs = [j]
@@ -99,7 +99,7 @@ class TsetlinLayer(TsetlinBase):
                                 candidate_idxs.append(j)
 
                     update_idx = random.choice(candidate_idxs)
-                    self.helper(expected_x_value,update_idx, self.W[row_idx.item()], can_flip_value[s], False, True)
+                    self.helper(single_expected_X,update_idx, self.W[row_idx.item()], can_flip_value[s], False, True)
         return expected_X[:,:self.in_dim]
 
 class TsetlinMachine:
