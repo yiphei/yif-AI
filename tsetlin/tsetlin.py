@@ -69,8 +69,17 @@ class TsetlinLayer(TsetlinBase):
                         if any((w_1[idxs] == w_2[idxs]).any() for w_2 in neg_W):
                             can_flip_value[i] = False
                             break
-
+        
         expected_X = torch.clone(self.full_X)
+        can_modify_W = torch.full((self.W.shape[0],), True)
+        for i in range(self.W.shape[0]):
+            one_Y_idxs = torch.nonzero(Y[:,i] == 1).squeeze(1)
+            target_X = expected_X[one_Y_idxs]
+            one_intersections = target_X.prod(dim=0, keepdim=True).squeeze(0)
+            one_intersection_idxs = torch.nonzero(one_intersections == 1).squeeze(1)
+            if len(one_intersection_idxs) == 0:
+                can_modify_W[i] = False
+
         if torch.equal(Y, self.out):
             # TODO: should this be done at every prior layer or should it stop at this layer?
             self.W[self.W > 0] += 1
