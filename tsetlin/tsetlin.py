@@ -53,6 +53,48 @@ class TsetlinLayer(TsetlinBase):
                 expected_W[update_idx] = 0
                 expected_W[negation_idx] = 1
 
+    def get_W_deps(self, Y):
+        flip_deps = []
+        for i in range(self.full_X.shape[0]):
+            flip_dep_row = [[] for _ in range(self.in_dim * 2)]
+            single_Y = Y[i]
+            one_Y_idxs = torch.nonzero(single_Y == 1).squeeze(1)
+            W_halves = torch.split(self.W, self.in_dim, dim=1)
+            pos_W = W_halves[0]
+            neg_W = W_halves[1]
+            for pos_one_Y_idx in one_Y_idxs:
+                w_1 = pos_W[pos_one_Y_idx]
+                for neg_one_Y_idx in one_Y_idxs:
+                    w_2 = neg_W[neg_one_Y_idx]
+                    deps = ((w_1 == w_2) & (w_1 == 1))
+                    if deps.any():
+                        dep_idxs = deps.nonzero(as_tuple=True)[0]
+                        for idx in dep_idxs:
+                            if pos_one_Y_idx.item() not in flip_dep_row[idx]:
+                                flip_dep_row[idx].append(pos_one_Y_idx.item())
+                            if neg_one_Y_idx.item() not in flip_dep_row[idx + self.in_dim]:
+                                flip_dep_row[idx + self.in_dim].append(neg_one_Y_idx.item())
+            flip_deps.append(flip_dep_row)
+        return flip_deps
+
+
+    def get_flip_deps(self, Y):
+        W_deps = []
+        for i in range(self.W.shape[0]):
+            single_Y = Y[:, i]
+            one_Y_idxs = torch.nonzero(single_Y == 1).squeeze(1)
+            must_be_flipped_row = [[] for _ in range(self.in_dim * 2)]
+
+            true_X = self.full_X == 1
+            for row in range(true_X.shape[0]):
+                for col in range(true_X.shape[1]):
+                    if (not true_X[row,col] and row in one_Y_idxs) or (true_X[row,col] and row not in one_Y_idxs):
+                        must_be_flipped_row[col].append(row)
+
+            W_deps.append(must_be_flipped_row)
+
+        return W_deps
+
     def update(self, Y, is_first_layer = False):
         can_flip_value = torch.full((Y.shape[0],), False)
         if not is_first_layer:
