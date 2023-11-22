@@ -1,5 +1,18 @@
 import torch
 import random
+import math
+import copy
+
+from itertools import combinations, chain
+from collections import deque
+
+def generate_subsets(set_elements, subset_size):
+    return [set(x) for x in list(combinations(set_elements, subset_size))]
+
+def generate_powerset(set_elements):
+    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    s = list(set_elements)
+    return [set(x) for x in list(chain.from_iterable(combinations(s, r) for r in range(len(s)+1)))]
 
 class TsetlinBase:
     def conjunction_mul(self, X, W):
@@ -173,6 +186,170 @@ class TsetlinLayer(TsetlinBase):
                     update_idx = random.choice(candidate_idxs)
                     self.helper(single_expected_X,update_idx, self.W[row_idx.item()], single_can_flip_value, False, True)
         return expected_X[:,:self.in_dim]
+
+
+    def update_batch(self, Y, is_first_layer = False):
+        zero_Y_row_idxs_per_W_row = []
+        one_Y_row_idxs_per_W_row = []
+        for i in range(self.W.shape[0]):
+            row_Y = Y[:, i]
+            
+            zero_Y_idxs = torch.nonzero(row_Y == 0).squeeze(1).tolist()
+            zero_Y_row_idxs_per_W_row.append(set(zero_Y_idxs))
+
+            one_Y_idxs = torch.nonzero(row_Y == 1).squeeze(1).tolist()
+            one_Y_row_idxs_per_W_row.append(set(one_Y_idxs))
+
+        update_fnc = self.update_batch_first_layar if is_first_layer else self.update_batch_non_first_layer
+        return update_fnc(one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row)
+
+
+    def update_batch_first_layar(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row):
+        one_Y_idxs_to_W_row_idx = {tuple(x): i for i, x in enumerate(one_Y_row_idxs_per_W_row)}
+        new_W = torch.zeros_like(self.W)
+
+        for col_idx in range(self.full_X.shape[1]//2):
+            one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
+            zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
+
+            subsets_of_one_idxs = [x for x in one_Y_row_idxs_per_W_row if x.issubset(one_idxs)]
+            subsets_of_zero_idxs = [x for x in one_Y_row_idxs_per_W_row if x.issubset(zero_idxs)]
+
+            for subset_of_one_idxs in subsets_of_one_idxs:
+                new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_one_idxs)], col_idx] = 1
+            for subset_of_zero_idxs in subsets_of_zero_idxs:
+                opposite_col_idx = (col_idx + self.in_dim) % (2 * self.in_dim)
+                new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_zero_idxs)], opposite_col_idx] = 1
+
+        self.W = new_W
+        return None
+
+
+    def update_batch_non_first_layer(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row):
+        unique_one_Y_row_idxs = set()
+        visited_ones = set()
+        for i,x in enumerate(one_Y_row_idxs_per_W_row):
+            tuple_x = tuple(x)
+            if tuple_x not in visited_ones:
+                visited_ones.add(tuple_x)
+                unique_one_Y_row_idxs.add(i)
+
+
+        tracking = {x: zero_Y_row_idxs_per_W_row[x] for x in unique_one_Y_row_idxs}
+        sorted_one_Y_row_idxs = sorted(list(unique_one_Y_row_idxs), key=lambda x: len(one_Y_row_idxs_per_W_row[x]), reverse=True)
+        q = deque(sorted_one_Y_row_idxs)
+
+        def recursive_helper(depth, max_depth, current_solution, prev_W_row_idx, q):
+            if depth == max_depth or len(current_solution) == 0 or not q:
+                return [], len(current_solution) == 0
+
+            curr_W_row_idx = prev_W_row_idx
+            while curr_W_row_idx not in current_solution and q:
+                curr_W_row_idx = q.popleft()
+
+            curr_one_Y_idxs = one_Y_row_idxs_per_W_row[curr_W_row_idx]
+            min_zero_Y_idxs_len = math.ceil(len(current_solution[curr_W_row_idx]) / (max_depth - depth))
+            min_zero_Y_subsets = generate_subsets(current_solution[curr_W_row_idx], min(min_zero_Y_idxs_len, len(current_solution[curr_W_row_idx])))
+
+            ordered_min_zero_Y_subsets = []
+            remaining_q = list(q)
+            for idx in remaining_q:
+                one_Y_idx = one_Y_row_idxs_per_W_row[idx]
+                if len(one_Y_idx) == min_zero_Y_idxs_len and len(one_Y_idx & curr_one_Y_idxs) == 0 and len(one_Y_idx & current_solution[curr_W_row_idx]) > 0:
+                    ordered_min_zero_Y_subsets.append(one_Y_idx)
+
+            for subset in min_zero_Y_subsets:
+                if subset not in ordered_min_zero_Y_subsets:
+                    ordered_min_zero_Y_subsets.append(subset)
+
+            for min_zero_Y_subset in ordered_min_zero_Y_subsets:
+                remaining_Y_idxs = set(range(self.full_X.shape[0])) - (min_zero_Y_subset | curr_one_Y_idxs)
+                remaining_Y_subsets = generate_powerset(remaining_Y_idxs)
+                remaining_Y_subsets.sort(key=lambda x: len(x), reverse=True)
+
+                remaining_Y_subsets_ordered = []
+                for idx in remaining_q:
+                    one_Y_idx = one_Y_row_idxs_per_W_row[idx]
+                    if one_Y_idx.issubset(remaining_Y_idxs):
+                        remaining_Y_subsets_ordered.append(one_Y_idx)
+
+                for subset in remaining_Y_subsets:
+                    if subset not in remaining_Y_subsets_ordered:
+                        remaining_Y_subsets_ordered.append(subset)
+
+                for remaining_Y_subset in remaining_Y_subsets_ordered:
+                    opposite_remaining_Y_subset = remaining_Y_idxs - remaining_Y_subset
+
+                    #add remaining with the opposite
+                    left_W = curr_one_Y_idxs | opposite_remaining_Y_subset
+                    right_W = min_zero_Y_subset | remaining_Y_subset
+
+                    updated_solution = {}
+                    for k,v in current_solution.items():
+                        one_Y_idxs = one_Y_row_idxs_per_W_row[k]
+                        if one_Y_idxs.issubset(left_W):
+                            sub = v - right_W
+                            if len(sub) > 0:
+                                updated_solution[k] = sub
+                        elif one_Y_idxs.issubset(right_W):
+                            sub = v - left_W
+                            if len(sub) > 0:
+                                updated_solution[k] = sub
+                        else:
+                            updated_solution[k] = v
+
+                    next_layers, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
+                    if solved:
+                        return_layers = next_layers
+                        return_layers.append((left_W, right_W))
+                        return return_layers, True
+                    
+                    #add remaining with the curr_clause
+                    left_W = curr_one_Y_idxs | remaining_Y_subset
+                    right_W = min_zero_Y_subset | opposite_remaining_Y_subset
+
+                    updated_solution = {}
+                    for k,v in current_solution.items():
+                        one_Y_idxs = one_Y_row_idxs_per_W_row[k]
+                        if one_Y_idxs.issubset(left_W):
+                            sub = v - right_W
+                            if len(sub) > 0:
+                                updated_solution[k] = sub
+                        elif one_Y_idxs.issubset(right_W):
+                            sub = v - left_W
+                            if len(sub) > 0:
+                                updated_solution[k] = sub
+                        else:
+                            updated_solution[k] = v
+
+                    next_layers, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
+                    if solved:
+                        return_layers = next_layers
+                        return_layers.append((left_W, right_W))
+                        return return_layers, True
+
+            return [], False
+        
+        cols, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q)
+        assert solved
+
+        new_W = torch.zeros_like(self.W)
+        for row_idx, x in enumerate(one_Y_row_idxs_per_W_row):
+            for i, col in enumerate(cols):
+                    col_left = col[0]
+                    col_right = col[1]
+                    if x.issubset(col_left):
+                        new_W[row_idx, i] = 1
+                    elif x.issubset(col_right):
+                        new_W[row_idx, i + self.in_dim] = 1
+        self.W = new_W
+
+        new_full_X = torch.zeros_like(self.full_X)
+        for i, col in enumerate(cols):
+            new_full_X[list(col[0]), i] = 1
+            new_full_X[list(col[1]), i + self.in_dim] = 1 # TODO: this is not needed, so delete it
+        
+        return new_full_X[:,:self.in_dim]
 
 class TsetlinMachine:
 
