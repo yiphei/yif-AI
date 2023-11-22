@@ -235,10 +235,11 @@ class TsetlinLayer(TsetlinBase):
         unique_one_Y_row_idxs = set()
         visited_ones = set()
         for i,x in enumerate(one_Y_row_idxs_per_W_row):
-            tuple_x = tuple(x)
-            if tuple_x not in visited_ones:
-                visited_ones.add(tuple_x)
-                unique_one_Y_row_idxs.add(i)
+            if x:
+                tuple_x = tuple(x)
+                if tuple_x not in visited_ones:
+                    visited_ones.add(tuple_x)
+                    unique_one_Y_row_idxs.add(i)
 
 
         tracking = {x: zero_Y_row_idxs_per_W_row[x] for x in unique_one_Y_row_idxs}
@@ -361,12 +362,14 @@ class TsetlinMachine:
 
     def __init__(self, in_dim, clause_dim):
         self.l1 = TsetlinLayer(in_dim, clause_dim)
-        self.l2 = TsetlinLayer(clause_dim, 1)
+        self.l2 = TsetlinLayer(clause_dim, clause_dim)
+        self.l3 = TsetlinLayer(clause_dim, 1)
         self.out = None
 
     def forward(self, X):
         X = self.l1.forward(X)
         X = self.l2.forward(X)
+        X = self.l3.forward(X)
         self.out = X.squeeze(1)
         return self.out
     
@@ -377,5 +380,6 @@ class TsetlinMachine:
 
     def update_batch(self, y):
         y = y.unsqueeze(1)
-        updated_X = self.l2.update_batch(y)
+        updated_X = self.l3.update_batch(y)
+        updated_X = self.l2.update_batch(updated_X)
         self.l1.update_batch(updated_X, True)
