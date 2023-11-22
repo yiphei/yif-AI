@@ -368,3 +368,8 @@ class TsetlinMachine:
         y = y.unsqueeze(1)
         updated_X = self.l2.update(y)
         self.l1.update(updated_X, True)
+
+    def update_batch(self, y):
+        y = y.unsqueeze(1)
+        updated_X = self.l2.update_batch(y)
+        self.l1.update_batch(updated_X, True)
