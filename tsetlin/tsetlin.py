@@ -41,7 +41,7 @@ class TsetlinLayer(TsetlinBase):
         self.out = self.conjunction_mul(self.full_X.unsqueeze(1), self.W)
         return self.out
     
-    def helper(self, expected_X,update_idx, expected_W, can_flip_value, can_remove, can_add_value):
+    def old_helper(self, expected_X,update_idx, expected_W, can_flip_value, can_remove, can_add_value):
         # TODO: the random choice needs to be dynamic, otherwise if it is a very deep layer, it will be very hard to flip values in the earlier layers
         should_flip_value = random.choice([True, False]) and can_flip_value
         negation_idx = (update_idx + self.in_dim) % (self.in_dim * 2)
@@ -66,7 +66,7 @@ class TsetlinLayer(TsetlinBase):
                 expected_W[update_idx] = 0
                 expected_W[negation_idx] = 1
 
-    def update(self, Y, is_first_layer = False):
+    def old_update(self, Y, is_first_layer = False):
         can_flip_value = torch.full((Y.shape[0],), False)
         if not is_first_layer:
             for i, (single_Y, single_out) in enumerate(zip(Y, self.out)):
@@ -102,7 +102,7 @@ class TsetlinLayer(TsetlinBase):
                 for row_idx in one_Y_idxs:
                     update_idxs = [ i for i, (w, v) in enumerate(zip(self.W[row_idx], single_expected_X)) if w > 0 and v == 0]
                     for update_idx in update_idxs:
-                        self.helper(single_expected_X, update_idx, self.W[row_idx.item()], single_can_flip_value, True, False)
+                        self.old_helper(single_expected_X, update_idx, self.W[row_idx.item()], single_can_flip_value, True, False)
 
             updated_out = self.conjunction_mul(expected_X.unsqueeze(1), self.W) if not torch.equal(expected_X, self.full_X) else self.out
             for single_Y, single_out, single_expected_X, single_can_flip_value in zip(Y, updated_out, expected_X, can_flip_value):
@@ -121,11 +121,11 @@ class TsetlinLayer(TsetlinBase):
                                 candidate_idxs.append(j)
 
                     update_idx = random.choice(candidate_idxs)
-                    self.helper(single_expected_X,update_idx, self.W[row_idx.item()], single_can_flip_value, False, True)
+                    self.old_helper(single_expected_X,update_idx, self.W[row_idx.item()], single_can_flip_value, False, True)
         return expected_X[:,:self.in_dim]
 
 
-    def update_batch(self, Y, is_first_layer = False):
+    def update(self, Y, is_first_layer = False):
         if torch.equal(Y, self.out):
             return torch.clone(self.full_X[:,:self.in_dim])
 
@@ -315,11 +315,6 @@ class TsetlinMachine:
     
     def update(self, y):
         y = y.unsqueeze(1)
-        updated_X = self.l2.update(y)
+        updated_X = self.l3.update(y)
+        updated_X = self.l2.update(updated_X)
         self.l1.update(updated_X, True)
-
-    def update_batch(self, y):
-        y = y.unsqueeze(1)
-        updated_X = self.l3.update_batch(y)
-        updated_X = self.l2.update_batch(updated_X)
-        self.l1.update_batch(updated_X, True)
