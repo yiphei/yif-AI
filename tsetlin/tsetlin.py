@@ -189,6 +189,9 @@ class TsetlinLayer(TsetlinBase):
 
 
     def update_batch(self, Y, is_first_layer = False):
+        if torch.equal(Y, self.out):
+            return torch.clone(self.full_X[:,:self.in_dim])
+
         zero_Y_row_idxs_per_W_row = []
         one_Y_row_idxs_per_W_row = []
         for i in range(self.W.shape[0]):
