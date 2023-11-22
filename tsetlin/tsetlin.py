@@ -127,7 +127,7 @@ class TsetlinLayer(TsetlinBase):
 
     def update(self, Y, is_first_layer = False):
         if torch.equal(Y, self.out):
-            return torch.clone(self.full_X[:,:self.in_dim])
+            return self.full_X[:,:self.in_dim]
 
         zero_Y_row_idxs_per_W_row = []
         one_Y_row_idxs_per_W_row = []
@@ -144,7 +144,7 @@ class TsetlinLayer(TsetlinBase):
         return update_fnc(one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row)
 
 
-    def update_batch_first_layar(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row):
+    def update_batch_first_layar(self, one_Y_row_idxs_per_W_row, _):
         one_Y_idxs_to_W_row_idx = {}
         for i, x in enumerate(one_Y_row_idxs_per_W_row):
             if x:
@@ -245,11 +245,11 @@ class TsetlinLayer(TsetlinBase):
                         else:
                             updated_solution[k] = v
 
-                    next_layers, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
+                    next_cols, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
                     if solved:
-                        return_layers = next_layers
-                        return_layers.append((left_W, right_W))
-                        return return_layers, True
+                        combined_cols = next_cols
+                        combined_cols.append((left_W, right_W))
+                        return combined_cols, True
                     
                     #add remaining with the curr_clause
                     left_W = curr_one_Y_idxs | remaining_Y_subset
@@ -269,11 +269,11 @@ class TsetlinLayer(TsetlinBase):
                         else:
                             updated_solution[k] = v
 
-                    next_layers, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
+                    next_cols, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
                     if solved:
-                        return_layers = next_layers
-                        return_layers.append((left_W, right_W))
-                        return return_layers, True
+                        combined_cols = next_cols
+                        combined_cols.append((left_W, right_W))
+                        return combined_cols, True
 
             return [], False
         
@@ -294,7 +294,6 @@ class TsetlinLayer(TsetlinBase):
         new_full_X = torch.zeros_like(self.full_X)
         for i, col in enumerate(cols):
             new_full_X[list(col[0]), i] = 1
-            new_full_X[list(col[1]), i + self.in_dim] = 1 # TODO: this is not needed, so delete it
         
         return new_full_X[:,:self.in_dim]
 
