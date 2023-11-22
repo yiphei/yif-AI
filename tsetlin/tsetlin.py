@@ -207,9 +207,10 @@ class TsetlinLayer(TsetlinBase):
     def update_batch_first_layar(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row):
         one_Y_idxs_to_W_row_idx = {}
         for i, x in enumerate(one_Y_row_idxs_per_W_row):
-            if tuple(x) not in one_Y_idxs_to_W_row_idx:
-                one_Y_idxs_to_W_row_idx[tuple(x)] = []
-            one_Y_idxs_to_W_row_idx[tuple(x)].append(i)
+            if x:
+                if tuple(x) not in one_Y_idxs_to_W_row_idx:
+                    one_Y_idxs_to_W_row_idx[tuple(x)] = []
+                one_Y_idxs_to_W_row_idx[tuple(x)].append(i)
 
         new_W = torch.zeros_like(self.W)
 
@@ -217,8 +218,8 @@ class TsetlinLayer(TsetlinBase):
             one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
             zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
 
-            subsets_of_one_idxs = [x for x in one_Y_row_idxs_per_W_row if x.issubset(one_idxs)]
-            subsets_of_zero_idxs = [x for x in one_Y_row_idxs_per_W_row if x.issubset(zero_idxs)]
+            subsets_of_one_idxs = [x for x in one_Y_row_idxs_per_W_row if x and x.issubset(one_idxs)]
+            subsets_of_zero_idxs = [x for x in one_Y_row_idxs_per_W_row if x and x.issubset(zero_idxs)]
 
             for subset_of_one_idxs in subsets_of_one_idxs:
                 new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_one_idxs)], col_idx] = 1
