@@ -228,53 +228,33 @@ class TsetlinLayer(TsetlinBase):
                     opposite_remaining_Y_subset = remaining_Y_idxs - remaining_Y_subset
 
                     #add remaining with the opposite
-                    left_W = curr_one_Y_idxs | opposite_remaining_Y_subset
-                    right_W = min_zero_Y_subset | remaining_Y_subset
+                    first_left_W = curr_one_Y_idxs | opposite_remaining_Y_subset
+                    first_right_W = min_zero_Y_subset | remaining_Y_subset
 
-                    updated_solution = {}
-                    for k,v in current_solution.items():
-                        one_Y_idxs = one_Y_row_idxs_per_W_row[k]
-                        if one_Y_idxs.issubset(left_W):
-                            sub = v - right_W
-                            if len(sub) > 0:
-                                updated_solution[k] = sub
-                        elif one_Y_idxs.issubset(right_W):
-                            sub = v - left_W
-                            if len(sub) > 0:
-                                updated_solution[k] = sub
-                        else:
-                            updated_solution[k] = v
+                    second_left_W = curr_one_Y_idxs | remaining_Y_subset
+                    second_right_W = min_zero_Y_subset | opposite_remaining_Y_subset
 
-                    next_cols, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
-                    if solved:
-                        combined_cols = next_cols
-                        combined_cols.append((left_W, right_W))
-                        return combined_cols, True
-                    
-                    #add remaining with the curr_clause
-                    left_W = curr_one_Y_idxs | remaining_Y_subset
-                    right_W = min_zero_Y_subset | opposite_remaining_Y_subset
+                    for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
+                        updated_solution = {}
+                        for k,v in current_solution.items():
+                            one_Y_idxs = one_Y_row_idxs_per_W_row[k]
+                            if one_Y_idxs.issubset(left_W):
+                                sub = v - right_W
+                                if len(sub) > 0:
+                                    updated_solution[k] = sub
+                            elif one_Y_idxs.issubset(right_W):
+                                sub = v - left_W
+                                if len(sub) > 0:
+                                    updated_solution[k] = sub
+                            else:
+                                updated_solution[k] = v
 
-                    updated_solution = {}
-                    for k,v in current_solution.items():
-                        one_Y_idxs = one_Y_row_idxs_per_W_row[k]
-                        if one_Y_idxs.issubset(left_W):
-                            sub = v - right_W
-                            if len(sub) > 0:
-                                updated_solution[k] = sub
-                        elif one_Y_idxs.issubset(right_W):
-                            sub = v - left_W
-                            if len(sub) > 0:
-                                updated_solution[k] = sub
-                        else:
-                            updated_solution[k] = v
-
-                    next_cols, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
-                    if solved:
-                        combined_cols = next_cols
-                        combined_cols.append((left_W, right_W))
-                        return combined_cols, True
-
+                        next_cols, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
+                        if solved:
+                            combined_cols = next_cols
+                            combined_cols.append((left_W, right_W))
+                            return combined_cols, True
+                        
             return [], False
         
         cols, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q)
