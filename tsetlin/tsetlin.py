@@ -205,7 +205,12 @@ class TsetlinLayer(TsetlinBase):
 
 
     def update_batch_first_layar(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row):
-        one_Y_idxs_to_W_row_idx = {tuple(x): i for i, x in enumerate(one_Y_row_idxs_per_W_row)}
+        one_Y_idxs_to_W_row_idx = {}
+        for i, x in enumerate(one_Y_row_idxs_per_W_row):
+            if tuple(x) not in one_Y_idxs_to_W_row_idx:
+                one_Y_idxs_to_W_row_idx[tuple(x)] = []
+            one_Y_idxs_to_W_row_idx[tuple(x)].append(i)
+
         new_W = torch.zeros_like(self.W)
 
         for col_idx in range(self.full_X.shape[1]//2):
@@ -240,7 +245,7 @@ class TsetlinLayer(TsetlinBase):
         q = deque(sorted_one_Y_row_idxs)
 
         def recursive_helper(depth, max_depth, current_solution, prev_W_row_idx, q):
-            if depth == max_depth or len(current_solution) == 0 or not q:
+            if depth == max_depth or len(current_solution) == 0:
                 return [], len(current_solution) == 0
 
             curr_W_row_idx = prev_W_row_idx
