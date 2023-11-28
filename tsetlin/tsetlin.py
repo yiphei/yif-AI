@@ -267,12 +267,12 @@ class TsetlinLayer(TsetlinBase):
         for row_idx, x in enumerate(one_Y_row_idxs_per_W_row):
             if x:
                 for i, col in enumerate(cols):
-                        col_left = col[0]
-                        col_right = col[1]
-                        if x.issubset(col_left):
-                            new_W[row_idx, i] = 1
-                        elif x.issubset(col_right):
-                            new_W[row_idx, i + self.in_dim] = 1
+                    col_left = col[0]
+                    col_right = col[1]
+                    if x.issubset(col_left):
+                        new_W[row_idx, i] = 1
+                    elif x.issubset(col_right):
+                        new_W[row_idx, i + self.in_dim] = 1
         self.W = new_W
         # print(new_W)
 
