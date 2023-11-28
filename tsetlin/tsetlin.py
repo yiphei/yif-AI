@@ -259,22 +259,29 @@ class TsetlinLayer(TsetlinBase):
         
         cols, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q)
         assert solved
+        # print(cols)
+        # print(self.W)
+        # print(one_Y_row_idxs_per_W_row)
 
         new_W = torch.zeros_like(self.W)
         for row_idx, x in enumerate(one_Y_row_idxs_per_W_row):
-            for i, col in enumerate(cols):
-                    col_left = col[0]
-                    col_right = col[1]
-                    if x.issubset(col_left):
-                        new_W[row_idx, i] = 1
-                    elif x.issubset(col_right):
-                        new_W[row_idx, i + self.in_dim] = 1
+            if x:
+                for i, col in enumerate(cols):
+                        col_left = col[0]
+                        col_right = col[1]
+                        if x.issubset(col_left):
+                            new_W[row_idx, i] = 1
+                        elif x.issubset(col_right):
+                            new_W[row_idx, i + self.in_dim] = 1
         self.W = new_W
+        # print(new_W)
 
         new_full_X = torch.zeros_like(self.full_X)
         for i, col in enumerate(cols):
             new_full_X[list(col[0]), i] = 1
-        
+
+        # print(new_full_X)
+        # print("AAA")        
         return new_full_X[:,:self.in_dim]
 
 class TsetlinMachine:
