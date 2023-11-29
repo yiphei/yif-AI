@@ -145,31 +145,63 @@ class TsetlinLayer(TsetlinBase):
         return update_fnc(one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row)
 
 
-    def update_batch_first_layar(self, one_Y_row_idxs_per_W_row, _):
-        one_Y_idxs_to_W_row_idx = {}
-        for i, x in enumerate(one_Y_row_idxs_per_W_row):
-            if x:
-                if tuple(x) not in one_Y_idxs_to_W_row_idx:
-                    one_Y_idxs_to_W_row_idx[tuple(x)] = []
-                one_Y_idxs_to_W_row_idx[tuple(x)].append(i)
+    def update_batch_first_layar(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row):
+        self.W_confidence[self.W > 0] += 1
+        if not all([len(x) == 0 for x in one_Y_row_idxs_per_W_row]):
+            one_Y_idxs_to_W_row_idx = {}
+            for i, x in enumerate(one_Y_row_idxs_per_W_row):
+                if x:
+                    if tuple(x) not in one_Y_idxs_to_W_row_idx:
+                        one_Y_idxs_to_W_row_idx[tuple(x)] = []
+                    one_Y_idxs_to_W_row_idx[tuple(x)].append(i)
 
-        new_W = torch.zeros_like(self.W)
+            new_W = torch.zeros_like(self.W)
 
-        for col_idx in range(self.full_X.shape[1]//2):
-            one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
-            zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
+            for col_idx in range(self.full_X.shape[1]//2):
+                one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
+                zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
 
-            subsets_of_one_idxs = [x for x in one_Y_row_idxs_per_W_row if x and x.issubset(one_idxs)]
-            subsets_of_zero_idxs = [x for x in one_Y_row_idxs_per_W_row if x and x.issubset(zero_idxs)]
+                subsets_of_one_idxs = [x for x in one_Y_row_idxs_per_W_row if x and x.issubset(one_idxs)]
+                subsets_of_zero_idxs = [x for x in one_Y_row_idxs_per_W_row if x and x.issubset(zero_idxs)]
 
-            for subset_of_one_idxs in subsets_of_one_idxs:
-                new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_one_idxs)], col_idx] = 1
-            for subset_of_zero_idxs in subsets_of_zero_idxs:
-                opposite_col_idx = (col_idx + self.in_dim) % (2 * self.in_dim)
-                new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_zero_idxs)], opposite_col_idx] = 1
+                for subset_of_one_idxs in subsets_of_one_idxs:
+                    new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_one_idxs)], col_idx] = 1
+                for subset_of_zero_idxs in subsets_of_zero_idxs:
+                    opposite_col_idx = (col_idx + self.in_dim) % (2 * self.in_dim)
+                    new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_zero_idxs)], opposite_col_idx] = 1
 
-        self.W = new_W
-        return None
+            self.W = new_W
+            return None
+        else:
+            zero_Y_idxs_to_W_row_idx = {}
+            for i, x in enumerate(zero_Y_row_idxs_per_W_row):
+                if x:
+                    if tuple(x) not in zero_Y_idxs_to_W_row_idx:
+                        zero_Y_idxs_to_W_row_idx[tuple(x)] = []
+                    zero_Y_idxs_to_W_row_idx[tuple(x)].append(i)
+
+            candidate_cols = []
+            for col_idx in range(self.full_X.shape[1]//2):
+                zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
+                one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
+                if len(zero_idxs) == self.full_X.shape[0]:
+                    candidate_cols.append(col_idx)
+                elif len(one_idxs) == self.full_X.shape[0]:
+                    candidate_cols.append(col_idx + self.in_dim)
+
+            sums = self.W_confidence.sum(dim=0)
+            sorted_sums = torch.sort(sums, dim = 0, descending=False)
+
+            lower_col_idx = None
+            for idx in sorted_sums.indices:
+                if idx.item() in candidate_cols:
+                    lower_col_idx = idx.item()
+                    break
+
+            new_W = torch.zeros_like(self.W)
+            new_W[:, lower_col_idx] = 1
+            self.W = new_W
+            return None
 
 
     def update_batch_non_first_layer(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row):
@@ -257,11 +289,45 @@ class TsetlinLayer(TsetlinBase):
                             return combined_cols, True
                         
             return [], False
-        
-        X_row_idxs_per_W_col, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q)
-        assert solved
+        if q:
+            X_row_idxs_per_W_col, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
+            assert solved
+        else:
+            self.W_confidence[self.W > 0] += 1
+
+            zero_Y_idxs_to_W_row_idx = {}
+            for i, x in enumerate(zero_Y_row_idxs_per_W_row):
+                if x:
+                    if tuple(x) not in zero_Y_idxs_to_W_row_idx:
+                        zero_Y_idxs_to_W_row_idx[tuple(x)] = []
+                    zero_Y_idxs_to_W_row_idx[tuple(x)].append(i)
+
+            candidate_cols = []
+            for col_idx in range(self.full_X.shape[1]//2):
+                zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
+                one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
+                if len(zero_idxs) == self.full_X.shape[0]:
+                    candidate_cols.append(col_idx)
+                elif len(one_idxs) == self.full_X.shape[0]:
+                    candidate_cols.append(col_idx + self.in_dim)
+
+            sums = self.W_confidence.sum(dim=0)
+            sorted_sums = torch.sort(sums, dim = 0, descending=False)
+
+            lower_col_idx = None
+            for idx in sorted_sums.indices:
+                if idx.item() in candidate_cols:
+                    lower_col_idx = idx.item()
+                    break
+
+            new_W = torch.zeros_like(self.W)
+            new_W[:, lower_col_idx] = 1
+            self.W = new_W
+            return self.full_X[:,:self.in_dim]
+
 
         # START - finding best col config based on W_confidence
+        self.W_confidence[self.W > 0] += 1
 
         W_row_idxs_per_col = [ [[] for _ in range(2)] for _ in range(len(X_row_idxs_per_W_col))]
 
@@ -351,8 +417,8 @@ class TsetlinLayer(TsetlinBase):
             return min_sum, sol_dict
 
         _, sol_dict = recursive_fun(set(range(len(X_row_idxs_per_W_col))), None, set())
-
-        adjusted_X_row_idxs_per_W_col = [None] * len(X_row_idxs_per_W_col)
+        assert sol_dict is not None
+        adjusted_X_row_idxs_per_W_col = [None] * self.in_dim
         for W_row_idxs_set_idx, sort_idx in sol_dict.items():
             original_col_idx = W_row_idxs_set_idx
             new_col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, sort_idx].item()
@@ -369,16 +435,21 @@ class TsetlinLayer(TsetlinBase):
         for W_row_idx, Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
             if Y_row_idxs:
                 for W_col_idx, X_row_idxs in enumerate(adjusted_X_row_idxs_per_W_col):
-                    if Y_row_idxs.issubset(X_row_idxs[0]):
-                        new_W[W_row_idx, W_col_idx] = 1
-                    elif Y_row_idxs.issubset(X_row_idxs[1]):
-                        new_W[W_row_idx, W_col_idx + self.in_dim] = 1
-        self.W = new_W
+                    if X_row_idxs is not None:
+                        if Y_row_idxs.issubset(X_row_idxs[0]):
+                            new_W[W_row_idx, W_col_idx] = 1
+                        elif Y_row_idxs.issubset(X_row_idxs[1]):
+                            new_W[W_row_idx, W_col_idx + self.in_dim] = 1
+        self.W = new_W # the problem with this new_W is that it may have rows that are all 0s. There should always be at least one 1 in each row
 
         new_full_X = torch.zeros_like(self.full_X)
+        double_full_X = torch.zeros_like(self.full_X)
         for W_col_idx, X_row_idxs in enumerate(adjusted_X_row_idxs_per_W_col):
-            new_full_X[list(X_row_idxs[0]), W_col_idx] = 1
-    
+            if X_row_idxs is not None:
+                new_full_X[list(X_row_idxs[0]), W_col_idx] = 1
+                double_full_X[list(X_row_idxs[0]), W_col_idx] = 1
+                double_full_X[list(X_row_idxs[1]), W_col_idx + self.in_dim] = 1
+
         return new_full_X[:,:self.in_dim]
 
 class TsetlinMachine:
