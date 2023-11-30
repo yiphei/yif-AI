@@ -416,17 +416,13 @@ class TsetlinLayer(TsetlinBase):
 
             last_partition_idx = 0
             X_row_partitions = []
-            for partition_idx in selected_partition_idxs:
+            for partition_idx in (selected_partition_idxs + [len(X_row_idxs)]):
                 row_partition = set(X_row_idxs[last_partition_idx:partition_idx])
                 if row_partition:
                     complement_partition = set(X_row_idxs) - row_partition
                     X_row_partitions.append((complement_partition, row_partition))
                 
                 last_partition_idx = partition_idx
-
-            row_partition = set(X_row_idxs[last_partition_idx:])
-            complement_row_partition = set(X_row_idxs) - row_partition
-            X_row_partitions.append((complement_row_partition, row_partition))
 
             used_col_idxs = list(adjusted_X_row_idxs_per_W_col.keys())
             neg_used_col_idxs = [ (x + self.in_dim) % (self.in_dim * 2) for x in used_col_idxs]
