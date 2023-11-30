@@ -219,82 +219,82 @@ class TsetlinLayer(TsetlinBase):
                     visited_ones.add(tuple_x)
                     unique_one_Y_row_idxs.add(i)
 
+        if unique_one_Y_row_idxs:
+            tracking = {x: zero_Y_row_idxs_per_W_row[x] for x in unique_one_Y_row_idxs}
+            sorted_one_Y_row_idxs = sorted(list(unique_one_Y_row_idxs), key=lambda x: len(one_Y_row_idxs_per_W_row[x]), reverse=True)
+            q = deque(sorted_one_Y_row_idxs)
 
-        tracking = {x: zero_Y_row_idxs_per_W_row[x] for x in unique_one_Y_row_idxs}
-        sorted_one_Y_row_idxs = sorted(list(unique_one_Y_row_idxs), key=lambda x: len(one_Y_row_idxs_per_W_row[x]), reverse=True)
-        q = deque(sorted_one_Y_row_idxs)
+            def recursive_helper(depth, max_depth, current_solution, prev_W_row_idx, q):
+                if depth == max_depth or len(current_solution) == 0:
+                    return [], len(current_solution) == 0
 
-        def recursive_helper(depth, max_depth, current_solution, prev_W_row_idx, q):
-            if depth == max_depth or len(current_solution) == 0:
-                return [], len(current_solution) == 0
+                curr_W_row_idx = prev_W_row_idx
+                while curr_W_row_idx not in current_solution and q:
+                    curr_W_row_idx = q.popleft()
 
-            curr_W_row_idx = prev_W_row_idx
-            while curr_W_row_idx not in current_solution and q:
-                curr_W_row_idx = q.popleft()
+                curr_one_Y_idxs = one_Y_row_idxs_per_W_row[curr_W_row_idx]
+                min_zero_Y_idxs_len = math.ceil(len(current_solution[curr_W_row_idx]) / (max_depth - depth))
+                min_zero_Y_subsets = generate_subsets(current_solution[curr_W_row_idx], min(min_zero_Y_idxs_len, len(current_solution[curr_W_row_idx])))
 
-            curr_one_Y_idxs = one_Y_row_idxs_per_W_row[curr_W_row_idx]
-            min_zero_Y_idxs_len = math.ceil(len(current_solution[curr_W_row_idx]) / (max_depth - depth))
-            min_zero_Y_subsets = generate_subsets(current_solution[curr_W_row_idx], min(min_zero_Y_idxs_len, len(current_solution[curr_W_row_idx])))
-
-            ordered_min_zero_Y_subsets = []
-            remaining_q = list(q)
-            for idx in remaining_q:
-                one_Y_idx = one_Y_row_idxs_per_W_row[idx]
-                if len(one_Y_idx) == min_zero_Y_idxs_len and len(one_Y_idx & curr_one_Y_idxs) == 0 and len(one_Y_idx & current_solution[curr_W_row_idx]) > 0:
-                    ordered_min_zero_Y_subsets.append(one_Y_idx)
-
-            for subset in min_zero_Y_subsets:
-                if subset not in ordered_min_zero_Y_subsets:
-                    ordered_min_zero_Y_subsets.append(subset)
-
-            for min_zero_Y_subset in ordered_min_zero_Y_subsets:
-                remaining_Y_idxs = set(range(self.full_X.shape[0])) - (min_zero_Y_subset | curr_one_Y_idxs)
-                remaining_Y_subsets = generate_powerset(remaining_Y_idxs)
-                remaining_Y_subsets.sort(key=lambda x: len(x), reverse=True)
-
-                remaining_Y_subsets_ordered = []
+                ordered_min_zero_Y_subsets = []
+                remaining_q = list(q)
                 for idx in remaining_q:
                     one_Y_idx = one_Y_row_idxs_per_W_row[idx]
-                    if one_Y_idx.issubset(remaining_Y_idxs):
-                        remaining_Y_subsets_ordered.append(one_Y_idx)
+                    if len(one_Y_idx) == min_zero_Y_idxs_len and len(one_Y_idx & curr_one_Y_idxs) == 0 and len(one_Y_idx & current_solution[curr_W_row_idx]) > 0:
+                        ordered_min_zero_Y_subsets.append(one_Y_idx)
 
-                for subset in remaining_Y_subsets:
-                    if subset not in remaining_Y_subsets_ordered:
-                        remaining_Y_subsets_ordered.append(subset)
+                for subset in min_zero_Y_subsets:
+                    if subset not in ordered_min_zero_Y_subsets:
+                        ordered_min_zero_Y_subsets.append(subset)
 
-                for remaining_Y_subset in remaining_Y_subsets_ordered:
-                    opposite_remaining_Y_subset = remaining_Y_idxs - remaining_Y_subset
+                for min_zero_Y_subset in ordered_min_zero_Y_subsets:
+                    remaining_Y_idxs = set(range(self.full_X.shape[0])) - (min_zero_Y_subset | curr_one_Y_idxs)
+                    remaining_Y_subsets = generate_powerset(remaining_Y_idxs)
+                    remaining_Y_subsets.sort(key=lambda x: len(x), reverse=True)
 
-                    #add remaining with the opposite
-                    first_left_W = curr_one_Y_idxs | opposite_remaining_Y_subset
-                    first_right_W = min_zero_Y_subset | remaining_Y_subset
+                    remaining_Y_subsets_ordered = []
+                    for idx in remaining_q:
+                        one_Y_idx = one_Y_row_idxs_per_W_row[idx]
+                        if one_Y_idx.issubset(remaining_Y_idxs):
+                            remaining_Y_subsets_ordered.append(one_Y_idx)
 
-                    second_left_W = curr_one_Y_idxs | remaining_Y_subset
-                    second_right_W = min_zero_Y_subset | opposite_remaining_Y_subset
+                    for subset in remaining_Y_subsets:
+                        if subset not in remaining_Y_subsets_ordered:
+                            remaining_Y_subsets_ordered.append(subset)
 
-                    for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
-                        updated_solution = {}
-                        for k,v in current_solution.items():
-                            one_Y_idxs = one_Y_row_idxs_per_W_row[k]
-                            if one_Y_idxs.issubset(left_W):
-                                sub = v - right_W
-                                if len(sub) > 0:
-                                    updated_solution[k] = sub
-                            elif one_Y_idxs.issubset(right_W):
-                                sub = v - left_W
-                                if len(sub) > 0:
-                                    updated_solution[k] = sub
-                            else:
-                                updated_solution[k] = v
+                    for remaining_Y_subset in remaining_Y_subsets_ordered:
+                        opposite_remaining_Y_subset = remaining_Y_idxs - remaining_Y_subset
 
-                        next_cols, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
-                        if solved:
-                            combined_cols = next_cols
-                            combined_cols.append((left_W, right_W))
-                            return combined_cols, True
-                        
-            return [], False
-        if q:
+                        #add remaining with the opposite
+                        first_left_W = curr_one_Y_idxs | opposite_remaining_Y_subset
+                        first_right_W = min_zero_Y_subset | remaining_Y_subset
+
+                        second_left_W = curr_one_Y_idxs | remaining_Y_subset
+                        second_right_W = min_zero_Y_subset | opposite_remaining_Y_subset
+
+                        for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
+                            updated_solution = {}
+                            for k,v in current_solution.items():
+                                one_Y_idxs = one_Y_row_idxs_per_W_row[k]
+                                if one_Y_idxs.issubset(left_W):
+                                    sub = v - right_W
+                                    if len(sub) > 0:
+                                        updated_solution[k] = sub
+                                elif one_Y_idxs.issubset(right_W):
+                                    sub = v - left_W
+                                    if len(sub) > 0:
+                                        updated_solution[k] = sub
+                                else:
+                                    updated_solution[k] = v
+
+                            next_cols, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
+                            if solved:
+                                combined_cols = next_cols
+                                combined_cols.append((left_W, right_W))
+                                return combined_cols, True
+                            
+                return [], False
+            
             X_row_idxs_per_W_col, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
             assert solved
         else:
@@ -304,7 +304,6 @@ class TsetlinLayer(TsetlinBase):
         adjusted_X_row_idxs_per_W_col = {}
         if X_row_idxs_per_W_col:
             # START - finding best col config based on W_confidence
-
             W_row_idxs_per_col = [ [[] for _ in range(2)] for _ in range(len(X_row_idxs_per_W_col))]
 
             for W_row_idx, one_Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
