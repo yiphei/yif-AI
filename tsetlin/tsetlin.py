@@ -434,19 +434,13 @@ class TsetlinLayer(TsetlinBase):
             available_col_idxs = set(range(self.W.shape[1])) - (set(used_col_idxs) | set(neg_used_col_idxs))
             sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
 
-            picked_col_idxs = []
-            col_idx_to_pick = partitions
-            for i in sums.indices:
-                idx = i.item()
+            for col_idx_tensor in sums.indices:
+                idx = col_idx_tensor.item()
                 neg_idx = (idx + self.in_dim) % (self.in_dim * 2)
-                if idx in available_col_idxs and neg_idx not in picked_col_idxs:
-                    picked_col_idxs.append(idx)
-                    col_idx_to_pick -= 1
-                    if col_idx_to_pick == 0:
+                if idx in available_col_idxs and neg_idx not in adjusted_X_row_idxs_for_zero_Y:
+                    adjusted_X_row_idxs_for_zero_Y[idx] = X_row_partitions[len(adjusted_X_row_idxs_for_zero_Y.keys())]
+                    if len(adjusted_X_row_idxs_for_zero_Y.keys()) == partitions:
                         break
-            
-            for col_idx, row_partition in zip(picked_col_idxs, X_row_partitions):
-                adjusted_X_row_idxs_for_zero_Y[col_idx] = row_partition # these are the ones that need to be zero
 
         # END - finding best col config based on W_confidence
 
