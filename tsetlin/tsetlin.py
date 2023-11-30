@@ -298,149 +298,155 @@ class TsetlinLayer(TsetlinBase):
             X_row_idxs_per_W_col, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
             assert solved
         else:
-            self.W_confidence[self.W > 0] += 1
+            X_row_idxs_per_W_col = []
 
-            zero_Y_idxs_to_W_row_idx = {}
-            for i, x in enumerate(zero_Y_row_idxs_per_W_row):
-                if x:
-                    if tuple(x) not in zero_Y_idxs_to_W_row_idx:
-                        zero_Y_idxs_to_W_row_idx[tuple(x)] = []
-                    zero_Y_idxs_to_W_row_idx[tuple(x)].append(i)
-
-            candidate_cols = torch.zeros(self.full_X.shape[1])
-            for col_idx in range(self.full_X.shape[1]):
-                zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
-                one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
-                if len(zero_idxs) == self.full_X.shape[0]:
-                    candidate_cols[col_idx] = 1
-                elif len(one_idxs) == self.full_X.shape[0]:
-                    candidate_cols[col_idx] = -1
-
-            sums = self.W_confidence.sum(dim=0)
-            sorted_sums = torch.sort(sums, dim = 0, descending=False)
-
-            lower_col_idx = None
-            flip_X_values = False
-            for col_idx in sorted_sums.indices:
-                if candidate_cols[col_idx.item()] != 0:
-                    lower_col_idx = col_idx.item()
-                    flip_X_values = candidate_cols[col_idx.item()] == -1
-
-            new_W = torch.zeros_like(self.W)
-            new_W[:, lower_col_idx] = 1
-            self.W = new_W
-
-            new_full_X = torch.clone(self.full_X)
-            if flip_X_values:
-                neg_col_idx = (lower_col_idx + self.in_dim) % (2 * self.in_dim)
-                new_full_X[:, lower_col_idx] = 1 - new_full_X[:, lower_col_idx]
-                new_full_X[:, neg_col_idx] = 1 - new_full_X[:, neg_col_idx]
-
-            return new_full_X[:,:self.in_dim]
-
-
-        # START - finding best col config based on W_confidence
         self.W_confidence[self.W > 0] += 1
+        adjusted_X_row_idxs_per_W_col = [None] * self.in_dim
+        if X_row_idxs_per_W_col:
+            # START - finding best col config based on W_confidence
 
-        W_row_idxs_per_col = [ [[] for _ in range(2)] for _ in range(len(X_row_idxs_per_W_col))]
+            W_row_idxs_per_col = [ [[] for _ in range(2)] for _ in range(len(X_row_idxs_per_W_col))]
 
-        for W_row_idx, one_Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
-            if one_Y_row_idxs:
-                for W_col_idx, X_row_idxs in enumerate(X_row_idxs_per_W_col):
-                    if one_Y_row_idxs.issubset(X_row_idxs[0]):
-                        W_row_idxs_per_col[W_col_idx][0].append(W_row_idx)
-                    elif one_Y_row_idxs.issubset(X_row_idxs[1]):
-                        W_row_idxs_per_col[W_col_idx][1].append(W_row_idx)
+            for W_row_idx, one_Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
+                if one_Y_row_idxs:
+                    for W_col_idx, X_row_idxs in enumerate(X_row_idxs_per_W_col):
+                        if one_Y_row_idxs.issubset(X_row_idxs[0]):
+                            W_row_idxs_per_col[W_col_idx][0].append(W_row_idx)
+                        elif one_Y_row_idxs.issubset(X_row_idxs[1]):
+                            W_row_idxs_per_col[W_col_idx][1].append(W_row_idx)
 
-        W_row_idxs_sets_sum_per_col = []
-        for W_row_idxs in W_row_idxs_per_col:
-            sums = self.W_confidence[W_row_idxs[0]].sum(dim=0)
-            neg_sum = torch.roll(self.W_confidence[W_row_idxs[1]].sum(dim=0), shifts = -self.in_dim, dims=0)
-            sums += neg_sum
-            W_row_idxs_sets_sum_per_col.append(sums)
-            
-        W_row_idxs_sets_sum_per_col = torch.stack(W_row_idxs_sets_sum_per_col)
-        sorted_W_row_idxs_sets_sum_per_col = torch.sort(W_row_idxs_sets_sum_per_col, dim=1, descending=False)
-
-        offset_sorted_W_row_idxs_sets_sum_per_col = sorted_W_row_idxs_sets_sum_per_col.values - sorted_W_row_idxs_sets_sum_per_col.values[:, 0].unsqueeze(1)
-
-        offset_W_row_idxs_sets_sum_to_cols_dict = {}
-        for i, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_sum_per_col):
-            for offset_sum in offset_sums:
-                if offset_sum.item() not in offset_W_row_idxs_sets_sum_to_cols_dict:
-                    offset_W_row_idxs_sets_sum_to_cols_dict[offset_sum.item()] = set()
-                offset_W_row_idxs_sets_sum_to_cols_dict[offset_sum.item()].add(i)
-        offset_W_row_idxs_sets_sum_to_cols_dict
-
-        sorted_W_row_idxs_sets_sum = sorted(offset_W_row_idxs_sets_sum_to_cols_dict.keys())
-
-        W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_sum] # based on increasing offset W row idxs sets sum
-
-
-        def recursive_fun(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs):
-            if len(W_row_idxs_set_idxs) == 1:
-                W_row_idxs_set_idx = list(W_row_idxs_set_idxs)[0]
-                max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else (self.in_dim * 2) - 1
+            W_row_idxs_sets_sum_per_col = []
+            for W_row_idxs in W_row_idxs_per_col:
+                sums = self.W_confidence[W_row_idxs[0]].sum(dim=0)
+                neg_sum = torch.roll(self.W_confidence[W_row_idxs[1]].sum(dim=0), shifts = -self.in_dim, dims=0)
+                sums += neg_sum
+                W_row_idxs_sets_sum_per_col.append(sums)
                 
-                min_sum = None
-                min_sorted_idx = None
-                for i in range(max_sorted_idx + 1):
-                    col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, i].item()
-                    if col_idx not in used_W_col_idxs:
-                        W_row_idxs_sum = sorted_W_row_idxs_sets_sum_per_col.values[W_row_idxs_set_idx, i].item()
-                        if min_sum is None or W_row_idxs_sum < min_sum:
-                            min_sum = W_row_idxs_sum
-                            min_sorted_idx = i
+            W_row_idxs_sets_sum_per_col = torch.stack(W_row_idxs_sets_sum_per_col)
+            sorted_W_row_idxs_sets_sum_per_col = torch.sort(W_row_idxs_sets_sum_per_col, dim=1, descending=False)
 
-                return min_sum, {W_row_idxs_set_idx: min_sorted_idx}
+            offset_sorted_W_row_idxs_sets_sum_per_col = sorted_W_row_idxs_sets_sum_per_col.values - sorted_W_row_idxs_sets_sum_per_col.values[:, 0].unsqueeze(1)
 
-            curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(X_row_idxs_per_W_col)
+            offset_W_row_idxs_sets_sum_to_cols_dict = {}
+            for i, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_sum_per_col):
+                for offset_sum in offset_sums:
+                    if offset_sum.item() not in offset_W_row_idxs_sets_sum_to_cols_dict:
+                        offset_W_row_idxs_sets_sum_to_cols_dict[offset_sum.item()] = set()
+                    offset_W_row_idxs_sets_sum_to_cols_dict[offset_sum.item()].add(i)
+            offset_W_row_idxs_sets_sum_to_cols_dict
 
-            min_sum = None
-            sol_dict = None
+            sorted_W_row_idxs_sets_sum = sorted(offset_W_row_idxs_sets_sum_to_cols_dict.keys())
 
-            for i in range(len(W_row_idxs_set_sequencing)):
-                offset_W_row_idxs_set_idxs = W_row_idxs_set_sequencing[i]
-                target_W_row_idxs_set_idxs = W_row_idxs_set_idxs & offset_W_row_idxs_set_idxs
-                curr_min_sum = min_sum
+            W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_sum] # based on increasing offset W row idxs sets sum
 
-                for W_row_idxs_set_idx in target_W_row_idxs_set_idxs:
-                    curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
-                    if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
-                        return min_sum, sol_dict
 
-                    col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                    if col_idx not in used_W_col_idxs:
-                        W_row_idxs_sum = sorted_W_row_idxs_sets_sum_per_col.values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                        remaining_W_row_idxs_set_idxs = W_row_idxs_set_idxs - {W_row_idxs_set_idx}
-                        neg_col_idx = (col_idx + self.in_dim) % (self.in_dim*2) # this might be wrong
-                        new_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
-                        nested_sum , sub_sol_dict = recursive_fun(remaining_W_row_idxs_set_idxs, curr_max_sorted_idx_per_W_row_idxs_set_idxs, new_used_col_idxs)
-
-                        if nested_sum is not None:
-                            W_row_idxs_sum += nested_sum
+            def recursive_fun(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs):
+                if len(W_row_idxs_set_idxs) == 1:
+                    W_row_idxs_set_idx = list(W_row_idxs_set_idxs)[0]
+                    max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else (self.in_dim * 2) - 1
+                    
+                    min_sum = None
+                    min_sorted_idx = None
+                    for i in range(max_sorted_idx + 1):
+                        col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, i].item()
+                        if col_idx not in used_W_col_idxs:
+                            W_row_idxs_sum = sorted_W_row_idxs_sets_sum_per_col.values[W_row_idxs_set_idx, i].item()
                             if min_sum is None or W_row_idxs_sum < min_sum:
                                 min_sum = W_row_idxs_sum
-                                sol_dict = sub_sol_dict
-                                sol_dict[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
+                                min_sorted_idx = i
 
-                if min_sum is not None and min_sum == curr_min_sum:
-                    return min_sum, sol_dict
+                    return min_sum, {W_row_idxs_set_idx: min_sorted_idx}
 
-            return min_sum, sol_dict
+                curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(X_row_idxs_per_W_col)
 
-        _, sol_dict = recursive_fun(set(range(len(X_row_idxs_per_W_col))), None, set())
-        assert sol_dict is not None
-        adjusted_X_row_idxs_per_W_col = [None] * self.in_dim
-        for W_row_idxs_set_idx, sort_idx in sol_dict.items():
-            original_col_idx = W_row_idxs_set_idx
-            new_col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, sort_idx].item()
-            new_pos_col_idx = new_col_idx if new_col_idx < self.in_dim else new_col_idx - self.in_dim
+                min_sum = None
+                sol_dict = None
 
-            original_col = X_row_idxs_per_W_col[original_col_idx]
-            if new_pos_col_idx != new_col_idx:
-                original_col = (original_col[1], original_col[0])
-            adjusted_X_row_idxs_per_W_col[new_pos_col_idx] = original_col
+                for i in range(len(W_row_idxs_set_sequencing)):
+                    offset_W_row_idxs_set_idxs = W_row_idxs_set_sequencing[i]
+                    target_W_row_idxs_set_idxs = W_row_idxs_set_idxs & offset_W_row_idxs_set_idxs
+                    curr_min_sum = min_sum
+
+                    for W_row_idxs_set_idx in target_W_row_idxs_set_idxs:
+                        curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
+                        if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
+                            return min_sum, sol_dict
+
+                        col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                        if col_idx not in used_W_col_idxs:
+                            W_row_idxs_sum = sorted_W_row_idxs_sets_sum_per_col.values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                            remaining_W_row_idxs_set_idxs = W_row_idxs_set_idxs - {W_row_idxs_set_idx}
+                            neg_col_idx = (col_idx + self.in_dim) % (self.in_dim*2) # this might be wrong
+                            new_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
+                            nested_sum , sub_sol_dict = recursive_fun(remaining_W_row_idxs_set_idxs, curr_max_sorted_idx_per_W_row_idxs_set_idxs, new_used_col_idxs)
+
+                            if nested_sum is not None:
+                                W_row_idxs_sum += nested_sum
+                                if min_sum is None or W_row_idxs_sum < min_sum:
+                                    min_sum = W_row_idxs_sum
+                                    sol_dict = sub_sol_dict
+                                    sol_dict[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
+
+                    if min_sum is not None and min_sum == curr_min_sum:
+                        return min_sum, sol_dict
+
+                return min_sum, sol_dict
+
+            _, sol_dict = recursive_fun(set(range(len(X_row_idxs_per_W_col))), None, set())
+            assert sol_dict is not None
+            adjusted_X_row_idxs_per_W_col = [None] * self.in_dim
+            for W_row_idxs_set_idx, sort_idx in sol_dict.items():
+                original_col_idx = W_row_idxs_set_idx
+                new_col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, sort_idx].item()
+                new_pos_col_idx = new_col_idx if new_col_idx < self.in_dim else new_col_idx - self.in_dim
+
+                original_col = X_row_idxs_per_W_col[original_col_idx]
+                if new_pos_col_idx != new_col_idx:
+                    original_col = (original_col[1], original_col[0])
+                adjusted_X_row_idxs_per_W_col[new_pos_col_idx] = original_col
+
+        adjusted_X_row_idxs_for_zero_Y = [None] * (self.in_dim*2)
+        W_row_idxs_with_zero_Ys = [i for i, x in enumerate(one_Y_row_idxs_per_W_row) if len(x) == 0]
+        if W_row_idxs_with_zero_Ys:
+            available_cols = self.in_dim - len(X_row_idxs_per_W_col)
+            X_row_idxs = range(self.full_X.shape[0])
+            partitions = random.randint(1, min(available_cols, len(X_row_idxs)))
+            selected_partition_idxs = [0]
+            if partitions > 1:
+                selected_partition_idxs = random.sample(X_row_idxs, partitions - 1)
+
+            last_partition_idx = 0
+            X_row_partitions = []
+            for partition_idx in selected_partition_idxs:
+                row_partition = set(X_row_idxs[last_partition_idx:partition_idx])
+                if row_partition:
+                    complement_partition = set(X_row_idxs) - row_partition
+                    X_row_partitions.append((complement_partition, row_partition))
+                
+                last_partition_idx = partition_idx
+
+            row_partition = set(X_row_idxs[last_partition_idx:])
+            complement_row_partition = set(X_row_idxs) - row_partition
+            X_row_partitions.append((complement_row_partition, row_partition))
+
+            used_col_idxs = [ i for i, x in enumerate(adjusted_X_row_idxs_per_W_col) if x is not None]
+            neg_used_col_idxs = [ (x + self.in_dim) % (self.in_dim * 2) for x in used_col_idxs]
+            available_col_idxs = set(range(self.W.shape[1])) - (set(used_col_idxs) | set(neg_used_col_idxs))
+            sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
+
+            picked_col_idxs = []
+            col_idx_to_pick = partitions
+            for i in sums.indices:
+                idx = i.item()
+                neg_idx = (idx + self.in_dim) % (self.in_dim * 2)
+                if idx in available_col_idxs and neg_idx not in picked_col_idxs:
+                    picked_col_idxs.append(idx)
+                    col_idx_to_pick -= 1
+                    if col_idx_to_pick == 0:
+                        break
+            
+            for col_idx, row_partition in zip(picked_col_idxs, X_row_partitions):
+                adjusted_X_row_idxs_for_zero_Y[col_idx] = row_partition # these are the ones that need to be zero
 
         # END - finding best col config based on W_confidence
 
@@ -454,23 +460,27 @@ class TsetlinLayer(TsetlinBase):
                         elif Y_row_idxs.issubset(X_row_idxs[1]):
                             new_W[W_row_idx, W_col_idx + self.in_dim] = 1
 
+        for W_col_idx, X_row_idxs in enumerate(adjusted_X_row_idxs_for_zero_Y):
+            if X_row_idxs is not None:
+                new_W[W_row_idxs_with_zero_Ys, W_col_idx] = 1
+
         new_full_X = torch.zeros_like(self.full_X)
-        double_full_X = torch.zeros_like(self.full_X)
-        actual_full_X = torch.zeros((self.full_X.shape[0], self.full_X.shape[1]//2))
         for W_col_idx, X_row_idxs in enumerate(adjusted_X_row_idxs_per_W_col):
             if X_row_idxs is not None:
                 new_full_X[list(X_row_idxs[0]), W_col_idx] = 1
-                double_full_X[list(X_row_idxs[0]), W_col_idx] = 1
-                double_full_X[list(X_row_idxs[1]), W_col_idx + self.in_dim] = 1
-                actual_full_X[list(X_row_idxs[0]), W_col_idx] = 1
-        
-        neg_actual_X = 1 - actual_full_X
-        actual_actual_full_X = torch.cat((actual_full_X, neg_actual_X), dim=1)
-        
-        col_idxs_with_zero_rows = (actual_actual_full_X.sum(dim=0) == 0).nonzero(as_tuple=True)[0]
-        for row_idx, one_Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
-            if len(one_Y_row_idxs) == 0:
-                new_W[row_idx, col_idxs_with_zero_rows[0]] = 1
+
+        for W_col_idx, X_row_idxs in enumerate(adjusted_X_row_idxs_for_zero_Y):
+            if X_row_idxs is not None:
+                target_X_row_idxs = X_row_idxs[0]
+                target_complement_X_row_idxs = X_row_idxs[1]
+                target_W_col_idx = W_col_idx
+                if W_col_idx >= self.in_dim:
+                    target_X_row_idxs = X_row_idxs[1]
+                    target_complement_X_row_idxs = X_row_idxs[0]
+                    target_W_col_idx = W_col_idx - self.in_dim
+
+                new_full_X[list(target_X_row_idxs), target_W_col_idx] = 1
+                new_full_X[list(target_complement_X_row_idxs), target_W_col_idx] = 0
     
         self.W = new_W # the problem with this new_W is that it may have rows that are all 0s. There should always be at least one 1 in each row
 
