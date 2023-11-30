@@ -409,6 +409,7 @@ class TsetlinLayer(TsetlinBase):
         W_row_idxs_with_zero_Ys = [i for i, x in enumerate(one_Y_row_idxs_per_W_row) if len(x) == 0]
         if W_row_idxs_with_zero_Ys:
             available_cols = self.in_dim - len(X_row_idxs_per_W_col)
+            assert available_cols > 0
             X_row_idxs = range(self.full_X.shape[0])
             partitions = random.randint(1, min(available_cols, len(X_row_idxs)))
             selected_partition_idxs = [0]
