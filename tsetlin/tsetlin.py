@@ -170,6 +170,11 @@ class TsetlinLayer(TsetlinBase):
                     opposite_col_idx = (col_idx + self.in_dim) % (2 * self.in_dim)
                     new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_zero_idxs)], opposite_col_idx] = 1
 
+            col_idxs_with_zero_rows = (self.full_X.sum(dim=0) == 0).nonzero(as_tuple=True)[0]
+            for row_idx, one_Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
+                if len(one_Y_row_idxs) == 0:
+                    new_W[row_idx, col_idxs_with_zero_rows[0]] = 1
+
             self.W = new_W
             return None
         else:
@@ -302,28 +307,36 @@ class TsetlinLayer(TsetlinBase):
                         zero_Y_idxs_to_W_row_idx[tuple(x)] = []
                     zero_Y_idxs_to_W_row_idx[tuple(x)].append(i)
 
-            candidate_cols = []
-            for col_idx in range(self.full_X.shape[1]//2):
+            candidate_cols = torch.zeros(self.full_X.shape[1])
+            for col_idx in range(self.full_X.shape[1]):
                 zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
                 one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
                 if len(zero_idxs) == self.full_X.shape[0]:
-                    candidate_cols.append(col_idx)
+                    candidate_cols[col_idx] = 1
                 elif len(one_idxs) == self.full_X.shape[0]:
-                    candidate_cols.append(col_idx + self.in_dim)
+                    candidate_cols[col_idx] = -1
 
             sums = self.W_confidence.sum(dim=0)
             sorted_sums = torch.sort(sums, dim = 0, descending=False)
 
             lower_col_idx = None
-            for idx in sorted_sums.indices:
-                if idx.item() in candidate_cols:
-                    lower_col_idx = idx.item()
-                    break
+            flip_X_values = False
+            for col_idx in sorted_sums.indices:
+                if candidate_cols[col_idx.item()] != 0:
+                    lower_col_idx = col_idx.item()
+                    flip_X_values = candidate_cols[col_idx.item()] == -1
 
             new_W = torch.zeros_like(self.W)
             new_W[:, lower_col_idx] = 1
             self.W = new_W
-            return self.full_X[:,:self.in_dim]
+
+            new_full_X = torch.clone(self.full_X)
+            if flip_X_values:
+                neg_col_idx = (lower_col_idx + self.in_dim) % (2 * self.in_dim)
+                new_full_X[:, lower_col_idx] = 1 - new_full_X[:, lower_col_idx]
+                new_full_X[:, neg_col_idx] = 1 - new_full_X[:, neg_col_idx]
+
+            return new_full_X[:,:self.in_dim]
 
 
         # START - finding best col config based on W_confidence
@@ -440,15 +453,26 @@ class TsetlinLayer(TsetlinBase):
                             new_W[W_row_idx, W_col_idx] = 1
                         elif Y_row_idxs.issubset(X_row_idxs[1]):
                             new_W[W_row_idx, W_col_idx + self.in_dim] = 1
-        self.W = new_W # the problem with this new_W is that it may have rows that are all 0s. There should always be at least one 1 in each row
 
         new_full_X = torch.zeros_like(self.full_X)
         double_full_X = torch.zeros_like(self.full_X)
+        actual_full_X = torch.zeros((self.full_X.shape[0], self.full_X.shape[1]//2))
         for W_col_idx, X_row_idxs in enumerate(adjusted_X_row_idxs_per_W_col):
             if X_row_idxs is not None:
                 new_full_X[list(X_row_idxs[0]), W_col_idx] = 1
                 double_full_X[list(X_row_idxs[0]), W_col_idx] = 1
                 double_full_X[list(X_row_idxs[1]), W_col_idx + self.in_dim] = 1
+                actual_full_X[list(X_row_idxs[0]), W_col_idx] = 1
+        
+        neg_actual_X = 1 - actual_full_X
+        actual_actual_full_X = torch.cat((actual_full_X, neg_actual_X), dim=1)
+        
+        col_idxs_with_zero_rows = (actual_actual_full_X.sum(dim=0) == 0).nonzero(as_tuple=True)[0]
+        for row_idx, one_Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
+            if len(one_Y_row_idxs) == 0:
+                new_W[row_idx, col_idxs_with_zero_rows[0]] = 1
+    
+        self.W = new_W # the problem with this new_W is that it may have rows that are all 0s. There should always be at least one 1 in each row
 
         return new_full_X[:,:self.in_dim]
 
