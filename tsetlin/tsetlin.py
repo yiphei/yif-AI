@@ -404,7 +404,7 @@ class TsetlinLayer(TsetlinBase):
                     original_col = (original_col[1], original_col[0])
                 adjusted_X_row_idxs_per_W_col[new_pos_col_idx] = original_col
 
-        adjusted_X_row_idxs_for_zero_Y = [None] * (self.in_dim*2)
+        adjusted_X_row_idxs_for_zero_Y = {}
         W_row_idxs_with_zero_Ys = [i for i, x in enumerate(one_Y_row_idxs_per_W_row) if len(x) == 0]
         if W_row_idxs_with_zero_Ys:
             available_cols = self.in_dim - len(X_row_idxs_per_W_col)
@@ -459,27 +459,23 @@ class TsetlinLayer(TsetlinBase):
                     elif Y_row_idxs.issubset(X_row_idxs[1]):
                         new_W[W_row_idx, W_col_idx + self.in_dim] = 1
 
-        for W_col_idx, X_row_idxs in enumerate(adjusted_X_row_idxs_for_zero_Y):
-            if X_row_idxs is not None:
-                new_W[W_row_idxs_with_zero_Ys, W_col_idx] = 1
+        new_W[W_row_idxs_with_zero_Ys, list(adjusted_X_row_idxs_for_zero_Y.keys())] = 1
 
         new_full_X = torch.zeros_like(self.full_X)
-
         for W_col_idx, X_row_idxs in adjusted_X_row_idxs_per_W_col.items():
             new_full_X[list(X_row_idxs[0]), W_col_idx] = 1
 
-        for W_col_idx, X_row_idxs in enumerate(adjusted_X_row_idxs_for_zero_Y):
-            if X_row_idxs is not None:
-                target_X_row_idxs = X_row_idxs[0]
-                target_complement_X_row_idxs = X_row_idxs[1]
-                target_W_col_idx = W_col_idx
-                if W_col_idx >= self.in_dim:
-                    target_X_row_idxs = X_row_idxs[1]
-                    target_complement_X_row_idxs = X_row_idxs[0]
-                    target_W_col_idx = W_col_idx - self.in_dim
+        for W_col_idx, X_row_idxs in adjusted_X_row_idxs_for_zero_Y.items():
+            target_X_row_idxs = X_row_idxs[0]
+            target_complement_X_row_idxs = X_row_idxs[1]
+            target_W_col_idx = W_col_idx
+            if W_col_idx >= self.in_dim:
+                target_X_row_idxs = X_row_idxs[1]
+                target_complement_X_row_idxs = X_row_idxs[0]
+                target_W_col_idx = W_col_idx - self.in_dim
 
-                new_full_X[list(target_X_row_idxs), target_W_col_idx] = 1
-                new_full_X[list(target_complement_X_row_idxs), target_W_col_idx] = 0
+            new_full_X[list(target_X_row_idxs), target_W_col_idx] = 1
+            new_full_X[list(target_complement_X_row_idxs), target_W_col_idx] = 0
     
         self.W = new_W # the problem with this new_W is that it may have rows that are all 0s. There should always be at least one 1 in each row
 
