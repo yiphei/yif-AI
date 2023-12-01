@@ -28,10 +28,10 @@ class TsetlinLayer(TsetlinBase):
         W_neg = torch.randint(0, 2, (out_dim, in_dim,))
         W_neg[W_pos == 1] = 0
         self.W = torch.cat((W_pos, W_neg), dim=1)
-        self.W_confidence = torch.zeros_like(self.W)
         zero_row_idxs = (self.W.sum(dim=1) == 0).nonzero(as_tuple=True)[0]
         col_idxs = torch.randint(0, in_dim * 2, (zero_row_idxs.shape[0],))
         self.W[zero_row_idxs, col_idxs] = 1
+        self.W_confidence = torch.zeros_like(self.W)
 
         self.out = None
         self.full_X = None
@@ -50,7 +50,7 @@ class TsetlinLayer(TsetlinBase):
 
     def update(self, Y, is_first_layer = False):
         if torch.equal(Y, self.out):
-            return self.full_X[:,:self.in_dim]
+            return None
         
         self.W_confidence[self.W > 0] += 1
 
@@ -331,6 +331,7 @@ class TsetlinLayer(TsetlinBase):
         for W_row_idx in W_row_idxs_with_zero_Ys:
             new_W[W_row_idx, list(W_col_to_new_X_row_idxs_for_zero_Y.keys())] = 1
 
+        new_full_X = None
         if not is_first_layer:
             new_full_X = torch.zeros_like(self.full_X)
             for W_col_idx, X_row_idxs in W_col_to_new_X_row_idxs.items():
@@ -346,12 +347,10 @@ class TsetlinLayer(TsetlinBase):
 
                 new_full_X[list(target_X_row_idxs), target_W_col_idx] = 1
                 new_full_X[list(target_complement_X_row_idxs), target_W_col_idx] = 0
-        else:
-            new_full_X = torch.clone(self.full_X)
     
         self.W = new_W 
 
-        return new_full_X[:,:self.in_dim]
+        return new_full_X[:,:self.in_dim] if not is_first_layer else None
 
 class TsetlinMachine:
 
@@ -371,5 +370,7 @@ class TsetlinMachine:
     def update(self, y):
         y = y.unsqueeze(1)
         updated_X = self.l3.update(y)
-        updated_X = self.l2.update(updated_X)
-        self.l1.update(updated_X, True)
+        if updated_X is not None:
+            updated_X = self.l2.update(updated_X)
+        if updated_X is not None:
+            self.l1.update(updated_X, True)
