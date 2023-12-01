@@ -141,40 +141,34 @@ class TsetlinLayer(TsetlinBase):
             one_Y_idxs = torch.nonzero(row_Y == 1).squeeze(1).tolist()
             one_Y_row_idxs_per_W_row.append(set(one_Y_idxs))
 
-        update_fnc = self.update_batch_first_layar if is_first_layer else self.update_batch_non_first_layer
-        return update_fnc(one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row)
+        update_fnc = self.update_batch_non_first_layer
+        return update_fnc(one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row, is_first_layer)
 
 
     def update_batch_first_layar(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row):
         self.W_confidence[self.W > 0] += 1
         if not all([len(x) == 0 for x in one_Y_row_idxs_per_W_row]):
-            one_Y_idxs_to_W_row_idx = {}
-            for i, x in enumerate(one_Y_row_idxs_per_W_row):
-                if x:
-                    if tuple(x) not in one_Y_idxs_to_W_row_idx:
-                        one_Y_idxs_to_W_row_idx[tuple(x)] = []
-                    one_Y_idxs_to_W_row_idx[tuple(x)].append(i)
-
-            new_W = torch.zeros_like(self.W)
-
+            X_row_idxs_per_W_col = {}
             for col_idx in range(self.full_X.shape[1]//2):
                 one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
                 zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
+                X_row_idxs_per_W_col[col_idx] = ((one_idxs, zero_idxs))
 
-                subsets_of_one_idxs = [x for x in one_Y_row_idxs_per_W_row if x and x.issubset(one_idxs)]
-                subsets_of_zero_idxs = [x for x in one_Y_row_idxs_per_W_row if x and x.issubset(zero_idxs)]
 
-                for subset_of_one_idxs in subsets_of_one_idxs:
-                    new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_one_idxs)], col_idx] = 1
-                for subset_of_zero_idxs in subsets_of_zero_idxs:
-                    opposite_col_idx = (col_idx + self.in_dim) % (2 * self.in_dim)
-                    new_W[one_Y_idxs_to_W_row_idx[tuple(subset_of_zero_idxs)], opposite_col_idx] = 1
-
-            col_idxs_with_zero_rows = (self.full_X.sum(dim=0) == 0).nonzero(as_tuple=True)[0]
-            for row_idx, one_Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
-                if len(one_Y_row_idxs) == 0:
-                    new_W[row_idx, col_idxs_with_zero_rows[0]] = 1
-
+            new_W = torch.zeros_like(self.W)
+            for W_row_idx, Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
+                if Y_row_idxs:
+                    for W_col_idx, X_row_idxs in X_row_idxs_per_W_col.items():
+                        if Y_row_idxs.issubset(X_row_idxs[0]):
+                            new_W[W_row_idx, W_col_idx] = 1
+                        elif Y_row_idxs.issubset(X_row_idxs[1]):
+                            new_W[W_row_idx, W_col_idx + self.in_dim] = 1
+            
+            print(one_Y_row_idxs_per_W_row)
+            print(self.full_X)
+            print(self.W)
+            print(X_row_idxs_per_W_col)
+            print(new_W)
             self.W = new_W
             return None
         else:
@@ -209,7 +203,7 @@ class TsetlinLayer(TsetlinBase):
             return None
 
 
-    def update_batch_non_first_layer(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row):
+    def update_batch_non_first_layer(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row, is_first_layer):
         unique_one_Y_row_idxs = set()
         visited_ones = set()
         for i,x in enumerate(one_Y_row_idxs_per_W_row):
@@ -219,7 +213,14 @@ class TsetlinLayer(TsetlinBase):
                     visited_ones.add(tuple_x)
                     unique_one_Y_row_idxs.add(i)
 
-        if unique_one_Y_row_idxs:
+        if is_first_layer:
+            adjusted_X_row_idxs_per_W_col = {}
+            for col_idx in range(self.full_X.shape[1]//2):
+                one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
+                zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
+                adjusted_X_row_idxs_per_W_col[col_idx] = ((one_idxs, zero_idxs))
+
+        elif unique_one_Y_row_idxs:
             tracking = {x: zero_Y_row_idxs_per_W_row[x] for x in unique_one_Y_row_idxs}
             sorted_one_Y_row_idxs = sorted(list(unique_one_Y_row_idxs), key=lambda x: len(one_Y_row_idxs_per_W_row[x]), reverse=True)
             q = deque(sorted_one_Y_row_idxs)
@@ -297,12 +298,7 @@ class TsetlinLayer(TsetlinBase):
             
             X_row_idxs_per_W_col, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
             assert solved
-        else:
-            X_row_idxs_per_W_col = []
 
-        self.W_confidence[self.W > 0] += 1
-        adjusted_X_row_idxs_per_W_col = {}
-        if X_row_idxs_per_W_col:
             # START - finding best col config based on W_confidence
             W_row_idxs_per_col = [ [[] for _ in range(2)] for _ in range(len(X_row_idxs_per_W_col))]
 
@@ -393,6 +389,7 @@ class TsetlinLayer(TsetlinBase):
 
             _, sol_dict = recursive_fun(set(range(len(X_row_idxs_per_W_col))), None, set())
             assert sol_dict is not None
+            adjusted_X_row_idxs_per_W_col ={}
             for W_row_idxs_set_idx, sort_idx in sol_dict.items():
                 original_col_idx = W_row_idxs_set_idx
                 new_col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, sort_idx].item()
@@ -402,40 +399,76 @@ class TsetlinLayer(TsetlinBase):
                 if new_pos_col_idx != new_col_idx:
                     original_col = (original_col[1], original_col[0])
                 adjusted_X_row_idxs_per_W_col[new_pos_col_idx] = original_col
+        else:
+            X_row_idxs_per_W_col = []
+            adjusted_X_row_idxs_per_W_col = {}
+
+        self.W_confidence[self.W > 0] += 1
 
         adjusted_X_row_idxs_for_zero_Y = {}
         W_row_idxs_with_zero_Ys = [i for i, x in enumerate(one_Y_row_idxs_per_W_row) if len(x) == 0]
         if W_row_idxs_with_zero_Ys:
-            available_cols = self.in_dim - len(X_row_idxs_per_W_col)
-            assert available_cols > 0
-            X_row_idxs = range(self.full_X.shape[0])
-            partitions = random.randint(1, min(available_cols, len(X_row_idxs)))
-            selected_partition_idxs = [0]
-            if partitions > 1:
-                selected_partition_idxs = random.sample(X_row_idxs, partitions - 1)
+            available_cols = self.in_dim - len(adjusted_X_row_idxs_per_W_col.keys())
+            if available_cols > 0:
+                # TODO: this is a problem if you have identical rows of full_X
+                X_row_idxs = list(range(self.full_X.shape[0]))
+                partitions = random.randint(1, min(available_cols, len(X_row_idxs)))
+                selected_partition_idxs = [0]
+                if partitions > 1:
+                    selected_partition_idxs = sorted(random.sample(set(X_row_idxs) - {0}, partitions - 1))
 
-            last_partition_idx = 0
-            X_row_partitions = []
-            for partition_idx in (selected_partition_idxs + [len(X_row_idxs)]):
-                row_partition = set(X_row_idxs[last_partition_idx:partition_idx])
-                if row_partition:
-                    complement_partition = set(X_row_idxs) - row_partition
-                    X_row_partitions.append((complement_partition, row_partition))
+                last_partition_idx = 0
+                X_row_partitions = []
+                for partition_idx in (selected_partition_idxs + [len(X_row_idxs)]):
+                    row_partition = set(X_row_idxs[last_partition_idx:partition_idx])
+                    if row_partition:
+                        complement_partition = set(X_row_idxs) - row_partition
+                        X_row_partitions.append((complement_partition, row_partition))
+                    
+                    last_partition_idx = partition_idx
+
+                used_col_idxs = list(adjusted_X_row_idxs_per_W_col.keys())
+                neg_used_col_idxs = [ (x + self.in_dim) % (self.in_dim * 2) for x in used_col_idxs]
+                available_col_idxs = set(range(self.W.shape[1])) - (set(used_col_idxs) | set(neg_used_col_idxs))
+                sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
+
+                for col_idx_tensor in sums.indices:
+                    idx = col_idx_tensor.item()
+                    neg_idx = (idx + self.in_dim) % (self.in_dim * 2)
+                    if idx in available_col_idxs and neg_idx not in adjusted_X_row_idxs_for_zero_Y:
+                        adjusted_X_row_idxs_for_zero_Y[idx] = X_row_partitions[len(adjusted_X_row_idxs_for_zero_Y.keys())]
+                        if len(adjusted_X_row_idxs_for_zero_Y.keys()) == partitions:
+                            break
+            else:
+                def find_best_setup(depth, max_depth, curre_sol, remaining_rows):
+                    if depth == max_depth or len(remaining_rows) == 0:
+                        return curre_sol if len(remaining_rows) == 0 else None
+
+                    for W_col_idx,X_row_idxs in adjusted_X_row_idxs_per_W_col.items():
+                        neg_W_col_idx = (W_col_idx + self.in_dim) % (self.in_dim * 2)
+                        sub = remaining_rows - X_row_idxs[1]
+                        if W_col_idx not in curre_sol and neg_W_col_idx not in curre_sol and len(sub)< len(remaining_rows):
+                            sol = find_best_setup(depth+1, max_depth, curre_sol | {W_col_idx}, sub)
+                            if sol is not None:
+                                return sol
+                        
+                        sub = remaining_rows - X_row_idxs[0]
+                        if W_col_idx not in curre_sol and neg_W_col_idx not in curre_sol and len(sub)< len(remaining_rows):
+                            sol = find_best_setup(depth+1, max_depth, curre_sol | {neg_W_col_idx}, sub)
+                            if sol is not None:
+                                return sol
+                    return None
                 
-                last_partition_idx = partition_idx
-
-            used_col_idxs = list(adjusted_X_row_idxs_per_W_col.keys())
-            neg_used_col_idxs = [ (x + self.in_dim) % (self.in_dim * 2) for x in used_col_idxs]
-            available_col_idxs = set(range(self.W.shape[1])) - (set(used_col_idxs) | set(neg_used_col_idxs))
-            sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
-
-            for col_idx_tensor in sums.indices:
-                idx = col_idx_tensor.item()
-                neg_idx = (idx + self.in_dim) % (self.in_dim * 2)
-                if idx in available_col_idxs and neg_idx not in adjusted_X_row_idxs_for_zero_Y:
-                    adjusted_X_row_idxs_for_zero_Y[idx] = X_row_partitions[len(adjusted_X_row_idxs_for_zero_Y.keys())]
-                    if len(adjusted_X_row_idxs_for_zero_Y.keys()) == partitions:
-                        break
+                best_sol = find_best_setup(0, self.in_dim, set(), set(range(self.full_X.shape[0])))
+                if best_sol is None:
+                    print("AAAA")
+                assert best_sol is not None
+                for W_col_idx in best_sol:
+                    pos_idx = W_col_idx if W_col_idx < self.in_dim else W_col_idx - self.in_dim
+                    target_X_values = adjusted_X_row_idxs_per_W_col[pos_idx]
+                    if W_col_idx != pos_idx:
+                        target_X_values = (target_X_values[1], target_X_values[0])
+                    adjusted_X_row_idxs_for_zero_Y[W_col_idx] = target_X_values
 
         # END - finding best col config based on W_confidence
 
@@ -448,23 +481,27 @@ class TsetlinLayer(TsetlinBase):
                     elif Y_row_idxs.issubset(X_row_idxs[1]):
                         new_W[W_row_idx, W_col_idx + self.in_dim] = 1
 
-        new_W[W_row_idxs_with_zero_Ys, list(adjusted_X_row_idxs_for_zero_Y.keys())] = 1
+        for row_idx in W_row_idxs_with_zero_Ys:
+            new_W[row_idx, list(adjusted_X_row_idxs_for_zero_Y.keys())] = 1
 
-        new_full_X = torch.zeros_like(self.full_X)
-        for W_col_idx, X_row_idxs in adjusted_X_row_idxs_per_W_col.items():
-            new_full_X[list(X_row_idxs[0]), W_col_idx] = 1
+        if not is_first_layer:
+            new_full_X = torch.zeros_like(self.full_X)
+            for W_col_idx, X_row_idxs in adjusted_X_row_idxs_per_W_col.items():
+                new_full_X[list(X_row_idxs[0]), W_col_idx] = 1
 
-        for W_col_idx, X_row_idxs in adjusted_X_row_idxs_for_zero_Y.items():
-            target_X_row_idxs = X_row_idxs[0]
-            target_complement_X_row_idxs = X_row_idxs[1]
-            target_W_col_idx = W_col_idx
-            if W_col_idx >= self.in_dim:
-                target_X_row_idxs = X_row_idxs[1]
-                target_complement_X_row_idxs = X_row_idxs[0]
-                target_W_col_idx = W_col_idx - self.in_dim
+            for W_col_idx, X_row_idxs in adjusted_X_row_idxs_for_zero_Y.items():
+                target_X_row_idxs = X_row_idxs[0]
+                target_complement_X_row_idxs = X_row_idxs[1]
+                target_W_col_idx = W_col_idx
+                if W_col_idx >= self.in_dim:
+                    target_X_row_idxs = X_row_idxs[1]
+                    target_complement_X_row_idxs = X_row_idxs[0]
+                    target_W_col_idx = W_col_idx - self.in_dim
 
-            new_full_X[list(target_X_row_idxs), target_W_col_idx] = 1
-            new_full_X[list(target_complement_X_row_idxs), target_W_col_idx] = 0
+                new_full_X[list(target_X_row_idxs), target_W_col_idx] = 1
+                new_full_X[list(target_complement_X_row_idxs), target_W_col_idx] = 0
+        else:
+            new_full_X = torch.clone(self.full_X)
     
         self.W = new_W # the problem with this new_W is that it may have rows that are all 0s. There should always be at least one 1 in each row
 
