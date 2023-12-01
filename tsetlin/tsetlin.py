@@ -162,7 +162,7 @@ class TsetlinLayer(TsetlinBase):
             new_X_row_idxs_per_W_col, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
             assert solved
 
-            W_row_idxs_per_col = [ [[] for _ in range(2)] for _ in range(len(new_X_row_idxs_per_W_col))]
+            W_row_idxs_per_col = defaultdict(lambda: [[], []])
             for W_row_idx, one_Y_row_idxs in W_row_to_one_Y_row_idxs.items():
                 for W_col_idx, X_row_idxs in enumerate(new_X_row_idxs_per_W_col):
                     if one_Y_row_idxs.issubset(X_row_idxs[0]):
@@ -171,9 +171,9 @@ class TsetlinLayer(TsetlinBase):
                         W_row_idxs_per_col[W_col_idx][1].append(W_row_idx)
 
             W_row_idxs_sets_sum_per_col = []
-            for W_row_idxs in W_row_idxs_per_col:
-                sums = self.W_confidence[W_row_idxs[0]].sum(dim=0)
-                neg_sum = torch.roll(self.W_confidence[W_row_idxs[1]].sum(dim=0), shifts = -self.in_dim, dims=0)
+            for W_row_idxs in W_row_idxs_per_col.keys():
+                sums = self.W_confidence[W_row_idxs_per_col[W_row_idxs][0]].sum(dim=0)
+                neg_sum = torch.roll(self.W_confidence[W_row_idxs_per_col[W_row_idxs][1]].sum(dim=0), shifts = -self.in_dim, dims=0)
                 sums += neg_sum
                 W_row_idxs_sets_sum_per_col.append(sums)
                 
