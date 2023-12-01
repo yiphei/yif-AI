@@ -4,7 +4,7 @@ import math
 import copy
 
 from itertools import combinations, chain
-from collections import deque
+from collections import deque, defaultdict
 
 def generate_subsets(set_elements, subset_size):
     return [set(x) for x in list(combinations(set_elements, subset_size))]
@@ -59,9 +59,6 @@ class TsetlinLayer(TsetlinBase):
             one_Y_idxs = torch.nonzero(row_Y == 1).squeeze(1).tolist()
             one_Y_row_idxs_per_W_row.append(set(one_Y_idxs))
 
-        return self.update_batch_non_first_layer(one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row, is_first_layer)
-
-    def update_batch_non_first_layer(self, one_Y_row_idxs_per_W_row, zero_Y_row_idxs_per_W_row, is_first_layer):
         unique_one_Y_row_idxs = set()
         visited_ones = set()
 
@@ -75,7 +72,7 @@ class TsetlinLayer(TsetlinBase):
 
         if is_first_layer:
             W_col_to_new_X_row_idxs = {}
-            for col_idx in range(self.full_X.shape[1]//2):
+            for col_idx in range(self.in_dim):
                 one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
                 zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
                 W_col_to_new_X_row_idxs[col_idx] = ((one_idxs, zero_idxs))
@@ -156,15 +153,15 @@ class TsetlinLayer(TsetlinBase):
                             
                 return [], False
             
-            X_row_idxs_per_W_col, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
+            new_X_row_idxs_per_W_col, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
             assert solved
 
             # START - finding best col config based on W_confidence
-            W_row_idxs_per_col = [ [[] for _ in range(2)] for _ in range(len(X_row_idxs_per_W_col))]
+            W_row_idxs_per_col = [ [[] for _ in range(2)] for _ in range(len(new_X_row_idxs_per_W_col))]
 
             for W_row_idx, one_Y_row_idxs in enumerate(one_Y_row_idxs_per_W_row):
                 if one_Y_row_idxs:
-                    for W_col_idx, X_row_idxs in enumerate(X_row_idxs_per_W_col):
+                    for W_col_idx, X_row_idxs in enumerate(new_X_row_idxs_per_W_col):
                         if one_Y_row_idxs.issubset(X_row_idxs[0]):
                             W_row_idxs_per_col[W_col_idx][0].append(W_row_idx)
                         elif one_Y_row_idxs.issubset(X_row_idxs[1]):
@@ -182,11 +179,9 @@ class TsetlinLayer(TsetlinBase):
 
             offset_sorted_W_row_idxs_sets_sum_per_col = sorted_W_row_idxs_sets_sum_per_col.values - sorted_W_row_idxs_sets_sum_per_col.values[:, 0].unsqueeze(1)
 
-            offset_W_row_idxs_sets_sum_to_cols_dict = {}
+            offset_W_row_idxs_sets_sum_to_cols_dict = defaultdict(set)
             for i, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_sum_per_col):
                 for offset_sum in offset_sums:
-                    if offset_sum.item() not in offset_W_row_idxs_sets_sum_to_cols_dict:
-                        offset_W_row_idxs_sets_sum_to_cols_dict[offset_sum.item()] = set()
                     offset_W_row_idxs_sets_sum_to_cols_dict[offset_sum.item()].add(i)
             offset_W_row_idxs_sets_sum_to_cols_dict
 
@@ -212,7 +207,7 @@ class TsetlinLayer(TsetlinBase):
 
                     return min_sum, {W_row_idxs_set_idx: min_sorted_idx}
 
-                curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(X_row_idxs_per_W_col)
+                curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(new_X_row_idxs_per_W_col)
 
                 min_sum = None
                 sol_dict = None
@@ -247,15 +242,16 @@ class TsetlinLayer(TsetlinBase):
 
                 return min_sum, sol_dict
 
-            _, sol_dict = recursive_fun(set(range(len(X_row_idxs_per_W_col))), None, set())
+            _, sol_dict = recursive_fun(set(range(len(new_X_row_idxs_per_W_col))), None, set())
             assert sol_dict is not None
+
             W_col_to_new_X_row_idxs ={}
             for W_row_idxs_set_idx, sort_idx in sol_dict.items():
                 original_col_idx = W_row_idxs_set_idx
                 new_col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, sort_idx].item()
                 new_pos_col_idx = new_col_idx if new_col_idx < self.in_dim else new_col_idx - self.in_dim
 
-                original_col = X_row_idxs_per_W_col[original_col_idx]
+                original_col = new_X_row_idxs_per_W_col[original_col_idx]
                 if new_pos_col_idx != new_col_idx:
                     original_col = (original_col[1], original_col[0])
                 W_col_to_new_X_row_idxs[new_pos_col_idx] = original_col
@@ -283,7 +279,7 @@ class TsetlinLayer(TsetlinBase):
                     last_partition_idx = partition_idx
 
                 used_col_idxs = list(W_col_to_new_X_row_idxs.keys())
-                neg_used_col_idxs = [ (x + self.in_dim) % (self.in_dim * 2) for x in used_col_idxs]
+                neg_used_col_idxs = [(x + self.in_dim) % (self.in_dim * 2) for x in used_col_idxs]
                 available_col_idxs = set(range(self.W.shape[1])) - (set(used_col_idxs) | set(neg_used_col_idxs))
                 sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
 
