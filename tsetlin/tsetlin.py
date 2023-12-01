@@ -213,7 +213,6 @@ class TsetlinLayer(TsetlinBase):
                 for i in range(len(W_row_idxs_set_sequencing)):
                     offset_W_row_idxs_set_idxs = W_row_idxs_set_sequencing[i]
                     target_W_row_idxs_set_idxs = W_row_idxs_set_idxs & offset_W_row_idxs_set_idxs
-                    curr_min_confidence_sum = min_confidence_sum
 
                     for W_row_idxs_set_idx in target_W_row_idxs_set_idxs:
                         curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
@@ -228,15 +227,10 @@ class TsetlinLayer(TsetlinBase):
                             sub_min_confidence_sum , sub_sol_dict = recursive_fun(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs)
 
                             if sub_min_confidence_sum is not None:
-                                W_row_idxs_confidence_sum += sub_min_confidence_sum
-                                if min_confidence_sum is None or W_row_idxs_confidence_sum < min_confidence_sum:
-                                    min_confidence_sum = W_row_idxs_confidence_sum
-                                    sol_dict = sub_sol_dict
-                                    sol_dict[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
-
-                    # Because everything is sorted, then we can stop as soon as the min_sum doesn't decrease
-                    if min_confidence_sum is not None and min_confidence_sum == curr_min_confidence_sum:
-                        return min_confidence_sum, sol_dict
+                                min_confidence_sum = W_row_idxs_confidence_sum + sub_min_confidence_sum
+                                sol_dict = sub_sol_dict
+                                sol_dict[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
+                                return min_confidence_sum, sol_dict
 
                 return min_confidence_sum, sol_dict
 
