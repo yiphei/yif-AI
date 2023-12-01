@@ -163,10 +163,10 @@ class TsetlinLayer(TsetlinBase):
 
             W_row_idxs_per_col = defaultdict(lambda: [[], []])
             for W_row_idx, one_Y_row_idxs in W_row_to_one_Y_row_idxs.items():
-                for W_col_idx, X_row_idxs in enumerate(new_X_row_idxs_per_W_col):
-                    if one_Y_row_idxs.issubset(X_row_idxs[0]):
+                for W_col_idx, new_X_row_idxs in enumerate(new_X_row_idxs_per_W_col):
+                    if one_Y_row_idxs.issubset(new_X_row_idxs[0]):
                         W_row_idxs_per_col[W_col_idx][0].append(W_row_idx)
-                    elif one_Y_row_idxs.issubset(X_row_idxs[1]):
+                    elif one_Y_row_idxs.issubset(new_X_row_idxs[1]):
                         W_row_idxs_per_col[W_col_idx][1].append(W_row_idx)
 
             W_row_idxs_sets_confidence_sum_per_col = []
@@ -189,7 +189,7 @@ class TsetlinLayer(TsetlinBase):
             sorted_W_row_idxs_sets_confidence_sum = sorted(offset_W_row_idxs_sets_confidence_sum_to_cols_dict.keys())
             W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_confidence_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_confidence_sum] # based on increasing offset W row idxs sets sum
 
-            def recursive_fun(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs):
+            def get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs):
                 if len(W_row_idxs_set_idxs) == 1:
                     W_row_idxs_set_idx = list(W_row_idxs_set_idxs)[0]
                     max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else (self.in_dim * 2) - 1
@@ -208,7 +208,7 @@ class TsetlinLayer(TsetlinBase):
 
                 curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(new_X_row_idxs_per_W_col)
                 min_confidence_sum = None
-                sol_dict = None
+                W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = None
 
                 for i in range(len(W_row_idxs_set_sequencing)):
                     offset_W_row_idxs_set_idxs = W_row_idxs_set_sequencing[i]
@@ -217,36 +217,36 @@ class TsetlinLayer(TsetlinBase):
                     for W_row_idxs_set_idx in target_W_row_idxs_set_idxs:
                         curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
                         if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
-                            return min_confidence_sum, sol_dict
+                            return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
                         col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
                         if col_idx not in used_W_col_idxs:
                             W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col.values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
                             neg_col_idx = self.get_neg_col_idxs(col_idx)
                             updated_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
-                            sub_min_confidence_sum , sub_sol_dict = recursive_fun(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs)
+                            sub_min_confidence_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs)
 
                             if sub_min_confidence_sum is not None:
                                 min_confidence_sum = W_row_idxs_confidence_sum + sub_min_confidence_sum
-                                sol_dict = sub_sol_dict
-                                sol_dict[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
-                                return min_confidence_sum, sol_dict
+                                W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
+                                W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
+                                return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
-                return min_confidence_sum, sol_dict
+                return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
-            _, sol_dict = recursive_fun(set(range(len(new_X_row_idxs_per_W_col))), None, set())
-            assert sol_dict is not None
+            _, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(set(range(len(new_X_row_idxs_per_W_col))), None, set())
+            assert W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum is not None
 
             W_col_to_new_X_row_idxs ={}
-            for W_row_idxs_set_idx, sort_idx in sol_dict.items():
-                original_col_idx = W_row_idxs_set_idx
-                new_col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, sort_idx].item()
+            for W_row_idxs_set_idx, sorted_idx in W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum.items():
+                old_col_idx = W_row_idxs_set_idx
+                new_col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, sorted_idx].item()
                 new_pos_col_idx = self.get_pos_col_idx(new_col_idx)
 
-                original_col = new_X_row_idxs_per_W_col[original_col_idx]
+                new_X_row_idxs = new_X_row_idxs_per_W_col[old_col_idx]
                 if new_pos_col_idx != new_col_idx:
-                    original_col = (original_col[1], original_col[0])
-                W_col_to_new_X_row_idxs[new_pos_col_idx] = original_col
+                    new_X_row_idxs = (new_X_row_idxs[1], new_X_row_idxs[0])
+                W_col_to_new_X_row_idxs[new_pos_col_idx] = new_X_row_idxs
 
         W_col_to_new_X_row_idxs_for_zero_Y = {}
         W_row_idxs_with_zero_Ys =  list(set(range(self.W.shape[0])) - (W_row_to_one_Y_row_idxs.keys()))
@@ -254,18 +254,18 @@ class TsetlinLayer(TsetlinBase):
             available_cols = self.in_dim - len(W_col_to_new_X_row_idxs.keys())
             if available_cols > 0:
                 # TODO: this is a problem if you have identical rows of full_X
-                X_row_idxs = list(range(self.full_X.shape[0]))
-                partitions = random.randint(1, min(available_cols, len(X_row_idxs)))
+                new_X_row_idxs = list(range(self.full_X.shape[0]))
+                partitions = random.randint(1, min(available_cols, len(new_X_row_idxs)))
                 selected_partition_idxs = [0]
                 if partitions > 1:
-                    selected_partition_idxs = sorted(random.sample(set(X_row_idxs) - {0}, partitions - 1))
+                    selected_partition_idxs = sorted(random.sample(set(new_X_row_idxs) - {0}, partitions - 1))
 
                 last_partition_idx = 0
                 X_row_partitions = []
-                for partition_idx in (selected_partition_idxs + [len(X_row_idxs)]):
-                    row_partition = set(X_row_idxs[last_partition_idx:partition_idx])
+                for partition_idx in (selected_partition_idxs + [len(new_X_row_idxs)]):
+                    row_partition = set(new_X_row_idxs[last_partition_idx:partition_idx])
                     if row_partition:
-                        complement_partition = set(X_row_idxs) - row_partition
+                        complement_partition = set(new_X_row_idxs) - row_partition
                         X_row_partitions.append((complement_partition, row_partition))
                     
                     last_partition_idx = partition_idx
@@ -311,37 +311,37 @@ class TsetlinLayer(TsetlinBase):
                         target_X_values = (target_X_values[1], target_X_values[0])
                     W_col_to_new_X_row_idxs_for_zero_Y[W_col_idx] = target_X_values
 
-        new_W = torch.zeros_like(self.W)
+        updated_W = torch.zeros_like(self.W)
         for W_row_idx, Y_row_idxs in W_row_to_one_Y_row_idxs.items():
-            for W_col_idx, X_row_idxs in W_col_to_new_X_row_idxs.items():
-                if Y_row_idxs.issubset(X_row_idxs[0]):
-                    new_W[W_row_idx, W_col_idx] = 1
-                elif Y_row_idxs.issubset(X_row_idxs[1]):
-                    new_W[W_row_idx, W_col_idx + self.in_dim] = 1
+            for W_col_idx, new_X_row_idxs in W_col_to_new_X_row_idxs.items():
+                if Y_row_idxs.issubset(new_X_row_idxs[0]):
+                    updated_W[W_row_idx, W_col_idx] = 1
+                elif Y_row_idxs.issubset(new_X_row_idxs[1]):
+                    updated_W[W_row_idx, W_col_idx + self.in_dim] = 1
 
         for W_row_idx in W_row_idxs_with_zero_Ys:
-            new_W[W_row_idx, list(W_col_to_new_X_row_idxs_for_zero_Y.keys())] = 1
+            updated_W[W_row_idx, list(W_col_to_new_X_row_idxs_for_zero_Y.keys())] = 1
 
-        new_full_X = None
+        self.W = updated_W 
+
+        updated_full_X = None
         if not is_first_layer:
-            new_full_X = torch.zeros_like(self.full_X)
-            for W_col_idx, X_row_idxs in W_col_to_new_X_row_idxs.items():
-                new_full_X[list(X_row_idxs[0]), W_col_idx] = 1
+            updated_full_X = torch.zeros_like(self.full_X)
+            for W_col_idx, new_X_row_idxs in W_col_to_new_X_row_idxs.items():
+                updated_full_X[list(new_X_row_idxs[0]), W_col_idx] = 1
 
-            for W_col_idx, X_row_idxs in W_col_to_new_X_row_idxs_for_zero_Y.items():
-                target_X_row_idxs = X_row_idxs[0]
-                target_complement_X_row_idxs = X_row_idxs[1]
+            for W_col_idx, new_X_row_idxs in W_col_to_new_X_row_idxs_for_zero_Y.items():
+                target_X_row_idxs = new_X_row_idxs[0]
+                target_complement_X_row_idxs = new_X_row_idxs[1]
                 target_W_col_idx = self.get_pos_col_idx(W_col_idx)
                 if W_col_idx >= self.in_dim:
-                    target_X_row_idxs = X_row_idxs[1]
-                    target_complement_X_row_idxs = X_row_idxs[0]
+                    target_X_row_idxs = new_X_row_idxs[1]
+                    target_complement_X_row_idxs = new_X_row_idxs[0]
 
-                new_full_X[list(target_X_row_idxs), target_W_col_idx] = 1
-                new_full_X[list(target_complement_X_row_idxs), target_W_col_idx] = 0
+                updated_full_X[list(target_X_row_idxs), target_W_col_idx] = 1
+                updated_full_X[list(target_complement_X_row_idxs), target_W_col_idx] = 0
     
-        self.W = new_W 
-
-        return new_full_X[:,:self.in_dim] if not is_first_layer else None
+        return updated_full_X[:,:self.in_dim] if not is_first_layer else None
 
 class TsetlinMachine:
 
