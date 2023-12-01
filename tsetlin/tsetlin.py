@@ -67,15 +67,15 @@ class TsetlinLayer(TsetlinBase):
             if one_Y_idxs:
                 W_row_to_one_Y_row_idxs[i] = set(one_Y_idxs)
 
-        unique_one_Y_row_idxs = set()
-        visited_ones = set()
+        W_rows_of_unique_one_Y_row_idxs = set()
+        visited_one_Y_row_idxs = set()
 
         W_col_to_new_X_row_idxs = {}
         for W_row_idx, one_Y_row_idxs in W_row_to_one_Y_row_idxs.items():
             tuple_value = tuple(one_Y_row_idxs)
-            if tuple_value not in visited_ones:
-                visited_ones.add(tuple_value)
-                unique_one_Y_row_idxs.add(W_row_idx)
+            if tuple_value not in visited_one_Y_row_idxs:
+                visited_one_Y_row_idxs.add(tuple_value)
+                W_rows_of_unique_one_Y_row_idxs.add(W_row_idx)
 
         if is_first_layer:
             W_col_to_new_X_row_idxs = {}
@@ -84,9 +84,9 @@ class TsetlinLayer(TsetlinBase):
                 zero_idxs = set((self.full_X[:, col_idx] == 0).nonzero().squeeze(1).tolist())
                 W_col_to_new_X_row_idxs[col_idx] = ((one_idxs, zero_idxs))
 
-        elif unique_one_Y_row_idxs:
-            tracking = {x: W_row_to_zero_Y_row_idxs.get(x, set())  for x in unique_one_Y_row_idxs}
-            sorted_one_Y_row_idxs = sorted(list(unique_one_Y_row_idxs), key=lambda x: len(W_row_to_one_Y_row_idxs[x]), reverse=True)
+        elif W_rows_of_unique_one_Y_row_idxs:
+            tracking = {W_row: W_row_to_zero_Y_row_idxs.get(W_row, set())  for W_row in W_rows_of_unique_one_Y_row_idxs}
+            sorted_one_Y_row_idxs = sorted(list(W_rows_of_unique_one_Y_row_idxs), key=lambda x: len(W_row_to_one_Y_row_idxs[x]), reverse=True)
             q = deque(sorted_one_Y_row_idxs)
 
             def recursive_helper(depth, max_depth, current_solution, prev_W_row_idx, q):
@@ -103,10 +103,10 @@ class TsetlinLayer(TsetlinBase):
 
                 ordered_min_zero_Y_subsets = []
                 remaining_q = list(q)
-                for idx in remaining_q:
-                    one_Y_idx = W_row_to_one_Y_row_idxs[idx]
-                    if len(one_Y_idx) == min_zero_Y_idxs_len and len(one_Y_idx & curr_one_Y_idxs) == 0 and len(one_Y_idx & current_solution[curr_W_row_idx]) > 0:
-                        ordered_min_zero_Y_subsets.append(one_Y_idx)
+                for W_row_idx in remaining_q:
+                    one_Y_idxs = W_row_to_one_Y_row_idxs[W_row_idx]
+                    if len(one_Y_idxs) == min_zero_Y_idxs_len and len(one_Y_idxs & curr_one_Y_idxs) == 0 and len(one_Y_idxs & current_solution[curr_W_row_idx]) > 0:
+                        ordered_min_zero_Y_subsets.append(one_Y_idxs)
 
                 for subset in min_zero_Y_subsets:
                     if subset not in ordered_min_zero_Y_subsets:
@@ -118,14 +118,14 @@ class TsetlinLayer(TsetlinBase):
                     remaining_Y_subsets.sort(key=lambda x: len(x), reverse=True)
 
                     remaining_Y_subsets_ordered = []
-                    for idx in remaining_q:
-                        one_Y_idx = W_row_to_one_Y_row_idxs[idx]
-                        if one_Y_idx.issubset(remaining_Y_idxs):
-                            remaining_Y_subsets_ordered.append(one_Y_idx)
+                    for W_row_idx in remaining_q:
+                        one_Y_idxs = W_row_to_one_Y_row_idxs[W_row_idx]
+                        if one_Y_idxs.issubset(remaining_Y_idxs):
+                            remaining_Y_subsets_ordered.append(one_Y_idxs)
 
-                    for subset in remaining_Y_subsets:
-                        if subset not in remaining_Y_subsets_ordered:
-                            remaining_Y_subsets_ordered.append(subset)
+                    for remaining_subset in remaining_Y_subsets:
+                        if remaining_subset not in remaining_Y_subsets_ordered:
+                            remaining_Y_subsets_ordered.append(remaining_subset)
 
                     for remaining_Y_subset in remaining_Y_subsets_ordered:
                         opposite_remaining_Y_subset = remaining_Y_idxs - remaining_Y_subset
@@ -184,15 +184,12 @@ class TsetlinLayer(TsetlinBase):
             offset_sorted_W_row_idxs_sets_sum_per_col = sorted_W_row_idxs_sets_sum_per_col.values - sorted_W_row_idxs_sets_sum_per_col.values[:, 0].unsqueeze(1)
 
             offset_W_row_idxs_sets_sum_to_cols_dict = defaultdict(set)
-            for i, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_sum_per_col):
+            for col_idx, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_sum_per_col):
                 for offset_sum in offset_sums:
-                    offset_W_row_idxs_sets_sum_to_cols_dict[offset_sum.item()].add(i)
-            offset_W_row_idxs_sets_sum_to_cols_dict
+                    offset_W_row_idxs_sets_sum_to_cols_dict[offset_sum.item()].add(col_idx)
 
             sorted_W_row_idxs_sets_sum = sorted(offset_W_row_idxs_sets_sum_to_cols_dict.keys())
-
             W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_sum] # based on increasing offset W row idxs sets sum
-
 
             def recursive_fun(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs):
                 if len(W_row_idxs_set_idxs) == 1:
@@ -260,7 +257,7 @@ class TsetlinLayer(TsetlinBase):
                     original_col = (original_col[1], original_col[0])
                 W_col_to_new_X_row_idxs[new_pos_col_idx] = original_col
 
-        adjusted_X_row_idxs_for_zero_Y = {}
+        W_col_to_new_X_row_idxs_for_zero_Y = {}
         W_row_idxs_with_zero_Ys =  list(set(range(self.W.shape[0])) - (W_row_to_one_Y_row_idxs.keys()))
         if W_row_idxs_with_zero_Ys:
             available_cols = self.in_dim - len(W_col_to_new_X_row_idxs.keys())
@@ -288,11 +285,11 @@ class TsetlinLayer(TsetlinBase):
                 sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
 
                 for col_idx_tensor in sums.indices:
-                    idx = col_idx_tensor.item()
-                    neg_idx = self.get_neg_col_idxs(idx)
-                    if idx in available_col_idxs and neg_idx not in adjusted_X_row_idxs_for_zero_Y:
-                        adjusted_X_row_idxs_for_zero_Y[idx] = X_row_partitions[len(adjusted_X_row_idxs_for_zero_Y.keys())]
-                        if len(adjusted_X_row_idxs_for_zero_Y.keys()) == partitions:
+                    col_idx = col_idx_tensor.item()
+                    neg_col_idx = self.get_neg_col_idxs(col_idx)
+                    if col_idx in available_col_idxs and neg_col_idx not in W_col_to_new_X_row_idxs_for_zero_Y:
+                        W_col_to_new_X_row_idxs_for_zero_Y[col_idx] = X_row_partitions[len(W_col_to_new_X_row_idxs_for_zero_Y.keys())]
+                        if len(W_col_to_new_X_row_idxs_for_zero_Y.keys()) == partitions:
                             break
             else:
                 def find_best_setup(depth, max_depth, curre_sol, remaining_rows):
@@ -317,11 +314,11 @@ class TsetlinLayer(TsetlinBase):
                 best_sol = find_best_setup(0, self.in_dim, set(), set(range(self.full_X.shape[0])))
                 assert best_sol is not None
                 for W_col_idx in best_sol:
-                    pos_idx = self.get_pos_col_idx(W_col_idx)
-                    target_X_values = W_col_to_new_X_row_idxs[pos_idx]
-                    if W_col_idx != pos_idx:
+                    pos_col_idx = self.get_pos_col_idx(W_col_idx)
+                    target_X_values = W_col_to_new_X_row_idxs[pos_col_idx]
+                    if W_col_idx != pos_col_idx:
                         target_X_values = (target_X_values[1], target_X_values[0])
-                    adjusted_X_row_idxs_for_zero_Y[W_col_idx] = target_X_values
+                    W_col_to_new_X_row_idxs_for_zero_Y[W_col_idx] = target_X_values
 
         new_W = torch.zeros_like(self.W)
         for W_row_idx, Y_row_idxs in W_row_to_one_Y_row_idxs.items():
@@ -331,22 +328,21 @@ class TsetlinLayer(TsetlinBase):
                 elif Y_row_idxs.issubset(X_row_idxs[1]):
                     new_W[W_row_idx, W_col_idx + self.in_dim] = 1
 
-        for row_idx in W_row_idxs_with_zero_Ys:
-            new_W[row_idx, list(adjusted_X_row_idxs_for_zero_Y.keys())] = 1
+        for W_row_idx in W_row_idxs_with_zero_Ys:
+            new_W[W_row_idx, list(W_col_to_new_X_row_idxs_for_zero_Y.keys())] = 1
 
         if not is_first_layer:
             new_full_X = torch.zeros_like(self.full_X)
             for W_col_idx, X_row_idxs in W_col_to_new_X_row_idxs.items():
                 new_full_X[list(X_row_idxs[0]), W_col_idx] = 1
 
-            for W_col_idx, X_row_idxs in adjusted_X_row_idxs_for_zero_Y.items():
+            for W_col_idx, X_row_idxs in W_col_to_new_X_row_idxs_for_zero_Y.items():
                 target_X_row_idxs = X_row_idxs[0]
                 target_complement_X_row_idxs = X_row_idxs[1]
-                target_W_col_idx = W_col_idx
+                target_W_col_idx = self.get_pos_col_idx(W_col_idx)
                 if W_col_idx >= self.in_dim:
                     target_X_row_idxs = X_row_idxs[1]
                     target_complement_X_row_idxs = X_row_idxs[0]
-                    target_W_col_idx = W_col_idx - self.in_dim
 
                 new_full_X[list(target_X_row_idxs), target_W_col_idx] = 1
                 new_full_X[list(target_complement_X_row_idxs), target_W_col_idx] = 0
