@@ -197,13 +197,13 @@ class TsetlinLayer(TsetlinBase):
                     
                     min_sum = None
                     min_sorted_idx = None
-                    for i in range(max_sorted_idx + 1):
-                        col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, i].item()
+                    for sorted_idx in range(max_sorted_idx + 1):
+                        col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, sorted_idx].item()
                         if col_idx not in used_W_col_idxs:
-                            W_row_idxs_sum = sorted_W_row_idxs_sets_sum_per_col.values[W_row_idxs_set_idx, i].item()
+                            W_row_idxs_sum = sorted_W_row_idxs_sets_sum_per_col.values[W_row_idxs_set_idx, sorted_idx].item()
                             if min_sum is None or W_row_idxs_sum < min_sum:
                                 min_sum = W_row_idxs_sum
-                                min_sorted_idx = i
+                                min_sorted_idx = sorted_idx
 
                     return min_sum, {W_row_idxs_set_idx: min_sorted_idx}
 
@@ -237,6 +237,7 @@ class TsetlinLayer(TsetlinBase):
                                     sol_dict = sub_sol_dict
                                     sol_dict[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
 
+                    # Because everything is sorted, then we can stop as soon as the min_sum doesn't decrease
                     if min_sum is not None and min_sum == curr_min_sum:
                         return min_sum, sol_dict
 
