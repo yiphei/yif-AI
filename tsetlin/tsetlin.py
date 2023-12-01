@@ -36,6 +36,12 @@ class TsetlinLayer(TsetlinBase):
         self.out = None
         self.full_X = None
 
+    def get_neg_col_idxs(self, col_idx):
+        return (col_idx + self.in_dim) % (self.in_dim * 2)
+    
+    def get_pos_col_idx(self, col_idx):
+        return col_idx % self.in_dim
+
     def forward(self, X):
         X_neg = 1 - X
         self.full_X = torch.cat((X, X_neg), dim=1)
@@ -224,7 +230,7 @@ class TsetlinLayer(TsetlinBase):
                         if col_idx not in used_W_col_idxs:
                             W_row_idxs_sum = sorted_W_row_idxs_sets_sum_per_col.values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
                             remaining_W_row_idxs_set_idxs = W_row_idxs_set_idxs - {W_row_idxs_set_idx}
-                            neg_col_idx = (col_idx + self.in_dim) % (self.in_dim*2) # this might be wrong
+                            neg_col_idx = self.get_neg_col_idxs(col_idx) # this might be wrong
                             new_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
                             nested_sum , sub_sol_dict = recursive_fun(remaining_W_row_idxs_set_idxs, curr_max_sorted_idx_per_W_row_idxs_set_idxs, new_used_col_idxs)
 
@@ -247,7 +253,7 @@ class TsetlinLayer(TsetlinBase):
             for W_row_idxs_set_idx, sort_idx in sol_dict.items():
                 original_col_idx = W_row_idxs_set_idx
                 new_col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, sort_idx].item()
-                new_pos_col_idx = new_col_idx if new_col_idx < self.in_dim else new_col_idx - self.in_dim
+                new_pos_col_idx = self.get_pos_col_idx(new_col_idx)
 
                 original_col = new_X_row_idxs_per_W_col[original_col_idx]
                 if new_pos_col_idx != new_col_idx:
@@ -277,13 +283,13 @@ class TsetlinLayer(TsetlinBase):
                     last_partition_idx = partition_idx
 
                 used_col_idxs = list(W_col_to_new_X_row_idxs.keys())
-                neg_used_col_idxs = [(x + self.in_dim) % (self.in_dim * 2) for x in used_col_idxs]
+                neg_used_col_idxs = [self.get_neg_col_idxs(x) for x in used_col_idxs]
                 available_col_idxs = set(range(self.W.shape[1])) - (set(used_col_idxs) | set(neg_used_col_idxs))
                 sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
 
                 for col_idx_tensor in sums.indices:
                     idx = col_idx_tensor.item()
-                    neg_idx = (idx + self.in_dim) % (self.in_dim * 2)
+                    neg_idx = self.get_neg_col_idxs(idx)
                     if idx in available_col_idxs and neg_idx not in adjusted_X_row_idxs_for_zero_Y:
                         adjusted_X_row_idxs_for_zero_Y[idx] = X_row_partitions[len(adjusted_X_row_idxs_for_zero_Y.keys())]
                         if len(adjusted_X_row_idxs_for_zero_Y.keys()) == partitions:
@@ -294,7 +300,7 @@ class TsetlinLayer(TsetlinBase):
                         return curre_sol if len(remaining_rows) == 0 else None
 
                     for W_col_idx,X_row_idxs in W_col_to_new_X_row_idxs.items():
-                        neg_W_col_idx = (W_col_idx + self.in_dim) % (self.in_dim * 2)
+                        neg_W_col_idx = self.get_neg_col_idxs(W_col_idx)
                         sub = remaining_rows - X_row_idxs[1]
                         if W_col_idx not in curre_sol and neg_W_col_idx not in curre_sol and len(sub)< len(remaining_rows):
                             sol = find_best_setup(depth+1, max_depth, curre_sol | {W_col_idx}, sub)
@@ -311,7 +317,7 @@ class TsetlinLayer(TsetlinBase):
                 best_sol = find_best_setup(0, self.in_dim, set(), set(range(self.full_X.shape[0])))
                 assert best_sol is not None
                 for W_col_idx in best_sol:
-                    pos_idx = W_col_idx if W_col_idx < self.in_dim else W_col_idx - self.in_dim
+                    pos_idx = self.get_pos_col_idx(W_col_idx)
                     target_X_values = W_col_to_new_X_row_idxs[pos_idx]
                     if W_col_idx != pos_idx:
                         target_X_values = (target_X_values[1], target_X_values[0])
