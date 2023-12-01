@@ -169,78 +169,76 @@ class TsetlinLayer(TsetlinBase):
                     elif one_Y_row_idxs.issubset(X_row_idxs[1]):
                         W_row_idxs_per_col[W_col_idx][1].append(W_row_idx)
 
-            W_row_idxs_sets_sum_per_col = []
+            W_row_idxs_sets_confidence_sum_per_col = []
             for W_row_idxs in W_row_idxs_per_col.keys():
                 sums = self.W_confidence[W_row_idxs_per_col[W_row_idxs][0]].sum(dim=0)
                 neg_sum = torch.roll(self.W_confidence[W_row_idxs_per_col[W_row_idxs][1]].sum(dim=0), shifts = -self.in_dim, dims=0)
                 sums += neg_sum
-                W_row_idxs_sets_sum_per_col.append(sums)
+                W_row_idxs_sets_confidence_sum_per_col.append(sums)
                 
-            W_row_idxs_sets_sum_per_col = torch.stack(W_row_idxs_sets_sum_per_col)
-            sorted_W_row_idxs_sets_sum_per_col = torch.sort(W_row_idxs_sets_sum_per_col, dim=1, descending=False)
+            W_row_idxs_sets_confidence_sum_per_col = torch.stack(W_row_idxs_sets_confidence_sum_per_col)
+            sorted_W_row_idxs_sets_confidence_sum_per_col = torch.sort(W_row_idxs_sets_confidence_sum_per_col, dim=1, descending=False)
 
-            offset_sorted_W_row_idxs_sets_sum_per_col = sorted_W_row_idxs_sets_sum_per_col.values - sorted_W_row_idxs_sets_sum_per_col.values[:, 0].unsqueeze(1)
+            offset_sorted_W_row_idxs_sets_confidence_sum_per_col = sorted_W_row_idxs_sets_confidence_sum_per_col.values - sorted_W_row_idxs_sets_confidence_sum_per_col.values[:, 0].unsqueeze(1)
 
-            offset_W_row_idxs_sets_sum_to_cols_dict = defaultdict(set)
-            for col_idx, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_sum_per_col):
+            offset_W_row_idxs_sets_confidence_sum_to_cols_dict = defaultdict(set)
+            for col_idx, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_confidence_sum_per_col):
                 for offset_sum in offset_sums:
-                    offset_W_row_idxs_sets_sum_to_cols_dict[offset_sum.item()].add(col_idx)
+                    offset_W_row_idxs_sets_confidence_sum_to_cols_dict[offset_sum.item()].add(col_idx)
 
-            sorted_W_row_idxs_sets_sum = sorted(offset_W_row_idxs_sets_sum_to_cols_dict.keys())
-            W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_sum] # based on increasing offset W row idxs sets sum
+            sorted_W_row_idxs_sets_confidence_sum = sorted(offset_W_row_idxs_sets_confidence_sum_to_cols_dict.keys())
+            W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_confidence_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_confidence_sum] # based on increasing offset W row idxs sets sum
 
             def recursive_fun(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs):
                 if len(W_row_idxs_set_idxs) == 1:
                     W_row_idxs_set_idx = list(W_row_idxs_set_idxs)[0]
                     max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else (self.in_dim * 2) - 1
                     
-                    min_sum = None
+                    min_confidence_sum = None
                     min_sorted_idx = None
                     for sorted_idx in range(max_sorted_idx + 1):
-                        col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, sorted_idx].item()
+                        col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, sorted_idx].item()
                         if col_idx not in used_W_col_idxs:
-                            W_row_idxs_sum = sorted_W_row_idxs_sets_sum_per_col.values[W_row_idxs_set_idx, sorted_idx].item()
-                            if min_sum is None or W_row_idxs_sum < min_sum:
-                                min_sum = W_row_idxs_sum
+                            W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col.values[W_row_idxs_set_idx, sorted_idx].item()
+                            if min_confidence_sum is None or W_row_idxs_confidence_sum < min_confidence_sum:
+                                min_confidence_sum = W_row_idxs_confidence_sum
                                 min_sorted_idx = sorted_idx
 
-                    return min_sum, {W_row_idxs_set_idx: min_sorted_idx}
+                    return min_confidence_sum, {W_row_idxs_set_idx: min_sorted_idx}
 
                 curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(new_X_row_idxs_per_W_col)
-
-                min_sum = None
+                min_confidence_sum = None
                 sol_dict = None
 
                 for i in range(len(W_row_idxs_set_sequencing)):
                     offset_W_row_idxs_set_idxs = W_row_idxs_set_sequencing[i]
                     target_W_row_idxs_set_idxs = W_row_idxs_set_idxs & offset_W_row_idxs_set_idxs
-                    curr_min_sum = min_sum
+                    curr_min_confidence_sum = min_confidence_sum
 
                     for W_row_idxs_set_idx in target_W_row_idxs_set_idxs:
                         curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
                         if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
-                            return min_sum, sol_dict
+                            return min_confidence_sum, sol_dict
 
-                        col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                        col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
                         if col_idx not in used_W_col_idxs:
-                            W_row_idxs_sum = sorted_W_row_idxs_sets_sum_per_col.values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                            remaining_W_row_idxs_set_idxs = W_row_idxs_set_idxs - {W_row_idxs_set_idx}
-                            neg_col_idx = self.get_neg_col_idxs(col_idx) # this might be wrong
-                            new_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
-                            nested_sum , sub_sol_dict = recursive_fun(remaining_W_row_idxs_set_idxs, curr_max_sorted_idx_per_W_row_idxs_set_idxs, new_used_col_idxs)
+                            W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col.values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                            neg_col_idx = self.get_neg_col_idxs(col_idx)
+                            updated_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
+                            sub_min_confidence_sum , sub_sol_dict = recursive_fun(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs)
 
-                            if nested_sum is not None:
-                                W_row_idxs_sum += nested_sum
-                                if min_sum is None or W_row_idxs_sum < min_sum:
-                                    min_sum = W_row_idxs_sum
+                            if sub_min_confidence_sum is not None:
+                                W_row_idxs_confidence_sum += sub_min_confidence_sum
+                                if min_confidence_sum is None or W_row_idxs_confidence_sum < min_confidence_sum:
+                                    min_confidence_sum = W_row_idxs_confidence_sum
                                     sol_dict = sub_sol_dict
                                     sol_dict[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
 
                     # Because everything is sorted, then we can stop as soon as the min_sum doesn't decrease
-                    if min_sum is not None and min_sum == curr_min_sum:
-                        return min_sum, sol_dict
+                    if min_confidence_sum is not None and min_confidence_sum == curr_min_confidence_sum:
+                        return min_confidence_sum, sol_dict
 
-                return min_sum, sol_dict
+                return min_confidence_sum, sol_dict
 
             _, sol_dict = recursive_fun(set(range(len(new_X_row_idxs_per_W_col))), None, set())
             assert sol_dict is not None
@@ -248,7 +246,7 @@ class TsetlinLayer(TsetlinBase):
             W_col_to_new_X_row_idxs ={}
             for W_row_idxs_set_idx, sort_idx in sol_dict.items():
                 original_col_idx = W_row_idxs_set_idx
-                new_col_idx = sorted_W_row_idxs_sets_sum_per_col.indices[W_row_idxs_set_idx, sort_idx].item()
+                new_col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, sort_idx].item()
                 new_pos_col_idx = self.get_pos_col_idx(new_col_idx)
 
                 original_col = new_X_row_idxs_per_W_col[original_col_idx]
