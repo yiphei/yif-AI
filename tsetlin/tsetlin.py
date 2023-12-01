@@ -85,27 +85,27 @@ class TsetlinLayer(TsetlinBase):
                 W_col_to_new_X_row_idxs[col_idx] = ((one_idxs, zero_idxs))
 
         elif W_rows_of_unique_one_Y_row_idxs:
-            tracking = {W_row: W_row_to_zero_Y_row_idxs.get(W_row, set())  for W_row in W_rows_of_unique_one_Y_row_idxs}
+            one_Y_row_state = {W_row: W_row_to_zero_Y_row_idxs.get(W_row, set())  for W_row in W_rows_of_unique_one_Y_row_idxs}
             sorted_one_Y_row_idxs = sorted(list(W_rows_of_unique_one_Y_row_idxs), key=lambda x: len(W_row_to_one_Y_row_idxs[x]), reverse=True)
             q = deque(sorted_one_Y_row_idxs)
 
-            def recursive_helper(depth, max_depth, current_solution, prev_W_row_idx, q):
-                if depth == max_depth or len(current_solution) == 0:
-                    return [], len(current_solution) == 0
+            def get_new_X_row_idxs_per_W_col(depth, max_depth, curr_one_Y_row_state, prev_W_row_idx, q):
+                if depth == max_depth or len(curr_one_Y_row_state) == 0:
+                    return [], len(curr_one_Y_row_state) == 0
 
                 curr_W_row_idx = prev_W_row_idx
-                while curr_W_row_idx not in current_solution and q:
+                while curr_W_row_idx not in curr_one_Y_row_state and q:
                     curr_W_row_idx = q.popleft()
 
                 curr_one_Y_idxs = W_row_to_one_Y_row_idxs[curr_W_row_idx]
-                min_zero_Y_idxs_len = math.ceil(len(current_solution[curr_W_row_idx]) / (max_depth - depth))
-                min_zero_Y_subsets = generate_subsets(current_solution[curr_W_row_idx], min(min_zero_Y_idxs_len, len(current_solution[curr_W_row_idx])))
+                min_zero_Y_idxs_len = math.ceil(len(curr_one_Y_row_state[curr_W_row_idx]) / (max_depth - depth))
+                min_zero_Y_subsets = generate_subsets(curr_one_Y_row_state[curr_W_row_idx], min(min_zero_Y_idxs_len, len(curr_one_Y_row_state[curr_W_row_idx])))
 
                 ordered_min_zero_Y_subsets = []
                 remaining_q = list(q)
                 for W_row_idx in remaining_q:
                     one_Y_idxs = W_row_to_one_Y_row_idxs[W_row_idx]
-                    if len(one_Y_idxs) == min_zero_Y_idxs_len and len(one_Y_idxs & curr_one_Y_idxs) == 0 and len(one_Y_idxs & current_solution[curr_W_row_idx]) > 0:
+                    if len(one_Y_idxs) == min_zero_Y_idxs_len and len(one_Y_idxs & curr_one_Y_idxs) == 0 and len(one_Y_idxs & curr_one_Y_row_state[curr_W_row_idx]) > 0:
                         ordered_min_zero_Y_subsets.append(one_Y_idxs)
 
                 for subset in min_zero_Y_subsets:
@@ -128,18 +128,17 @@ class TsetlinLayer(TsetlinBase):
                             remaining_Y_subsets_ordered.append(remaining_subset)
 
                     for remaining_Y_subset in remaining_Y_subsets_ordered:
-                        opposite_remaining_Y_subset = remaining_Y_idxs - remaining_Y_subset
+                        complement_remaining_Y_subset = remaining_Y_idxs - remaining_Y_subset
 
-                        #add remaining with the opposite
-                        first_left_W = curr_one_Y_idxs | opposite_remaining_Y_subset
+                        first_left_W = curr_one_Y_idxs | complement_remaining_Y_subset
                         first_right_W = min_zero_Y_subset | remaining_Y_subset
 
                         second_left_W = curr_one_Y_idxs | remaining_Y_subset
-                        second_right_W = min_zero_Y_subset | opposite_remaining_Y_subset
+                        second_right_W = min_zero_Y_subset | complement_remaining_Y_subset
 
                         for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
-                            updated_solution = {}
-                            for k,v in current_solution.items():
+                            updated_one_Y_row_state = {}
+                            for k,v in curr_one_Y_row_state.items():
                                 one_Y_idxs = W_row_to_one_Y_row_idxs[k]
                                 sub_diff = v
 
@@ -149,18 +148,18 @@ class TsetlinLayer(TsetlinBase):
                                     sub_diff = v - left_W
 
                                 if len(sub_diff) > 0:
-                                    updated_solution[k] = sub_diff
+                                    updated_one_Y_row_state[k] = sub_diff
 
-                            next_cols, solved = recursive_helper(depth+1, max_depth, updated_solution, curr_W_row_idx, copy.deepcopy(q))
-                            if solved:
-                                combined_cols = next_cols
-                                combined_cols.append((left_W, right_W))
-                                return combined_cols, True
+                            sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
+                            if is_solved:
+                                new_X_row_idxs_per_W_col = sub_new_X_row_idxs_per_W_col
+                                new_X_row_idxs_per_W_col.append((left_W, right_W))
+                                return new_X_row_idxs_per_W_col, True
                             
                 return [], False
             
-            new_X_row_idxs_per_W_col, solved = recursive_helper(0, self.in_dim, tracking, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
-            assert solved
+            new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(0, self.in_dim, one_Y_row_state, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
+            assert is_solved
 
             W_row_idxs_per_col = defaultdict(lambda: [[], []])
             for W_row_idx, one_Y_row_idxs in W_row_to_one_Y_row_idxs.items():
