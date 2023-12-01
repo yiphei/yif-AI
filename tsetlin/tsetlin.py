@@ -279,9 +279,9 @@ class TsetlinLayer(TsetlinBase):
                     
                     last_partition_idx = partition_idx
 
-                used_col_idxs = list(W_col_to_new_X_row_idxs.keys())
-                neg_used_col_idxs = [self.get_neg_col_idxs(x) for x in used_col_idxs]
-                available_col_idxs = set(range(self.W.shape[1])) - (set(used_col_idxs) | set(neg_used_col_idxs))
+                used_col_idxs = W_col_to_new_X_row_idxs.keys()
+                neg_used_col_idxs = set([self.get_neg_col_idxs(col_idx) for col_idx in used_col_idxs])
+                available_col_idxs = set(range(self.W.shape[1])) - (used_col_idxs | neg_used_col_idxs)
                 sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
 
                 for col_idx_tensor in sums.indices:
