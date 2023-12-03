@@ -16,9 +16,9 @@ def generate_powerset(set_elements):
 
 class TsetlinBase:
     def conjunction_mul(self, X, W):
-        matrix_X = X.repeat(1, W.shape[0], 1)
-        mask = W > 0 # TODO: Right now this is not a problem because whenever I make update W or X, the negation is always zero. But if I change that, I will prob need to compare and choose the clause with the highest weight
-        masked_X = torch.where(mask, matrix_X, torch.tensor(1)) # theoretically, you should not replace it with 1 (it should just be omitted), but mathematically it works out fine because an extra 1 does not change the output of the multiplication
+        matrix_X = X.repeat(1, W.shape[0], 1) # repeat X for each row of W
+        mask = W == 1
+        masked_X = torch.where(mask, matrix_X, torch.tensor(1)) # theoretically, it should not be replaced with 1 (it should just be omitted), but mathematically it is fine because 1 is idempotent in multiplication
         return torch.prod(masked_X, dim=2, keepdim=True).view(X.shape[0],-1)
 
 class TsetlinLayer(TsetlinBase):
@@ -28,9 +28,12 @@ class TsetlinLayer(TsetlinBase):
         W_neg = torch.randint(0, 2, (out_dim, in_dim,))
         W_neg[W_pos == 1] = 0
         self.W = torch.cat((W_pos, W_neg), dim=1)
+
+        # each W row must have at least one 1
         zero_row_idxs = (self.W.sum(dim=1) == 0).nonzero(as_tuple=True)[0]
         col_idxs = torch.randint(0, in_dim * 2, (zero_row_idxs.shape[0],))
         self.W[zero_row_idxs, col_idxs] = 1
+
         self.W_confidence = torch.zeros_like(self.W)
 
         self.out = None
@@ -52,7 +55,7 @@ class TsetlinLayer(TsetlinBase):
         if torch.equal(Y, self.out):
             return None
         
-        self.W_confidence[self.W > 0] += 1
+        self.W_confidence[self.W == 1] += 1
 
         W_row_to_zero_Y_row_idxs = {}
         W_row_to_one_Y_row_idxs = {}
@@ -67,7 +70,7 @@ class TsetlinLayer(TsetlinBase):
             if one_Y_idxs:
                 W_row_to_one_Y_row_idxs[i] = set(one_Y_idxs)
 
-        W_rows_of_unique_one_Y_row_idxs = set()
+        W_rows_of_unique_one_Y_row_idxs = set() # this is constructed by assigning one_Y_row_idxs to W columns incrementally (from 0). This will later be changed
         visited_one_Y_row_idxs = set()
 
         W_col_to_new_X_row_idxs = {}
@@ -78,6 +81,7 @@ class TsetlinLayer(TsetlinBase):
                 W_rows_of_unique_one_Y_row_idxs.add(W_row_idx)
 
         if is_first_layer:
+            # In the first layer, full_X corresponds to the input of the model, so you can't alter full_X
             W_col_to_new_X_row_idxs = {}
             for col_idx in range(self.in_dim):
                 one_idxs = set((self.full_X[:, col_idx] == 1).nonzero().squeeze(1).tolist())
@@ -85,11 +89,15 @@ class TsetlinLayer(TsetlinBase):
                 W_col_to_new_X_row_idxs[col_idx] = ((one_idxs, zero_idxs))
 
         elif W_rows_of_unique_one_Y_row_idxs:
-            one_Y_row_state = {W_row: W_row_to_zero_Y_row_idxs.get(W_row, set())  for W_row in W_rows_of_unique_one_Y_row_idxs}
-            sorted_one_Y_row_idxs = sorted(list(W_rows_of_unique_one_Y_row_idxs), key=lambda x: len(W_row_to_one_Y_row_idxs[x]), reverse=True)
+            one_Y_row_state = {W_row: W_row_to_zero_Y_row_idxs.get(W_row, set())  for W_row in W_rows_of_unique_one_Y_row_idxs} # this tracks unresolved zero Y row idxs for each W row idx
+            sorted_one_Y_row_idxs = sorted(list(W_rows_of_unique_one_Y_row_idxs), key=lambda x: len(W_row_to_one_Y_row_idxs[x]), reverse=True) # a heuristical optimization to address the largest one_Y_row_idxs first
             q = deque(sorted_one_Y_row_idxs)
 
             def get_new_X_row_idxs_per_W_col(depth, max_depth, curr_one_Y_row_state, prev_W_row_idx, q):
+                # the output is of shape [({1,2,3},{4,5,6}), ({2,3},{4,5,1,6}), ...] where ({1,2,3},{4,5,6}) means
+                # that W[[1,2,3]][0] should be 1 and W[[4,5,6]][0] should be 0 and full_X[[1,2,3]][0] should be 1 
+                # and full_X[[4,5,6]][0] should be 0
+
                 if depth == max_depth or len(curr_one_Y_row_state) == 0:
                     return [], len(curr_one_Y_row_state) == 0
 
@@ -98,9 +106,10 @@ class TsetlinLayer(TsetlinBase):
                     curr_W_row_idx = q.popleft()
 
                 curr_one_Y_idxs = W_row_to_one_Y_row_idxs[curr_W_row_idx]
-                min_zero_Y_idxs_len = math.ceil(len(curr_one_Y_row_state[curr_W_row_idx]) / (max_depth - depth))
+                min_zero_Y_idxs_len = math.ceil(len(curr_one_Y_row_state[curr_W_row_idx]) / (max_depth - depth)) # a heuristical optimization to ensure that zero Y row idxs are steadily resolved
                 min_zero_Y_subsets = generate_subsets(curr_one_Y_row_state[curr_W_row_idx], min(min_zero_Y_idxs_len, len(curr_one_Y_row_state[curr_W_row_idx])))
 
+                # heuristical optimization to align unresolved zero Y row idxs to unresolved one Y row idxs
                 ordered_min_zero_Y_subsets = []
                 remaining_q = list(q)
                 for W_row_idx in remaining_q:
@@ -117,6 +126,7 @@ class TsetlinLayer(TsetlinBase):
                     remaining_Y_subsets = generate_powerset(remaining_Y_idxs)
                     remaining_Y_subsets.sort(key=lambda x: len(x), reverse=True)
 
+                    # same heuristical optimization as above with ordered_min_zero_Y_subsets
                     remaining_Y_subsets_ordered = []
                     for W_row_idx in remaining_q:
                         one_Y_idxs = W_row_to_one_Y_row_idxs[W_row_idx]
@@ -146,7 +156,8 @@ class TsetlinLayer(TsetlinBase):
                                     sub_diff = v - right_W
                                 elif one_Y_idxs.issubset(right_W):
                                     sub_diff = v - left_W
-
+                                
+                                # implicit here is the removal of one_Y_idxs for which there is no unresolved zero Y row idxs left
                                 if len(sub_diff) > 0:
                                     updated_one_Y_row_state[k] = sub_diff
 
@@ -161,7 +172,11 @@ class TsetlinLayer(TsetlinBase):
             new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(0, self.in_dim, one_Y_row_state, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
             assert is_solved
 
-            W_row_idxs_per_col = defaultdict(lambda: [[], []])
+            # new_X_row_idxs_per_W_col provides a valid update of W and full_X that satisfies the expected Y.
+            # However, we assigned one_Y_row_idxs to W columns incrementally (from 0) for simplicity.
+            # Below, we determine the best W column assignment based on W_confidence.
+
+            W_row_idxs_per_col = defaultdict(lambda: [[], []]) # this represents all one_W_row_idxs and zero_W_row_idxs pairs
             for W_row_idx, one_Y_row_idxs in W_row_to_one_Y_row_idxs.items():
                 for W_col_idx, new_X_row_idxs in enumerate(new_X_row_idxs_per_W_col):
                     if one_Y_row_idxs.issubset(new_X_row_idxs[0]):
@@ -169,6 +184,7 @@ class TsetlinLayer(TsetlinBase):
                     elif one_Y_row_idxs.issubset(new_X_row_idxs[1]):
                         W_row_idxs_per_col[W_col_idx][1].append(W_row_idx)
 
+            # calculate the W_confidence sum of each one_W_row_idxs and zero_W_row_idxs pairs for all W columns
             W_row_idxs_sets_confidence_sum_per_col = []
             for W_row_idxs in W_row_idxs_per_col.keys():
                 sums = self.W_confidence[W_row_idxs_per_col[W_row_idxs][0]].sum(dim=0)
@@ -177,19 +193,21 @@ class TsetlinLayer(TsetlinBase):
                 W_row_idxs_sets_confidence_sum_per_col.append(sums)
                 
             W_row_idxs_sets_confidence_sum_per_col = torch.stack(W_row_idxs_sets_confidence_sum_per_col)
-            sorted_W_row_idxs_sets_confidence_sum_per_col = torch.sort(W_row_idxs_sets_confidence_sum_per_col, dim=1, descending=False)
+            sorted_W_row_idxs_sets_confidence_sum_per_col = torch.sort(W_row_idxs_sets_confidence_sum_per_col, dim=1, descending=False) # sort by increasing sum
+            offset_sorted_W_row_idxs_sets_confidence_sum_per_col = sorted_W_row_idxs_sets_confidence_sum_per_col.values - sorted_W_row_idxs_sets_confidence_sum_per_col.values[:, 0].unsqueeze(1) # normalize the sum by subtracting the smallest sum
 
-            offset_sorted_W_row_idxs_sets_confidence_sum_per_col = sorted_W_row_idxs_sets_confidence_sum_per_col.values - sorted_W_row_idxs_sets_confidence_sum_per_col.values[:, 0].unsqueeze(1)
-
+            # a heuristical optimization that sorts W columns by increasing offset sum across one_W_row_idxs and zero_W_row_idxs pairs
             offset_W_row_idxs_sets_confidence_sum_to_cols_dict = defaultdict(set)
             for col_idx, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_confidence_sum_per_col):
                 for offset_sum in offset_sums:
                     offset_W_row_idxs_sets_confidence_sum_to_cols_dict[offset_sum.item()].add(col_idx)
-
             sorted_W_row_idxs_sets_confidence_sum = sorted(offset_W_row_idxs_sets_confidence_sum_to_cols_dict.keys())
             W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_confidence_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_confidence_sum] # based on increasing offset W row idxs sets sum
 
             def get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs):
+                # This is the core function that determines the best W column assignment based on W_confidence. Before was all preprocessing for a faster algorithm.
+                # The output shape is {0:1, 1:0, 2:5} where 0:1 means that one_W_row_idxs and zero_W_row_idxs pair indexed at 0 should be assigned to W column 1
+                
                 if len(W_row_idxs_set_idxs) == 1:
                     W_row_idxs_set_idx = list(W_row_idxs_set_idxs)[0]
                     max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else (self.in_dim * 2) - 1
@@ -237,7 +255,7 @@ class TsetlinLayer(TsetlinBase):
             _, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(set(range(len(new_X_row_idxs_per_W_col))), None, set())
             assert W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum is not None
 
-            W_col_to_new_X_row_idxs ={}
+            # given the optimal assignment, we recreate new_X_row_idxs_per_W_col in W_col_to_new_X_row_idxs
             for W_row_idxs_set_idx, sorted_idx in W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum.items():
                 old_col_idx = W_row_idxs_set_idx
                 new_col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, sorted_idx].item()
@@ -248,6 +266,7 @@ class TsetlinLayer(TsetlinBase):
                     new_X_row_idxs = (new_X_row_idxs[1], new_X_row_idxs[0])
                 W_col_to_new_X_row_idxs[new_pos_col_idx] = new_X_row_idxs
 
+        # Y columns with zero 1s need to be treated differently
         W_col_to_new_X_row_idxs_for_zero_Y = {}
         W_row_idxs_with_zero_Ys =  list(set(range(self.W.shape[0])) - (W_row_to_one_Y_row_idxs.keys()))
         if W_row_idxs_with_zero_Ys:
