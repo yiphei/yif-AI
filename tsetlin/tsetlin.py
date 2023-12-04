@@ -290,14 +290,14 @@ class TsetlinLayer(TsetlinBase):
                     last_partition_idx = partition_idx
 
                 used_col_idxs = W_col_to_new_X_row_idxs.keys()
-                neg_used_col_idxs = set([self.get_neg_col_idxs(col_idx) for col_idx in used_col_idxs])
-                available_col_idxs = set(range(self.W.shape[1])) - (used_col_idxs | neg_used_col_idxs)
+                pos_used_col_idxs = set([self.get_pos_col_idx(col_idx) for col_idx in used_col_idxs])
+                available_col_idxs = set(range(self.in_dim)) -  pos_used_col_idxs
                 sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
 
                 for col_idx_tensor in sums.indices:
                     col_idx = col_idx_tensor.item()
                     neg_col_idx = self.get_neg_col_idxs(col_idx)
-                    if col_idx in available_col_idxs and neg_col_idx not in W_col_to_new_X_row_idxs_for_zero_Y:
+                    if self.get_pos_col_idx(col_idx) in available_col_idxs and neg_col_idx not in W_col_to_new_X_row_idxs_for_zero_Y:
                         W_col_to_new_X_row_idxs_for_zero_Y[col_idx] = X_row_partitions[len(W_col_to_new_X_row_idxs_for_zero_Y.keys())]
                         if len(W_col_to_new_X_row_idxs_for_zero_Y.keys()) == partitions:
                             break
