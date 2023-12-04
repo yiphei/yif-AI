@@ -6,13 +6,22 @@ import copy
 from itertools import combinations, chain
 from collections import deque, defaultdict
 
-def generate_subsets(set_elements, subset_size):
-    return [set(x) for x in list(combinations(set_elements, subset_size))]
+def generate_subsets_iterator(set_elements, subset_size):
+    return combinations(set_elements, subset_size)
 
-def generate_powerset(set_elements):
+def generate_powerset_iterator(set_elements):
     "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-    s = list(set_elements)
-    return [set(x) for x in list(chain.from_iterable(combinations(s, r) for r in range(len(s)+1)))]
+    return chain.from_iterable(combinations(set_elements,r) for r in range(len(set_elements), -1, -1))
+
+
+def combine_iterators(iterable_one, iterable_two):
+    for item in iterable_one:
+        yield item
+
+    for item in iterable_two:
+        set_item = set(item)
+        if set_item not in iterable_one:
+            yield set_item
 
 class TsetlinBase:
     def conjunction_mul(self, X, W):
@@ -107,7 +116,6 @@ class TsetlinLayer(TsetlinBase):
 
                 curr_one_Y_idxs = W_row_to_one_Y_row_idxs[curr_W_row_idx]
                 min_zero_Y_idxs_len = math.ceil(len(curr_one_Y_row_state[curr_W_row_idx]) / (max_depth - depth)) # a heuristical optimization to ensure that zero Y row idxs are steadily resolved
-                min_zero_Y_subsets = generate_subsets(curr_one_Y_row_state[curr_W_row_idx], min(min_zero_Y_idxs_len, len(curr_one_Y_row_state[curr_W_row_idx])))
 
                 # heuristical optimization to align unresolved zero Y row idxs to unresolved one Y row idxs
                 ordered_min_zero_Y_subsets = []
@@ -117,14 +125,8 @@ class TsetlinLayer(TsetlinBase):
                     if len(one_Y_idxs) == min_zero_Y_idxs_len and len(one_Y_idxs & curr_one_Y_idxs) == 0 and len(one_Y_idxs & curr_one_Y_row_state[curr_W_row_idx]) > 0:
                         ordered_min_zero_Y_subsets.append(one_Y_idxs)
 
-                for subset in min_zero_Y_subsets:
-                    if subset not in ordered_min_zero_Y_subsets:
-                        ordered_min_zero_Y_subsets.append(subset)
-
-                for min_zero_Y_subset in ordered_min_zero_Y_subsets:
+                for min_zero_Y_subset in combine_iterators(ordered_min_zero_Y_subsets, generate_subsets_iterator(curr_one_Y_row_state[curr_W_row_idx], min(min_zero_Y_idxs_len, len(curr_one_Y_row_state[curr_W_row_idx])))):
                     remaining_Y_idxs = set(range(self.full_X.shape[0])) - (min_zero_Y_subset | curr_one_Y_idxs)
-                    remaining_Y_subsets = generate_powerset(remaining_Y_idxs)
-                    remaining_Y_subsets.sort(key=lambda x: len(x), reverse=True)
 
                     # same heuristical optimization as above with ordered_min_zero_Y_subsets
                     remaining_Y_subsets_ordered = []
@@ -133,11 +135,7 @@ class TsetlinLayer(TsetlinBase):
                         if one_Y_idxs.issubset(remaining_Y_idxs):
                             remaining_Y_subsets_ordered.append(one_Y_idxs)
 
-                    for remaining_subset in remaining_Y_subsets:
-                        if remaining_subset not in remaining_Y_subsets_ordered:
-                            remaining_Y_subsets_ordered.append(remaining_subset)
-
-                    for remaining_Y_subset in remaining_Y_subsets_ordered:
+                    for remaining_Y_subset in combine_iterators(remaining_Y_subsets_ordered, generate_powerset_iterator(remaining_Y_idxs)):
                         complement_remaining_Y_subset = remaining_Y_idxs - remaining_Y_subset
 
                         first_left_W = curr_one_Y_idxs | complement_remaining_Y_subset
