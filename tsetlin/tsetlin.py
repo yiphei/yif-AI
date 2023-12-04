@@ -228,7 +228,7 @@ class TsetlinLayer(TsetlinBase):
             sorted_W_row_idxs_sets_confidence_sum = sorted(offset_W_row_idxs_sets_confidence_sum_to_cols_dict.keys())
             W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_confidence_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_confidence_sum] # based on increasing offset W row idxs sets sum
 
-            def get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs):
+            def get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs, max_sum):
                 # This is the core function that determines the best W column assignment based on W_confidence. Before was all preprocessing for a faster algorithm.
                 # The output shape is {0:1, 1:0, 2:5} where 0:1 means that one_W_row_idxs and zero_W_row_idxs pair indexed at 0 should be assigned to W column 1
                 
@@ -236,47 +236,49 @@ class TsetlinLayer(TsetlinBase):
                     W_row_idxs_set_idx = list(W_row_idxs_set_idxs)[0]
                     max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else self.in_dim - 1
                     
-                    min_confidence_sum = None
-                    min_sorted_idx = None
                     for sorted_idx in range(max_sorted_idx + 1):
                         col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
-                        if col_idx not in used_W_col_idxs:
-                            W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col_values[W_row_idxs_set_idx, sorted_idx].item()
-                            if min_confidence_sum is None or W_row_idxs_confidence_sum < min_confidence_sum:
-                                min_confidence_sum = W_row_idxs_confidence_sum
-                                min_sorted_idx = sorted_idx
+                        W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col_values[W_row_idxs_set_idx, sorted_idx].item()
 
-                    return min_confidence_sum, {W_row_idxs_set_idx: min_sorted_idx}
+                        if max_sum is not None and W_row_idxs_confidence_sum >= max_sum:
+                            return None, None
+                        if col_idx not in used_W_col_idxs:
+                            return W_row_idxs_confidence_sum, {W_row_idxs_set_idx: sorted_idx}
+
+                    return None, None
 
                 curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(new_X_row_idxs_per_W_col)
-                min_confidence_sum = None
+                min_confidence_sum = max_sum
                 W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = None
 
                 for i in range(len(W_row_idxs_set_sequencing)):
-                    offset_W_row_idxs_set_idxs = W_row_idxs_set_sequencing[i]
-                    target_W_row_idxs_set_idxs = W_row_idxs_set_idxs & offset_W_row_idxs_set_idxs
+                    W_row_idxs_set_idx = W_row_idxs_set_sequencing[i]
+                    if W_row_idxs_set_idx not in W_row_idxs_set_idxs:
+                        continue
 
-                    for W_row_idxs_set_idx in target_W_row_idxs_set_idxs:
-                        curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
-                        if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
-                            return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
+                    curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
+                    if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
+                        return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
-                        col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                        if col_idx not in used_W_col_idxs:
-                            W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col_values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                            neg_col_idx = self.get_neg_col_idxs(col_idx)
-                            updated_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
-                            sub_min_confidence_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs)
+                    col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                    W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col_values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                    if min_confidence_sum is not None and W_row_idxs_confidence_sum >= min_confidence_sum:
+                        return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
-                            if sub_min_confidence_sum is not None:
-                                min_confidence_sum = W_row_idxs_confidence_sum + sub_min_confidence_sum
-                                W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
-                                W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
-                                return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
+                    if col_idx not in used_W_col_idxs:
+                        neg_col_idx = self.get_neg_col_idxs(col_idx)
+                        updated_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
+                        new_max_sum = max_sum - W_row_idxs_confidence_sum if max_sum is not None else None
+                        sub_min_confidence_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs, new_max_sum)
+
+                        if min_confidence_sum is None or (sub_min_confidence_sum is not None and sub_min_confidence_sum + W_row_idxs_confidence_sum < min_confidence_sum):
+                            min_confidence_sum = W_row_idxs_confidence_sum + sub_min_confidence_sum
+                            W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
+                            W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
 
                 return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
-            _, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(set(range(len(new_X_row_idxs_per_W_col))), None, set())
+            _, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(set(range(len(new_X_row_idxs_per_W_col))), None, set(), None)
             assert W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum is not None
 
             # given the optimal assignment, we recreate new_X_row_idxs_per_W_col in W_col_to_new_X_row_idxs
