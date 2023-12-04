@@ -242,7 +242,7 @@ class TsetlinLayer(TsetlinBase):
 
                         if max_sum is not None and W_row_idxs_confidence_sum >= max_sum:
                             return None, None
-                        if col_idx not in used_W_col_idxs:
+                        if self.get_pos_col_idx(col_idx) not in used_W_col_idxs:
                             return W_row_idxs_confidence_sum, {W_row_idxs_set_idx: sorted_idx}
 
                     return None, None
@@ -265,9 +265,8 @@ class TsetlinLayer(TsetlinBase):
                     if min_confidence_sum is not None and W_row_idxs_confidence_sum >= min_confidence_sum:
                         return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
-                    if col_idx not in used_W_col_idxs:
-                        neg_col_idx = self.get_neg_col_idxs(col_idx)
-                        updated_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
+                    if self.get_pos_col_idx(col_idx) not in used_W_col_idxs:
+                        updated_used_col_idxs = used_W_col_idxs | {self.get_pos_col_idx(col_idx)}
                         new_max_sum = max_sum - W_row_idxs_confidence_sum if max_sum is not None else None
                         sub_min_confidence_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs, new_max_sum)
 
