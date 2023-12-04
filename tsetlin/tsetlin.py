@@ -194,9 +194,33 @@ class TsetlinLayer(TsetlinBase):
                 
             W_row_idxs_sets_confidence_sum_per_col = torch.stack(W_row_idxs_sets_confidence_sum_per_col)
             sorted_W_row_idxs_sets_confidence_sum_per_col = torch.sort(W_row_idxs_sets_confidence_sum_per_col, dim=1, descending=False) # sort by increasing sum
-            offset_sorted_W_row_idxs_sets_confidence_sum_per_col = sorted_W_row_idxs_sets_confidence_sum_per_col.values - sorted_W_row_idxs_sets_confidence_sum_per_col.values[:, 0].unsqueeze(1) # normalize the sum by subtracting the smallest sum
+            
+            # Prune W columns
+            opt_values = []
+            opt_indices = []
 
+            for sum_values, sum_indices in zip(sorted_W_row_idxs_sets_confidence_sum_per_col.values, sorted_W_row_idxs_sets_confidence_sum_per_col.indices):
+                opt_sums = []
+                opt_sum_idxs = []
+                visited_col_idxs = set()
+                for sum_value, idx in zip(sum_values, sum_indices):
+                    idx_value = idx.item()
+                    if self.get_pos_col_idx(idx_value) not in visited_col_idxs:
+                        opt_sums.append(sum_value.item())
+                        opt_sum_idxs.append(idx_value)
+                        visited_col_idxs.add(self.get_pos_col_idx(idx_value))
+
+                    if len(visited_col_idxs) == self.in_dim:
+                        break
+                
+                opt_values.append(opt_sums)
+                opt_indices.append(opt_sum_idxs)
+
+            sorted_W_row_idxs_sets_confidence_sum_per_col_values = torch.tensor(opt_values)
+            sorted_W_row_idxs_sets_confidence_sum_per_col_indices = torch.tensor(opt_indices) 
+            
             # a heuristical optimization that sorts W columns by increasing offset sum across one_W_row_idxs and zero_W_row_idxs pairs
+            offset_sorted_W_row_idxs_sets_confidence_sum_per_col = sorted_W_row_idxs_sets_confidence_sum_per_col_values - sorted_W_row_idxs_sets_confidence_sum_per_col_values[:, 0].unsqueeze(1) # normalize the sum by subtracting the smallest sum
             offset_W_row_idxs_sets_confidence_sum_to_cols_dict = defaultdict(set)
             for col_idx, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_confidence_sum_per_col):
                 for offset_sum in offset_sums:
@@ -210,14 +234,14 @@ class TsetlinLayer(TsetlinBase):
                 
                 if len(W_row_idxs_set_idxs) == 1:
                     W_row_idxs_set_idx = list(W_row_idxs_set_idxs)[0]
-                    max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else (self.in_dim * 2) - 1
+                    max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else self.in_dim - 1
                     
                     min_confidence_sum = None
                     min_sorted_idx = None
                     for sorted_idx in range(max_sorted_idx + 1):
-                        col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, sorted_idx].item()
+                        col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
                         if col_idx not in used_W_col_idxs:
-                            W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col.values[W_row_idxs_set_idx, sorted_idx].item()
+                            W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col_values[W_row_idxs_set_idx, sorted_idx].item()
                             if min_confidence_sum is None or W_row_idxs_confidence_sum < min_confidence_sum:
                                 min_confidence_sum = W_row_idxs_confidence_sum
                                 min_sorted_idx = sorted_idx
@@ -237,9 +261,9 @@ class TsetlinLayer(TsetlinBase):
                         if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
                             return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
-                        col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                        col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
                         if col_idx not in used_W_col_idxs:
-                            W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col.values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                            W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col_values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
                             neg_col_idx = self.get_neg_col_idxs(col_idx)
                             updated_used_col_idxs = used_W_col_idxs | {col_idx, neg_col_idx}
                             sub_min_confidence_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs)
@@ -258,7 +282,7 @@ class TsetlinLayer(TsetlinBase):
             # given the optimal assignment, we recreate new_X_row_idxs_per_W_col in W_col_to_new_X_row_idxs
             for W_row_idxs_set_idx, sorted_idx in W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum.items():
                 old_col_idx = W_row_idxs_set_idx
-                new_col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col.indices[W_row_idxs_set_idx, sorted_idx].item()
+                new_col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
                 new_pos_col_idx = self.get_pos_col_idx(new_col_idx)
 
                 new_X_row_idxs = new_X_row_idxs_per_W_col[old_col_idx]
