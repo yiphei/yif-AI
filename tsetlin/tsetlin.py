@@ -262,7 +262,7 @@ class TsetlinLayer(TsetlinBase):
                         new_max_sum = max_sum - W_row_idxs_confidence_sum if max_sum is not None else None
                         sub_min_confidence_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs, new_max_sum)
 
-                        if min_confidence_sum is None or (sub_min_confidence_sum is not None and sub_min_confidence_sum + W_row_idxs_confidence_sum < min_confidence_sum):
+                        if (min_confidence_sum is None and sub_min_confidence_sum is not None) or (sub_min_confidence_sum is not None and sub_min_confidence_sum + W_row_idxs_confidence_sum < min_confidence_sum):
                             min_confidence_sum = W_row_idxs_confidence_sum + sub_min_confidence_sum
                             W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
                             W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
