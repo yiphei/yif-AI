@@ -16,12 +16,11 @@ def generate_powerset_iterator(set_elements):
 
 def combine_iterators(iterable_one, iterable_two):
     for item in iterable_one:
-        yield item
+        merged_set = set().union(*item)
+        yield merged_set
 
     for item in iterable_two:
-        set_item = set(item)
-        if set_item not in iterable_one:
-            yield set_item
+        yield item
 
 class TsetlinBase:
     def conjunction_mul(self, X, W):
@@ -106,7 +105,6 @@ class TsetlinLayer(TsetlinBase):
                 # the output is of shape [({1,2,3},{4,5,6}), ({2,3},{4,5,1,6}), ...] where ({1,2,3},{4,5,6}) means
                 # that W[[1,2,3]][0] should be 1 and W[[4,5,6]][0] should be 0 and full_X[[1,2,3]][0] should be 1 
                 # and full_X[[4,5,6]][0] should be 0
-
                 if depth == max_depth or len(curr_one_Y_row_state) == 0:
                     return [], len(curr_one_Y_row_state) == 0
 
@@ -115,56 +113,55 @@ class TsetlinLayer(TsetlinBase):
                     curr_W_row_idx = q.popleft()
 
                 curr_one_Y_idxs = W_row_to_one_Y_row_idxs[curr_W_row_idx]
-                min_zero_Y_idxs_len = math.ceil(len(curr_one_Y_row_state[curr_W_row_idx]) / (max_depth - depth)) # a heuristical optimization to ensure that zero Y row idxs are steadily resolved
+                if not curr_one_Y_row_state[curr_W_row_idx]:
+                    updated_one_Y_row_state = copy.deepcopy(curr_one_Y_row_state)
+                    del updated_one_Y_row_state[curr_W_row_idx]
+                    sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
+                    if is_solved:
+                        new_X_row_idxs_per_W_col = sub_new_X_row_idxs_per_W_col
+                        new_X_row_idxs_per_W_col.append(( curr_one_Y_idxs, set()))
+                        return new_X_row_idxs_per_W_col, True
+                    else:
+                        return [], False
 
-                # heuristical optimization to align unresolved zero Y row idxs to unresolved one Y row idxs
-                ordered_min_zero_Y_subsets = []
                 remaining_q = list(q)
-                for W_row_idx in remaining_q:
-                    one_Y_idxs = W_row_to_one_Y_row_idxs[W_row_idx]
-                    if len(one_Y_idxs) == min_zero_Y_idxs_len and len(one_Y_idxs & curr_one_Y_idxs) == 0 and len(one_Y_idxs & curr_one_Y_row_state[curr_W_row_idx]) > 0:
-                        ordered_min_zero_Y_subsets.append(one_Y_idxs)
+                # remaining_one_Y_idxs = [W_row_to_one_Y_row_idxs[x] for x in remaining_q if len(x & curr_one_Y_idxs) == 0 and len(x & curr_one_Y_row_state[curr_W_row_idx]) > 0]
+                remaining_one_Y_idxs = [W_row_to_one_Y_row_idxs[x] for x in remaining_q]
+                for opposite_set in combine_iterators(generate_powerset_iterator(remaining_one_Y_idxs), [curr_one_Y_row_state[curr_W_row_idx]]):
+                    if len(opposite_set & curr_one_Y_idxs) == 0 and len(opposite_set & curr_one_Y_row_state[curr_W_row_idx]) > 0:
+                        remaining_Y_idxs = set(range(self.full_X.shape[0])) - (opposite_set | curr_one_Y_idxs)
+                        sub_remaining_one_Y_idxs = [ x for x in remaining_one_Y_idxs if x.issubset(remaining_Y_idxs)]
+                        
+                        for remaining_merged_set in combine_iterators(generate_powerset_iterator(sub_remaining_one_Y_idxs), [set()]):
+                            complement_remaining_Y_subset = remaining_Y_idxs - remaining_merged_set
 
-                for min_zero_Y_subset in combine_iterators(ordered_min_zero_Y_subsets, generate_subsets_iterator(curr_one_Y_row_state[curr_W_row_idx], min(min_zero_Y_idxs_len, len(curr_one_Y_row_state[curr_W_row_idx])))):
-                    remaining_Y_idxs = set(range(self.full_X.shape[0])) - (min_zero_Y_subset | curr_one_Y_idxs)
+                            first_left_W = curr_one_Y_idxs | complement_remaining_Y_subset
+                            first_right_W = opposite_set | remaining_merged_set
 
-                    # same heuristical optimization as above with ordered_min_zero_Y_subsets
-                    remaining_Y_subsets_ordered = []
-                    for W_row_idx in remaining_q:
-                        one_Y_idxs = W_row_to_one_Y_row_idxs[W_row_idx]
-                        if one_Y_idxs.issubset(remaining_Y_idxs):
-                            remaining_Y_subsets_ordered.append(one_Y_idxs)
+                            second_left_W = curr_one_Y_idxs | remaining_merged_set
+                            second_right_W = opposite_set | complement_remaining_Y_subset
 
-                    for remaining_Y_subset in combine_iterators(remaining_Y_subsets_ordered, generate_powerset_iterator(remaining_Y_idxs)):
-                        complement_remaining_Y_subset = remaining_Y_idxs - remaining_Y_subset
+                            for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
+                                updated_one_Y_row_state = {}
+                                for k,v in curr_one_Y_row_state.items():
+                                    one_Y_idxs = W_row_to_one_Y_row_idxs[k]
+                                    sub_diff = v
 
-                        first_left_W = curr_one_Y_idxs | complement_remaining_Y_subset
-                        first_right_W = min_zero_Y_subset | remaining_Y_subset
+                                    if one_Y_idxs.issubset(left_W):
+                                        sub_diff = v - right_W
+                                    elif one_Y_idxs.issubset(right_W):
+                                        sub_diff = v - left_W
+                                    
+                                    # implicit here is the removal of one_Y_idxs for which there is no unresolved zero Y row idxs left
+                                    if len(sub_diff) > 0:
+                                        updated_one_Y_row_state[k] = sub_diff
 
-                        second_left_W = curr_one_Y_idxs | remaining_Y_subset
-                        second_right_W = min_zero_Y_subset | complement_remaining_Y_subset
-
-                        for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
-                            updated_one_Y_row_state = {}
-                            for k,v in curr_one_Y_row_state.items():
-                                one_Y_idxs = W_row_to_one_Y_row_idxs[k]
-                                sub_diff = v
-
-                                if one_Y_idxs.issubset(left_W):
-                                    sub_diff = v - right_W
-                                elif one_Y_idxs.issubset(right_W):
-                                    sub_diff = v - left_W
-                                
-                                # implicit here is the removal of one_Y_idxs for which there is no unresolved zero Y row idxs left
-                                if len(sub_diff) > 0:
-                                    updated_one_Y_row_state[k] = sub_diff
-
-                            sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
-                            if is_solved:
-                                new_X_row_idxs_per_W_col = sub_new_X_row_idxs_per_W_col
-                                new_X_row_idxs_per_W_col.append((left_W, right_W))
-                                return new_X_row_idxs_per_W_col, True
-                            
+                                sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
+                                if is_solved:
+                                    new_X_row_idxs_per_W_col = sub_new_X_row_idxs_per_W_col
+                                    new_X_row_idxs_per_W_col.append((left_W, right_W))
+                                    return new_X_row_idxs_per_W_col, True
+                    
                 return [], False
             
             new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(0, self.in_dim, one_Y_row_state, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
