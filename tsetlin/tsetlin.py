@@ -230,7 +230,7 @@ class TsetlinLayer(TsetlinBase):
                     
                     for sorted_idx in range(max_sorted_idx + 1):
                         col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
-                        W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col_values[W_row_idxs_set_idx, sorted_idx].item()
+                        W_row_idxs_confidence_sum = offset_sorted_W_row_idxs_sets_confidence_sum_per_col[W_row_idxs_set_idx, sorted_idx].item()
 
                         if max_sum is not None and W_row_idxs_confidence_sum >= max_sum:
                             return None, None
@@ -253,7 +253,7 @@ class TsetlinLayer(TsetlinBase):
                         return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
                     col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                    W_row_idxs_confidence_sum = sorted_W_row_idxs_sets_confidence_sum_per_col_values[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                    W_row_idxs_confidence_sum = offset_sorted_W_row_idxs_sets_confidence_sum_per_col[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
                     if min_confidence_sum is not None and W_row_idxs_confidence_sum >= min_confidence_sum:
                         return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
 
