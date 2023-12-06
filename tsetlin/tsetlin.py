@@ -212,12 +212,13 @@ class TsetlinLayer(TsetlinBase):
             
             # a heuristical optimization that sorts W columns by increasing offset sum across one_W_row_idxs and zero_W_row_idxs pairs
             offset_sorted_W_row_idxs_sets_confidence_sum_per_col = sorted_W_row_idxs_sets_confidence_sum_per_col_values - sorted_W_row_idxs_sets_confidence_sum_per_col_values[:, 0].unsqueeze(1) # normalize the sum by subtracting the smallest sum
-            offset_W_row_idxs_sets_confidence_sum_to_cols_dict = defaultdict(set)
+            offset_W_row_idxs_sets_confidence_sum_to_cols_dict = defaultdict(list)
             for col_idx, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_confidence_sum_per_col):
                 for offset_sum in offset_sums:
-                    offset_W_row_idxs_sets_confidence_sum_to_cols_dict[offset_sum.item()].add(col_idx)
+                    offset_W_row_idxs_sets_confidence_sum_to_cols_dict[offset_sum.item()].append(col_idx)
             sorted_W_row_idxs_sets_confidence_sum = sorted(offset_W_row_idxs_sets_confidence_sum_to_cols_dict.keys())
             W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_confidence_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_confidence_sum] # based on increasing offset W row idxs sets sum
+            W_row_idxs_set_sequencing = [ x for sublist in W_row_idxs_set_sequencing for x in sublist] # flatten
 
             def get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs, max_sum):
                 # This is the core function that determines the best W column assignment based on W_confidence. Before was all preprocessing for a faster algorithm.
