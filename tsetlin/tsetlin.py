@@ -6,9 +6,6 @@ import copy
 from itertools import combinations, chain
 from collections import deque, defaultdict
 
-def generate_subsets_iterator(set_elements, subset_size):
-    return combinations(set_elements, subset_size)
-
 def generate_powerset_iterator(set_elements):
     "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
     return chain.from_iterable(combinations(set_elements,r) for r in range(len(set_elements), -1, -1))
@@ -16,8 +13,9 @@ def generate_powerset_iterator(set_elements):
 
 def combine_iterators(iterable_one, iterable_two):
     for item in iterable_one:
-        merged_set = set().union(*item)
-        yield merged_set
+        if item:
+            merged_set = set().union(*item)
+            yield merged_set
 
     for item in iterable_two:
         yield item
@@ -125,42 +123,40 @@ class TsetlinLayer(TsetlinBase):
                         return [], False
 
                 remaining_q = list(q)
-                # remaining_one_Y_idxs = [W_row_to_one_Y_row_idxs[x] for x in remaining_q if len(x & curr_one_Y_idxs) == 0 and len(x & curr_one_Y_row_state[curr_W_row_idx]) > 0]
-                remaining_one_Y_idxs = [W_row_to_one_Y_row_idxs[x] for x in remaining_q]
+                remaining_one_Y_idxs = [W_row_to_one_Y_row_idxs[x] for x in remaining_q if len(W_row_to_one_Y_row_idxs[x] & curr_one_Y_idxs) == 0 and len(W_row_to_one_Y_row_idxs[x] & curr_one_Y_row_state[curr_W_row_idx]) > 0]
                 for opposite_set in combine_iterators(generate_powerset_iterator(remaining_one_Y_idxs), [curr_one_Y_row_state[curr_W_row_idx]]):
-                    if len(opposite_set & curr_one_Y_idxs) == 0 and len(opposite_set & curr_one_Y_row_state[curr_W_row_idx]) > 0:
-                        remaining_Y_idxs = set(range(self.full_X.shape[0])) - (opposite_set | curr_one_Y_idxs)
-                        sub_remaining_one_Y_idxs = [ x for x in remaining_one_Y_idxs if x.issubset(remaining_Y_idxs)]
-                        
-                        for remaining_merged_set in combine_iterators(generate_powerset_iterator(sub_remaining_one_Y_idxs), [set()]):
-                            complement_remaining_Y_subset = remaining_Y_idxs - remaining_merged_set
+                    remaining_Y_idxs = set(range(self.full_X.shape[0])) - (opposite_set | curr_one_Y_idxs)
+                    sub_remaining_one_Y_idxs = [ x for x in remaining_one_Y_idxs if x.issubset(remaining_Y_idxs)]
+                    
+                    for remaining_merged_set in combine_iterators(generate_powerset_iterator(sub_remaining_one_Y_idxs), [set()]):
+                        complement_remaining_Y_subset = remaining_Y_idxs - remaining_merged_set
 
-                            first_left_W = curr_one_Y_idxs | complement_remaining_Y_subset
-                            first_right_W = opposite_set | remaining_merged_set
+                        first_left_W = curr_one_Y_idxs | complement_remaining_Y_subset
+                        first_right_W = opposite_set | remaining_merged_set
 
-                            second_left_W = curr_one_Y_idxs | remaining_merged_set
-                            second_right_W = opposite_set | complement_remaining_Y_subset
+                        second_left_W = curr_one_Y_idxs | remaining_merged_set
+                        second_right_W = opposite_set | complement_remaining_Y_subset
 
-                            for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
-                                updated_one_Y_row_state = {}
-                                for k,v in curr_one_Y_row_state.items():
-                                    one_Y_idxs = W_row_to_one_Y_row_idxs[k]
-                                    sub_diff = v
+                        for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
+                            updated_one_Y_row_state = {}
+                            for k,v in curr_one_Y_row_state.items():
+                                one_Y_idxs = W_row_to_one_Y_row_idxs[k]
+                                sub_diff = v
 
-                                    if one_Y_idxs.issubset(left_W):
-                                        sub_diff = v - right_W
-                                    elif one_Y_idxs.issubset(right_W):
-                                        sub_diff = v - left_W
-                                    
-                                    # implicit here is the removal of one_Y_idxs for which there is no unresolved zero Y row idxs left
-                                    if len(sub_diff) > 0:
-                                        updated_one_Y_row_state[k] = sub_diff
+                                if one_Y_idxs.issubset(left_W):
+                                    sub_diff = v - right_W
+                                elif one_Y_idxs.issubset(right_W):
+                                    sub_diff = v - left_W
+                                
+                                # implicit here is the removal of one_Y_idxs for which there is no unresolved zero Y row idxs left
+                                if len(sub_diff) > 0:
+                                    updated_one_Y_row_state[k] = sub_diff
 
-                                sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
-                                if is_solved:
-                                    new_X_row_idxs_per_W_col = sub_new_X_row_idxs_per_W_col
-                                    new_X_row_idxs_per_W_col.append((left_W, right_W))
-                                    return new_X_row_idxs_per_W_col, True
+                            sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
+                            if is_solved:
+                                new_X_row_idxs_per_W_col = sub_new_X_row_idxs_per_W_col
+                                new_X_row_idxs_per_W_col.append((left_W, right_W))
+                                return new_X_row_idxs_per_W_col, True
                     
                 return [], False
             
