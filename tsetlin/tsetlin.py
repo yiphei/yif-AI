@@ -45,7 +45,7 @@ class TsetlinLayer(TsetlinBase):
         self.out = None
         self.full_X = None
 
-    def get_neg_col_idxs(self, col_idx):
+    def get_neg_col_idx(self, col_idx):
         return (col_idx + self.in_dim) % (self.in_dim * 2)
     
     def get_pos_col_idx(self, col_idx):
@@ -115,12 +115,9 @@ class TsetlinLayer(TsetlinBase):
                     updated_one_Y_row_state = copy.deepcopy(curr_one_Y_row_state)
                     del updated_one_Y_row_state[curr_W_row_idx]
                     sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
-                    if is_solved:
-                        new_X_row_idxs_per_W_col = sub_new_X_row_idxs_per_W_col
-                        new_X_row_idxs_per_W_col.append(( curr_one_Y_idxs, set()))
-                        return new_X_row_idxs_per_W_col, True
-                    else:
-                        return [], False
+                    assert is_solved
+                    sub_new_X_row_idxs_per_W_col.append(( curr_one_Y_idxs, set()))
+                    return sub_new_X_row_idxs_per_W_col, True
 
                 remaining_q = list(q)
                 remaining_one_Y_idxs = [W_row_to_one_Y_row_idxs[x] for x in remaining_q if len(W_row_to_one_Y_row_idxs[x] & curr_one_Y_idxs) == 0 and len(W_row_to_one_Y_row_idxs[x] & curr_one_Y_row_state[curr_W_row_idx]) > 0]
@@ -154,9 +151,8 @@ class TsetlinLayer(TsetlinBase):
 
                             sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
                             if is_solved:
-                                new_X_row_idxs_per_W_col = sub_new_X_row_idxs_per_W_col
-                                new_X_row_idxs_per_W_col.append((left_W, right_W))
-                                return new_X_row_idxs_per_W_col, True
+                                sub_new_X_row_idxs_per_W_col.append((left_W, right_W))
+                                return sub_new_X_row_idxs_per_W_col, True
                     
                 return [], False
             
@@ -232,7 +228,7 @@ class TsetlinLayer(TsetlinBase):
                         col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
                         W_row_idxs_confidence_sum = offset_sorted_W_row_idxs_sets_confidence_sum_per_col[W_row_idxs_set_idx, sorted_idx].item()
 
-                        if max_sum is not None and W_row_idxs_confidence_sum >= max_sum:
+                        if max_sum is not None and W_row_idxs_confidence_sum >= max_sum: # theoretically, this would never evaluate to True
                             return None, None
                         if self.get_pos_col_idx(col_idx) not in used_W_col_idxs:
                             return W_row_idxs_confidence_sum, {W_row_idxs_set_idx: sorted_idx}
@@ -262,7 +258,7 @@ class TsetlinLayer(TsetlinBase):
                         new_max_sum = max_sum - W_row_idxs_confidence_sum if max_sum is not None else None
                         sub_min_confidence_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs, new_max_sum)
 
-                        if (min_confidence_sum is None and sub_min_confidence_sum is not None) or (sub_min_confidence_sum is not None and sub_min_confidence_sum + W_row_idxs_confidence_sum < min_confidence_sum):
+                        if sub_min_confidence_sum is not None and (min_confidence_sum is None or sub_min_confidence_sum + W_row_idxs_confidence_sum < min_confidence_sum):
                             min_confidence_sum = W_row_idxs_confidence_sum + sub_min_confidence_sum
                             W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
                             W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
@@ -313,7 +309,7 @@ class TsetlinLayer(TsetlinBase):
 
                 for col_idx_tensor in sums.indices:
                     col_idx = col_idx_tensor.item()
-                    neg_col_idx = self.get_neg_col_idxs(col_idx)
+                    neg_col_idx = self.get_neg_col_idx(col_idx)
                     if self.get_pos_col_idx(col_idx) in available_col_idxs and neg_col_idx not in W_col_to_new_X_row_idxs_for_zero_Y:
                         W_col_to_new_X_row_idxs_for_zero_Y[col_idx] = X_row_partitions[len(W_col_to_new_X_row_idxs_for_zero_Y.keys())]
                         if len(W_col_to_new_X_row_idxs_for_zero_Y.keys()) == partitions:
@@ -324,7 +320,7 @@ class TsetlinLayer(TsetlinBase):
                         return curre_sol if len(remaining_rows) == 0 else None
 
                     for W_col_idx,X_row_idxs in W_col_to_new_X_row_idxs.items():
-                        neg_W_col_idx = self.get_neg_col_idxs(W_col_idx)
+                        neg_W_col_idx = self.get_neg_col_idx(W_col_idx)
                         sub = remaining_rows - X_row_idxs[1]
                         if W_col_idx not in curre_sol and neg_W_col_idx not in curre_sol and len(sub)< len(remaining_rows):
                             sol = find_best_setup(depth+1, max_depth, curre_sol | {W_col_idx}, sub)
