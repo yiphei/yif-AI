@@ -1,1 +1,1 @@
-Re-implenetation of the iconic micrograd repo
+My AI work
