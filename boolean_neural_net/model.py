@@ -377,22 +377,30 @@ class BooleanLayer:
 
 class BooleanNN:
     def __init__(self, in_dim, clause_dim):
-        self.l1 = BooleanLayer(in_dim, clause_dim)
-        self.l2 = BooleanLayer(clause_dim, clause_dim)
-        self.l3 = BooleanLayer(clause_dim, 1)
+        hidden_dim = 1
+        self.input_layer = BooleanLayer(in_dim, clause_dim)
+        self.hidden_layers = [BooleanLayer(clause_dim, clause_dim) for _ in range(hidden_dim)]
+        self.output_layer = BooleanLayer(clause_dim, 1)
         self.out = None
 
     def forward(self, X):
-        X = self.l1.forward(X)
-        X = self.l2.forward(X)
-        X = self.l3.forward(X)
+        X = self.input_layer.forward(X)
+        for layer in self.hidden_layers:
+            X = layer.forward(X)
+        X = self.output_layer.forward(X)
         self.out = X.squeeze(1)
         return self.out
     
     def backprop(self, y):
         y = y.unsqueeze(1)
-        updated_X = self.l3.backprop(y)
-        if updated_X is not None:
-            updated_X = self.l2.backprop(updated_X)
-        if updated_X is not None:
-            self.l1.backprop(updated_X, True)
+        
+        updated_X = self.output_layer.backprop(y)
+        if updated_X is None:
+            return
+
+        for layer in reversed(self.hidden_layers):
+            updated_X = layer.backprop(updated_X)
+            if updated_X is None:
+                return
+
+        self.input_layer.backprop(updated_X, True)
