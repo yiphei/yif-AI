@@ -52,6 +52,64 @@ class BooleanLayer:
         self.full_X = torch.cat((X, X_neg), dim=1)
         self.out = self.conjunction_mul(self.full_X.unsqueeze(1), self.W)
         return self.out
+    
+
+    def _get_new_X_row_idxs_per_W_col(self,depth, max_depth, curr_one_Y_row_state, prev_W_row_idx, q, W_row_to_one_Y_row_idxs):
+        # the output is of shape [({1,2,3},{4,5,6}), ({2,3},{4,5,1,6}), ...] where ({1,2,3},{4,5,6}) means
+        # that W[[1,2,3]][0] should be 1 and W[[4,5,6]][0] should be 0 and full_X[[1,2,3]][0] should be 1 
+        # and full_X[[4,5,6]][0] should be 0
+        if depth == max_depth or len(curr_one_Y_row_state) == 0:
+            return [], len(curr_one_Y_row_state) == 0
+
+        curr_W_row_idx = prev_W_row_idx
+        while curr_W_row_idx not in curr_one_Y_row_state and q:
+            curr_W_row_idx = q.popleft()
+
+        curr_one_Y_idxs = W_row_to_one_Y_row_idxs[curr_W_row_idx]
+        if not curr_one_Y_row_state[curr_W_row_idx]:
+            updated_one_Y_row_state = copy.deepcopy(curr_one_Y_row_state)
+            del updated_one_Y_row_state[curr_W_row_idx]
+            sub_new_X_row_idxs_per_W_col, is_solved = self._get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q), W_row_to_one_Y_row_idxs)
+            assert is_solved
+            sub_new_X_row_idxs_per_W_col.append(( curr_one_Y_idxs, set()))
+            return sub_new_X_row_idxs_per_W_col, True
+
+        remaining_q = list(q)
+        remaining_one_Y_idxs = [W_row_to_one_Y_row_idxs[x] for x in remaining_q if len(W_row_to_one_Y_row_idxs[x] & curr_one_Y_idxs) == 0 and len(W_row_to_one_Y_row_idxs[x] & curr_one_Y_row_state[curr_W_row_idx]) > 0]
+        for opposite_set in combine_iterators(generate_powerset_iterator(remaining_one_Y_idxs), [curr_one_Y_row_state[curr_W_row_idx]]):
+            remaining_Y_idxs = set(range(self.full_X.shape[0])) - (opposite_set | curr_one_Y_idxs)
+            sub_remaining_one_Y_idxs = [ x for x in remaining_one_Y_idxs if x.issubset(remaining_Y_idxs)]
+            
+            for remaining_merged_set in combine_iterators(generate_powerset_iterator(sub_remaining_one_Y_idxs), [set()]):
+                complement_remaining_Y_subset = remaining_Y_idxs - remaining_merged_set
+
+                first_left_W = curr_one_Y_idxs | complement_remaining_Y_subset
+                first_right_W = opposite_set | remaining_merged_set
+
+                second_left_W = curr_one_Y_idxs | remaining_merged_set
+                second_right_W = opposite_set | complement_remaining_Y_subset
+
+                for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
+                    updated_one_Y_row_state = {}
+                    for k,v in curr_one_Y_row_state.items():
+                        one_Y_idxs = W_row_to_one_Y_row_idxs[k]
+                        sub_diff = v
+
+                        if one_Y_idxs.issubset(left_W):
+                            sub_diff = v - right_W
+                        elif one_Y_idxs.issubset(right_W):
+                            sub_diff = v - left_W
+                        
+                        # implicit here is the removal of one_Y_idxs for which there is no unresolved zero Y row idxs left
+                        if len(sub_diff) > 0:
+                            updated_one_Y_row_state[k] = sub_diff
+
+                    sub_new_X_row_idxs_per_W_col, is_solved = self._get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q), W_row_to_one_Y_row_idxs)
+                    if is_solved:
+                        sub_new_X_row_idxs_per_W_col.append((left_W, right_W))
+                        return sub_new_X_row_idxs_per_W_col, True
+            
+        return [], False
 
     def update(self, Y, is_first_layer = False):
         if torch.equal(Y, self.out):
@@ -94,65 +152,8 @@ class BooleanLayer:
             one_Y_row_state = {W_row: W_row_to_zero_Y_row_idxs.get(W_row, set())  for W_row in W_rows_of_unique_one_Y_row_idxs} # this tracks unresolved zero Y row idxs for each W row idx
             sorted_one_Y_row_idxs = sorted(list(W_rows_of_unique_one_Y_row_idxs), key=lambda x: len(W_row_to_one_Y_row_idxs[x]), reverse=True) # a heuristical optimization to address the largest one_Y_row_idxs first
             q = deque(sorted_one_Y_row_idxs)
-
-            def get_new_X_row_idxs_per_W_col(depth, max_depth, curr_one_Y_row_state, prev_W_row_idx, q):
-                # the output is of shape [({1,2,3},{4,5,6}), ({2,3},{4,5,1,6}), ...] where ({1,2,3},{4,5,6}) means
-                # that W[[1,2,3]][0] should be 1 and W[[4,5,6]][0] should be 0 and full_X[[1,2,3]][0] should be 1 
-                # and full_X[[4,5,6]][0] should be 0
-                if depth == max_depth or len(curr_one_Y_row_state) == 0:
-                    return [], len(curr_one_Y_row_state) == 0
-
-                curr_W_row_idx = prev_W_row_idx
-                while curr_W_row_idx not in curr_one_Y_row_state and q:
-                    curr_W_row_idx = q.popleft()
-
-                curr_one_Y_idxs = W_row_to_one_Y_row_idxs[curr_W_row_idx]
-                if not curr_one_Y_row_state[curr_W_row_idx]:
-                    updated_one_Y_row_state = copy.deepcopy(curr_one_Y_row_state)
-                    del updated_one_Y_row_state[curr_W_row_idx]
-                    sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
-                    assert is_solved
-                    sub_new_X_row_idxs_per_W_col.append(( curr_one_Y_idxs, set()))
-                    return sub_new_X_row_idxs_per_W_col, True
-
-                remaining_q = list(q)
-                remaining_one_Y_idxs = [W_row_to_one_Y_row_idxs[x] for x in remaining_q if len(W_row_to_one_Y_row_idxs[x] & curr_one_Y_idxs) == 0 and len(W_row_to_one_Y_row_idxs[x] & curr_one_Y_row_state[curr_W_row_idx]) > 0]
-                for opposite_set in combine_iterators(generate_powerset_iterator(remaining_one_Y_idxs), [curr_one_Y_row_state[curr_W_row_idx]]):
-                    remaining_Y_idxs = set(range(self.full_X.shape[0])) - (opposite_set | curr_one_Y_idxs)
-                    sub_remaining_one_Y_idxs = [ x for x in remaining_one_Y_idxs if x.issubset(remaining_Y_idxs)]
-                    
-                    for remaining_merged_set in combine_iterators(generate_powerset_iterator(sub_remaining_one_Y_idxs), [set()]):
-                        complement_remaining_Y_subset = remaining_Y_idxs - remaining_merged_set
-
-                        first_left_W = curr_one_Y_idxs | complement_remaining_Y_subset
-                        first_right_W = opposite_set | remaining_merged_set
-
-                        second_left_W = curr_one_Y_idxs | remaining_merged_set
-                        second_right_W = opposite_set | complement_remaining_Y_subset
-
-                        for left_W, right_W in [(first_left_W, first_right_W), (second_left_W, second_right_W)]:
-                            updated_one_Y_row_state = {}
-                            for k,v in curr_one_Y_row_state.items():
-                                one_Y_idxs = W_row_to_one_Y_row_idxs[k]
-                                sub_diff = v
-
-                                if one_Y_idxs.issubset(left_W):
-                                    sub_diff = v - right_W
-                                elif one_Y_idxs.issubset(right_W):
-                                    sub_diff = v - left_W
-                                
-                                # implicit here is the removal of one_Y_idxs for which there is no unresolved zero Y row idxs left
-                                if len(sub_diff) > 0:
-                                    updated_one_Y_row_state[k] = sub_diff
-
-                            sub_new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q))
-                            if is_solved:
-                                sub_new_X_row_idxs_per_W_col.append((left_W, right_W))
-                                return sub_new_X_row_idxs_per_W_col, True
-                    
-                return [], False
             
-            new_X_row_idxs_per_W_col, is_solved = get_new_X_row_idxs_per_W_col(0, self.in_dim, one_Y_row_state, q.popleft(), q) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
+            new_X_row_idxs_per_W_col, is_solved = self._get_new_X_row_idxs_per_W_col(0, self.in_dim, one_Y_row_state, q.popleft(), q, W_row_to_one_Y_row_idxs) # X_row_idxs_per_W_col does not necessarily contain a slot for each col
             assert is_solved
 
             # new_X_row_idxs_per_W_col provides a valid update of W and full_X that satisfies the expected Y.
