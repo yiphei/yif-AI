@@ -1,15 +1,12 @@
 import torch
 import random
-import math
 import copy
 
 from itertools import combinations, chain
 from collections import deque, defaultdict
 
 def generate_powerset_iterator(set_elements):
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
     return chain.from_iterable(combinations(set_elements,r) for r in range(len(set_elements), -1, -1))
-
 
 def combine_iterators(iterable_one, iterable_two):
     for item in iterable_one:
@@ -20,14 +17,7 @@ def combine_iterators(iterable_one, iterable_two):
     for item in iterable_two:
         yield item
 
-class TsetlinBase:
-    def conjunction_mul(self, X, W):
-        matrix_X = X.repeat(1, W.shape[0], 1) # repeat X for each row of W
-        mask = W == 1
-        masked_X = torch.where(mask, matrix_X, torch.tensor(1)) # theoretically, it should not be replaced with 1 (it should just be omitted), but mathematically it is fine because 1 is idempotent in multiplication
-        return torch.prod(masked_X, dim=2, keepdim=True).view(X.shape[0],-1)
-
-class TsetlinLayer(TsetlinBase):
+class BooleanLayer:
     def __init__(self, in_dim, out_dim):
         self.in_dim = in_dim
         W_pos = torch.randint(0, 2, (out_dim, in_dim,))
@@ -44,6 +34,12 @@ class TsetlinLayer(TsetlinBase):
 
         self.out = None
         self.full_X = None
+
+    def conjunction_mul(self, X, W):
+        matrix_X = X.repeat(1, W.shape[0], 1) # repeat X for each row of W
+        mask = W == 1
+        masked_X = torch.where(mask, matrix_X, torch.tensor(1)) # theoretically, it should not be replaced with 1 (it should just be omitted), but mathematically it is fine because 1 is idempotent in multiplication
+        return torch.prod(masked_X, dim=2, keepdim=True).view(X.shape[0],-1)
 
     def get_neg_col_idx(self, col_idx):
         return (col_idx + self.in_dim) % (self.in_dim * 2)
@@ -375,12 +371,11 @@ class TsetlinLayer(TsetlinBase):
     
         return updated_full_X[:,:self.in_dim] if not is_first_layer else None
 
-class TsetlinMachine:
-
+class BooleanNN:
     def __init__(self, in_dim, clause_dim):
-        self.l1 = TsetlinLayer(in_dim, clause_dim)
-        self.l2 = TsetlinLayer(clause_dim, clause_dim)
-        self.l3 = TsetlinLayer(clause_dim, 1)
+        self.l1 = BooleanLayer(in_dim, clause_dim)
+        self.l2 = BooleanLayer(clause_dim, clause_dim)
+        self.l3 = BooleanLayer(clause_dim, 1)
         self.out = None
 
     def forward(self, X):
