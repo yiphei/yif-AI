@@ -282,6 +282,7 @@ class BooleanLayer:
         W_col_to_new_X_row_idxs_for_zero_Y = {}
         W_row_idxs_with_zero_Ys =  list(set(range(self.W.shape[0])) - (W_row_to_one_Y_row_idxs.keys()))
         if W_row_idxs_with_zero_Ys:
+            # TODO: too ad-hoc, needs to be refactored
             available_cols = self.in_dim - len(W_col_to_new_X_row_idxs.keys())
             if available_cols > 0:
                 # TODO: this is a problem if you have identical rows of full_X
@@ -314,7 +315,7 @@ class BooleanLayer:
                         if len(W_col_to_new_X_row_idxs_for_zero_Y.keys()) == partitions:
                             break
             else:
-                def find_best_setup(depth, max_depth, curre_sol, remaining_rows):
+                def find_best_1s_col_idxs(depth, max_depth, curre_sol, remaining_rows):
                     if depth == max_depth or len(remaining_rows) == 0:
                         return curre_sol if len(remaining_rows) == 0 else None
 
@@ -322,20 +323,20 @@ class BooleanLayer:
                         neg_W_col_idx = self.get_neg_col_idx(W_col_idx)
                         sub = remaining_rows - X_row_idxs[1]
                         if W_col_idx not in curre_sol and neg_W_col_idx not in curre_sol and len(sub)< len(remaining_rows):
-                            sol = find_best_setup(depth+1, max_depth, curre_sol | {W_col_idx}, sub)
+                            sol = find_best_1s_col_idxs(depth+1, max_depth, curre_sol | {W_col_idx}, sub)
                             if sol is not None:
                                 return sol
                         
                         sub = remaining_rows - X_row_idxs[0]
                         if W_col_idx not in curre_sol and neg_W_col_idx not in curre_sol and len(sub)< len(remaining_rows):
-                            sol = find_best_setup(depth+1, max_depth, curre_sol | {neg_W_col_idx}, sub)
+                            sol = find_best_1s_col_idxs(depth+1, max_depth, curre_sol | {neg_W_col_idx}, sub)
                             if sol is not None:
                                 return sol
                     return None
                 
-                best_sol = find_best_setup(0, self.in_dim, set(), set(range(self.full_X.shape[0])))
-                assert best_sol is not None
-                for W_col_idx in best_sol:
+                W_col_idxs = find_best_1s_col_idxs(0, self.in_dim, set(), set(range(self.full_X.shape[0])))
+                assert W_col_idxs is not None
+                for W_col_idx in W_col_idxs:
                     pos_col_idx = self.get_pos_col_idx(W_col_idx)
                     target_X_values = W_col_to_new_X_row_idxs[pos_col_idx]
                     if W_col_idx != pos_col_idx:
