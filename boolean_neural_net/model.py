@@ -162,7 +162,7 @@ class BooleanLayer:
 
         return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
 
-    def update(self, Y, is_first_layer = False):
+    def backprop(self, Y, is_first_layer = False):
         if torch.equal(Y, self.out):
             return None
         
@@ -388,10 +388,10 @@ class BooleanNN:
         self.out = X.squeeze(1)
         return self.out
     
-    def update(self, y):
+    def backprop(self, y):
         y = y.unsqueeze(1)
-        updated_X = self.l3.update(y)
+        updated_X = self.l3.backprop(y)
         if updated_X is not None:
-            updated_X = self.l2.update(updated_X)
+            updated_X = self.l2.backprop(updated_X)
         if updated_X is not None:
-            self.l1.update(updated_X, True)
+            self.l1.backprop(updated_X, True)
