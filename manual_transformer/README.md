@@ -1,1 +1,1 @@
-Manual implementation of the Transformer architecture
+Manual implementation of the Transformer architecture for fun.
