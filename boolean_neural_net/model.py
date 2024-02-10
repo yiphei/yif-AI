@@ -30,7 +30,7 @@ class BooleanLayer:
         col_idxs = torch.randint(0, in_dim * 2, (zero_row_idxs.shape[0],))
         self.W[zero_row_idxs, col_idxs] = 1
 
-        self.W_confidence = torch.zeros_like(self.W)
+        self.W_doubt = torch.zeros_like(self.W)
 
         self.out = None
         self.full_X = None
@@ -57,7 +57,7 @@ class BooleanLayer:
         if torch.equal(Y, self.out):
             return None
         
-        self.W_confidence[self.W == 1] += 1
+        self.W_doubt[self.W == 1] += 1
 
         W_row_to_zero_Y_row_idxs = {}
         W_row_to_one_Y_row_idxs = {}
@@ -157,7 +157,7 @@ class BooleanLayer:
 
             # new_X_row_idxs_per_W_col provides a valid update of W and full_X that satisfies the expected Y.
             # However, we assigned one_Y_row_idxs to W columns incrementally (from 0) for simplicity.
-            # Below, we determine the best W column assignment based on W_confidence.
+            # Below, we determine the best W column assignment based on W_doubt.
 
             W_row_idxs_per_col = defaultdict(lambda: [[], []]) # this represents all one_W_row_idxs and zero_W_row_idxs pairs
             for W_row_idx, one_Y_row_idxs in W_row_to_one_Y_row_idxs.items():
@@ -167,22 +167,22 @@ class BooleanLayer:
                     elif one_Y_row_idxs.issubset(new_X_row_idxs[1]):
                         W_row_idxs_per_col[W_col_idx][1].append(W_row_idx)
 
-            # calculate the W_confidence sum of each one_W_row_idxs and zero_W_row_idxs pairs for all W columns
-            W_row_idxs_sets_confidence_sum_per_col = []
+            # calculate the W_doubt sum of each one_W_row_idxs and zero_W_row_idxs pairs for all W columns
+            W_row_idxs_sets_doubt_sum_per_col = []
             for W_row_idxs in W_row_idxs_per_col.keys():
-                sums = self.W_confidence[W_row_idxs_per_col[W_row_idxs][0]].sum(dim=0)
-                neg_sum = torch.roll(self.W_confidence[W_row_idxs_per_col[W_row_idxs][1]].sum(dim=0), shifts = -self.in_dim, dims=0)
+                sums = self.W_doubt[W_row_idxs_per_col[W_row_idxs][0]].sum(dim=0)
+                neg_sum = torch.roll(self.W_doubt[W_row_idxs_per_col[W_row_idxs][1]].sum(dim=0), shifts = -self.in_dim, dims=0)
                 sums += neg_sum
-                W_row_idxs_sets_confidence_sum_per_col.append(sums)
+                W_row_idxs_sets_doubt_sum_per_col.append(sums)
                 
-            W_row_idxs_sets_confidence_sum_per_col = torch.stack(W_row_idxs_sets_confidence_sum_per_col)
-            sorted_W_row_idxs_sets_confidence_sum_per_col = torch.sort(W_row_idxs_sets_confidence_sum_per_col, dim=1, descending=False) # sort by increasing sum
+            W_row_idxs_sets_doubt_sum_per_col = torch.stack(W_row_idxs_sets_doubt_sum_per_col)
+            sorted_W_row_idxs_sets_doubt_sum_per_col = torch.sort(W_row_idxs_sets_doubt_sum_per_col, dim=1, descending=False) # sort by increasing sum
             
             # Prune W columns
             opt_values = []
             opt_indices = []
 
-            for sum_values, sum_indices in zip(sorted_W_row_idxs_sets_confidence_sum_per_col.values, sorted_W_row_idxs_sets_confidence_sum_per_col.indices):
+            for sum_values, sum_indices in zip(sorted_W_row_idxs_sets_doubt_sum_per_col.values, sorted_W_row_idxs_sets_doubt_sum_per_col.indices):
                 opt_sums = []
                 opt_sum_idxs = []
                 visited_col_idxs = set()
@@ -199,21 +199,21 @@ class BooleanLayer:
                 opt_values.append(opt_sums)
                 opt_indices.append(opt_sum_idxs)
 
-            sorted_W_row_idxs_sets_confidence_sum_per_col_values = torch.tensor(opt_values)
-            sorted_W_row_idxs_sets_confidence_sum_per_col_indices = torch.tensor(opt_indices) 
+            sorted_W_row_idxs_sets_doubt_sum_per_col_values = torch.tensor(opt_values)
+            sorted_W_row_idxs_sets_doubt_sum_per_col_indices = torch.tensor(opt_indices) 
             
             # a heuristical optimization that sorts W columns by increasing offset sum across one_W_row_idxs and zero_W_row_idxs pairs
-            offset_sorted_W_row_idxs_sets_confidence_sum_per_col = sorted_W_row_idxs_sets_confidence_sum_per_col_values - sorted_W_row_idxs_sets_confidence_sum_per_col_values[:, 0].unsqueeze(1) # normalize the sum by subtracting the smallest sum
-            offset_W_row_idxs_sets_confidence_sum_to_cols_dict = defaultdict(list)
-            for col_idx, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_confidence_sum_per_col):
+            offset_sorted_W_row_idxs_sets_doubt_sum_per_col = sorted_W_row_idxs_sets_doubt_sum_per_col_values - sorted_W_row_idxs_sets_doubt_sum_per_col_values[:, 0].unsqueeze(1) # normalize the sum by subtracting the smallest sum
+            offset_W_row_idxs_sets_doubt_sum_to_cols_dict = defaultdict(list)
+            for col_idx, offset_sums in enumerate(offset_sorted_W_row_idxs_sets_doubt_sum_per_col):
                 for offset_sum in offset_sums:
-                    offset_W_row_idxs_sets_confidence_sum_to_cols_dict[offset_sum.item()].append(col_idx)
-            sorted_W_row_idxs_sets_confidence_sum = sorted(offset_W_row_idxs_sets_confidence_sum_to_cols_dict.keys())
-            W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_confidence_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_confidence_sum] # based on increasing offset W row idxs sets sum
+                    offset_W_row_idxs_sets_doubt_sum_to_cols_dict[offset_sum.item()].append(col_idx)
+            sorted_W_row_idxs_sets_doubt_sum = sorted(offset_W_row_idxs_sets_doubt_sum_to_cols_dict.keys())
+            W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_doubt_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_doubt_sum] # based on increasing offset W row idxs sets sum
             W_row_idxs_set_sequencing = [ x for sublist in W_row_idxs_set_sequencing for x in sublist] # flatten
 
-            def get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs, max_sum):
-                # This is the core function that determines the best W column assignment based on W_confidence. Before was all preprocessing for a faster algorithm.
+            def get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs, max_sum):
+                # This is the core function that determines the best W column assignment based on W_doubt. Before was all preprocessing for a faster algorithm.
                 # The output shape is {0:1, 1:0, 2:5} where 0:1 means that one_W_row_idxs and zero_W_row_idxs pair indexed at 0 should be assigned to W column 1
                 
                 if len(W_row_idxs_set_idxs) == 1:
@@ -221,19 +221,19 @@ class BooleanLayer:
                     max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else self.in_dim - 1
                     
                     for sorted_idx in range(max_sorted_idx + 1):
-                        col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
-                        W_row_idxs_confidence_sum = offset_sorted_W_row_idxs_sets_confidence_sum_per_col[W_row_idxs_set_idx, sorted_idx].item()
+                        col_idx = sorted_W_row_idxs_sets_doubt_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
+                        W_row_idxs_doubt_sum = offset_sorted_W_row_idxs_sets_doubt_sum_per_col[W_row_idxs_set_idx, sorted_idx].item()
 
-                        if max_sum is not None and W_row_idxs_confidence_sum >= max_sum: # theoretically, this would never evaluate to True
+                        if max_sum is not None and W_row_idxs_doubt_sum >= max_sum: # theoretically, this would never evaluate to True
                             return None, None
                         if self.get_pos_col_idx(col_idx) not in used_W_col_idxs:
-                            return W_row_idxs_confidence_sum, {W_row_idxs_set_idx: sorted_idx}
+                            return W_row_idxs_doubt_sum, {W_row_idxs_set_idx: sorted_idx}
 
                     return None, None
 
                 curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(new_X_row_idxs_per_W_col)
-                min_confidence_sum = max_sum
-                W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = None
+                min_doubt_sum = max_sum
+                W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = None
 
                 for i in range(len(W_row_idxs_set_sequencing)):
                     W_row_idxs_set_idx = W_row_idxs_set_sequencing[i]
@@ -242,32 +242,32 @@ class BooleanLayer:
 
                     curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
                     if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
-                        return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
+                        return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
 
-                    col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                    W_row_idxs_confidence_sum = offset_sorted_W_row_idxs_sets_confidence_sum_per_col[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                    if min_confidence_sum is not None and W_row_idxs_confidence_sum >= min_confidence_sum:
-                        return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
+                    col_idx = sorted_W_row_idxs_sets_doubt_sum_per_col_indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                    W_row_idxs_doubt_sum = offset_sorted_W_row_idxs_sets_doubt_sum_per_col[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+                    if min_doubt_sum is not None and W_row_idxs_doubt_sum >= min_doubt_sum:
+                        return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
 
                     if self.get_pos_col_idx(col_idx) not in used_W_col_idxs:
                         updated_used_col_idxs = used_W_col_idxs | {self.get_pos_col_idx(col_idx)}
-                        new_max_sum = max_sum - W_row_idxs_confidence_sum if max_sum is not None else None
-                        sub_min_confidence_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs, new_max_sum)
+                        new_max_sum = max_sum - W_row_idxs_doubt_sum if max_sum is not None else None
+                        sub_min_doubt_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs, new_max_sum)
 
-                        if sub_min_confidence_sum is not None and (min_confidence_sum is None or sub_min_confidence_sum + W_row_idxs_confidence_sum < min_confidence_sum):
-                            min_confidence_sum = W_row_idxs_confidence_sum + sub_min_confidence_sum
-                            W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
-                            W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
+                        if sub_min_doubt_sum is not None and (min_doubt_sum is None or sub_min_doubt_sum + W_row_idxs_doubt_sum < min_doubt_sum):
+                            min_doubt_sum = W_row_idxs_doubt_sum + sub_min_doubt_sum
+                            W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
+                            W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
 
-                return min_confidence_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum
+                return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
 
-            _, W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum(set(range(len(new_X_row_idxs_per_W_col))), None, set(), None)
-            assert W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum is not None
+            _, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum(set(range(len(new_X_row_idxs_per_W_col))), None, set(), None)
+            assert W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum is not None
 
             # given the optimal assignment, we recreate new_X_row_idxs_per_W_col in W_col_to_new_X_row_idxs
-            for W_row_idxs_set_idx, sorted_idx in W_row_idxs_set_idx_to_sorted_col_idx_w_min_confidence_sum.items():
+            for W_row_idxs_set_idx, sorted_idx in W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum.items():
                 old_col_idx = W_row_idxs_set_idx
-                new_col_idx = sorted_W_row_idxs_sets_confidence_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
+                new_col_idx = sorted_W_row_idxs_sets_doubt_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
                 new_pos_col_idx = self.get_pos_col_idx(new_col_idx)
 
                 new_X_row_idxs = new_X_row_idxs_per_W_col[old_col_idx]
@@ -301,7 +301,7 @@ class BooleanLayer:
                 used_col_idxs = W_col_to_new_X_row_idxs.keys()
                 pos_used_col_idxs = set([self.get_pos_col_idx(col_idx) for col_idx in used_col_idxs])
                 available_col_idxs = set(range(self.in_dim)) -  pos_used_col_idxs
-                sums = torch.sort(self.W_confidence[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
+                sums = torch.sort(self.W_doubt[W_row_idxs_with_zero_Ys].sum(dim=0), dim=0, descending=False)
 
                 for col_idx_tensor in sums.indices:
                     col_idx = col_idx_tensor.item()
