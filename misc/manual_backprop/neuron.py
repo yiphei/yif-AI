@@ -1,5 +1,5 @@
 import random
-from tutorial_work.value import Value
+from value import Value
 
 class Neuron:
     
