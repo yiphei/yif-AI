@@ -110,6 +110,56 @@ class BooleanLayer:
                         return sub_new_X_row_idxs_per_W_col, True
             
         return [], False
+    
+
+    def _get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum(self, W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs, max_sum, sorted_W_row_idxs_sets_doubt_sum_per_col_indices, offset_sorted_W_row_idxs_sets_doubt_sum_per_col, new_X_row_idxs_per_W_col, W_row_idxs_set_sequencing):
+        # This is the core function that determines the best W column assignment based on W_doubt. Before was all preprocessing for a faster algorithm.
+        # The output shape is {0:1, 1:0, 2:5} where 0:1 means that one_W_row_idxs and zero_W_row_idxs pair indexed at 0 should be assigned to W column 1
+        
+        if len(W_row_idxs_set_idxs) == 1:
+            W_row_idxs_set_idx = list(W_row_idxs_set_idxs)[0]
+            max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else self.in_dim - 1
+            
+            for sorted_idx in range(max_sorted_idx + 1):
+                col_idx = sorted_W_row_idxs_sets_doubt_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
+                W_row_idxs_doubt_sum = offset_sorted_W_row_idxs_sets_doubt_sum_per_col[W_row_idxs_set_idx, sorted_idx].item()
+
+                if max_sum is not None and W_row_idxs_doubt_sum >= max_sum: # theoretically, this would never evaluate to True
+                    return None, None
+                if self.get_pos_col_idx(col_idx) not in used_W_col_idxs:
+                    return W_row_idxs_doubt_sum, {W_row_idxs_set_idx: sorted_idx}
+
+            return None, None
+
+        curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(new_X_row_idxs_per_W_col)
+        min_doubt_sum = max_sum
+        W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = None
+
+        for i in range(len(W_row_idxs_set_sequencing)):
+            W_row_idxs_set_idx = W_row_idxs_set_sequencing[i]
+            if W_row_idxs_set_idx not in W_row_idxs_set_idxs:
+                continue
+
+            curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
+            if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
+                return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
+
+            col_idx = sorted_W_row_idxs_sets_doubt_sum_per_col_indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+            W_row_idxs_doubt_sum = offset_sorted_W_row_idxs_sets_doubt_sum_per_col[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
+            if min_doubt_sum is not None and W_row_idxs_doubt_sum >= min_doubt_sum:
+                return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
+
+            if self.get_pos_col_idx(col_idx) not in used_W_col_idxs:
+                updated_used_col_idxs = used_W_col_idxs | {self.get_pos_col_idx(col_idx)}
+                new_max_sum = max_sum - W_row_idxs_doubt_sum if max_sum is not None else None
+                sub_min_doubt_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = self._get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs, new_max_sum, sorted_W_row_idxs_sets_doubt_sum_per_col_indices, offset_sorted_W_row_idxs_sets_doubt_sum_per_col, new_X_row_idxs_per_W_col, W_row_idxs_set_sequencing)
+
+                if sub_min_doubt_sum is not None and (min_doubt_sum is None or sub_min_doubt_sum + W_row_idxs_doubt_sum < min_doubt_sum):
+                    min_doubt_sum = W_row_idxs_doubt_sum + sub_min_doubt_sum
+                    W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
+                    W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
+
+        return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
 
     def update(self, Y, is_first_layer = False):
         if torch.equal(Y, self.out):
@@ -213,56 +263,7 @@ class BooleanLayer:
             W_row_idxs_set_sequencing = [offset_W_row_idxs_sets_doubt_sum_to_cols_dict[x] for x in sorted_W_row_idxs_sets_doubt_sum] # based on increasing offset W row idxs sets sum
             W_row_idxs_set_sequencing = [ x for sublist in W_row_idxs_set_sequencing for x in sublist] # flatten
 
-            def get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum(W_row_idxs_set_idxs, max_sorted_idx_per_W_row_idxs_set_idxs, used_W_col_idxs, max_sum):
-                # This is the core function that determines the best W column assignment based on W_doubt. Before was all preprocessing for a faster algorithm.
-                # The output shape is {0:1, 1:0, 2:5} where 0:1 means that one_W_row_idxs and zero_W_row_idxs pair indexed at 0 should be assigned to W column 1
-                
-                if len(W_row_idxs_set_idxs) == 1:
-                    W_row_idxs_set_idx = list(W_row_idxs_set_idxs)[0]
-                    max_sorted_idx = max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] if max_sorted_idx_per_W_row_idxs_set_idxs is not None else self.in_dim - 1
-                    
-                    for sorted_idx in range(max_sorted_idx + 1):
-                        col_idx = sorted_W_row_idxs_sets_doubt_sum_per_col_indices[W_row_idxs_set_idx, sorted_idx].item()
-                        W_row_idxs_doubt_sum = offset_sorted_W_row_idxs_sets_doubt_sum_per_col[W_row_idxs_set_idx, sorted_idx].item()
-
-                        if max_sum is not None and W_row_idxs_doubt_sum >= max_sum: # theoretically, this would never evaluate to True
-                            return None, None
-                        if self.get_pos_col_idx(col_idx) not in used_W_col_idxs:
-                            return W_row_idxs_doubt_sum, {W_row_idxs_set_idx: sorted_idx}
-
-                    return None, None
-
-                curr_max_sorted_idx_per_W_row_idxs_set_idxs = [-1] * len(new_X_row_idxs_per_W_col)
-                min_doubt_sum = max_sum
-                W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = None
-
-                for i in range(len(W_row_idxs_set_sequencing)):
-                    W_row_idxs_set_idx = W_row_idxs_set_sequencing[i]
-                    if W_row_idxs_set_idx not in W_row_idxs_set_idxs:
-                        continue
-
-                    curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] += 1
-                    if max_sorted_idx_per_W_row_idxs_set_idxs is not None and curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx] > max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]:
-                        return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
-
-                    col_idx = sorted_W_row_idxs_sets_doubt_sum_per_col_indices[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                    W_row_idxs_doubt_sum = offset_sorted_W_row_idxs_sets_doubt_sum_per_col[W_row_idxs_set_idx, curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]].item()
-                    if min_doubt_sum is not None and W_row_idxs_doubt_sum >= min_doubt_sum:
-                        return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
-
-                    if self.get_pos_col_idx(col_idx) not in used_W_col_idxs:
-                        updated_used_col_idxs = used_W_col_idxs | {self.get_pos_col_idx(col_idx)}
-                        new_max_sum = max_sum - W_row_idxs_doubt_sum if max_sum is not None else None
-                        sub_min_doubt_sum , sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum(W_row_idxs_set_idxs - {W_row_idxs_set_idx}, curr_max_sorted_idx_per_W_row_idxs_set_idxs, updated_used_col_idxs, new_max_sum)
-
-                        if sub_min_doubt_sum is not None and (min_doubt_sum is None or sub_min_doubt_sum + W_row_idxs_doubt_sum < min_doubt_sum):
-                            min_doubt_sum = W_row_idxs_doubt_sum + sub_min_doubt_sum
-                            W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = sub_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
-                            W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum[W_row_idxs_set_idx] = curr_max_sorted_idx_per_W_row_idxs_set_idxs[W_row_idxs_set_idx]
-
-                return min_doubt_sum, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum
-
-            _, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum(set(range(len(new_X_row_idxs_per_W_col))), None, set(), None)
+            _, W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum = self._get_W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum(set(range(len(new_X_row_idxs_per_W_col))), None, set(), None, sorted_W_row_idxs_sets_doubt_sum_per_col_indices, offset_sorted_W_row_idxs_sets_doubt_sum_per_col, new_X_row_idxs_per_W_col, W_row_idxs_set_sequencing)
             assert W_row_idxs_set_idx_to_sorted_col_idx_w_min_doubt_sum is not None
 
             # given the optimal assignment, we recreate new_X_row_idxs_per_W_col in W_col_to_new_X_row_idxs
