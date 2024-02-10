@@ -54,11 +54,11 @@ class BooleanLayer:
         return self.out
     
 
-    def _get_new_X_row_idxs_per_W_col(self,depth, max_depth, curr_one_Y_row_state, prev_W_row_idx, q, W_row_to_one_Y_row_idxs):
+    def _get_new_X_row_idxs_per_W_col(self,curr_depth, max_depth, curr_one_Y_row_state, prev_W_row_idx, q, W_row_to_one_Y_row_idxs):
         # the output is of shape [({1,2,3},{4,5,6}), ({2,3},{4,5,1,6}), ...] where ({1,2,3},{4,5,6}) means
         # that W[[1,2,3]][0] should be 1 and W[[4,5,6]][0] should be 0 and full_X[[1,2,3]][0] should be 1 
         # and full_X[[4,5,6]][0] should be 0
-        if depth == max_depth or len(curr_one_Y_row_state) == 0:
+        if curr_depth == max_depth or len(curr_one_Y_row_state) == 0:
             return [], len(curr_one_Y_row_state) == 0
 
         curr_W_row_idx = prev_W_row_idx
@@ -67,9 +67,10 @@ class BooleanLayer:
 
         curr_one_Y_idxs = W_row_to_one_Y_row_idxs[curr_W_row_idx]
         if not curr_one_Y_row_state[curr_W_row_idx]:
+            # TODO: too ad-hoc, needs to be refactored
             updated_one_Y_row_state = copy.deepcopy(curr_one_Y_row_state)
             del updated_one_Y_row_state[curr_W_row_idx]
-            sub_new_X_row_idxs_per_W_col, is_solved = self._get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q), W_row_to_one_Y_row_idxs)
+            sub_new_X_row_idxs_per_W_col, is_solved = self._get_new_X_row_idxs_per_W_col(curr_depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q), W_row_to_one_Y_row_idxs)
             assert is_solved
             sub_new_X_row_idxs_per_W_col.append(( curr_one_Y_idxs, set()))
             return sub_new_X_row_idxs_per_W_col, True
@@ -104,7 +105,7 @@ class BooleanLayer:
                         if len(sub_diff) > 0:
                             updated_one_Y_row_state[k] = sub_diff
 
-                    sub_new_X_row_idxs_per_W_col, is_solved = self._get_new_X_row_idxs_per_W_col(depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q), W_row_to_one_Y_row_idxs)
+                    sub_new_X_row_idxs_per_W_col, is_solved = self._get_new_X_row_idxs_per_W_col(curr_depth+1, max_depth, updated_one_Y_row_state, curr_W_row_idx, copy.deepcopy(q), W_row_to_one_Y_row_idxs)
                     if is_solved:
                         sub_new_X_row_idxs_per_W_col.append((left_W, right_W))
                         return sub_new_X_row_idxs_per_W_col, True
@@ -165,7 +166,7 @@ class BooleanLayer:
         if torch.equal(Y, self.out):
             return None
         
-        self.W_doubt[self.W == 1] += 1
+        self.W_doubt[self.W == 1] += 1 # penalize existing Ws that are 1 by increasing doubt
 
         W_row_to_zero_Y_row_idxs = {}
         W_row_to_one_Y_row_idxs = {}
