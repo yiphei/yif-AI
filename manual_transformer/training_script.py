@@ -4,9 +4,7 @@ import os
 import sys
 
 import torch
-import torch.nn as nn
-from torch.nn import functional as F
-from transformer.transformer_model import Transformer
+from model import Transformer
 
 
 def parse_arguments():

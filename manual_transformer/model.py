@@ -126,7 +126,7 @@ class Transformer(nn.Module):
     @torch.no_grad()
     def generate(self, x, max_tokens):
         for _ in range(max_tokens):
-            logits, _ = self(x[:, -self.context_size :], None)
+            logits, _ = self(x[:, -self.context_size:], None)
             probs = F.softmax(logits[:, -1, :], dim=-1)
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
