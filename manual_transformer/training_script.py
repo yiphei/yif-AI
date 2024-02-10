@@ -1,34 +1,51 @@
-import torch
-import torch.nn as nn
-from torch.nn import functional as F
 import argparse
 import logging
 import os
 import sys
+
+import torch
+import torch.nn as nn
+from torch.nn import functional as F
 from transformer.transformer_model import Transformer
 
+
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Training script for transformer model.")
-        
-    parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAIN'))
-    parser.add_argument('--train_file', type=str)
-    parser.add_argument('--batch_size', type=int, default=64, help='Training batch size.')
-    parser.add_argument('--block_size', type=int, default=256, help='Block size for sequences.')
-    parser.add_argument('--n_embed', type=int, default=384, help='Embedding size.')
-    parser.add_argument('--training_steps', type=int, default=5000, help='Training steps.')
-    parser.add_argument('--est_interval', type=int, default=500, help='Estimation interval.')
-    parser.add_argument('--est_steps', type=int, default=200, help='Estimation steps.')
-    parser.add_argument('--transform_blocks', type=int, default=6, help='Transform blocks.')
-    parser.add_argument('--lr', type=float, default=3e-4, help='Learning rate.')
-    parser.add_argument('--dropout', type=float, default=0.2, help='Dropout.')
-    parser.add_argument('--n_head', type=int, default=6, help='Number of heads.')
-    parser.add_argument('--is_local', type=bool, default=False, help='Number of heads.')
-    
+    parser = argparse.ArgumentParser(
+        description="Training script for transformer model."
+    )
+
+    parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"))
+    parser.add_argument("--train_file", type=str)
+    parser.add_argument(
+        "--batch_size", type=int, default=64, help="Training batch size."
+    )
+    parser.add_argument(
+        "--block_size", type=int, default=256, help="Block size for sequences."
+    )
+    parser.add_argument("--n_embed", type=int, default=384, help="Embedding size.")
+    parser.add_argument(
+        "--training_steps", type=int, default=5000, help="Training steps."
+    )
+    parser.add_argument(
+        "--est_interval", type=int, default=500, help="Estimation interval."
+    )
+    parser.add_argument("--est_steps", type=int, default=200, help="Estimation steps.")
+    parser.add_argument(
+        "--transform_blocks", type=int, default=6, help="Transform blocks."
+    )
+    parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate.")
+    parser.add_argument("--dropout", type=float, default=0.2, help="Dropout.")
+    parser.add_argument("--n_head", type=int, default=6, help="Number of heads.")
+    parser.add_argument("--is_local", type=bool, default=False, help="Number of heads.")
+
     args = parser.parse_args()
     return args
 
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stdout)
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
+    )
     logger = logging.getLogger()
     logger.info("Starting training script.")
 
@@ -55,7 +72,7 @@ if __name__ == "__main__":
     torch.manual_seed(1337)
 
     # HYPERPARAMETERS
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     BATCH_SIZE = args.batch_size
     BLOCK_SIZE = args.block_size
     N_EMBED = args.n_embed
@@ -81,9 +98,9 @@ if __name__ == "__main__":
         mean_losses = []
         model.eval()
         for split in ["train", "val"]:
-            losses = torch.zeros(EST_STEPS, device = device)
+            losses = torch.zeros(EST_STEPS, device=device)
             for i in range(EST_STEPS):
-                xb,yb = get_data_batch(split)
+                xb, yb = get_data_batch(split)
                 _, loss = model(xb, yb)
                 if device == "cuda" and torch.cuda.device_count() > 1:
                     loss = loss.mean()
@@ -92,8 +109,10 @@ if __name__ == "__main__":
             mean_losses.append(losses.mean().item())
         model.train()
         return mean_losses
-        
-    model = Transformer(TOKEN_SIZE, N_EMBED, BLOCK_SIZE, N_HEAD, TRANSFORM_BLOCKS, DROPOUT_RATE, device).to(device)
+
+    model = Transformer(
+        TOKEN_SIZE, N_EMBED, BLOCK_SIZE, N_HEAD, TRANSFORM_BLOCKS, DROPOUT_RATE, device
+    ).to(device)
     if device == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
@@ -104,7 +123,7 @@ if __name__ == "__main__":
             train_loss, val_loss = estimate_loss(model)
             logger.info(f"Train loss: {train_loss}, Val loss: {val_loss}")
 
-        xb,yb = get_data_batch()
+        xb, yb = get_data_batch()
         logits, loss = model(xb, yb)
         optimizer.zero_grad(set_to_none=True)
         if device == "cuda" and torch.cuda.device_count() > 1:
@@ -115,15 +134,22 @@ if __name__ == "__main__":
     if device == "cuda" and torch.cuda.device_count() > 1:
         loss = loss.mean()
     logger.info(loss.item())
-    torch.save({"state_dict": model.state_dict(),
-                "hyperparameters":
-                {
-                    "block_size": args.block_size,
-                    "n_embed": args.n_embed,
-                    "token_size": len(chars),
-                    "transform_blocks": args.transform_blocks,
-                    "dropout": args.dropout,
-                    "n_head": args.n_head,
-                },
-                "itoc": itoc,
-                }, 'model.pth' if args.is_local else os.path.join(os.environ['SM_MODEL_DIR'], 'model.pth'))
+    torch.save(
+        {
+            "state_dict": model.state_dict(),
+            "hyperparameters": {
+                "block_size": args.block_size,
+                "n_embed": args.n_embed,
+                "token_size": len(chars),
+                "transform_blocks": args.transform_blocks,
+                "dropout": args.dropout,
+                "n_head": args.n_head,
+            },
+            "itoc": itoc,
+        },
+        (
+            "model.pth"
+            if args.is_local
+            else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth")
+        ),
+    )
