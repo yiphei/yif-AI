@@ -5,7 +5,7 @@ import argparse
 import logging
 import os
 import sys
-from sagemaker_training_script import Transformer
+from transformer.transformer_model import Transformer
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Training script for transformer model.")
