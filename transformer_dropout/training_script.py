@@ -129,6 +129,8 @@ if __name__ == "__main__":
     wandb.init(
         # set the wandb project where this run will be logged
         project="transformer_dropout",
+        config=config_dict,
+        mode="online",
     )    
 
     model = DropoutTransformer(
