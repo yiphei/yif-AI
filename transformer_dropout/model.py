@@ -4,7 +4,7 @@ from torch.nn import functional as F
 
 
 class OptimizedMultiAttentionHead(nn.Module):
-    def __init__(self, dim_in, n_heads, head_size, dropout_rate, block_size):
+    def __init__(self, dim_in, n_heads, head_size, block_size):
         super().__init__()
         self.head_size = head_size
         self.q_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * 0.02)
@@ -12,9 +12,9 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.v_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * 0.02)
 
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
-        self.dropout_1 = nn.Dropout(dropout_rate)
+        self.dropout_1 = LearnedDropout(dim_in)
         self.proj = nn.Linear(dim_in, dim_in)
-        self.dropout_2 = nn.Dropout(dropout_rate)
+        self.dropout_2 = LearnedDropout(dim_in)
 
     def forward(self, x):
         _, T, _ = x.shape  # B, T, C
@@ -49,13 +49,13 @@ class LearnedDropout(nn.Module):
         return x * (0.5 * torch.cos(self.A * x + self.B) + 0.5)
 
 class FeedForward(nn.Module):
-    def __init__(self, dim_in, dropout):
+    def __init__(self, dim_in):
         super().__init__()
         self.layers = nn.Sequential(
             nn.Linear(dim_in, dim_in * 4),
             nn.ReLU(),
             nn.Linear(dim_in * 4, dim_in),
-            nn.Dropout(dropout),
+            LearnedDropout(dim_in),
         )
 
     def forward(self, x):
@@ -63,13 +63,13 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, n_embed, n_heads, dropout_rate, block_size):
+    def __init__(self, n_embed, n_heads, block_size):
         super().__init__()
         head_size = n_embed // n_heads
         self.multi_attn_head = OptimizedMultiAttentionHead(
-            n_embed, n_heads, head_size, dropout_rate, block_size
+            n_embed, n_heads, head_size, block_size
         )
-        self.feed_forward = FeedForward(n_embed, dropout_rate)
+        self.feed_forward = FeedForward(n_embed)
         self.ln1 = nn.LayerNorm(n_embed)
         self.ln2 = nn.LayerNorm(n_embed)
 
@@ -88,7 +88,6 @@ class Transformer(nn.Module):
         n_head,
         transform_blocks,
         device,
-        dropout_rate,
     ):
         super().__init__()
         self.context_size = context_size
@@ -98,7 +97,7 @@ class Transformer(nn.Module):
         self.positional_embedding = nn.Embedding(context_size, n_embed)
         self.transformer_blocks = nn.Sequential(
             *[
-                TransformerBlock(n_embed, n_head, dropout_rate, context_size)
+                TransformerBlock(n_embed, n_head, context_size)
                 for _ in range(transform_blocks)
             ]
         )
