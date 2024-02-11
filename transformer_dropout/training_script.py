@@ -3,6 +3,8 @@ import logging
 import os
 import sys
 import wandb
+from dataclasses import asdict
+from datetime import datetime
 
 import torch
 from model import DropoutTransformer, ModelConfig
@@ -15,7 +17,7 @@ def parse_arguments():
     parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"))
     parser.add_argument("--train_file", type=str)
     parser.add_argument("--config_file", type=str)
-    parser.add_argument("--is_local", type=bool, default=False)
+    parser.add_argument("--is_local", type=bool, default=True)
 
     # Model config
     parser.add_argument(
@@ -162,17 +164,11 @@ if __name__ == "__main__":
     torch.save(
         {
             "state_dict": model.state_dict(),
-            "hyperparameters": {
-                "block_size": args.context_size,
-                "n_embed": args.n_embed,
-                "token_size": len(chars),
-                "transform_blocks": args.transform_blocks,
-                "n_head": args.n_head,
-            },
+            "hyperparameters": asdict(MODEL_CONFIG),
             "itoc": itoc,
         },
         (
-            "model.pth"
+            f"model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
             if args.is_local
             else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth")
         ),
