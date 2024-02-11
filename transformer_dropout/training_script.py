@@ -102,6 +102,9 @@ if __name__ == "__main__":
     LR = config_dict["lr"]
     EST_INTERVAL = config_dict["est_interval"]
     EST_STEPS = config_dict["est_steps"]
+    WEIGHT_DECAY = 1e-1
+    BETA1 = 0.9
+    BETA2 = 0.95
 
     def get_data_batch(split="train"):
         data = train_data if split == "train" else val_data
@@ -140,7 +143,7 @@ if __name__ == "__main__":
     ).to(DEVICE)
     if DEVICE == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+    optimizer = model.configure_optimizer(WEIGHT_DECAY, LR, (BETA1, BETA2), DEVICE)
 
     model.train()
     for steps in range(TRAINING_STEPS):
