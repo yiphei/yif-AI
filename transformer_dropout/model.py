@@ -82,7 +82,7 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class Transformer(nn.Module):
+class DropoutTransformer(nn.Module):
     def __init__(
         self,
         token_size,
