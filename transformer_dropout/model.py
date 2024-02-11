@@ -1,40 +1,59 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import math
 
+class LayerNorm(nn.Module):
+    """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
+
+    def __init__(self, ndim, bias):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(ndim))
+        self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
+
+    def forward(self, input):
+        return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
 
 class OptimizedMultiAttentionHead(nn.Module):
-    def __init__(self, dim_in, n_heads, head_size, block_size):
+    def __init__(self, dim_in, n_heads, context_size, bias=False):
         super().__init__()
-        self.head_size = head_size
-        self.q_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * 0.02)
-        self.k_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * 0.02)
-        self.v_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * 0.02)
 
-        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
-        self.dropout_1 = LearnedDropout(block_size)
-        self.proj = nn.Linear(dim_in, dim_in)
+        assert dim_in % n_heads == 0
+        self.dim_in = dim_in
+        self.head_size = dim_in // n_heads
+        self.n_heads = n_heads
+
+        self.batch_attn_weights = nn.Linear(dim_in, dim_in*3, bias = bias)
+        self.dropout_1 = LearnedDropout(context_size)
+        self.residual_proj = nn.Linear(dim_in, dim_in, bias = bias)
         self.dropout_2 = LearnedDropout(dim_in)
 
-    def forward(self, x):
-        _, T, _ = x.shape  # B, T, C
-        x_expanded = x.unsqueeze(1)  # B, 1, T, C
-        q = x_expanded @ self.q_weight  # B,H,T,C @ H,C,S ->B, H, T, S
-        k = x_expanded @ self.k_weight  # B,H,T,C @ H,C,S ->B, H, T, S
-        v = x_expanded @ self.v_weight  # B,H,T,C @ H,C,S ->B, H, T, S
+        self.flash = hasattr(F, 'scaled_dot_product_attention')
+        if not self.flash:
+            self.register_buffer("tril", torch.tril(torch.ones(context_size, context_size).view(1,1,context_size, context_size)))       
 
-        attn = (
-            q @ k.transpose(-2, -1) * self.head_size**-0.5
-        )  # B,H,T,S @ B,H,S,T ->B, H, T, T
-        causal_attn = attn.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
-        causal_attn = F.softmax(causal_attn, dim=-1)
-        causal_attn = self.dropout_1(causal_attn)
-        out = causal_attn @ v  # B,H,T,T @ B,H,T,S -> B,H,T,S
-        B, H, T, S = out.shape
-        out = out.permute(0, 2, 1, 3).reshape(
-            B, T, S * H
-        )  # B,H,T,S -> B,T,H,S -> B,T,H*S
-        out = self.proj(out)
+    def forward(self, x):
+        B, T, C = x.shape  # B, T, C
+
+        q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
+        k = k.view(B,T, self.n_heads, self.head_size).transpose(1,2)
+        q = q.view(B,T, self.n_heads, self.head_size).transpose(1,2)
+        v = v.view(B,T, self.n_heads, self.head_size).transpose(1,2)
+
+        if self.flash:
+            out = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=0, is_causal=True)
+            # TODO: add custom dropout here
+        else:
+            attn = (
+            (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
+        ) # B,H,T,S @ B,H,S,T ->B, H, T, T
+            causal_attn = attn.masked_fill(self.tril[:,:,:T,:T] == 0, float("-inf"))
+            causal_attn = F.softmax(causal_attn, dim=-1)
+            causal_attn = self.dropout_1(causal_attn)
+            out = causal_attn @ v  # B,H,T,T @ B,H,T,S -> B,H,T,S
+
+        out = out.transpose(1, 2).contiguous().view(B, T, C) # B,H,T,S -> B,T,H,S -> B,T,C
+        out = self.residual_proj(out)
         out = self.dropout_2(out)
         return out
 
@@ -54,29 +73,29 @@ class LearnedDropout(nn.Module):
         return x * dropout_mask
 
 class FeedForward(nn.Module):
-    def __init__(self, dim_in):
+    def __init__(self, dim_in, bias=False):
         super().__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(dim_in, dim_in * 4),
-            nn.ReLU(),
-            nn.Linear(dim_in * 4, dim_in),
-            LearnedDropout(dim_in),
-        )
+        self.linear = nn.Linear(dim_in, dim_in * 4, bias=bias)
+        self.gelu = nn.GELU()
+        self.residual_proj = nn.Linear(dim_in * 4, dim_in, bias=bias)
+        self.dropout = LearnedDropout(dim_in)
 
     def forward(self, x):
-        return self.layers(x)
-
+        x = self.linear(x)
+        x = self.gelu(x)
+        x = self.residual_proj(x)
+        x = self.dropout(x)
+        return x
 
 class TransformerBlock(nn.Module):
-    def __init__(self, n_embed, n_heads, block_size):
+    def __init__(self, n_embed, n_heads, context_size):
         super().__init__()
-        head_size = n_embed // n_heads
         self.multi_attn_head = OptimizedMultiAttentionHead(
-            n_embed, n_heads, head_size, block_size
+            n_embed, n_heads, context_size
         )
         self.feed_forward = FeedForward(n_embed)
-        self.ln1 = nn.LayerNorm(n_embed)
-        self.ln2 = nn.LayerNorm(n_embed)
+        self.ln1 = LayerNorm(n_embed)
+        self.ln2 = LayerNorm(n_embed)
 
     def forward(self, x):
         x = x + self.multi_attn_head(self.ln1(x))
@@ -100,22 +119,30 @@ class DropoutTransformer(nn.Module):
 
         self.token_embedding = nn.Embedding(token_size, n_embed)
         self.positional_embedding = nn.Embedding(context_size, n_embed)
+        self.dropout = LearnedDropout(n_embed)
         self.transformer_blocks = nn.Sequential(
             *[
                 TransformerBlock(n_embed, n_head, context_size)
                 for _ in range(transform_blocks)
             ]
         )
-        self.ln = nn.LayerNorm(n_embed)
-        self.output_layer = nn.Linear(n_embed, token_size)
+        self.ln = LayerNorm(n_embed)
+        self.output_layer = nn.Linear(n_embed, token_size, bias = False)
+
+        self.token_embedding.weight = self.output_layer.weight # weight tying
+
         self.apply(self._init_weights)
+
+        # scale residual projections
+        for pn, p in self.named_parameters():
+            if pn.endswith('residual_proj.weight'):
+                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * transform_blocks))
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
-
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
