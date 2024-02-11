@@ -1,0 +1,62 @@
+{
+    "os": "macOS-14.3.1-arm64-arm-64bit",
+    "python": "3.10.1",
+    "heartbeatAt": "2024-02-11T17:35:35.626735",
+    "startedAt": "2024-02-11T17:35:35.238869",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--train",
+        "../datasets/",
+        "--train_file",
+        "full_harry_potter.txt",
+        "--block_size",
+        "100",
+        "--n_embed",
+        "200",
+        "--transform_blocks",
+        "4",
+        "--n_head",
+        "4"
+    ],
+    "state": "running",
+    "program": "/Users/yifeiyan/yif-AI/transformer_dropout/training_script.py",
+    "codePathLocal": "training_script.py",
+    "codePath": "transformer_dropout/training_script.py",
+    "git": {
+        "remote": "git@github.com:yiphei/yif-AI.git",
+        "commit": "41a5e83c56b36f2fae6a80541a9e38bf3e5d2f32"
+    },
+    "email": "yanyiphei@gmail.com",
+    "root": "/Users/yifeiyan/yif-AI",
+    "host": "yifeis-mbp.lan",
+    "username": "yifeiyan",
+    "executable": "/Users/yifeiyan/.pyenv/versions/yif-ai/bin/python",
+    "cpu_count": 10,
+    "cpu_count_logical": 10,
+    "cpu_freq": {
+        "current": 3228,
+        "min": 600,
+        "max": 3228
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3228,
+            "min": 600,
+            "max": 3228
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 460.4317207336426,
+            "used": 9.432136535644531
+        }
+    },
+    "gpuapple": {
+        "type": "arm",
+        "vendor": "Apple"
+    },
+    "memory": {
+        "total": 16.0
+    }
+}
