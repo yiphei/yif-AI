@@ -78,7 +78,7 @@ class LearnedDropout(nn.Module):
 
     def forward(self, x):
         dropout_mask = (0.5 * torch.cos(self.A * x + self.B) + 0.5)
-        self.entropy = -(dropout_mask * torch.log(dropout_mask + 1e-9)).sum()
+        self.entropy = (dropout_mask * -torch.log(dropout_mask + 1e-9)).sum()
         self.l1_norm = dropout_mask.sum()
         return x * dropout_mask
 
@@ -128,7 +128,7 @@ class DropoutTransformer(nn.Module):
                 for _ in range(config.n_layer)
             ]
         )
-        self.ln = LayerNorm(config.n_embed)
+        self.ln = LayerNorm(config.n_embed, config.bias)
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias = config.bias)
 
         self.token_embedding.weight = self.output_layer.weight # weight tying
