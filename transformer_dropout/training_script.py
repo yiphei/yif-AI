@@ -111,7 +111,7 @@ if __name__ == "__main__":
     ).to(device)
     if device == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
-    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
 
     model.train()
     for steps in range(TRAINING_STEPS):
