@@ -161,7 +161,7 @@ if __name__ == "__main__":
         {
             "state_dict": model.state_dict(),
             "hyperparameters": {
-                "block_size": args.block_size,
+                "block_size": args.context_size,
                 "n_embed": args.n_embed,
                 "token_size": len(chars),
                 "transform_blocks": args.transform_blocks,

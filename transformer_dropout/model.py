@@ -73,7 +73,7 @@ class LearnedDropout(nn.Module):
         super().__init__()
         self.A = nn.Parameter(torch.zeros(dim_in))
         self.B = nn.Parameter(torch.zeros(dim_in))
-        self.entropy = None
+        self.entropy = torch.tensor(0.0) # somehow, this has to be initialized to zero, otherwise it becomes None in get_mean_entropy
         self.l1_norm = None # currently unused
 
     def forward(self, x):
