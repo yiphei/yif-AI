@@ -87,28 +87,31 @@ if __name__ == "__main__":
 
     torch.manual_seed(1337)
 
+    model_config_dict = {}
+    if args.config_file is not None:
+        with open(args.config_file, 'r') as file:
+            exec(file.read(), {}, model_config_dict)
+        # Filter out built-in items
+        model_config_dict = {k: v for k, v in model_config_dict.items() if not k.startswith('__')}
+    else:
+        model_config_dict = {k:v for k,v in args.items() if k in ["n_layer", "n_head", "bias", "context_size", "n_embed"]}
+    model_config_dict['alphabet_size'] = len(chars)
+
     # HYPERPARAMETERS
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    ModelConfig = 
-
-
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    MODEL_CONFIG = ModelConfig(**model_config_dict) 
     BATCH_SIZE = args.batch_size
-    BLOCK_SIZE = args.block_size
-    N_EMBED = args.n_embed
     TRAINING_STEPS = args.training_steps
+    LR = args.lr
     EST_INTERVAL = args.est_interval
     EST_STEPS = args.est_steps
-    TOKEN_SIZE = len(chars)
-    TRANSFORM_BLOCKS = args.transform_blocks
-    LR = args.lr
-    N_HEAD = args.n_head
 
     def get_data_batch(split="train"):
         data = train_data if split == "train" else val_data
-        idxs = torch.randint(0, data.shape[0] - BLOCK_SIZE - 1, (BATCH_SIZE,))
-        x = torch.stack([data[idx : idx + BLOCK_SIZE] for idx in idxs])
-        y = torch.stack([data[idx + 1 : idx + BLOCK_SIZE + 1] for idx in idxs])
-        x, y = x.to(device), y.to(device)
+        idxs = torch.randint(0, data.shape[0] - MODEL_CONFIG.context_size - 1, (BATCH_SIZE,))
+        x = torch.stack([data[idx : idx + MODEL_CONFIG.context_size] for idx in idxs])
+        y = torch.stack([data[idx + 1 : idx + MODEL_CONFIG.context_size + 1] for idx in idxs])
+        x, y = x.to(DEVICE), y.to(DEVICE)
         return x, y
 
     @torch.no_grad()
@@ -116,11 +119,11 @@ if __name__ == "__main__":
         mean_losses = []
         model.eval()
         for split in ["train", "val"]:
-            losses = torch.zeros(EST_STEPS, device=device)
+            losses = torch.zeros(EST_STEPS, device=DEVICE)
             for i in range(EST_STEPS):
                 xb, yb = get_data_batch(split)
                 _, loss = model(xb, yb)
-                if device == "cuda" and torch.cuda.device_count() > 1:
+                if DEVICE == "cuda" and torch.cuda.device_count() > 1:
                     loss = loss.mean()
                 losses[i] = loss
 
@@ -129,9 +132,9 @@ if __name__ == "__main__":
         return mean_losses
 
     model = DropoutTransformer(
-        TOKEN_SIZE, N_EMBED, BLOCK_SIZE, N_HEAD, TRANSFORM_BLOCKS, device
-    ).to(device)
-    if device == "cuda" and torch.cuda.device_count() > 1:
+        MODEL_CONFIG
+    ).to(DEVICE)
+    if DEVICE == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
 
@@ -144,14 +147,14 @@ if __name__ == "__main__":
         xb, yb = get_data_batch()
         logits, loss = model(xb, yb)
         optimizer.zero_grad(set_to_none=True)
-        if device == "cuda" and torch.cuda.device_count() > 1:
+        if DEVICE == "cuda" and torch.cuda.device_count() > 1:
             loss = loss.mean()
         
         wandb.log({"loss": loss.item()})
         loss.backward()
         optimizer.step()
 
-    if device == "cuda" and torch.cuda.device_count() > 1:
+    if DEVICE == "cuda" and torch.cuda.device_count() > 1:
         loss = loss.mean()
     logger.info(loss.item())
     torch.save(
