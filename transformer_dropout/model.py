@@ -45,10 +45,12 @@ class LearnedDropout(nn.Module):
         self.A = nn.Parameter(torch.zeros(dim_in))
         self.B = nn.Parameter(torch.zeros(dim_in))
         self.entropy = None
+        self.l1_norm = None # currently unused
 
     def forward(self, x):
         dropout_mask = (0.5 * torch.cos(self.A * x + self.B) + 0.5)
         self.entropy = -(dropout_mask * torch.log(dropout_mask + 1e-9)).sum()
+        self.l1_norm = dropout_mask.sum()
         return x * dropout_mask
 
 class FeedForward(nn.Module):
