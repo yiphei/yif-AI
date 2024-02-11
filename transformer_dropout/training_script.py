@@ -5,38 +5,51 @@ import sys
 import wandb
 
 import torch
-from model import DropoutTransformer
+from model import DropoutTransformer, ModelConfig
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
-
     parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"))
     parser.add_argument("--train_file", type=str)
+    parser.add_argument("--config_file", type=str)
+    parser.add_argument("--is_local", type=bool, default=False)
+
+    # Model config
     parser.add_argument(
-        "--batch_size", type=int, default=70, help="Training batch size."
+        "--n_layer", type=int)
+    parser.add_argument("--n_head", type=int)
+    parser.add_argument("--bias", type=int)
+    parser.add_argument(
+        "--context_size", type=int
+    )
+    parser.add_argument("--n_embed", type=int)
+    
+    # Train config
+    parser.add_argument(
+        "--batch_size", type=int
     )
     parser.add_argument(
-        "--block_size", type=int, default=256, help="Block size for sequences."
+        "--training_steps", type=int
     )
-    parser.add_argument("--n_embed", type=int, default=384, help="Embedding size.")
+    parser.add_argument("--lr", type=float)
+
+
+    # Estimation config
     parser.add_argument(
-        "--training_steps", type=int, default=5000, help="Training steps."
+        "--est_interval", type=int
     )
-    parser.add_argument(
-        "--est_interval", type=int, default=500, help="Estimation interval."
-    )
-    parser.add_argument("--est_steps", type=int, default=200, help="Estimation steps.")
-    parser.add_argument(
-        "--transform_blocks", type=int, default=6, help="Transform blocks."
-    )
-    parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate.")
-    parser.add_argument("--n_head", type=int, default=6, help="Number of heads.")
-    parser.add_argument("--is_local", type=bool, default=False, help="Number of heads.")
+    parser.add_argument("--est_steps", type=int)
 
     args = parser.parse_args()
+
+    if args.config_file is not None:
+        assert all([arg is None for arg in args.keys() if arg not in ["train", "train_file", "config_file", "is_local"]])
+    else:
+        assert all([arg is not None for arg in args.keys() if arg not in ["train", "train_file", "config_file", "is_local"]])
+
     return args
 
 
@@ -76,6 +89,9 @@ if __name__ == "__main__":
 
     # HYPERPARAMETERS
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    ModelConfig = 
+
+
     BATCH_SIZE = args.batch_size
     BLOCK_SIZE = args.block_size
     N_EMBED = args.n_embed
