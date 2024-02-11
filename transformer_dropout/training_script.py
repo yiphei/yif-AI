@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import sys
+import wandb
 
 import torch
 from model import DropoutTransformer
@@ -47,6 +48,11 @@ if __name__ == "__main__":
     logger.info("Starting training script.")
 
     args = parse_arguments()
+
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="transformer_dropout",
+    )    
 
     # Load and prepare training data
     training_data_file_path = os.path.join(args.train, args.train_file)
@@ -124,6 +130,8 @@ if __name__ == "__main__":
         optimizer.zero_grad(set_to_none=True)
         if device == "cuda" and torch.cuda.device_count() > 1:
             loss = loss.mean()
+        
+        wandb.log({"loss": loss.item()})
         loss.backward()
         optimizer.step()
 
