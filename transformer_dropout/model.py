@@ -40,13 +40,13 @@ class OptimizedMultiAttentionHead(nn.Module):
 
 
 class LearnedDropout(nn.Module):
-    def __init__(self):
+    def __init__(self, dim_in):
         super().__init__()
-        self.A = nn.Parameter(torch.zeros(1))
-        self.B = nn.Parameter(torch.zeros(1))
+        self.A = nn.Parameter(torch.zeros(dim_in))
+        self.B = nn.Parameter(torch.zeros(dim_in))
 
     def forward(self, x):
-        return x * (0.5 * torch.sin(self.A * x + self.B) + 0.5)
+        return x * (0.5 * torch.cos(self.A * x + self.B) + 0.5)
 
 class FeedForward(nn.Module):
     def __init__(self, dim_in, dropout):
