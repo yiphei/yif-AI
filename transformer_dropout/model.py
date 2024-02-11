@@ -2,35 +2,45 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import math
+from dataclasses import dataclass
+
+@dataclass
+class ModelConfig:
+    context_size: int
+    n_embed: int
+    alphabet_size: int
+    n_layer: int
+    n_head: int
+    bias: bool = False
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
 
-    def __init__(self, ndim, bias):
+    def __init__(self, dim_in, bias):
         super().__init__()
-        self.weight = nn.Parameter(torch.ones(ndim))
-        self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
+        self.weight = nn.Parameter(torch.ones(dim_in))
+        self.bias = nn.Parameter(torch.zeros(dim_in)) if bias else None
 
     def forward(self, input):
         return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
 
 class OptimizedMultiAttentionHead(nn.Module):
-    def __init__(self, dim_in, n_heads, context_size, bias=False):
+    def __init__(self, config: ModelConfig):
         super().__init__()
 
-        assert dim_in % n_heads == 0
-        self.dim_in = dim_in
-        self.head_size = dim_in // n_heads
-        self.n_heads = n_heads
+        assert config.n_embed % config.n_head == 0
+        self.dim_in = config.n_embed
+        self.head_size = config.n_embed // config.n_head
+        self.n_heads = config.n_head
 
-        self.batch_attn_weights = nn.Linear(dim_in, dim_in*3, bias = bias)
-        self.dropout_1 = LearnedDropout(context_size)
-        self.residual_proj = nn.Linear(dim_in, dim_in, bias = bias)
-        self.dropout_2 = LearnedDropout(dim_in)
+        self.batch_attn_weights = nn.Linear(self.dim_in, self.dim_in*3, bias = config.bias)
+        self.dropout_1 = LearnedDropout(config.context_size)
+        self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias = config.bias)
+        self.dropout_2 = LearnedDropout(self.dim_in)
 
         self.flash = hasattr(F, 'scaled_dot_product_attention')
         if not self.flash:
-            self.register_buffer("tril", torch.tril(torch.ones(context_size, context_size).view(1,1,context_size, context_size)))       
+            self.register_buffer("tril", torch.tril(torch.ones(config.context_size, config.context_size).view(1,1,config.context_size, config.context_size)))       
 
     def forward(self, x):
         B, T, C = x.shape  # B, T, C
@@ -73,12 +83,12 @@ class LearnedDropout(nn.Module):
         return x * dropout_mask
 
 class FeedForward(nn.Module):
-    def __init__(self, dim_in, bias=False):
+    def __init__(self, config: ModelConfig):
         super().__init__()
-        self.linear = nn.Linear(dim_in, dim_in * 4, bias=bias)
+        self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.bias)
         self.gelu = nn.GELU()
-        self.residual_proj = nn.Linear(dim_in * 4, dim_in, bias=bias)
-        self.dropout = LearnedDropout(dim_in)
+        self.residual_proj = nn.Linear(config.n_embed * 4, config.n_embed, bias=config.bias)
+        self.dropout = LearnedDropout(config.n_embed)
 
     def forward(self, x):
         x = self.linear(x)
@@ -88,46 +98,38 @@ class FeedForward(nn.Module):
         return x
 
 class TransformerBlock(nn.Module):
-    def __init__(self, n_embed, n_heads, context_size):
+    def __init__(self, config: ModelConfig):
         super().__init__()
         self.multi_attn_head = OptimizedMultiAttentionHead(
-            n_embed, n_heads, context_size
+            config
         )
-        self.feed_forward = FeedForward(n_embed)
-        self.ln1 = LayerNorm(n_embed)
-        self.ln2 = LayerNorm(n_embed)
+        self.feed_forward = FeedForward(config)
+        self.ln1 = LayerNorm(config.n_embed, config.bias)
+        self.ln2 = LayerNorm(config.n_embed, config.bias)
 
     def forward(self, x):
         x = x + self.multi_attn_head(self.ln1(x))
         x = x + self.feed_forward(self.ln2(x))
         return x
 
-
 class DropoutTransformer(nn.Module):
     def __init__(
         self,
-        token_size,
-        n_embed,
-        context_size,
-        n_head,
-        transform_blocks,
-        device,
+        config: ModelConfig
     ):
         super().__init__()
-        self.context_size = context_size
-        self.device = device
 
-        self.token_embedding = nn.Embedding(token_size, n_embed)
-        self.positional_embedding = nn.Embedding(context_size, n_embed)
-        self.dropout = LearnedDropout(n_embed)
+        self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
+        self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
+        self.dropout = LearnedDropout(config.n_embed)
         self.transformer_blocks = nn.Sequential(
             *[
-                TransformerBlock(n_embed, n_head, context_size)
-                for _ in range(transform_blocks)
+                TransformerBlock(config)
+                for _ in range(config.n_layer)
             ]
         )
-        self.ln = LayerNorm(n_embed)
-        self.output_layer = nn.Linear(n_embed, token_size, bias = False)
+        self.ln = LayerNorm(config.n_embed)
+        self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias = config.bias)
 
         self.token_embedding.weight = self.output_layer.weight # weight tying
 
@@ -136,12 +138,12 @@ class DropoutTransformer(nn.Module):
         # scale residual projections
         for pn, p in self.named_parameters():
             if pn.endswith('residual_proj.weight'):
-                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * transform_blocks))
+                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-            if module.bias is not None:
+            if module.bias:
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
@@ -156,9 +158,10 @@ class DropoutTransformer(nn.Module):
         return total_entropy / cts
 
     def forward(self, x, targets=None):
+        device = x.device
         token_embed = self.token_embedding(x)
         pos_embed = self.positional_embedding(
-            torch.arange(x.shape[1], dtype=torch.long, device=self.device)
+            torch.arange(x.shape[1], dtype=torch.long, device=device)
         )
         embed = token_embed + pos_embed
         embed = self.dropout(embed)
