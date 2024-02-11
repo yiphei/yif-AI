@@ -158,15 +158,17 @@ class DropoutTransformer(nn.Module):
     def forward(self, x, targets=None):
         token_embed = self.token_embedding(x)
         pos_embed = self.positional_embedding(
-            torch.arange(x.shape[1], device=self.device)
+            torch.arange(x.shape[1], dtype=torch.long, device=self.device)
         )
         embed = token_embed + pos_embed
+        embed = self.dropout(embed)
         out = self.transformer_blocks(embed)
         out = self.ln(out)
-        logits = self.output_layer(out)
         if targets is None:
             loss = None
+            logits = self.output_layer(out[:,[-1],:])
         else:
+            logits = self.output_layer(out)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1)) + self.get_mean_entropy()
