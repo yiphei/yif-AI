@@ -44,11 +44,11 @@ def parse_arguments():
     parser.add_argument("--est_steps", type=int)
 
     args = parser.parse_args()
-
+    args_dict = vars(args)
     if args.config_file is not None:
-        assert all([arg is None for arg in args.keys() if arg not in ["train", "train_file", "config_file", "is_local"]])
+        assert all([v is None for k,v in args_dict.items() if k not in ["train", "train_file", "config_file", "is_local"]])
     else:
-        assert all([arg is not None for arg in args.keys() if arg not in ["train", "train_file", "config_file", "is_local"]])
+        assert all([v is not None for k,v in args_dict.items() if k not in ["train", "train_file", "config_file", "is_local"]])
 
     return args
 
@@ -61,11 +61,6 @@ if __name__ == "__main__":
     logger.info("Starting training script.")
 
     args = parse_arguments()
-
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="transformer_dropout",
-    )    
 
     # Load and prepare training data
     training_data_file_path = os.path.join(args.train, args.train_file)
@@ -87,24 +82,24 @@ if __name__ == "__main__":
 
     torch.manual_seed(1337)
 
-    model_config_dict = {}
+    config_dict = {}
     if args.config_file is not None:
         with open(args.config_file, 'r') as file:
-            exec(file.read(), {}, model_config_dict)
+            exec(file.read(), {}, config_dict)
         # Filter out built-in items
-        model_config_dict = {k: v for k, v in model_config_dict.items() if not k.startswith('__')}
+        config_dict = {k: v for k, v in config_dict.items() if not k.startswith('__')}
     else:
-        model_config_dict = {k:v for k,v in args.items() if k in ["n_layer", "n_head", "bias", "context_size", "n_embed"]}
-    model_config_dict['alphabet_size'] = len(chars)
+        config_dict = {k:v for k,v in vars(args).items() if k not in ["train", "train_file", "config_file", "is_local"]}
+    config_dict['alphabet_size'] = len(chars)
 
     # HYPERPARAMETERS
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    MODEL_CONFIG = ModelConfig(**model_config_dict) 
-    BATCH_SIZE = args.batch_size
-    TRAINING_STEPS = args.training_steps
-    LR = args.lr
-    EST_INTERVAL = args.est_interval
-    EST_STEPS = args.est_steps
+    MODEL_CONFIG = ModelConfig(**{k:v for k,v in config_dict.items() if k in ModelConfig.__annotations__}) 
+    BATCH_SIZE = config_dict["batch_size"]
+    TRAINING_STEPS = config_dict["training_steps"]
+    LR = config_dict["lr"]
+    EST_INTERVAL = config_dict["est_interval"]
+    EST_STEPS = config_dict["est_steps"]
 
     def get_data_batch(split="train"):
         data = train_data if split == "train" else val_data
@@ -130,6 +125,11 @@ if __name__ == "__main__":
             mean_losses.append(losses.mean().item())
         model.train()
         return mean_losses
+
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="transformer_dropout",
+    )    
 
     model = DropoutTransformer(
         MODEL_CONFIG
