@@ -44,9 +44,12 @@ class LearnedDropout(nn.Module):
         super().__init__()
         self.A = nn.Parameter(torch.zeros(dim_in))
         self.B = nn.Parameter(torch.zeros(dim_in))
+        self.entropy = None
 
     def forward(self, x):
-        return x * (0.5 * torch.cos(self.A * x + self.B) + 0.5)
+        dropout_mask = (0.5 * torch.cos(self.A * x + self.B) + 0.5)
+        self.entropy = -(dropout_mask * torch.log(dropout_mask + 1e-9)).sum()
+        return x * dropout_mask
 
 class FeedForward(nn.Module):
     def __init__(self, dim_in):
@@ -114,6 +117,15 @@ class Transformer(nn.Module):
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
+    def get_mean_entropy(self):
+        total_entropy = 0
+        cts = 0
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                cts +=1
+                total_entropy += module.entropy
+        return total_entropy / cts
+
     def forward(self, x, targets=None):
         token_embed = self.token_embedding(x)
         pos_embed = self.positional_embedding(
@@ -128,7 +140,7 @@ class Transformer(nn.Module):
         else:
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
-            loss = F.cross_entropy(logits, targets.view(-1))
+            loss = F.cross_entropy(logits, targets.view(-1)) + self.get_mean_entropy()
         return logits, loss
 
     @torch.no_grad()
