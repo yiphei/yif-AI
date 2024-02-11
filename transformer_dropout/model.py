@@ -12,7 +12,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.v_weight = nn.Parameter(torch.randn(n_heads, dim_in, head_size) * 0.02)
 
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
-        self.dropout_1 = LearnedDropout(dim_in)
+        self.dropout_1 = LearnedDropout(block_size)
         self.proj = nn.Linear(dim_in, dim_in)
         self.dropout_2 = LearnedDropout(dim_in)
 

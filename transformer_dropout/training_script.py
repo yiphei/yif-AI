@@ -15,7 +15,7 @@ def parse_arguments():
     parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"))
     parser.add_argument("--train_file", type=str)
     parser.add_argument(
-        "--batch_size", type=int, default=64, help="Training batch size."
+        "--batch_size", type=int, default=70, help="Training batch size."
     )
     parser.add_argument(
         "--block_size", type=int, default=256, help="Block size for sequences."
