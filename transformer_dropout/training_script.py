@@ -234,7 +234,7 @@ if __name__ == "__main__":
             "itoc": itoc,
         },
         (
-            f"model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
+            f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
             if args.is_local
             else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth")
         ),
