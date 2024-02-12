@@ -213,7 +213,7 @@ if __name__ == "__main__":
         {
             "state_dict": model.state_dict(),
             "hyperparameters": asdict(TRAIN_CONFIG.MODEL_CONFIG),
-            "itoc": itoc,
+            "itoc": None, # TODO: add decoder
         },
         (
             f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
