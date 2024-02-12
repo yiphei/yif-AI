@@ -78,12 +78,12 @@ class LearnedDropout(nn.Module):
         super().__init__()
         self.A = nn.Parameter(torch.zeros(dim_in))
         self.B = nn.Parameter(torch.zeros(dim_in))
-        self.entropy = torch.tensor(0.0) # somehow, this has to be initialized to zero, otherwise it becomes None in get_mean_entropy
+        self.entropy = None # somehow, this has to be initialized to zero, otherwise it becomes None in get_mean_entropy
         self.l1_norm = None # currently unused
 
     def forward(self, x):
         dropout_mask = (0.5 * torch.cos(self.A * x + self.B) + 0.5)
-        self.entropy = (dropout_mask * -torch.log(dropout_mask + 1e-9)).sum()
+        self.entropy = (dropout_mask * -torch.log(dropout_mask + 1e-9)).sum(dim=-1)
         self.l1_norm = dropout_mask.sum()
         return x * dropout_mask
 
@@ -154,13 +154,11 @@ class DropoutTransformer(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def get_mean_entropy(self):
-        total_entropy = 0
-        cts = 0
+        entropy_list = []
         for module in self.modules():
             if isinstance(module, LearnedDropout):
-                cts +=1
-                total_entropy += module.entropy
-        return total_entropy / cts
+                entropy_list.append(module.entropy.flatten())
+        return torch.cat(entropy_list, dim=0).mean()
     
     def print_dropout_params(self):
         for module in self.modules():
