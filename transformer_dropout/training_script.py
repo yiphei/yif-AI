@@ -164,13 +164,14 @@ if __name__ == "__main__":
     model = DropoutTransformer(
         MODEL_CONFIG
     ).to(DEVICE)
+
+    # if COMPILE:
+    #     print("compiling the model... (takes a ~minute)")
+    #     unoptimized_model = model
+    #     model = torch.compile(model) # requires PyTorch 2.0
+    
     if DEVICE == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
-
-    if COMPILE:
-        print("compiling the model... (takes a ~minute)")
-        unoptimized_model = model
-        model = torch.compile(model) # requires PyTorch 2.0
 
     optimizer = model.configure_optimizer(WEIGHT_DECAY, LR, (BETA1, BETA2), DEVICE)
 
