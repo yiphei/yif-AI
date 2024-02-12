@@ -55,6 +55,31 @@ def parse_arguments():
     return args
 
 
+def get_data_batch(device, context_size, batch_size, split="train"):
+    data = train_data if split == "train" else val_data
+    idxs = torch.randint(0, data.shape[0] - context_size - 1, (batch_size,))
+    x = torch.stack([data[idx : idx + context_size] for idx in idxs])
+    y = torch.stack([data[idx + 1 : idx + context_size + 1] for idx in idxs])
+    x, y = x.to(device), y.to(device)
+    return x, y
+
+@torch.no_grad()
+def estimate_loss(model, est_steps, context_size, batch_size, device):
+    mean_losses = []
+    model.eval()
+    for split in ["train", "val"]:
+        losses = torch.zeros(est_steps, device=device)
+        for i in range(est_steps):
+            xb, yb = get_data_batch(device, context_size, batch_size, split)
+            _, loss = model(xb, yb)
+            if device == "cuda" and torch.cuda.device_count() > 1:
+                loss = loss.mean()
+            losses[i] = loss
+
+        mean_losses.append(losses.mean().item())
+    model.train()
+    return mean_losses
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
@@ -106,31 +131,6 @@ if __name__ == "__main__":
     BETA1 = 0.9
     BETA2 = 0.95
 
-    def get_data_batch(split="train"):
-        data = train_data if split == "train" else val_data
-        idxs = torch.randint(0, data.shape[0] - MODEL_CONFIG.context_size - 1, (BATCH_SIZE,))
-        x = torch.stack([data[idx : idx + MODEL_CONFIG.context_size] for idx in idxs])
-        y = torch.stack([data[idx + 1 : idx + MODEL_CONFIG.context_size + 1] for idx in idxs])
-        x, y = x.to(DEVICE), y.to(DEVICE)
-        return x, y
-
-    @torch.no_grad()
-    def estimate_loss(model):
-        mean_losses = []
-        model.eval()
-        for split in ["train", "val"]:
-            losses = torch.zeros(EST_STEPS, device=DEVICE)
-            for i in range(EST_STEPS):
-                xb, yb = get_data_batch(split)
-                _, loss = model(xb, yb)
-                if DEVICE == "cuda" and torch.cuda.device_count() > 1:
-                    loss = loss.mean()
-                losses[i] = loss
-
-            mean_losses.append(losses.mean().item())
-        model.train()
-        return mean_losses
-
     wandb.init(
         # set the wandb project where this run will be logged
         project="transformer_dropout",
@@ -148,10 +148,10 @@ if __name__ == "__main__":
     model.train()
     for steps in range(TRAINING_STEPS):
         if steps % EST_INTERVAL == 0 and steps != (TRAINING_STEPS - 1):
-            train_loss, val_loss = estimate_loss(model)
+            train_loss, val_loss = estimate_loss(model, EST_STEPS, MODEL_CONFIG.context_size, BATCH_SIZE, DEVICE)
             logger.info(f"Train loss: {train_loss}, Val loss: {val_loss}")
 
-        xb, yb = get_data_batch()
+        xb, yb = get_data_batch(DEVICE, MODEL_CONFIG.context_size, BATCH_SIZE)
         logits, loss = model(xb, yb)
         optimizer.zero_grad(set_to_none=True)
         if DEVICE == "cuda" and torch.cuda.device_count() > 1:

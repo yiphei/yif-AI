@@ -41,7 +41,9 @@ class OptimizedMultiAttentionHead(nn.Module):
 
         self.flash = hasattr(F, 'scaled_dot_product_attention')
         if not self.flash:
-            self.register_buffer("tril", torch.tril(torch.ones(config.context_size, config.context_size).view(1,1,config.context_size, config.context_size)))       
+            self.register_buffer("tril", torch.tril(torch.ones(config.context_size, config.context_size).view(1,1,config.context_size, config.context_size)))
+        else:
+            print("Using flas attention.")
 
     def forward(self, x):
         B, T, C = x.shape  # B, T, C
