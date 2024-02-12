@@ -25,6 +25,6 @@ if __name__ == "__main__":
     # export to bin files
     train_ids = np.array(train_ids, dtype=np.uint16)
     val_ids = np.array(val_ids, dtype=np.uint16)
-    file_name = Path(args.file).name
+    file_name = Path(args.file).stem
     train_ids.tofile(os.path.join (os.path.dirname(args.file), f'{file_name}_train.bin'))
     val_ids.tofile(os.path.join(os.path.dirname(args.file), f'{file_name}_val.bin'))
