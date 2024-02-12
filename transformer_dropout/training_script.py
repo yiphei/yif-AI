@@ -198,7 +198,7 @@ if __name__ == "__main__":
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
 
-        if step % EST_INTERVAL == 0 and step != (TRAINING_STEPS - 1):
+        if step % EST_INTERVAL == 0 and step != (TRAINING_STEPS - 1) and step != 0:
             train_loss, val_loss = estimate_loss(model, EST_STEPS, MODEL_CONFIG.context_size, BATCH_SIZE, DEVICE, ctx)
             wandb.log({
                 "est_iter": step,
