@@ -48,6 +48,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.dim_in = config.n_embed
         self.head_size = config.n_embed // config.n_head
         self.n_heads = config.n_head
+        self.dropout_rate = config.dropout_rate 
 
         self.batch_attn_weights = nn.Linear(self.dim_in, self.dim_in*3, bias = config.bias)
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias = config.bias)
@@ -63,7 +64,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         if not hasattr(F, 'scaled_dot_product_attention') or not config.use_flash:
             self.register_buffer("tril", torch.tril(torch.ones(config.context_size, config.context_size).view(1,1,config.context_size, config.context_size)))
         else:
-            print("Using flas attention.")
+            print("Using flash attention.")
             self.flash = True
 
     def forward(self, x):
@@ -75,8 +76,8 @@ class OptimizedMultiAttentionHead(nn.Module):
         v = v.view(B,T, self.n_heads, self.head_size).transpose(1,2)
 
         if self.flash:
-            out = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=0, is_causal=True)
-            # TODO: add custom dropout here
+            out = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True)
+            # TODO: add custom dropout here. Otherwise, avoid using flash attention for now
         else:
             attn = (
             (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
@@ -145,8 +146,8 @@ class DropoutTransformer(nn.Module):
         config: ModelConfig
     ):
         super().__init__()
-
         self.config = config
+
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         if config.use_learned_dropout:
@@ -163,7 +164,6 @@ class DropoutTransformer(nn.Module):
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias = config.bias)
 
         self.token_embedding.weight = self.output_layer.weight # weight tying
-
         self.apply(self._init_weights)
 
         # scale residual projections
@@ -179,7 +179,7 @@ class DropoutTransformer(nn.Module):
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def get_mean_entropy(self):
+    def get_mean_dropout_entropy(self):
         if not self.config.use_learned_dropout:
             return None
         
@@ -201,7 +201,7 @@ class DropoutTransformer(nn.Module):
     
     def print_dropout_params(self):
         if not self.config.use_learned_dropout:
-            raise AssertionError("Model is not using learned dropout.")
+            raise ValueError("Model is not using learned dropout.")
             
         for module in self.modules():
             if isinstance(module, LearnedDropout):
@@ -220,7 +220,7 @@ class DropoutTransformer(nn.Module):
         out = self.transformer_blocks(embed)
         out = self.ln(out)
 
-        mean_dropout_entropy = self.get_mean_entropy()
+        mean_dropout_entropy = self.get_mean_dropout_entropy()
         mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
         if targets is None:
             loss = None
