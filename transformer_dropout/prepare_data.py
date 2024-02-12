@@ -3,6 +3,7 @@ import tiktoken
 import numpy as np
 import argparse
 from pathlib import Path
+import pickle
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -28,3 +29,9 @@ if __name__ == "__main__":
     file_name = Path(args.file).stem
     train_ids.tofile(os.path.join (os.path.dirname(args.file), f'{file_name}_train.bin'))
     val_ids.tofile(os.path.join(os.path.dirname(args.file), f'{file_name}_val.bin'))
+
+    meta = {
+        'alphabet_size': enc.n_vocab,
+    }
+    with open(os.path.join(os.path.dirname(args.file), 'meta.pkl'), 'wb') as f:
+        pickle.dump(meta, f)
