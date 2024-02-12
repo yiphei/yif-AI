@@ -79,7 +79,7 @@ def estimate_loss(model, est_steps, context_size, batch_size, device, ctx):
         for i in range(est_steps):
             xb, yb = get_data_batch(device, context_size, batch_size, split)
             with ctx:
-                _, loss = model(xb, yb)
+                _, loss, _ = model(xb, yb)
             if device == "cuda" and torch.cuda.device_count() > 1:
                 loss = loss.mean()
             losses[i] = loss
@@ -209,13 +209,16 @@ if __name__ == "__main__":
 
         for micro_step in range(GRADIENT_ACCUMULATION_STEPS):
             with ctx:
-                logits, loss = model(X, Y)
+                logits, loss, entropy = model(X, Y)
                 if DEVICE == "cuda" and torch.cuda.device_count() > 1:
                     loss = loss.mean()
                 loss = loss / GRADIENT_ACCUMULATION_STEPS # scale the loss to account for gradient accumulation
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y = get_data_batch(DEVICE, MODEL_CONFIG.context_size, BATCH_SIZE, 'train')
             # backward pass, with gradient scaling if training in fp16
+            wandb.log({
+                "entropy": entropy,
+            })
             scaler.scale(loss).backward()
 
         scaler.step(optimizer)

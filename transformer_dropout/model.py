@@ -161,6 +161,13 @@ class DropoutTransformer(nn.Module):
                 cts +=1
                 total_entropy += module.entropy
         return total_entropy / cts
+    
+    def print_dropout_params(self):
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                print(module.A, module.B)
+                print("----------------")
+
 
     def forward(self, x, targets=None):
         device = x.device
@@ -174,13 +181,15 @@ class DropoutTransformer(nn.Module):
         out = self.ln(out)
         if targets is None:
             loss = None
+            mean_entropy = None
             logits = self.output_layer(out[:,[-1],:])
         else:
             logits = self.output_layer(out)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
-            loss = F.cross_entropy(logits, targets.view(-1)) + self.get_mean_entropy()
-        return logits, loss
+            mean_entropy = self.get_mean_entropy()
+            loss = F.cross_entropy(logits, targets.view(-1)) + mean_entropy
+        return logits, loss, mean_entropy
     
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
         """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -207,7 +216,7 @@ class DropoutTransformer(nn.Module):
     @torch.no_grad()
     def generate(self, x, max_tokens):
         for _ in range(max_tokens):
-            logits, _ = self(x[:, -self.context_size :], None)
+            logits, _, _ = self(x[:, -self.context_size :], None)
             probs = F.softmax(logits[:, -1, :], dim=-1)
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
