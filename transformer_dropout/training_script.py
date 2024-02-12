@@ -5,7 +5,8 @@ import sys
 import wandb
 from dataclasses import asdict
 from datetime import datetime
-
+from contextlib import nullcontext
+import math
 import torch
 from model import DropoutTransformer, ModelConfig
 
@@ -60,7 +61,13 @@ def get_data_batch(device, context_size, batch_size, split="train"):
     idxs = torch.randint(0, data.shape[0] - context_size - 1, (batch_size,))
     x = torch.stack([data[idx : idx + context_size] for idx in idxs])
     y = torch.stack([data[idx + 1 : idx + context_size + 1] for idx in idxs])
-    x, y = x.to(device), y.to(device)
+
+    if device == 'cuda':
+        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+        # from https://github.com/karpathy/nanoGPT/blob/master/train.py
+        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
+    else:
+        x, y = x.to(device), y.to(device)
     return x, y
 
 @torch.no_grad()
@@ -122,7 +129,7 @@ if __name__ == "__main__":
     # HYPERPARAMETERS
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     MODEL_CONFIG = ModelConfig(**{k:v for k,v in config_dict.items() if k in ModelConfig.__annotations__}) 
-    BATCH_SIZE = config_dict["batch_size"]
+    BATCH_SIZE = config_dict["batch_size"] # this will be scaled by GRADIENT_ACCUMULATION_STEPS
     TRAINING_STEPS = config_dict["training_steps"]
     LR = config_dict["lr"]
     EST_INTERVAL = config_dict["est_interval"]
@@ -130,6 +137,21 @@ if __name__ == "__main__":
     WEIGHT_DECAY = 1e-1
     BETA1 = 0.9
     BETA2 = 0.95
+    DTYPE = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16'
+    COMPILE = True
+    DECAY_LR = True
+    WARMUP_ITERS = 2000
+    LR_DECAY_ITERS = 600000
+    MIN_LR = 6e-5
+    GRADIENT_ACCUMULATION_STEPS = 5 * 8
+
+    # From https://github.com/karpathy/nanoGPT/blob/master/train.py
+    torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
+    torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
+    # note: float16 data type will automatically use a GradScaler
+    ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[DTYPE]
+    ctx = nullcontext() if DEVICE == 'cpu' else torch.amp.autocast(device_type=DEVICE, dtype=ptdtype)
+    scaler = torch.cuda.amp.GradScaler(enabled=(DTYPE == 'float16'))
 
     wandb.init(
         # set the wandb project where this run will be logged
@@ -143,27 +165,66 @@ if __name__ == "__main__":
     ).to(DEVICE)
     if DEVICE == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
+
+    if COMPILE:
+        print("compiling the model... (takes a ~minute)")
+        unoptimized_model = model
+        model = torch.compile(model) # requires PyTorch 2.0
+
     optimizer = model.configure_optimizer(WEIGHT_DECAY, LR, (BETA1, BETA2), DEVICE)
 
+    # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
+    def get_lr(training_step):
+        # 1) linear warmup for warmup_iters steps
+        if training_step < WARMUP_ITERS:
+            return LR * training_step / WARMUP_ITERS
+        # 2) if it > lr_decay_iters, return min learning rate
+        if training_step > LR_DECAY_ITERS:
+            return MIN_LR
+        # 3) in between, use cosine decay down to min learning rate
+        decay_ratio = (training_step - WARMUP_ITERS) / (LR_DECAY_ITERS - WARMUP_ITERS)
+        assert 0 <= decay_ratio <= 1
+        coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
+        return MIN_LR + coeff * (LR - MIN_LR)
+
     model.train()
-    for steps in range(TRAINING_STEPS):
-        if steps % EST_INTERVAL == 0 and steps != (TRAINING_STEPS - 1):
+    X, Y = get_data_batch(DEVICE, MODEL_CONFIG.context_size, BATCH_SIZE, 'train') # fetch the very first batch
+    for step in range(TRAINING_STEPS):
+
+        # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
+        lr = get_lr(step) if DECAY_LR else LR
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+        if step % EST_INTERVAL == 0 and step != (TRAINING_STEPS - 1):
             train_loss, val_loss = estimate_loss(model, EST_STEPS, MODEL_CONFIG.context_size, BATCH_SIZE, DEVICE)
-            logger.info(f"Train loss: {train_loss}, Val loss: {val_loss}")
+            wandb.log({
+                "est_iter": step,
+                "est_train_loss": train_loss,
+                "est_val_loss": val_loss,
+                "est_lr": lr,
+            })
 
-        xb, yb = get_data_batch(DEVICE, MODEL_CONFIG.context_size, BATCH_SIZE)
-        logits, loss = model(xb, yb)
+        for micro_step in range(GRADIENT_ACCUMULATION_STEPS):
+            with ctx:
+                logits, loss = model(X, Y)
+                if DEVICE == "cuda" and torch.cuda.device_count() > 1:
+                    loss = loss.mean()
+                loss = loss / GRADIENT_ACCUMULATION_STEPS # scale the loss to account for gradient accumulation
+            # immediately async prefetch next batch while model is doing the forward pass on the GPU
+            X, Y = get_data_batch(DEVICE, MODEL_CONFIG.context_size, BATCH_SIZE, 'train')
+            # backward pass, with gradient scaling if training in fp16
+            scaler.scale(loss).backward()
+
+        scaler.step(optimizer)
+        scaler.update()
         optimizer.zero_grad(set_to_none=True)
-        if DEVICE == "cuda" and torch.cuda.device_count() > 1:
-            loss = loss.mean()
-        
-        wandb.log({"loss": loss.item()})
-        loss.backward()
-        optimizer.step()
 
-    if DEVICE == "cuda" and torch.cuda.device_count() > 1:
-        loss = loss.mean()
-    logger.info(loss.item())
+        lossf = loss.item() * GRADIENT_ACCUMULATION_STEPS
+        wandb.log({
+            "loss": lossf,
+        })
+
     torch.save(
         {
             "state_dict": model.state_dict(),
