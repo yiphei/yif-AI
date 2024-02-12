@@ -140,10 +140,10 @@ if __name__ == "__main__":
     DTYPE = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16'
     COMPILE = True
     DECAY_LR = True
-    WARMUP_ITERS = 2000
+    WARMUP_ITERS = config_dict['warmup_iters']
     LR_DECAY_ITERS = 600000
-    MIN_LR = 6e-5
-    GRADIENT_ACCUMULATION_STEPS = 5 * 8
+    MIN_LR = config_dict['min_lr']
+    GRADIENT_ACCUMULATION_STEPS = config_dict['gradient_accumulation_steps']
 
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
