@@ -264,6 +264,11 @@ class DropoutTransformer(nn.Module):
         optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
         print(f"using fused AdamW: {use_fused}")
         return optimizer
+    
+    def get_num_params(self):
+        n_params = sum(p.numel() for p in self.parameters())
+        n_params -= self.positional_embedding.weight.numel()
+        return n_params
 
     @torch.no_grad()
     def generate(self, x, max_tokens):
