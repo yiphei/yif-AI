@@ -3,7 +3,8 @@ import torch.nn as nn
 from torch.nn import functional as F
 import math
 import inspect
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
 @dataclass
 class ModelConfig:
@@ -14,8 +15,19 @@ class ModelConfig:
     n_head: int
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
+    use_learned_dropout: bool
+    dropout_rate: Optional[float] = field(default = None)
     bias: bool = False
     use_flash: bool = False
+
+    def __post_init__(self):
+        if not self.use_learned_dropout and (self.use_dropout_entropy_in_loss or self.use_dropout_l1_norm_in_loss):
+            raise ValueError("use_dropout_entropy_in_loss and use_dropout_l1_norm_in_loss require use_learned_dropout")
+        elif self.use_dropout_entropy_in_loss and not (self.use_dropout_entropy_in_loss or self.use_dropout_l1_norm_in_loss):
+            raise ValueError("use_dropout_entropy_in_loss and use_dropout_l1_norm_in_loss cannot be both False")
+        elif not self.use_learned_dropout and self.dropout_rate is None:
+            raise ValueError("dropout_rate must be set if not use_learned_dropout")
+        
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -38,9 +50,14 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.n_heads = config.n_head
 
         self.batch_attn_weights = nn.Linear(self.dim_in, self.dim_in*3, bias = config.bias)
-        self.dropout_1 = LearnedDropout(config.context_size)
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias = config.bias)
-        self.dropout_2 = LearnedDropout(self.dim_in)
+
+        if config.use_learned_dropout:
+            self.dropout_1 = LearnedDropout(config.context_size)
+            self.dropout_2 = LearnedDropout(self.dim_in)
+        else:
+            self.dropout_1 = nn.Dropout(config.dropout_rate)
+            self.dropout_2 = nn.Dropout(config.dropout_rate)
 
         self.flash = False
         if not hasattr(F, 'scaled_dot_product_attention') or not config.use_flash:
@@ -95,7 +112,10 @@ class FeedForward(nn.Module):
         self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.bias)
         self.gelu = nn.GELU()
         self.residual_proj = nn.Linear(config.n_embed * 4, config.n_embed, bias=config.bias)
-        self.dropout = LearnedDropout(config.n_embed)
+        if config.use_learned_dropout:
+            self.dropout = LearnedDropout(config.n_embed)
+        else:
+            self.dropout = nn.Dropout(config.dropout_rate)
 
     def forward(self, x):
         x = self.linear(x)
@@ -129,7 +149,10 @@ class DropoutTransformer(nn.Module):
         self.config = config
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
-        self.dropout = LearnedDropout(config.n_embed)
+        if config.use_learned_dropout:
+            self.dropout = LearnedDropout(config.n_embed)
+        else:
+            self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
             *[
                 TransformerBlock(config)
@@ -157,6 +180,9 @@ class DropoutTransformer(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def get_mean_entropy(self):
+        if not self.config.use_learned_dropout:
+            return None
+        
         entropy_list = []
         for module in self.modules():
             if isinstance(module, LearnedDropout):
@@ -164,6 +190,9 @@ class DropoutTransformer(nn.Module):
         return torch.cat(entropy_list, dim=0).mean()
     
     def get_mean_dropout_l1_norm(self):
+        if not self.config.use_learned_dropout:
+            return None
+        
         l1_norm_list = []
         for module in self.modules():
             if isinstance(module, LearnedDropout):
@@ -171,6 +200,9 @@ class DropoutTransformer(nn.Module):
         return torch.cat(l1_norm_list, dim=0).mean()
     
     def print_dropout_params(self):
+        if not self.config.use_learned_dropout:
+            raise AssertionError("Model is not using learned dropout.")
+            
         for module in self.modules():
             if isinstance(module, LearnedDropout):
                 print(module.A, module.B)
@@ -208,6 +240,8 @@ class DropoutTransformer(nn.Module):
             return mean_dropout_entropy
         elif self.config.use_dropout_l1_norm_in_loss:
             return mean_dropout_l1_norm
+        else:
+            return 0
     
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
         """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
