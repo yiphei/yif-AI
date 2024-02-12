@@ -13,6 +13,7 @@ class ModelConfig:
     n_layer: int
     n_head: int
     bias: bool = False
+    use_flash: bool = False
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -39,11 +40,12 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias = config.bias)
         self.dropout_2 = LearnedDropout(self.dim_in)
 
-        self.flash = hasattr(F, 'scaled_dot_product_attention')
-        if not self.flash:
+        self.flash = False
+        if not hasattr(F, 'scaled_dot_product_attention') or not config.use_flash:
             self.register_buffer("tril", torch.tril(torch.ones(config.context_size, config.context_size).view(1,1,config.context_size, config.context_size)))
         else:
             print("Using flas attention.")
+            self.flash = True
 
     def forward(self, x):
         B, T, C = x.shape  # B, T, C
