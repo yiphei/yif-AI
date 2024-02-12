@@ -10,6 +10,8 @@ import math
 import torch
 from model import DropoutTransformer, ModelConfig
 import numpy as np
+import pickle
+import time
 
 def require_prop_exception():
     raise ValueError("Missing required property")
@@ -118,7 +120,11 @@ if __name__ == "__main__":
 
     torch.manual_seed(1337)
 
-    TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file, 50304)
+    meta_path = os.path.join(args.train, 'meta.pkl')
+    with open(meta_path, 'rb') as f:
+        meta = pickle.load(f)
+
+    TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file, meta['alphabet_size'])
 
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
@@ -165,6 +171,7 @@ if __name__ == "__main__":
     )    
     model.train()
     X, Y = get_data_batch(TRAIN_CONFIG.DEVICE, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE, 'train') # fetch the very first batch
+    t0 = time.time()
     for step in range(TRAIN_CONFIG.TRAIN_STEPS):
 
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
@@ -202,11 +209,16 @@ if __name__ == "__main__":
         scaler.update()
         optimizer.zero_grad(set_to_none=True)
 
+        t1 = time.time()
+        dt = t1 - t0
+        t0 = t1
+
         wandb.log({
             "iter": step,
             "loss": running_loss,
             "dropout_entropy": running_entropy,
             "dropout_l1_norm": running_l1_norm,
+            "time": float(f"{dt*1000:.2f}"),
         })
 
     torch.save(
