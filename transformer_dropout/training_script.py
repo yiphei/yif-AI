@@ -3,12 +3,57 @@ import logging
 import os
 import sys
 import wandb
-from dataclasses import asdict
+from dataclasses import dataclass, asdict, field, fields
 from datetime import datetime
 from contextlib import nullcontext
 import math
 import torch
 from model import DropoutTransformer, ModelConfig
+
+
+def require_prop_exception():
+    raise ValueError("Missing required property")
+
+@dataclass
+class TrainConfig:
+    DEVICE: str = field(default_factory= lambda: "cuda" if torch.cuda.is_available() else "cpu")
+    MODEL_CONFIG: ModelConfig = field(default_factory= require_prop_exception)
+    # Training
+    BATCH_SIZE: int = field(default_factory= require_prop_exception) # this will be scaled by GRADIENT_ACCUMULATION_STEPS
+    TRAIN_STEPS: int = field(default_factory= require_prop_exception)
+    GRADIENT_ACCUMULATION_STEPS: int = field(default_factory= require_prop_exception)
+    # Optimizer
+    LR: float = field(default_factory= require_prop_exception)
+    WEIGHT_DECAY: float = field(default= 1e-1)
+    BETA1: float = field(default= 0.9)
+    BETA2: float = field(default= 0.95)
+    DECAY_LR: bool = True
+    WARMUP_ITERS: int = field(default_factory= require_prop_exception)
+    LR_DECAY_ITERS: int = field(default_factory= require_prop_exception)
+    MIN_LR: float = field(default_factory= require_prop_exception)
+    # Estimation
+    EST_INTERVAL: int = field(default_factory= require_prop_exception)
+    EST_STEPS: int = field(default_factory= require_prop_exception)
+    # Other
+    DTYPE: str = field(default_factory= lambda:'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16')
+    COMPILE: bool = False
+
+    @classmethod
+    def create_from_config_file(cls, config_file: str, alphabet_size: int):
+        config_dict = {}
+        with open(config_file, 'r') as file:
+            exec(file.read(), {}, config_dict)
+        # Filter out built-in items
+        config_dict = {k: v for k, v in config_dict.items() if not k.startswith('__')}
+
+        model_config_props = [f.name.upper() for f in fields(ModelConfig)]
+        model_config_dict = {k.lower():v for k,v in config_dict.items() if k in model_config_props}
+        model_config_dict['alphabet_size'] = alphabet_size
+        model_config = ModelConfig(**model_config_dict)
+
+        config_dict = {k:v for k,v in config_dict.items() if k not in model_config_props}
+        config_dict['MODEL_CONFIG'] = model_config
+        return cls(**config_dict)
 
 
 def parse_arguments():
@@ -19,40 +64,7 @@ def parse_arguments():
     parser.add_argument("--train_file", type=str)
     parser.add_argument("--config_file", type=str)
     parser.add_argument("--is_local", type=bool, default=True)
-
-    # Model config
-    parser.add_argument(
-        "--n_layer", type=int)
-    parser.add_argument("--n_head", type=int)
-    parser.add_argument("--bias", type=int)
-    parser.add_argument(
-        "--context_size", type=int
-    )
-    parser.add_argument("--n_embed", type=int)
-    
-    # Train config
-    parser.add_argument(
-        "--batch_size", type=int
-    )
-    parser.add_argument(
-        "--training_steps", type=int
-    )
-    parser.add_argument("--lr", type=float)
-
-
-    # Estimation config
-    parser.add_argument(
-        "--est_interval", type=int
-    )
-    parser.add_argument("--est_steps", type=int)
-
     args = parser.parse_args()
-    args_dict = vars(args)
-    if args.config_file is not None:
-        assert all([v is None for k,v in args_dict.items() if k not in ["train", "train_file", "config_file", "is_local"]])
-    else:
-        assert all([v is not None for k,v in args_dict.items() if k not in ["train", "train_file", "config_file", "is_local"]])
-
     return args
 
 
@@ -99,14 +111,12 @@ if __name__ == "__main__":
 
     # Load and prepare training data
     training_data_file_path = os.path.join(args.train, args.train_file)
-
     with open(training_data_file_path, "r", encoding="utf-8") as f:
         text = f.read()
 
     chars = sorted(list(set(text)))
     ctoi = {c: i for i, c in enumerate(chars)}
     itoc = {i: c for i, c in enumerate(chars)}
-
     encoder = lambda x: [ctoi[c] for c in x]
 
     data = torch.tensor(encoder(text)).long()
@@ -117,89 +127,62 @@ if __name__ == "__main__":
 
     torch.manual_seed(1337)
 
-    config_dict = {}
-    if args.config_file is not None:
-        with open(args.config_file, 'r') as file:
-            exec(file.read(), {}, config_dict)
-        # Filter out built-in items
-        config_dict = {k: v for k, v in config_dict.items() if not k.startswith('__')}
-    else:
-        config_dict = {k:v for k,v in vars(args).items() if k not in ["train", "train_file", "config_file", "is_local"]}
-    config_dict['alphabet_size'] = len(chars)
-
-    # HYPERPARAMETERS
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    MODEL_CONFIG = ModelConfig(**{k:v for k,v in config_dict.items() if k in ModelConfig.__annotations__}) 
-    BATCH_SIZE = config_dict["batch_size"] # this will be scaled by GRADIENT_ACCUMULATION_STEPS
-    TRAINING_STEPS = config_dict["training_steps"]
-    LR = config_dict["lr"]
-    EST_INTERVAL = config_dict["est_interval"]
-    EST_STEPS = config_dict["est_steps"]
-    WEIGHT_DECAY = 1e-1
-    BETA1 = 0.9
-    BETA2 = 0.95
-    DTYPE = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16'
-    COMPILE = True
-    DECAY_LR = True
-    WARMUP_ITERS = config_dict['warmup_iters']
-    LR_DECAY_ITERS = 600000
-    MIN_LR = config_dict['min_lr']
-    GRADIENT_ACCUMULATION_STEPS = config_dict['gradient_accumulation_steps']
+    TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file, len(chars))
 
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
     # note: float16 data type will automatically use a GradScaler
-    ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[DTYPE]
-    ctx = nullcontext() if DEVICE == 'cpu' else torch.amp.autocast(device_type=DEVICE, dtype=ptdtype)
-    scaler = torch.cuda.amp.GradScaler(enabled=(DTYPE == 'float16'))
+    ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[TRAIN_CONFIG.DTYPE]
+    ctx = nullcontext() if TRAIN_CONFIG.DEVICE == 'cpu' else torch.amp.autocast(device_type=TRAIN_CONFIG.DEVICE, dtype=ptdtype)
+    scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.DTYPE == 'float16'))
 
     wandb.init(
         # set the wandb project where this run will be logged
         project="transformer_dropout",
-        config=config_dict,
+        config=asdict(TRAIN_CONFIG),
         mode="online",
     )    
 
     model = DropoutTransformer(
-        MODEL_CONFIG
-    ).to(DEVICE)
+        TRAIN_CONFIG.MODEL_CONFIG
+    ).to(TRAIN_CONFIG.DEVICE)
 
     # if COMPILE:
     #     print("compiling the model... (takes a ~minute)")
     #     unoptimized_model = model
     #     model = torch.compile(model) # requires PyTorch 2.0
     
-    if DEVICE == "cuda" and torch.cuda.device_count() > 1:
+    if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
 
-    optimizer = model.configure_optimizer(WEIGHT_DECAY, LR, (BETA1, BETA2), DEVICE)
+    optimizer = model.configure_optimizer(TRAIN_CONFIG.WEIGHT_DECAY, TRAIN_CONFIG.LR, (TRAIN_CONFIG.BETA1, TRAIN_CONFIG.BETA2), TRAIN_CONFIG.DEVICE)
 
     # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
     def get_lr(training_step):
         # 1) linear warmup for warmup_iters steps
-        if training_step < WARMUP_ITERS:
-            return LR * training_step / WARMUP_ITERS
+        if training_step < TRAIN_CONFIG.WARMUP_ITERS:
+            return TRAIN_CONFIG.LR * training_step / TRAIN_CONFIG.WARMUP_ITERS
         # 2) if it > lr_decay_iters, return min learning rate
-        if training_step > LR_DECAY_ITERS:
-            return MIN_LR
+        if training_step > TRAIN_CONFIG.LR_DECAY_ITERS:
+            return TRAIN_CONFIG.MIN_LR
         # 3) in between, use cosine decay down to min learning rate
-        decay_ratio = (training_step - WARMUP_ITERS) / (LR_DECAY_ITERS - WARMUP_ITERS)
+        decay_ratio = (training_step - TRAIN_CONFIG.WARMUP_ITERS) / (TRAIN_CONFIG.LR_DECAY_ITERS - TRAIN_CONFIG.WARMUP_ITERS)
         assert 0 <= decay_ratio <= 1
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
-        return MIN_LR + coeff * (LR - MIN_LR)
+        return TRAIN_CONFIG.MIN_LR + coeff * (TRAIN_CONFIG.LR - TRAIN_CONFIG.MIN_LR)
 
     model.train()
-    X, Y = get_data_batch(DEVICE, MODEL_CONFIG.context_size, BATCH_SIZE, 'train') # fetch the very first batch
-    for step in range(TRAINING_STEPS):
+    X, Y = get_data_batch(TRAIN_CONFIG.DEVICE, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE, 'train') # fetch the very first batch
+    for step in range(TRAIN_CONFIG.TRAIN_STEPS):
 
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
-        lr = get_lr(step) if DECAY_LR else LR
+        lr = get_lr(step) if TRAIN_CONFIG.DECAY_LR else TRAIN_CONFIG.LR
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
 
-        if step % EST_INTERVAL == 0 and step != (TRAINING_STEPS - 1) and step != 0:
-            train_loss, val_loss = estimate_loss(model, EST_STEPS, MODEL_CONFIG.context_size, BATCH_SIZE, DEVICE, ctx)
+        if step % TRAIN_CONFIG.EST_INTERVAL == 0 and step != (TRAIN_CONFIG.TRAIN_STEPS - 1) and step != 0:
+            train_loss, val_loss = estimate_loss(model, TRAIN_CONFIG.EST_STEPS, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE, TRAIN_CONFIG.DEVICE, ctx)
             wandb.log({
                 "est_iter": step,
                 "est_train_loss": train_loss,
@@ -210,17 +193,17 @@ if __name__ == "__main__":
         running_loss = 0
         running_entropy = 0
         running_l1_norm = 0
-        for micro_step in range(GRADIENT_ACCUMULATION_STEPS):
+        for micro_step in range(TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS):
             with ctx:
                 logits, loss, entropy, dropout_l1_norm = model(X, Y)
-                if DEVICE == "cuda" and torch.cuda.device_count() > 1:
+                if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1:
                     loss = loss.mean()
-                loss = loss / GRADIENT_ACCUMULATION_STEPS # scale the loss to account for gradient accumulation
+                loss = loss / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
-                running_entropy += entropy.item() / GRADIENT_ACCUMULATION_STEPS
-                running_l1_norm += dropout_l1_norm.item() / GRADIENT_ACCUMULATION_STEPS
+                running_entropy += entropy.item() / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
+                running_l1_norm += dropout_l1_norm.item() / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
-            X, Y = get_data_batch(DEVICE, MODEL_CONFIG.context_size, BATCH_SIZE, 'train')
+            X, Y = get_data_batch(TRAIN_CONFIG.DEVICE, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE, 'train')
             # backward pass, with gradient scaling if training in fp16
             scaler.scale(loss).backward()
 
@@ -237,7 +220,7 @@ if __name__ == "__main__":
     torch.save(
         {
             "state_dict": model.state_dict(),
-            "hyperparameters": asdict(MODEL_CONFIG),
+            "hyperparameters": asdict(TRAIN_CONFIG.MODEL_CONFIG),
             "itoc": itoc,
         },
         (
