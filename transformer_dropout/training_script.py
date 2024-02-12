@@ -21,16 +21,16 @@ class TrainConfig:
     # Training
     BATCH_SIZE: int = field(default_factory= require_prop_exception) # this will be scaled by GRADIENT_ACCUMULATION_STEPS
     TRAIN_STEPS: int = field(default_factory= require_prop_exception)
-    GRADIENT_ACCUMULATION_STEPS: int = field(default_factory= require_prop_exception)
+    GRADIENT_ACCUMULATION_STEPS: int = field(default_factory= require_prop_exception) # used to simulate large batches
     # Optimizer
-    LR: float = field(default_factory= require_prop_exception)
+    LR: float = field(default= 6e-4) # max learning rate
     WEIGHT_DECAY: float = field(default= 1e-1)
     BETA1: float = field(default= 0.9)
     BETA2: float = field(default= 0.95)
     DECAY_LR: bool = True
     WARMUP_ITERS: int = field(default_factory= require_prop_exception)
     LR_DECAY_ITERS: int = field(default_factory= require_prop_exception)
-    MIN_LR: float = field(default_factory= require_prop_exception)
+    MIN_LR: float = field(default= 6e-5)
     # Estimation
     EST_INTERVAL: int = field(default_factory= require_prop_exception)
     EST_STEPS: int = field(default_factory= require_prop_exception)
@@ -135,18 +135,12 @@ if __name__ == "__main__":
     # note: float16 data type will automatically use a GradScaler
     ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[TRAIN_CONFIG.DTYPE]
     ctx = nullcontext() if TRAIN_CONFIG.DEVICE == 'cpu' else torch.amp.autocast(device_type=TRAIN_CONFIG.DEVICE, dtype=ptdtype)
-    scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.DTYPE == 'float16'))
-
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="transformer_dropout",
-        config=asdict(TRAIN_CONFIG),
-        mode="online",
-    )    
 
     model = DropoutTransformer(
         TRAIN_CONFIG.MODEL_CONFIG
     ).to(TRAIN_CONFIG.DEVICE)
+
+    scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.DTYPE == 'float16'))
 
     # if COMPILE:
     #     print("compiling the model... (takes a ~minute)")
@@ -172,6 +166,12 @@ if __name__ == "__main__":
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
         return TRAIN_CONFIG.MIN_LR + coeff * (TRAIN_CONFIG.LR - TRAIN_CONFIG.MIN_LR)
 
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="transformer_dropout",
+        config=asdict(TRAIN_CONFIG),
+        mode="online",
+    )    
     model.train()
     X, Y = get_data_batch(TRAIN_CONFIG.DEVICE, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE, 'train') # fetch the very first batch
     for step in range(TRAIN_CONFIG.TRAIN_STEPS):
@@ -212,6 +212,7 @@ if __name__ == "__main__":
         optimizer.zero_grad(set_to_none=True)
 
         wandb.log({
+            "iter": step,
             "loss": running_loss,
             "dropout_entropy": running_entropy,
             "dropout_l1_norm": running_l1_norm,
