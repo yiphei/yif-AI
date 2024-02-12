@@ -12,6 +12,8 @@ class ModelConfig:
     alphabet_size: int
     n_layer: int
     n_head: int
+    use_dropout_entropy_in_loss: bool
+    use_dropout_l1_norm_in_loss: bool
     bias: bool = False
     use_flash: bool = False
 
@@ -76,15 +78,15 @@ class OptimizedMultiAttentionHead(nn.Module):
 class LearnedDropout(nn.Module):
     def __init__(self, dim_in):
         super().__init__()
-        self.A = nn.Parameter(torch.zeros(dim_in))
-        self.B = nn.Parameter(torch.zeros(dim_in))
-        self.entropy = None # somehow, this has to be initialized to zero, otherwise it becomes None in get_mean_entropy
-        self.l1_norm = None # currently unused
+        self.A = nn.Parameter(torch.normal(0, 0.2, size = (dim_in,)))
+        self.B = nn.Parameter(torch.normal(0, 0.2, size = (dim_in,)))
+        self.dropout_entropy = None
+        self.dropout_l1_norm = None
 
     def forward(self, x):
         dropout_mask = (0.5 * torch.cos(self.A * x + self.B) + 0.5)
-        self.entropy = (dropout_mask * -torch.log(dropout_mask + 1e-9)).sum(dim=-1)
-        self.l1_norm = dropout_mask.sum()
+        self.dropout_entropy = (dropout_mask * -torch.log(dropout_mask + 1e-9)).sum(dim=-1)
+        self.dropout_l1_norm = torch.norm(dropout_mask, p=1, dim=-1)
         return x * dropout_mask
 
 class FeedForward(nn.Module):
@@ -124,6 +126,7 @@ class DropoutTransformer(nn.Module):
     ):
         super().__init__()
 
+        self.config = config
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = LearnedDropout(config.n_embed)
@@ -157,8 +160,15 @@ class DropoutTransformer(nn.Module):
         entropy_list = []
         for module in self.modules():
             if isinstance(module, LearnedDropout):
-                entropy_list.append(module.entropy.flatten())
+                entropy_list.append(module.dropout_entropy.flatten())
         return torch.cat(entropy_list, dim=0).mean()
+    
+    def get_mean_dropout_l1_norm(self):
+        l1_norm_list = []
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                l1_norm_list.append(module.dropout_l1_norm.flatten())
+        return torch.cat(l1_norm_list, dim=0).mean()
     
     def print_dropout_params(self):
         for module in self.modules():
@@ -177,17 +187,27 @@ class DropoutTransformer(nn.Module):
         embed = self.dropout(embed)
         out = self.transformer_blocks(embed)
         out = self.ln(out)
+
+        mean_dropout_entropy = self.get_mean_entropy()
+        mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
         if targets is None:
             loss = None
-            mean_entropy = None
             logits = self.output_layer(out[:,[-1],:])
         else:
             logits = self.output_layer(out)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
-            mean_entropy = self.get_mean_entropy()
-            loss = F.cross_entropy(logits, targets.view(-1)) + mean_entropy
-        return logits, loss, mean_entropy
+            loss = F.cross_entropy(logits, targets.view(-1)) + self.get_additional_loss_terms(mean_dropout_entropy, mean_dropout_l1_norm)
+        return logits, loss, mean_dropout_entropy, mean_dropout_l1_norm
+    
+
+    def get_additional_loss_terms(self, mean_dropout_entropy, mean_dropout_l1_norm):
+        if self.config.use_dropout_entropy_in_loss and self.config.use_dropout_l1_norm_in_loss:
+            return mean_dropout_entropy + mean_dropout_l1_norm
+        elif self.config.use_dropout_entropy_in_loss:
+            return mean_dropout_entropy
+        elif self.config.use_dropout_l1_norm_in_loss:
+            return mean_dropout_l1_norm
     
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
         """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -214,7 +234,7 @@ class DropoutTransformer(nn.Module):
     @torch.no_grad()
     def generate(self, x, max_tokens):
         for _ in range(max_tokens):
-            logits, _, _ = self(x[:, -self.context_size :], None)
+            logits, _, _, _ = self(x[:, -self.context_size :], None)
             probs = F.softmax(logits[:, -1, :], dim=-1)
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
