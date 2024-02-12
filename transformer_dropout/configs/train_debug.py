@@ -6,6 +6,7 @@ n_head = 2
 bias = False
 use_dropout_entropy_in_loss = True
 use_dropout_l1_norm_in_loss = True
+use_learned_dropout = True
 
 # Training config
 batch_size = 10
