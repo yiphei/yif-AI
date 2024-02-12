@@ -71,14 +71,15 @@ def get_data_batch(device, context_size, batch_size, split="train"):
     return x, y
 
 @torch.no_grad()
-def estimate_loss(model, est_steps, context_size, batch_size, device):
+def estimate_loss(model, est_steps, context_size, batch_size, device, ctx):
     mean_losses = []
     model.eval()
     for split in ["train", "val"]:
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
             xb, yb = get_data_batch(device, context_size, batch_size, split)
-            _, loss = model(xb, yb)
+            with ctx:
+                _, loss = model(xb, yb)
             if device == "cuda" and torch.cuda.device_count() > 1:
                 loss = loss.mean()
             losses[i] = loss
@@ -197,7 +198,7 @@ if __name__ == "__main__":
             param_group['lr'] = lr
 
         if step % EST_INTERVAL == 0 and step != (TRAINING_STEPS - 1):
-            train_loss, val_loss = estimate_loss(model, EST_STEPS, MODEL_CONFIG.context_size, BATCH_SIZE, DEVICE)
+            train_loss, val_loss = estimate_loss(model, EST_STEPS, MODEL_CONFIG.context_size, BATCH_SIZE, DEVICE, ctx)
             wandb.log({
                 "est_iter": step,
                 "est_train_loss": train_loss,
