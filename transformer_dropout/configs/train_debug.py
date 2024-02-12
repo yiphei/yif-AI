@@ -1,21 +1,22 @@
 # ModelConfig
-context_size = 80
-n_embed = 100
-n_layer = 3
-n_head = 2
-bias = False
-use_dropout_entropy_in_loss = True
-use_dropout_l1_norm_in_loss = True
-use_learned_dropout = True
+CONTEXT_SIZE = 80
+N_EMBED = 100
+N_LAYER = 3
+N_HEAD = 2
+BIAS = False
+USE_DROPOUT_ENTROPY_IN_LOSS = True
+USE_DROPOUT_L1_NORM_IN_LOSS = True
+USE_LEARNED_DROPOUT = True
 
 # Training config
-batch_size = 10
-training_steps = 1000
-lr = 3e-4
-warmup_iters = 50
-min_lr = 6e-5
-gradient_accumulation_steps = 7
+BATCH_SIZE = 10
+TRAIN_STEPS = 1000
+LR = 3e-4
+WARMUP_ITERS = 50
+MIN_LR = 6e-5
+GRADIENT_ACCUMULATION_STEPS = 7
+LR_DECAY_ITERS = 600000
 
 # Estimation config
-est_interval = 200
-est_steps = 100
+EST_INTERVAL = 200
+EST_STEPS = 100
