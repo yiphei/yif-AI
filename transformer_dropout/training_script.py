@@ -9,7 +9,7 @@ from contextlib import nullcontext
 import math
 import torch
 from model import DropoutTransformer, ModelConfig
-
+import numpy as np
 
 def require_prop_exception():
     raise ValueError("Missing required property")
@@ -62,6 +62,7 @@ def parse_arguments():
     )
     parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"))
     parser.add_argument("--train_file", type=str)
+    parser.add_argument("--val_file", type=str)
     parser.add_argument("--config_file", type=str)
     parser.add_argument("--is_local", type=bool, default=True)
     args = parser.parse_args()
@@ -71,8 +72,8 @@ def parse_arguments():
 def get_data_batch(device, context_size, batch_size, split="train"):
     data = train_data if split == "train" else val_data
     idxs = torch.randint(0, data.shape[0] - context_size - 1, (batch_size,))
-    x = torch.stack([data[idx : idx + context_size] for idx in idxs])
-    y = torch.stack([data[idx + 1 : idx + context_size + 1] for idx in idxs])
+    x = torch.stack([torch.from_numpy((data[idx : idx + context_size]).astype(np.int64)) for idx in idxs])
+    y = torch.stack([torch.from_numpy((data[idx + 1 : idx + context_size + 1]).astype(np.int64)) for idx in idxs])
 
     if device == 'cuda':
         # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
@@ -111,23 +112,13 @@ if __name__ == "__main__":
 
     # Load and prepare training data
     training_data_file_path = os.path.join(args.train, args.train_file)
-    with open(training_data_file_path, "r", encoding="utf-8") as f:
-        text = f.read()
-
-    chars = sorted(list(set(text)))
-    ctoi = {c: i for i, c in enumerate(chars)}
-    itoc = {i: c for i, c in enumerate(chars)}
-    encoder = lambda x: [ctoi[c] for c in x]
-
-    data = torch.tensor(encoder(text)).long()
-
-    training_split = int(data.shape[0] * 0.9)
-    train_data = data[:training_split]
-    val_data = data[training_split:]
+    val_date_file_path = os.path.join(args.train, args.val_file)
+    train_data = np.memmap(training_data_file_path, dtype=np.uint16, mode='r')
+    val_data = np.memmap(val_date_file_path, dtype=np.uint16, mode='r')
 
     torch.manual_seed(1337)
 
-    TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file, len(chars))
+    TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file, 50304)
 
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
