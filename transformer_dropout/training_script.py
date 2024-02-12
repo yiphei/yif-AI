@@ -207,28 +207,31 @@ if __name__ == "__main__":
                 "est_lr": lr,
             })
 
+        running_loss = 0
+        running_entropy = 0
+        running_l1_norm = 0
         for micro_step in range(GRADIENT_ACCUMULATION_STEPS):
             with ctx:
                 logits, loss, entropy, dropout_l1_norm = model(X, Y)
                 if DEVICE == "cuda" and torch.cuda.device_count() > 1:
                     loss = loss.mean()
                 loss = loss / GRADIENT_ACCUMULATION_STEPS # scale the loss to account for gradient accumulation
+                running_loss += loss.item()
+                running_entropy += entropy.item() / GRADIENT_ACCUMULATION_STEPS
+                running_l1_norm += dropout_l1_norm.item() / GRADIENT_ACCUMULATION_STEPS
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y = get_data_batch(DEVICE, MODEL_CONFIG.context_size, BATCH_SIZE, 'train')
             # backward pass, with gradient scaling if training in fp16
-            wandb.log({
-                "dropout_entropy": entropy,
-                "dropout_l1_norm": dropout_l1_norm,
-            })
             scaler.scale(loss).backward()
 
         scaler.step(optimizer)
         scaler.update()
         optimizer.zero_grad(set_to_none=True)
 
-        lossf = loss.item() * GRADIENT_ACCUMULATION_STEPS
         wandb.log({
-            "loss": lossf,
+            "loss": running_loss,
+            "dropout_entropy": running_entropy,
+            "dropout_l1_norm": running_l1_norm,
         })
 
     torch.save(
