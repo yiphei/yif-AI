@@ -1,9 +1,11 @@
 # ModelConfig
-context_size = 100
+context_size = 80
 n_embed = 100
 n_layer = 3
 n_head = 2
 bias = False
+use_dropout_entropy_in_loss = True
+use_dropout_l1_norm_in_loss = True
 
 # Training config
 batch_size = 10
