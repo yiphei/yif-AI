@@ -55,7 +55,7 @@ class TrainConfig:
             else "float16"
         )
     )
-    COMPILE: bool = False
+    COMPILE: bool = True
 
     @classmethod
     def create_from_config_file(cls, config_file: str, alphabet_size: int):
@@ -189,7 +189,7 @@ if __name__ == "__main__":
         TRAIN_CONFIG.DEVICE,
     )
 
-    # if COMPILE:
+    # if TRAIN_CONFIG.COMPILE and TRAIN_CONFIG.DEVICE == "cuda":
     #     print("compiling the model... (takes a ~minute)")
     #     unoptimized_model = model
     #     model = torch.compile(model) # requires PyTorch 2.0
