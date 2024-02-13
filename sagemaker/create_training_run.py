@@ -6,11 +6,23 @@ from dotenv import load_dotenv
 import os
 import wandb
 import argparse
+from enum import Enum
+
+class InstanceType(Enum):
+    P3_2 = "ml.p3.2xlarge"
+    P3_8 = "ml.p3.8xlarge"
+    P3_16 = 'ml.p3.16xlarge'
+    P3_24 = 'ml.p3dn.24xlarge'
+    P4_24 = 'ml.p4d.24xlarge'
+    C5_18 = 'ml.c5.18xlarge' # best for debugging
+
+
 
 SOURCE_DIR='transformer_dropout/'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config_file", type=str)
+parser.add_argument("--instance_type", type=InstanceType)
 args = parser.parse_args()
 
 assert os.path.exists(f'{SOURCE_DIR}{args.config_file}')
@@ -38,7 +50,7 @@ pytorch_estimator = PyTorch(sagemaker_session=sagemaker_session,
                             role=role,
                             framework_version='2.1', # select your PyTorch version
                             instance_count=1,
-                            instance_type='ml.p3dn.24xlarge', # use 'ml.c5.18xlarge' for debugging
+                            instance_type= args.instance_type,
                             py_version='py310',
                             hyperparameters={
                                 'train_file': 'full_harry_potter_train.bin',
