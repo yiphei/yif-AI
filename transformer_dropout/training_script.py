@@ -251,7 +251,7 @@ if __name__ == "__main__":
         wandb.init(
             # set the wandb project where this run will be logged
             project="transformer_dropout",
-            config={**asdict(TRAIN_CONFIG), "params": MODEL_PARAMS},
+            config={**asdict(TRAIN_CONFIG), "params": MODEL_PARAMS, "using_DP": using_DP, "using_DDP": using_DDP},
             mode="online",
         )
 
