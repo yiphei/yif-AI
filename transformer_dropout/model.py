@@ -12,13 +12,13 @@ from torch.nn import functional as F
 class ModelConfig:
     context_size: int
     n_embed: int
-    alphabet_size: int
     n_layer: int
     n_head: int
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_learned_dropout: bool
     dropout_rate: Optional[float] = field(default=None)
+    alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
     use_flash: bool = False
 
@@ -172,6 +172,7 @@ class TransformerBlock(nn.Module):
 class DropoutTransformer(nn.Module):
     def __init__(self, config: ModelConfig):
         super().__init__()
+        assert config.alphabet_size is not None # an ugly workaround because of training script
         self.config = config
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
