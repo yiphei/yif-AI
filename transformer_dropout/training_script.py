@@ -258,26 +258,28 @@ if __name__ == "__main__":
             )
 
         running_loss = 0
-        running_entropy = 0
-        running_l1_norm = 0
+        running_entropy = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
+        running_l1_norm = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
         for micro_step in range(TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS):
             with ctx:
                 logits, loss, entropy, dropout_l1_norm = model(X, Y)
                 if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1:
                     loss = loss.mean()
-                    entropy = entropy.mean()
-                    dropout_l1_norm = dropout_l1_norm.mean()
+                    if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
+                        entropy = entropy.mean()
+                        dropout_l1_norm = dropout_l1_norm.mean()
 
                 loss = (
                     loss / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
-                running_entropy += (
-                    entropy.item() / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
-                )
-                running_l1_norm += (
-                    dropout_l1_norm.item() / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
-                )
+                if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
+                    running_entropy += (
+                        entropy.item() / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
+                    )
+                    running_l1_norm += (
+                        dropout_l1_norm.item() / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
+                    )
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y = get_data_batch(
                 TRAIN_CONFIG.DEVICE,
