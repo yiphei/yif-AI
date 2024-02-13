@@ -5,6 +5,15 @@ import os
 from dotenv import load_dotenv
 import os
 import wandb
+import argparse
+
+SOURCE_DIR='transformer_dropout/'
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--config_file", type=str)
+args = parser.parse_args()
+
+assert os.path.exists(f'{SOURCE_DIR}{args.config_file}')
 
 load_dotenv()
 role = os.getenv('SAGEMAKER_ROLE')
@@ -25,7 +34,7 @@ sagemaker_session = sagemaker.Session(default_bucket=default_bucket,
 
 pytorch_estimator = PyTorch(sagemaker_session=sagemaker_session,
                             entry_point='training_script.py', # the name of your script
-                            source_dir='transformer_dropout/',
+                            source_dir=SOURCE_DIR,
                             role=role,
                             framework_version='2.1', # select your PyTorch version
                             instance_count=1,
@@ -34,12 +43,12 @@ pytorch_estimator = PyTorch(sagemaker_session=sagemaker_session,
                             hyperparameters={
                                 'train_file': 'full_harry_potter_train.bin',
                                 'val_file': 'full_harry_potter_val.bin',
-                                'config_file': 'configs/train_debug.py',
+                                'config_file': args.config_file,  # should be configs/{config_file}.py
                                 'is_local': 'False',
                             })
 
 # Now, we'll start a training job.
-pytorch_estimator.fit({'train': 's3://dropout-transformer/datasets/full_harry_potter/'})
+pytorch_estimator.fit({'train': 's3://dropout-transformer/datasets/full_harry_potter/'}) # add wait=False if you want to run asynchronously
 
 # pytorch_model = pytorch_estimator.create_model(entry_point = 'inference.py')
 # sagemaker_session.create_model(name="test-model", role = role, container_defs=pytorch_model.prepare_container_def('ml.c5.9xlarge'))
