@@ -179,8 +179,16 @@ if __name__ == "__main__":
     )
 
     model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG).to(TRAIN_CONFIG.DEVICE)
+    MODEL_PARAMS = model.get_num_params
 
     scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.DTYPE == "float16"))
+
+    optimizer = model.configure_optimizer(
+        TRAIN_CONFIG.WEIGHT_DECAY,
+        TRAIN_CONFIG.LR,
+        (TRAIN_CONFIG.BETA1, TRAIN_CONFIG.BETA2),
+        TRAIN_CONFIG.DEVICE,
+    )
 
     # if COMPILE:
     #     print("compiling the model... (takes a ~minute)")
@@ -190,12 +198,6 @@ if __name__ == "__main__":
     if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
 
-    optimizer = model.configure_optimizer(
-        TRAIN_CONFIG.WEIGHT_DECAY,
-        TRAIN_CONFIG.LR,
-        (TRAIN_CONFIG.BETA1, TRAIN_CONFIG.BETA2),
-        TRAIN_CONFIG.DEVICE,
-    )
 
     # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
     def get_lr(training_step):
@@ -216,7 +218,7 @@ if __name__ == "__main__":
     wandb.init(
         # set the wandb project where this run will be logged
         project="transformer_dropout",
-        config={**asdict(TRAIN_CONFIG), "params": model.get_num_params()},
+        config={**asdict(TRAIN_CONFIG), "params": MODEL_PARAMS},
         mode="online",
     )
     model.train()
@@ -264,6 +266,9 @@ if __name__ == "__main__":
                 logits, loss, entropy, dropout_l1_norm = model(X, Y)
                 if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1:
                     loss = loss.mean()
+                    entropy = entropy.mean()
+                    dropout_l1_norm = dropout_l1_norm.mean()
+                    
                 loss = (
                     loss / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
                 )  # scale the loss to account for gradient accumulation
