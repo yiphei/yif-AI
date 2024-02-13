@@ -60,6 +60,12 @@ class TrainConfig:
     USE_DP: bool = False # DataParallel
     USE_DDP: bool = True # DistributedDataParallel
 
+    def __post_init__(self):
+        if self.USE_DDP and self.USE_DP:
+            raise ValueError(
+                "cannot have both USE_DDP and USE_DP set to True"
+            )
+
     @classmethod
     def create_from_config_file(cls, config_file: str):
         config_dict = {}
