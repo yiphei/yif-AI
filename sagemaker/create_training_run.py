@@ -4,9 +4,11 @@ import boto3
 import os
 from dotenv import load_dotenv
 import os
+import wandb
 
 load_dotenv()
 role = os.getenv('SAGEMAKER_ROLE')
+wandb.sagemaker_auth(path="transformer_dropout")
 
 my_region = 'us-east-1'  # change to your desired region
 
@@ -27,24 +29,17 @@ pytorch_estimator = PyTorch(sagemaker_session=sagemaker_session,
                             role=role,
                             framework_version='2.1', # select your PyTorch version
                             instance_count=1,
-                            instance_type='ml.p4d.24xlarge', # choose a suitable instance type
+                            instance_type='ml.c5.18xlarge', # choose a suitable instance type
                             py_version='py310',
                             hyperparameters={
-                                'batch_size': 64,
-                                'block_size': 1000,
-                                'n_embed': 500,
-                                'training_steps': 6000,
-                                'est_interval': 500,
-                                'est_steps': 200,
-                                'transform_blocks': 15,
-                                'lr': 3e-4,
-                                'dropout': 0.2,
-                                'n_head': 10
-                                # add other hyperparameters you want to pass
+                                'train_file': 'full_harry_potter_train.bin',
+                                'val_file': 'full_harry_potter_val.bin',
+                                'config_file': 'configs/train_debug.py',
+                                'is_local': 'False',
                             })
 
 # Now, we'll start a training job.
-pytorch_estimator.fit({'train': 's3://dropout-transformer/datasets/full_harry_potter/full_harry_potter_train.bin'})
+pytorch_estimator.fit({'train': 's3://dropout-transformer/datasets/full_harry_potter/'})
 
-pytorch_model = pytorch_estimator.create_model(entry_point = 'inference.py')
-sagemaker_session.create_model(name="test-model", role = role, container_defs=pytorch_model.prepare_container_def('ml.c5.9xlarge'))
+# pytorch_model = pytorch_estimator.create_model(entry_point = 'inference.py')
+# sagemaker_session.create_model(name="test-model", role = role, container_defs=pytorch_model.prepare_container_def('ml.c5.9xlarge'))
