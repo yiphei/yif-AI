@@ -172,7 +172,9 @@ class TransformerBlock(nn.Module):
 class DropoutTransformer(nn.Module):
     def __init__(self, config: ModelConfig):
         super().__init__()
-        assert config.alphabet_size is not None # an ugly workaround because of training script
+        assert (
+            config.alphabet_size is not None
+        )  # an ugly workaround because of training script
         self.config = config
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
