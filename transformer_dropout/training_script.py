@@ -100,7 +100,7 @@ def parse_arguments():
     return args
 
 
-def get_data_batch(device, context_size, batch_size, split="train"):
+def get_data_batch(device,device_type, context_size, batch_size, split="train"):
     data = train_data if split == "train" else val_data
     idxs = torch.randint(0, data.shape[0] - context_size - 1, (batch_size,))
     x = torch.stack(
@@ -116,7 +116,7 @@ def get_data_batch(device, context_size, batch_size, split="train"):
         ]
     )
 
-    if device == "cuda":
+    if device_type == "cuda":
         # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
         # from https://github.com/karpathy/nanoGPT/blob/master/train.py
         x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(
@@ -183,6 +183,7 @@ if __name__ == "__main__":
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
+    device_type = 'cuda' if 'cuda' in TRAIN_CONFIG.DEVICE else 'cpu' # for later use in torch.autocast
     # note: float16 data type will automatically use a GradScaler
     ptdtype = {
         "float32": torch.float32,
@@ -191,7 +192,7 @@ if __name__ == "__main__":
     }[TRAIN_CONFIG.DTYPE]
     ctx = (
         nullcontext()
-        if TRAIN_CONFIG.DEVICE == "cpu"
+        if device_type == "cpu"
         else torch.amp.autocast(device_type=TRAIN_CONFIG.DEVICE, dtype=ptdtype)
     )
 
@@ -216,7 +217,7 @@ if __name__ == "__main__":
         TRAIN_CONFIG.WEIGHT_DECAY,
         TRAIN_CONFIG.LR,
         (TRAIN_CONFIG.BETA1, TRAIN_CONFIG.BETA2),
-        TRAIN_CONFIG.DEVICE,
+        device_type,
     )
 
     if TRAIN_CONFIG.COMPILE and using_DDP:
@@ -257,6 +258,7 @@ if __name__ == "__main__":
     model.train()
     X, Y = get_data_batch(
         TRAIN_CONFIG.DEVICE,
+        device_type,
         TRAIN_CONFIG.MODEL_CONFIG.context_size,
         TRAIN_CONFIG.BATCH_SIZE,
         "train",
@@ -320,6 +322,7 @@ if __name__ == "__main__":
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y = get_data_batch(
                 TRAIN_CONFIG.DEVICE,
+                device_type,
                 TRAIN_CONFIG.MODEL_CONFIG.context_size,
                 TRAIN_CONFIG.BATCH_SIZE,
                 "train",
