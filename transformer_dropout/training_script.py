@@ -13,6 +13,7 @@ from distutils.util import strtobool
 import numpy as np
 import torch
 from model import DropoutTransformer, ModelConfig
+from torch.distributed import init_process_group, destroy_process_group
 
 import wandb
 
@@ -60,7 +61,7 @@ class TrainConfig:
     USE_DDP: bool = True # DistributedDataParallel
 
     @classmethod
-    def create_from_config_file(cls, config_file: str, alphabet_size: int):
+    def create_from_config_file(cls, config_file: str):
         config_dict = {}
         with open(config_file, "r") as file:
             exec(file.read(), {}, config_dict)
@@ -71,7 +72,6 @@ class TrainConfig:
         model_config_dict = {
             k.lower(): v for k, v in config_dict.items() if k in model_config_props
         }
-        model_config_dict["alphabet_size"] = alphabet_size
         model_config = ModelConfig(**model_config_dict)
 
         config_dict = {
@@ -122,7 +122,7 @@ def get_data_batch(device, context_size, batch_size, split="train"):
 
 
 @torch.no_grad()
-def estimate_loss(model, est_steps, context_size, batch_size, device, ctx, use_dp):
+def estimate_loss(model, est_steps, context_size, batch_size, device, ctx, using_DP):
     mean_losses = []
     model.eval()
     for split in ["train", "val"]:
@@ -131,7 +131,7 @@ def estimate_loss(model, est_steps, context_size, batch_size, device, ctx, use_d
             xb, yb = get_data_batch(device, context_size, batch_size, split)
             with ctx:
                 _, loss, _, _ = model(xb, yb)
-            if device == "cuda" and torch.cuda.device_count() > 1 and use_dp:
+            if using_DP:
                 loss = loss.mean()
             losses[i] = loss
 
@@ -148,22 +148,32 @@ if __name__ == "__main__":
     logger.info("Starting training script.")
 
     args = parse_arguments()
-    torch.manual_seed(1337)
-
-    # Load and prepare training data
-    training_data_file_path = os.path.join(args.train, args.train_file)
-    val_date_file_path = os.path.join(args.train, args.val_file)
-    train_data = np.memmap(training_data_file_path, dtype=np.uint16, mode="r")
-    val_data = np.memmap(val_date_file_path, dtype=np.uint16, mode="r")
-
-    meta_path = os.path.join(args.train, "meta.pkl")
-    with open(meta_path, "rb") as f:
-        meta = pickle.load(f)
-
     TRAIN_CONFIG = TrainConfig.create_from_config_file(
-        args.config_file, meta["alphabet_size"]
+        args.config_file
     )
 
+    using_DDP = (int(os.environ.get('RANK', -1)) != -1) and TRAIN_CONFIG.USE_DDP and TRAIN_CONFIG.DEVICE == "cuda"
+    using_DP = TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1 and TRAIN_CONFIG.USE_DP
+    if using_DDP:
+        using_DDP = True
+        init_process_group(backend='nccl')
+        ddp_rank = int(os.environ['RANK'])
+        ddp_local_rank = int(os.environ['LOCAL_RANK'])
+        ddp_world_size = int(os.environ['WORLD_SIZE'])
+        TRAIN_CONFIG.DEVICE = f'cuda:{ddp_local_rank}'
+        torch.cuda.set_device(TRAIN_CONFIG.DEVICE)
+        is_master_process = ddp_rank == 0 # this process will do logging, checkpointing etc.
+        seed_offset = ddp_rank # each process gets a different seed
+        # world_size number of processes will be training simultaneously, so we can scale
+        # down the desired gradient accumulation iterations per process proportionally
+        assert TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS % ddp_world_size == 0
+        TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS //= ddp_world_size
+    else:
+        # if not ddp, we are running on a single gpu, and one process
+        is_master_process = True
+        seed_offset = 0
+
+    torch.manual_seed(1337 + seed_offset)
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
@@ -179,6 +189,18 @@ if __name__ == "__main__":
         else torch.amp.autocast(device_type=TRAIN_CONFIG.DEVICE, dtype=ptdtype)
     )
 
+    # Load and prepare training data
+    training_data_file_path = os.path.join(args.train, args.train_file)
+    val_date_file_path = os.path.join(args.train, args.val_file)
+    train_data = np.memmap(training_data_file_path, dtype=np.uint16, mode="r")
+    val_data = np.memmap(val_date_file_path, dtype=np.uint16, mode="r")
+
+    meta_path = os.path.join(args.train, "meta.pkl")
+    with open(meta_path, "rb") as f:
+        meta = pickle.load(f)
+
+    TRAIN_CONFIG.MODEL_CONFIG.alphabet_size = meta["alphabet_size"]
+
     model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG).to(TRAIN_CONFIG.DEVICE)
     MODEL_PARAMS = model.get_num_params
 
@@ -191,14 +213,15 @@ if __name__ == "__main__":
         TRAIN_CONFIG.DEVICE,
     )
 
-    if TRAIN_CONFIG.COMPILE and TRAIN_CONFIG.DEVICE == "cuda" and TRAIN_CONFIG.USE_DDP:
+    if TRAIN_CONFIG.COMPILE and using_DDP:
         print("compiling the model... (takes a ~minute)")
         unoptimized_model = model
         model = torch.compile(model) # requires PyTorch 2.0
 
-    if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1 and TRAIN_CONFIG.USE_DP:
+    if using_DP:
         model = torch.nn.DataParallel(model)
-
+    elif using_DDP:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[ddp_local_rank])
 
     # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
     def get_lr(training_step):
@@ -216,12 +239,15 @@ if __name__ == "__main__":
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
         return TRAIN_CONFIG.MIN_LR + coeff * (TRAIN_CONFIG.LR - TRAIN_CONFIG.MIN_LR)
 
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="transformer_dropout",
-        config={**asdict(TRAIN_CONFIG), "params": MODEL_PARAMS},
-        mode="online",
-    )
+    if is_master_process:
+        wandb.init(
+            # set the wandb project where this run will be logged
+            project="transformer_dropout",
+            config={**asdict(TRAIN_CONFIG), "params": MODEL_PARAMS},
+            mode="online",
+        )
+
+    raw_model = model.module if using_DP or using_DDP else model
     model.train()
     X, Y = get_data_batch(
         TRAIN_CONFIG.DEVICE,
@@ -241,7 +267,7 @@ if __name__ == "__main__":
             step % TRAIN_CONFIG.EST_INTERVAL == 0
             and step != (TRAIN_CONFIG.TRAIN_STEPS - 1)
             and step != 0
-        ):
+        ) and is_master_process:
             train_loss, val_loss = estimate_loss(
                 model,
                 TRAIN_CONFIG.EST_STEPS,
@@ -249,7 +275,7 @@ if __name__ == "__main__":
                 TRAIN_CONFIG.BATCH_SIZE,
                 TRAIN_CONFIG.DEVICE,
                 ctx,
-                TRAIN_CONFIG.USE_DP
+                using_DP,
             )
             wandb.log(
                 {
@@ -264,9 +290,11 @@ if __name__ == "__main__":
         running_entropy = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
         running_l1_norm = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
         for micro_step in range(TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS):
+            if using_DDP:
+                model.require_backward_grad_sync = (micro_step == TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS - 1)
             with ctx:
                 logits, loss, entropy, dropout_l1_norm = model(X, Y)
-                if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1 and TRAIN_CONFIG.USE_DP:
+                if using_DP:
                     loss = loss.mean()
                     if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
                         entropy = entropy.mean()
@@ -300,26 +328,29 @@ if __name__ == "__main__":
         t1 = time.time()
         dt = t1 - t0
         t0 = t1
-
-        wandb.log(
+        if is_master_process:
+            wandb.log(
+                {
+                    "iter": step,
+                    "loss": running_loss,
+                    "dropout_entropy": running_entropy,
+                    "dropout_l1_norm": running_l1_norm,
+                    "time": float(f"{dt*1000:.2f}"),
+                }
+            )
+    if is_master_process:
+        torch.save(
             {
-                "iter": step,
-                "loss": running_loss,
-                "dropout_entropy": running_entropy,
-                "dropout_l1_norm": running_l1_norm,
-                "time": float(f"{dt*1000:.2f}"),
-            }
+                "state_dict": raw_model.state_dict(),
+                "hyperparameters": asdict(TRAIN_CONFIG.MODEL_CONFIG),
+                "itoc": None,  # TODO: add decoder
+            },
+            (
+                f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
+                if args.is_local
+                else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth")
+            ),
         )
 
-    torch.save(
-        {
-            "state_dict": model.state_dict(),
-            "hyperparameters": asdict(TRAIN_CONFIG.MODEL_CONFIG),
-            "itoc": None,  # TODO: add decoder
-        },
-        (
-            f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
-            if args.is_local
-            else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth")
-        ),
-    )
+    if using_DDP:
+        destroy_process_group()
