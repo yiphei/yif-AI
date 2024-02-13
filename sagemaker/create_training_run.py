@@ -38,7 +38,7 @@ pytorch_estimator = PyTorch(sagemaker_session=sagemaker_session,
                             role=role,
                             framework_version='2.1', # select your PyTorch version
                             instance_count=1,
-                            instance_type='ml.p3.8xlarge', # use 'ml.c5.18xlarge' for debugging
+                            instance_type='ml.p3dn.24xlarge', # use 'ml.c5.18xlarge' for debugging
                             py_version='py310',
                             hyperparameters={
                                 'train_file': 'full_harry_potter_train.bin',
