@@ -102,7 +102,7 @@ def parse_arguments():
 
 def get_data_batch(device,device_type, context_size, batch_size, split="train"):
     data = train_data if split == "train" else val_data
-    idxs = torch.randint(0, data.shape[0] - context_size - 1, (batch_size,))
+    idxs = torch.randint(0, len(data) - context_size - 1, (batch_size,))
     x = torch.stack(
         [
             torch.from_numpy((data[idx : idx + context_size]).astype(np.int64))
@@ -128,13 +128,13 @@ def get_data_batch(device,device_type, context_size, batch_size, split="train"):
 
 
 @torch.no_grad()
-def estimate_loss(model, est_steps, context_size, batch_size, device, ctx, using_DP):
+def estimate_loss(model, est_steps, context_size, batch_size, device, ctx, using_DP, device_type):
     mean_losses = []
     model.eval()
     for split in ["train", "val"]:
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
-            xb, yb = get_data_batch(device, context_size, batch_size, split)
+            xb, yb = get_data_batch(device, device_type, context_size, batch_size, split)
             with ctx:
                 _, loss, _, _ = model(xb, yb)
             if using_DP:
@@ -161,6 +161,7 @@ if __name__ == "__main__":
     using_DDP = (int(os.environ.get('RANK', -1)) != -1) and TRAIN_CONFIG.USE_DDP and TRAIN_CONFIG.DEVICE == "cuda"
     using_DP = TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1 and TRAIN_CONFIG.USE_DP
     if using_DDP:
+        print("Using DDP")
         using_DDP = True
         init_process_group(backend='nccl')
         ddp_rank = int(os.environ['RANK'])
@@ -284,6 +285,7 @@ if __name__ == "__main__":
                 TRAIN_CONFIG.DEVICE,
                 ctx,
                 using_DP,
+                device_type,
             )
             wandb.log(
                 {
