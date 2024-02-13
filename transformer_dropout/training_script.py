@@ -56,6 +56,8 @@ class TrainConfig:
         )
     )
     COMPILE: bool = True
+    USE_DP: bool = False # DataParallel
+    USE_DDP: bool = True # DistributedDataParallel
 
     @classmethod
     def create_from_config_file(cls, config_file: str, alphabet_size: int):
@@ -120,7 +122,7 @@ def get_data_batch(device, context_size, batch_size, split="train"):
 
 
 @torch.no_grad()
-def estimate_loss(model, est_steps, context_size, batch_size, device, ctx):
+def estimate_loss(model, est_steps, context_size, batch_size, device, ctx, use_dp):
     mean_losses = []
     model.eval()
     for split in ["train", "val"]:
@@ -129,7 +131,7 @@ def estimate_loss(model, est_steps, context_size, batch_size, device, ctx):
             xb, yb = get_data_batch(device, context_size, batch_size, split)
             with ctx:
                 _, loss, _, _ = model(xb, yb)
-            if device == "cuda" and torch.cuda.device_count() > 1:
+            if device == "cuda" and torch.cuda.device_count() > 1 and use_dp:
                 loss = loss.mean()
             losses[i] = loss
 
@@ -189,12 +191,12 @@ if __name__ == "__main__":
         TRAIN_CONFIG.DEVICE,
     )
 
-    # if TRAIN_CONFIG.COMPILE and TRAIN_CONFIG.DEVICE == "cuda":
-    #     print("compiling the model... (takes a ~minute)")
-    #     unoptimized_model = model
-    #     model = torch.compile(model) # requires PyTorch 2.0
+    if TRAIN_CONFIG.COMPILE and TRAIN_CONFIG.DEVICE == "cuda" and TRAIN_CONFIG.USE_DDP:
+        print("compiling the model... (takes a ~minute)")
+        unoptimized_model = model
+        model = torch.compile(model) # requires PyTorch 2.0
 
-    if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1:
+    if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1 and TRAIN_CONFIG.USE_DP:
         model = torch.nn.DataParallel(model)
 
 
@@ -247,6 +249,7 @@ if __name__ == "__main__":
                 TRAIN_CONFIG.BATCH_SIZE,
                 TRAIN_CONFIG.DEVICE,
                 ctx,
+                TRAIN_CONFIG.USE_DP
             )
             wandb.log(
                 {
@@ -263,7 +266,7 @@ if __name__ == "__main__":
         for micro_step in range(TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS):
             with ctx:
                 logits, loss, entropy, dropout_l1_norm = model(X, Y)
-                if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1:
+                if TRAIN_CONFIG.DEVICE == "cuda" and torch.cuda.device_count() > 1 and TRAIN_CONFIG.USE_DP:
                     loss = loss.mean()
                     if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
                         entropy = entropy.mean()
