@@ -6,23 +6,12 @@ from dotenv import load_dotenv
 import os
 import wandb
 import argparse
-from enum import Enum
-
-class InstanceType(Enum):
-    P3_2 = "ml.p3.2xlarge"
-    P3_8 = "ml.p3.8xlarge"
-    P3_16 = 'ml.p3.16xlarge'
-    P3_24 = 'ml.p3dn.24xlarge'
-    P4_24 = 'ml.p4d.24xlarge'
-    C5_18 = 'ml.c5.18xlarge' # best for debugging
-
-
 
 SOURCE_DIR='transformer_dropout/'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config_file", type=str)
-parser.add_argument("--instance_type", type=InstanceType)
+parser.add_argument("--instance_type", type=str, choices=["ml.p3.2xlarge", "ml.p3.8xlarge",'ml.p3.16xlarge','ml.p3dn.24xlarge','ml.p4d.24xlarge','ml.c5.18xlarge'])
 args = parser.parse_args()
 
 assert os.path.exists(f'{SOURCE_DIR}{args.config_file}')
