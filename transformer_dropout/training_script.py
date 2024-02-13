@@ -146,14 +146,13 @@ if __name__ == "__main__":
     logger.info("Starting training script.")
 
     args = parse_arguments()
+    torch.manual_seed(1337)
 
     # Load and prepare training data
     training_data_file_path = os.path.join(args.train, args.train_file)
     val_date_file_path = os.path.join(args.train, args.val_file)
     train_data = np.memmap(training_data_file_path, dtype=np.uint16, mode="r")
     val_data = np.memmap(val_date_file_path, dtype=np.uint16, mode="r")
-
-    torch.manual_seed(1337)
 
     meta_path = os.path.join(args.train, "meta.pkl")
     with open(meta_path, "rb") as f:
@@ -268,7 +267,7 @@ if __name__ == "__main__":
                     loss = loss.mean()
                     entropy = entropy.mean()
                     dropout_l1_norm = dropout_l1_norm.mean()
-                    
+
                 loss = (
                     loss / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
                 )  # scale the loss to account for gradient accumulation
