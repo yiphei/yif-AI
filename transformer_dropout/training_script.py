@@ -8,6 +8,7 @@ import time
 from contextlib import nullcontext
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
+from distutils.util import strtobool
 
 import numpy as np
 import torch
@@ -86,7 +87,7 @@ def parse_arguments():
     parser.add_argument("--train_file", type=str)
     parser.add_argument("--val_file", type=str)
     parser.add_argument("--config_file", type=str)
-    parser.add_argument("--is_local", type=bool, default=True)
+    parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)))
     args = parser.parse_args()
     return args
 
