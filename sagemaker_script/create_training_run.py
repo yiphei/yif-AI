@@ -10,20 +10,21 @@ from sagemaker.pytorch import PyTorch
 from transformer_dropout.training_script import TrainConfig
 
 SOURCE_DIR = "transformer_dropout/"
+GPU_INSTANCE_TYPES = [
+        "ml.p3.2xlarge",
+        "ml.p3.8xlarge",
+        "ml.p3.16xlarge",
+        "ml.p3dn.24xlarge",
+        "ml.p4d.24xlarge",
+    ]
+ALL_INSTANCE_TYPES = GPU_INSTANCE_TYPES + ["ml.c5.18xlarge"]
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config_file", type=str)
 parser.add_argument(
     "--instance_type",
     type=str,
-    choices=[
-        "ml.p3.2xlarge",
-        "ml.p3.8xlarge",
-        "ml.p3.16xlarge",
-        "ml.p3dn.24xlarge",
-        "ml.p4d.24xlarge",
-        "ml.c5.18xlarge",
-    ],
+    choices=ALL_INSTANCE_TYPES,
 )
 parser.add_argument(
     "--instance_count",
@@ -69,7 +70,7 @@ pytorch_estimator = PyTorch(
         "torch_distributed": {
             "enabled": True
         }
-} if args.instance_count > 0 else None,
+} if args.instance_type in GPU_INSTANCE_TYPES else None,
     hyperparameters={
         "train_file": "full_harry_potter_train.bin",
         "val_file": "full_harry_potter_val.bin",
