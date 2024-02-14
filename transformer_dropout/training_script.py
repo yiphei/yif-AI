@@ -66,6 +66,18 @@ class TrainConfig:
     def __post_init__(self):
         if self.USE_DDP and self.USE_DP:
             raise ValueError("cannot have both USE_DDP and USE_DP set to True")
+        if self.TRAIN_STEPS <= self.EST_INTERVAL:
+            raise ValueError("EST_INTERVAL must be less than TRAIN_STEPS")
+        if self.MIN_LR >= self.LR:
+            raise ValueError("MIN_LR must be less than LR")
+        if self.WARMUP_ITERS >= self.TRAIN_STEPS:
+            raise ValueError("WARMUP_ITERS must be less than TRAIN_STEPS")
+        if self.EST_STEPS >= self.TRAIN_STEPS:
+            raise ValueError("EST_STEPS must be less than TRAIN_STEPS")
+        if self.LR_DECAY_ITERS > self.TRAIN_STEPS:
+            raise ValueError("LR_DECAY_ITERS must be less than TRAIN_STEPS")
+        if self.WARMUP_ITERS > self.LR_DECAY_ITERS:
+            raise ValueError("WARMUP_ITERS must be less than LR_DECAY_ITERS")
 
     @classmethod
     def create_from_config_file(cls, config_file: str):
