@@ -174,7 +174,7 @@ if __name__ == "__main__":
         init_process_group(backend="nccl")
         env = environment.Environment()
         ddp_rank = torch.distributed.get_rank()
-        ddp_local_rank = env.local_rank
+        ddp_local_rank = int(os.environ['LOCAL_RANK'])
         ddp_world_size = torch.distributed.get_world_size()
         TRAIN_CONFIG.DEVICE = f"cuda:{ddp_local_rank}"
         torch.cuda.set_device(TRAIN_CONFIG.DEVICE)
@@ -207,7 +207,7 @@ if __name__ == "__main__":
     ctx = (
         nullcontext()
         if device_type == "cpu"
-        else torch.amp.autocast(device_type=TRAIN_CONFIG.DEVICE, dtype=ptdtype)
+        else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
     )
 
     # Load and prepare training data
