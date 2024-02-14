@@ -12,6 +12,7 @@ from distutils.util import strtobool
 
 import numpy as np
 import torch
+# ugly workound to make Sagemaker happy
 try:
     # Attempt relative import when running as part of a package
     from .model import DropoutTransformer, ModelConfig
@@ -21,36 +22,36 @@ except ImportError:
 from torch.distributed import destroy_process_group, init_process_group
 import wandb
 
-def require_prop_exception():
+# This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
+def require_field_exception():
     raise ValueError("Missing required property")
-
 
 @dataclass
 class TrainConfig:
     DEVICE: str = field(
         default_factory=lambda: "cuda" if torch.cuda.is_available() else "cpu"
     )
-    MODEL_CONFIG: ModelConfig = field(default_factory=require_prop_exception)
+    MODEL_CONFIG: ModelConfig = field(default_factory=require_field_exception)
     # Training
     BATCH_SIZE: int = field(
-        default_factory=require_prop_exception
+        default_factory=require_field_exception
     )  # this will be scaled by GRADIENT_ACCUMULATION_STEPS
-    TRAIN_STEPS: int = field(default_factory=require_prop_exception)
+    TRAIN_STEPS: int = field(default_factory=require_field_exception)
     GRADIENT_ACCUMULATION_STEPS: int = field(
-        default_factory=require_prop_exception
-    )  # used to simulate large batches
+        default_factory=require_field_exception
+    )  # used to simulate large batches. Must be a multiple of world_size (i.e. # of GPUs) if using DDP
     # Optimizer
     LR: float = field(default=6e-4)  # max learning rate
     WEIGHT_DECAY: float = field(default=1e-1)
     BETA1: float = field(default=0.9)
     BETA2: float = field(default=0.95)
     DECAY_LR: bool = True
-    WARMUP_ITERS: int = field(default_factory=require_prop_exception)
-    LR_DECAY_ITERS: int = field(default_factory=require_prop_exception)
+    WARMUP_ITERS: int = field(default_factory=require_field_exception)
+    LR_DECAY_ITERS: int = field(default_factory=require_field_exception)
     MIN_LR: float = field(default=6e-5)
     # Estimation
-    EST_INTERVAL: int = field(default_factory=require_prop_exception)
-    EST_STEPS: int = field(default_factory=require_prop_exception)
+    EST_INTERVAL: int = field(default_factory=require_field_exception)
+    EST_STEPS: int = field(default_factory=require_field_exception)
     # Other
     DTYPE: str = field(
         default_factory=lambda: (
@@ -183,8 +184,6 @@ if __name__ == "__main__":
         and TRAIN_CONFIG.USE_DP
     )
     if using_DDP:
-        # print("Using DDP")
-        # print(os.environ['WORLD_SIZE'], os.environ['LOCAL_RANK'], os.environ['MASTER_ADDR'], os.environ['MASTER_PORT'])
         init_process_group(backend="nccl")
         ddp_rank = torch.distributed.get_rank()
         ddp_local_rank = int(os.environ['LOCAL_RANK'])
@@ -200,11 +199,10 @@ if __name__ == "__main__":
         assert TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS % ddp_world_size == 0
         TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS //= ddp_world_size
     else:
-        # if not ddp, we are running on a single gpu, and one process
         is_master_process = True
         seed_offset = 0
 
-    torch.manual_seed(1337 + seed_offset)
+    torch.manual_seed(1337 + seed_offset) # this allows for distributed training data
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
@@ -234,12 +232,10 @@ if __name__ == "__main__":
         meta = pickle.load(f)
 
     TRAIN_CONFIG.MODEL_CONFIG.alphabet_size = meta["alphabet_size"]
-
     model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG).to(TRAIN_CONFIG.DEVICE)
     MODEL_PARAMS = model.get_num_params
 
     scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.DTYPE == "float16"))
-
     optimizer = model.configure_optimizer(
         TRAIN_CONFIG.WEIGHT_DECAY,
         TRAIN_CONFIG.LR,
@@ -299,7 +295,6 @@ if __name__ == "__main__":
     )  # fetch the very first batch
     t0 = time.time()
     for step in range(TRAIN_CONFIG.TRAIN_STEPS):
-
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         lr = get_lr(step) if TRAIN_CONFIG.DECAY_LR else TRAIN_CONFIG.LR
         for param_group in optimizer.param_groups:
