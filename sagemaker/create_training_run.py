@@ -52,10 +52,15 @@ pytorch_estimator = PyTorch(
     entry_point="training_script.py",  # the name of your script
     source_dir=SOURCE_DIR,
     role=role,
-    framework_version="2.1",  # select your PyTorch version
-    instance_count=1, # increase for multi-node distributed training
+    framework_version="2.1.0",  # select your PyTorch version
+    instance_count=2, # increase for multi-node distributed training
     instance_type=args.instance_type,
     py_version="py310",
+    distribution = {
+    "pytorchddp": {
+        "enabled": True
+    }
+},
     hyperparameters={
         "train_file": "full_harry_potter_train.bin",
         "val_file": "full_harry_potter_val.bin",
