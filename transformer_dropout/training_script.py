@@ -12,6 +12,7 @@ from distutils.util import strtobool
 
 import numpy as np
 import torch
+
 # ugly workound to make Sagemaker happy
 try:
     # Attempt relative import when running as part of a package
@@ -19,12 +20,16 @@ try:
 except ImportError:
     # Fallback to absolute import when running as a standalone script (e.g., in SageMaker)
     from model import DropoutTransformer, ModelConfig
+
 from torch.distributed import destroy_process_group, init_process_group
+
 import wandb
+
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
 def require_field_exception():
     raise ValueError("Missing required property")
+
 
 @dataclass
 class TrainConfig:
@@ -163,6 +168,7 @@ def estimate_loss(
     model.train()
     return mean_losses
 
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
@@ -186,7 +192,7 @@ if __name__ == "__main__":
     if using_DDP:
         init_process_group(backend="nccl")
         ddp_rank = torch.distributed.get_rank()
-        ddp_local_rank = int(os.environ['LOCAL_RANK'])
+        ddp_local_rank = int(os.environ["LOCAL_RANK"])
         ddp_world_size = torch.distributed.get_world_size()
         TRAIN_CONFIG.DEVICE = f"cuda:{ddp_local_rank}"
         torch.cuda.set_device(TRAIN_CONFIG.DEVICE)
@@ -202,7 +208,7 @@ if __name__ == "__main__":
         is_master_process = True
         seed_offset = 0
 
-    torch.manual_seed(1337 + seed_offset) # this allows for distributed training data
+    torch.manual_seed(1337 + seed_offset)  # this allows for distributed training data
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn

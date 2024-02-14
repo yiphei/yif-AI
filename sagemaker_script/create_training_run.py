@@ -1,20 +1,22 @@
 import argparse
 import os
+
 import boto3
-from dotenv import load_dotenv
 import sagemaker
-import wandb
+from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
+
+import wandb
 from transformer_dropout.training_script import TrainConfig
 
 SOURCE_DIR = "transformer_dropout/"
 GPU_INSTANCE_TYPES = [
-        "ml.p3.2xlarge",
-        "ml.p3.8xlarge",
-        "ml.p3.16xlarge",
-        "ml.p3dn.24xlarge",
-        "ml.p4d.24xlarge",
-    ]
+    "ml.p3.2xlarge",
+    "ml.p3.8xlarge",
+    "ml.p3.16xlarge",
+    "ml.p3dn.24xlarge",
+    "ml.p4d.24xlarge",
+]
 ALL_INSTANCE_TYPES = GPU_INSTANCE_TYPES + ["ml.c5.18xlarge"]
 
 parser = argparse.ArgumentParser()
@@ -24,10 +26,7 @@ parser.add_argument(
     type=str,
     choices=ALL_INSTANCE_TYPES,
 )
-parser.add_argument(
-    "--instance_count",
-    type=int
-)
+parser.add_argument("--instance_count", type=int)
 args = parser.parse_args()
 
 # Validate config
@@ -56,14 +55,14 @@ pytorch_estimator = PyTorch(
     source_dir=SOURCE_DIR,
     role=role,
     framework_version="2.1.0",
-    instance_count=args.instance_count, # increase for multi-node distributed training
+    instance_count=args.instance_count,  # increase for multi-node distributed training
     instance_type=args.instance_type,
     py_version="py310",
-    distribution = {
-        "torch_distributed": {
-            "enabled": True
-        }
-} if args.instance_type in GPU_INSTANCE_TYPES else None,
+    distribution=(
+        {"torch_distributed": {"enabled": True}}
+        if args.instance_type in GPU_INSTANCE_TYPES
+        else None
+    ),
     hyperparameters={
         "train_file": "full_harry_potter_train.bin",
         "val_file": "full_harry_potter_val.bin",
