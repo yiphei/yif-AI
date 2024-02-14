@@ -1,9 +1,7 @@
 import argparse
 import os
-
 import boto3
 from dotenv import load_dotenv
-
 import sagemaker
 import wandb
 from sagemaker.pytorch import PyTorch
@@ -32,24 +30,19 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-assert os.path.exists(f"{SOURCE_DIR}{args.config_file}")
-
 # Validate config
+assert os.path.exists(f"{SOURCE_DIR}{args.config_file}")
 _ = TrainConfig.create_from_config_file(f"{SOURCE_DIR}{args.config_file}")
-
 
 load_dotenv()
 role = os.getenv("SAGEMAKER_ROLE")
 wandb.sagemaker_auth(path="transformer_dropout")
-
-my_region = "us-east-1"  # change to your desired region
+my_region = "us-east-1"
 
 # Creating the sagemaker client using boto3
 sagemaker_client = boto3.client("sagemaker", region_name=my_region)
 sagemaker_runtime_client = boto3.client("sagemaker-runtime", region_name=my_region)
-
-# Correcting the default bucket name, it shouldn't be a full S3 path
-default_bucket = "dropout-transformer"  # use env
+default_bucket = "dropout-transformer"
 
 sagemaker_session = sagemaker.Session(
     default_bucket=default_bucket,
@@ -59,10 +52,10 @@ sagemaker_session = sagemaker.Session(
 
 pytorch_estimator = PyTorch(
     sagemaker_session=sagemaker_session,
-    entry_point="training_script.py",  # the name of your script
+    entry_point="training_script.py",
     source_dir=SOURCE_DIR,
     role=role,
-    framework_version="2.1.0",  # select your PyTorch version
+    framework_version="2.1.0",
     instance_count=args.instance_count, # increase for multi-node distributed training
     instance_type=args.instance_type,
     py_version="py310",
@@ -74,12 +67,11 @@ pytorch_estimator = PyTorch(
     hyperparameters={
         "train_file": "full_harry_potter_train.bin",
         "val_file": "full_harry_potter_val.bin",
-        "config_file": args.config_file,  # should be configs/{config_file}.py
+        "config_file": args.config_file,
         "is_local": "False",
     },
 )
 
-# Now, we'll start a training job.
 pytorch_estimator.fit(
     {"train": "s3://dropout-transformer/datasets/full_harry_potter/"}
 )  # add wait=False if you want to run asynchronously
