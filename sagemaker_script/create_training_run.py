@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import sagemaker
 import wandb
 from sagemaker.pytorch import PyTorch
+from transformer_dropout.train_config import TrainConfig
 
 SOURCE_DIR = "transformer_dropout/"
 
@@ -31,6 +32,10 @@ parser.add_argument(
 args = parser.parse_args()
 
 assert os.path.exists(f"{SOURCE_DIR}{args.config_file}")
+
+# Validate config
+_ = TrainConfig.create_from_config_file(f"{SOURCE_DIR}{args.config_file}")
+
 
 load_dotenv()
 role = os.getenv("SAGEMAKER_ROLE")
