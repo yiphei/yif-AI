@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from model import DropoutTransformer, ModelConfig
 from torch.distributed import destroy_process_group, init_process_group
-
+from sagemaker_training import environment
 import wandb
 
 
@@ -159,9 +159,9 @@ if __name__ == "__main__":
     TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file)
 
     using_DDP = (
-        (int(os.environ.get("RANK", -1)) != -1)
-        and TRAIN_CONFIG.USE_DDP
+        TRAIN_CONFIG.USE_DDP
         and TRAIN_CONFIG.DEVICE == "cuda"
+        and torch.cuda.device_count() > 1
     )
     using_DP = (
         TRAIN_CONFIG.DEVICE == "cuda"
@@ -169,12 +169,13 @@ if __name__ == "__main__":
         and TRAIN_CONFIG.USE_DP
     )
     if using_DDP:
-        print("Using DDP")
-        using_DDP = True
+        # print("Using DDP")
+        # print(os.environ['WORLD_SIZE'], os.environ['LOCAL_RANK'], os.environ['MASTER_ADDR'], os.environ['MASTER_PORT'])
         init_process_group(backend="nccl")
-        ddp_rank = int(os.environ["RANK"])
-        ddp_local_rank = int(os.environ["LOCAL_RANK"])
-        ddp_world_size = int(os.environ["WORLD_SIZE"])
+        env = environment.Environment()
+        ddp_rank = torch.distributed.get_rank()
+        ddp_local_rank = env.local_rank
+        ddp_world_size = torch.distributed.get_world_size()
         TRAIN_CONFIG.DEVICE = f"cuda:{ddp_local_rank}"
         torch.cuda.set_device(TRAIN_CONFIG.DEVICE)
         is_master_process = (
