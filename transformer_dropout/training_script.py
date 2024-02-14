@@ -21,70 +21,6 @@ except ImportError:
 from torch.distributed import destroy_process_group, init_process_group
 import wandb
 
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Training script for transformer model."
-    )
-    parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"))
-    parser.add_argument("--train_file", type=str)
-    parser.add_argument("--val_file", type=str)
-    parser.add_argument("--config_file", type=str)
-    parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)))
-    args = parser.parse_args()
-    return args
-
-
-def get_data_batch(device, device_type, context_size, batch_size, split="train"):
-    data = train_data if split == "train" else val_data
-    idxs = torch.randint(0, len(data) - context_size - 1, (batch_size,))
-    x = torch.stack(
-        [
-            torch.from_numpy((data[idx : idx + context_size]).astype(np.int64))
-            for idx in idxs
-        ]
-    )
-    y = torch.stack(
-        [
-            torch.from_numpy((data[idx + 1 : idx + context_size + 1]).astype(np.int64))
-            for idx in idxs
-        ]
-    )
-
-    if device_type == "cuda":
-        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-        # from https://github.com/karpathy/nanoGPT/blob/master/train.py
-        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(
-            device, non_blocking=True
-        )
-    else:
-        x, y = x.to(device), y.to(device)
-    return x, y
-
-
-@torch.no_grad()
-def estimate_loss(
-    model, est_steps, context_size, batch_size, device, ctx, using_DP, device_type
-):
-    mean_losses = []
-    model.eval()
-    for split in ["train", "val"]:
-        losses = torch.zeros(est_steps, device=device)
-        for i in range(est_steps):
-            xb, yb = get_data_batch(
-                device, device_type, context_size, batch_size, split
-            )
-            with ctx:
-                _, loss, _, _ = model(xb, yb)
-            if using_DP:
-                loss = loss.mean()
-            losses[i] = loss
-
-        mean_losses.append(losses.mean().item())
-    model.train()
-    return mean_losses
-
-
 def require_prop_exception():
     raise ValueError("Missing required property")
 
@@ -151,6 +87,68 @@ class TrainConfig:
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
 
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Training script for transformer model."
+    )
+    parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"))
+    parser.add_argument("--train_file", type=str)
+    parser.add_argument("--val_file", type=str)
+    parser.add_argument("--config_file", type=str)
+    parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)))
+    args = parser.parse_args()
+    return args
+
+
+def get_data_batch(device, device_type, context_size, batch_size, split="train"):
+    data = train_data if split == "train" else val_data
+    idxs = torch.randint(0, len(data) - context_size - 1, (batch_size,))
+    x = torch.stack(
+        [
+            torch.from_numpy((data[idx : idx + context_size]).astype(np.int64))
+            for idx in idxs
+        ]
+    )
+    y = torch.stack(
+        [
+            torch.from_numpy((data[idx + 1 : idx + context_size + 1]).astype(np.int64))
+            for idx in idxs
+        ]
+    )
+
+    if device_type == "cuda":
+        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+        # from https://github.com/karpathy/nanoGPT/blob/master/train.py
+        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(
+            device, non_blocking=True
+        )
+    else:
+        x, y = x.to(device), y.to(device)
+    return x, y
+
+
+@torch.no_grad()
+def estimate_loss(
+    model, est_steps, context_size, batch_size, device, ctx, using_DP, device_type
+):
+    mean_losses = []
+    model.eval()
+    for split in ["train", "val"]:
+        losses = torch.zeros(est_steps, device=device)
+        for i in range(est_steps):
+            xb, yb = get_data_batch(
+                device, device_type, context_size, batch_size, split
+            )
+            with ctx:
+                _, loss, _, _ = model(xb, yb)
+            if using_DP:
+                loss = loss.mean()
+            losses[i] = loss
+
+        mean_losses.append(losses.mean().item())
+    model.train()
+    return mean_losses
 
 if __name__ == "__main__":
     logging.basicConfig(
