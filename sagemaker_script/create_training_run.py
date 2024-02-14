@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import sagemaker
 import wandb
 from sagemaker.pytorch import PyTorch
-from transformer_dropout.train_config import TrainConfig
+from transformer_dropout.training_script import TrainConfig
 
 SOURCE_DIR = "transformer_dropout/"
 
