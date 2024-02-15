@@ -217,7 +217,6 @@ if __name__ == "__main__":
     )  # for later use in torch.autocast
     # note: float16 data type will automatically use a GradScaler
     ptdtype = {
-        "float32": torch.float32,
         "bfloat16": torch.bfloat16,
         "float16": torch.float16,
     }[TRAIN_CONFIG.DTYPE]
