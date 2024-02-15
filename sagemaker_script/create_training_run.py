@@ -5,6 +5,7 @@ import boto3
 import sagemaker
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
+from distutils.util import strtobool
 
 import wandb
 from transformer_dropout.training_script import TrainConfig
@@ -28,6 +29,7 @@ parser.add_argument(
 )
 parser.add_argument("--instance_count", type=int)
 parser.add_argument("--notes", type=str, default="")
+parser.add_argument("--use_spot", type=lambda v: bool(strtobool(v)), default=False)
 args = parser.parse_args()
 
 # Validate config
@@ -70,6 +72,8 @@ pytorch_estimator = PyTorch(
         "config_file": args.config_file,
         "is_local": "False",
     },
+    use_spot_instances=args.use_spot,
+    max_wait = (60 * 60 *24) if args.use_spot else None,
     tags={"notes": args.notes}
 )
 
