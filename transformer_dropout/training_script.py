@@ -238,7 +238,7 @@ if __name__ == "__main__":
 
     TRAIN_CONFIG.MODEL_CONFIG.alphabet_size = meta["alphabet_size"]
     model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG).to(TRAIN_CONFIG.DEVICE)
-    MODEL_PARAMS = model.get_num_params
+    MODEL_PARAMS = model.get_num_params()
 
     scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.DTYPE == "float16"))
     optimizer = model.configure_optimizer(
