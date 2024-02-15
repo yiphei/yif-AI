@@ -119,8 +119,7 @@ def parse_arguments():
     parser.add_argument("--train_file", type=str)
     parser.add_argument("--val_file", type=str)
     parser.add_argument("--config_file", type=str)
-    parser.add_argument("--checkpoint_dir", type=str)
-    parser.add_argument("--initialization_type", type=lambda x : InitializationType(x), default=InitializationType.SCRATCH)
+    parser.add_argument("--checkpoint_path", type=str, default = None)
     parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)))
     args = parser.parse_args()
     return args
@@ -184,6 +183,14 @@ if __name__ == "__main__":
     logger.info("Starting training script.")
 
     args = parse_arguments()
+    initialization_type = InitializationType.SCRATCH
+    ckpt_file_path = None
+    if args.checkpoint_path is not None:
+        assert os.path.isdir(args.checkpoint_path)
+        if os.path.isfile(os.path.join(args.checkpoint_path, 'ckpt.pt')):
+            initialization_type = InitializationType.RESUME
+            ckpt_file_path = os.path.join(args.checkpoint_path, 'ckpt.pt')
+
     TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file)
 
     using_DDP = (
@@ -247,12 +254,12 @@ if __name__ == "__main__":
 
     iter_num = 0
     wandb_run_id = None
-    if args.initialization_type == InitializationType.SCRATCH:
+    if initialization_type == InitializationType.SCRATCH:
         model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
     else:
-        args.initialization_type == InitializationType.RESUME
-        ckpt_path = os.path.join(args.checkpoint_dir or os.environ["SM_MODEL_DIR"], 'ckpt.pt')
-        checkpoint = torch.load(ckpt_path, map_location=TRAIN_CONFIG.DEVICE)
+        print("Loading checkpoint...")
+        initialization_type == InitializationType.RESUME
+        checkpoint = torch.load(ckpt_file_path, map_location=TRAIN_CONFIG.DEVICE)
         TRAIN_CONFIG.MODEL_CONFIG = ModelConfig(**checkpoint['model_config'])
         # create the model
         model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
@@ -277,7 +284,7 @@ if __name__ == "__main__":
         (TRAIN_CONFIG.BETA1, TRAIN_CONFIG.BETA2),
         device_type,
     )
-    if args.initialization_type == InitializationType.RESUME:
+    if initialization_type == InitializationType.RESUME:
         optimizer.load_state_dict(checkpoint['optimizer'])
     checkpoint = None
 
@@ -323,7 +330,6 @@ if __name__ == "__main__":
                     "world_size": ddp_world_size if using_DDP else None,
                 },
                 mode="online",
-                resume=True
             )
             # wandb_run_id = wandb.util.generate_id()
             wandb_run_id = None
@@ -382,7 +388,7 @@ if __name__ == "__main__":
                 (
                     f"transformer_dropout/model_checkpoints/ckpt.pt"
                     if args.is_local
-                    else os.path.join(os.environ["SM_MODEL_DIR"], "ckpt.pt")
+                    else os.path.join(args.checkpoint_path, "ckpt.pt")
                 ),
             )
 
