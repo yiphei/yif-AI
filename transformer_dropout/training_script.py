@@ -9,6 +9,7 @@ from contextlib import nullcontext
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from distutils.util import strtobool
+from enum import Enum
 
 import numpy as np
 import torch
@@ -30,6 +31,10 @@ import wandb
 def require_field_exception():
     raise ValueError("Missing required property")
 
+
+class InitializationType(Enum):
+    SCRATCH = "scratch"
+    RESUME = "resume"
 
 @dataclass
 class TrainConfig:
@@ -114,6 +119,8 @@ def parse_arguments():
     parser.add_argument("--train_file", type=str)
     parser.add_argument("--val_file", type=str)
     parser.add_argument("--config_file", type=str)
+    parser.add_argument("--checkpoint_dir", type=str)
+    parser.add_argument("--initialization_type", type=lambda x : InitializationType(x), default=InitializationType.SCRATCH)
     parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)))
     args = parser.parse_args()
     return args
@@ -237,9 +244,32 @@ if __name__ == "__main__":
         meta = pickle.load(f)
 
     TRAIN_CONFIG.MODEL_CONFIG.alphabet_size = meta["alphabet_size"]
-    model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG).to(TRAIN_CONFIG.DEVICE)
-    MODEL_PARAMS = model.get_num_params()
 
+    iter_num = 0
+    wandb_run_id = None
+    if args.initialization_type == InitializationType.SCRATCH:
+        model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
+    else:
+        args.initialization_type == InitializationType.RESUME
+        ckpt_path = os.path.join(args.checkpoint_dir or os.environ["SM_MODEL_DIR"], 'ckpt.pt')
+        checkpoint = torch.load(ckpt_path, map_location=TRAIN_CONFIG.DEVICE)
+        TRAIN_CONFIG.MODEL_CONFIG = ModelConfig(**checkpoint['model_config'])
+        # create the model
+        model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
+        state_dict = checkpoint['model']
+        # fix the keys of the state dictionary :(
+        # honestly no idea how checkpoints sometimes get this prefix, have to debug more
+        unwanted_prefix = '_orig_mod.'
+        for k,v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+        model.load_state_dict(state_dict)
+        iter_num = checkpoint['iter_num']
+        wandb_run_id = checkpoint['wandb_run_id']
+
+    model.to(TRAIN_CONFIG.DEVICE)
+
+    MODEL_PARAMS = model.get_num_params()
     scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.DTYPE == "float16"))
     optimizer = model.configure_optimizer(
         TRAIN_CONFIG.WEIGHT_DECAY,
@@ -247,6 +277,9 @@ if __name__ == "__main__":
         (TRAIN_CONFIG.BETA1, TRAIN_CONFIG.BETA2),
         device_type,
     )
+    if args.initialization_type == InitializationType.RESUME:
+        optimizer.load_state_dict(checkpoint['optimizer'])
+    checkpoint = None
 
     # when using DDP and LearnedDropout, compiling the model causes a bug in sagemaker
     if TRAIN_CONFIG.COMPILE and using_DDP and False:
@@ -278,18 +311,24 @@ if __name__ == "__main__":
         return TRAIN_CONFIG.MIN_LR + coeff * (TRAIN_CONFIG.LR - TRAIN_CONFIG.MIN_LR)
 
     if is_master_process:
-        wandb.init(
-            # set the wandb project where this run will be logged
-            project="transformer_dropout",
-            config={
-                **asdict(TRAIN_CONFIG),
-                "params": MODEL_PARAMS,
-                "using_DP": using_DP,
-                "using_DDP": using_DDP,
-                "world_size": ddp_world_size if using_DDP else None,
-            },
-            mode="online",
-        )
+        if wandb_run_id is None:
+            wandb.init(
+                # set the wandb project where this run will be logged
+                project="transformer_dropout",
+                config={
+                    **asdict(TRAIN_CONFIG),
+                    "params": MODEL_PARAMS,
+                    "using_DP": using_DP,
+                    "using_DDP": using_DDP,
+                    "world_size": ddp_world_size if using_DDP else None,
+                },
+                mode="online",
+                resume=True
+            )
+            # wandb_run_id = wandb.util.generate_id()
+            wandb_run_id = None
+        else:
+            wandb.init(resume="must", id=wandb_run_id)
 
     raw_model = model.module if using_DP or using_DDP else model
     model.train()
@@ -301,16 +340,16 @@ if __name__ == "__main__":
         "train",
     )  # fetch the very first batch
     t0 = time.time()
-    for step in range(TRAIN_CONFIG.TRAIN_STEPS):
+    while iter_num < TRAIN_CONFIG.TRAIN_STEPS:
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
-        lr = get_lr(step) if TRAIN_CONFIG.DECAY_LR else TRAIN_CONFIG.LR
+        lr = get_lr(iter_num) if TRAIN_CONFIG.DECAY_LR else TRAIN_CONFIG.LR
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr
 
         if (
-            step % TRAIN_CONFIG.EST_INTERVAL == 0
-            and step != (TRAIN_CONFIG.TRAIN_STEPS - 1)
-            and step != 0
+            iter_num % TRAIN_CONFIG.EST_INTERVAL == 0
+            and iter_num != (TRAIN_CONFIG.TRAIN_STEPS - 1)
+            and iter_num != 0
         ) and is_master_process:
             train_loss, val_loss = estimate_loss(
                 model,
@@ -324,11 +363,27 @@ if __name__ == "__main__":
             )
             wandb.log(
                 {
-                    "est_iter": step,
+                    "est_iter": iter_num,
                     "est_train_loss": train_loss,
                     "est_val_loss": val_loss,
                     "est_lr": lr,
                 }
+            )
+            checkpoint = {
+                    'model': raw_model.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'model_config': asdict(TRAIN_CONFIG.MODEL_CONFIG),
+                    'iter_num': iter_num,
+                    'config': asdict(TRAIN_CONFIG),
+                    "wandb_run_id": wandb_run_id,
+                }
+            torch.save(
+                checkpoint,
+                (
+                    f"transformer_dropout/model_checkpoints/ckpt.pt"
+                    if args.is_local
+                    else os.path.join(os.environ["SM_MODEL_DIR"], "ckpt.pt")
+                ),
             )
 
         running_loss = 0
@@ -380,13 +435,14 @@ if __name__ == "__main__":
         if is_master_process:
             wandb.log(
                 {
-                    "iter": step,
+                    "iter": iter_num,
                     "loss": running_loss,
                     "dropout_entropy": running_entropy,
                     "dropout_l1_norm": running_l1_norm,
                     "time": float(f"{dt*1000:.2f}"),
                 }
             )
+        iter_num += 1
     if is_master_process:
         torch.save(
             {
