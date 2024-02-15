@@ -9,7 +9,7 @@ USE_DROPOUT_L1_NORM_IN_LOSS = True
 USE_LEARNED_DROPOUT = True
 
 # Training config
-BATCH_SIZE = 12
+BATCH_SIZE = 6 # workst with 6, but 12 failed with 2 ml.p4d.24 instances
 TRAIN_STEPS = 600000
 LR = 6e-4
 WARMUP_ITERS = 2000
