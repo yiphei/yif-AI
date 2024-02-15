@@ -121,8 +121,8 @@ class LearnedDropout(nn.Module):
     def __init__(self, dim_in):
         super().__init__()
         self.dim_in = dim_in
-        self.A = nn.Parameter(torch.normal(0, 0.2, size=(dim_in,)))
-        self.B = nn.Parameter(torch.normal(0, 0.2, size=(dim_in,)))
+        self.A = nn.Parameter(torch.normal(0, 0.02, size=(dim_in,)))
+        self.B = nn.Parameter(torch.normal(0, 0.02, size=(dim_in,)))
         self.register_buffer("dropout_entropy", torch.zeros(1))
         self.register_buffer("dropout_l1_norm", torch.zeros(1))
         # self.dropout_entropy = None
