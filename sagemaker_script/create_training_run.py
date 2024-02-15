@@ -27,6 +27,7 @@ parser.add_argument(
     choices=ALL_INSTANCE_TYPES,
 )
 parser.add_argument("--instance_count", type=int)
+parser.add_argument("--notes", type=str, default="")
 args = parser.parse_args()
 
 # Validate config
@@ -69,6 +70,7 @@ pytorch_estimator = PyTorch(
         "config_file": args.config_file,
         "is_local": "False",
     },
+    tags={"notes": args.notes}
 )
 
 pytorch_estimator.fit(
