@@ -249,7 +249,8 @@ if __name__ == "__main__":
         device_type,
     )
 
-    if TRAIN_CONFIG.COMPILE and using_DDP:
+    # when using DDP and LearnedDropout, compiling the model causes a bug in sagemaker
+    if TRAIN_CONFIG.COMPILE and using_DDP and False:
         print("compiling the model... (takes a ~minute)")
         unoptimized_model = model
         model = torch.compile(model)  # requires PyTorch 2.0
