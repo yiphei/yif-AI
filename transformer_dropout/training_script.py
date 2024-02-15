@@ -286,6 +286,7 @@ if __name__ == "__main__":
                 "params": MODEL_PARAMS,
                 "using_DP": using_DP,
                 "using_DDP": using_DDP,
+                "world_size": ddp_world_size if using_DDP else None,
             },
             mode="online",
         )
