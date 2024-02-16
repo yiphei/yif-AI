@@ -455,9 +455,12 @@ if __name__ == "__main__":
     if is_master_process:
         torch.save(
             {
-                "state_dict": raw_model.state_dict(),
-                "hyperparameters": asdict(TRAIN_CONFIG.MODEL_CONFIG),
-                "itoc": None,  # TODO: add decoder
+                "model": raw_model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "model_config": asdict(TRAIN_CONFIG.MODEL_CONFIG),
+                "iter_num": iter_num,
+                "config": asdict(TRAIN_CONFIG),
+                # "itoc": None,  # TODO: add decoder,
             },
             (
                 f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
