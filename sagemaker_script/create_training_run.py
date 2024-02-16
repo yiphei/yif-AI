@@ -6,6 +6,7 @@ import sagemaker
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
 from distutils.util import strtobool
+from datetime import datetime
 
 import wandb
 from transformer_dropout.training_script import TrainConfig
@@ -52,6 +53,14 @@ sagemaker_session = sagemaker.Session(
     sagemaker_runtime_client=sagemaker_runtime_client,
 )
 
+# Annoying that I have to manually create these, but otherwise sagemaker wont allow me to dynamically
+# create a checkpoint directory in the training directory
+s3 = boto3.client('s3', region_name=my_region)
+training_run_dir = f"training_run_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}/"
+checkpoint_dir = "checkpoints/"
+s3.put_object(Bucket=default_bucket, Key=training_run_dir)
+s3.put_object(Bucket=default_bucket, Key= training_run_dir + checkpoint_dir)
+
 pytorch_estimator = PyTorch(
     sagemaker_session=sagemaker_session,
     entry_point="training_script.py",
@@ -72,6 +81,9 @@ pytorch_estimator = PyTorch(
         "config_file": args.config_file,
         "is_local": "False",
     },
+    output_path = f"s3://dropout-transformer/{training_run_dir}",
+    code_location = f"s3://dropout-transformer/{training_run_dir}/code/", # annoying that this has to be specified
+    checkpoint_s3_uri = f"s3://dropout-transformer/{training_run_dir}{checkpoint_dir}",
     use_spot_instances=args.use_spot,
     max_wait = (60 * 60 *24) if args.use_spot else None,
     tags={"notes": args.notes}
