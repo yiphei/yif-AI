@@ -54,7 +54,7 @@ sagemaker_session = sagemaker.Session(
 )
 
 # Annoying that I have to manually create these, but otherwise sagemaker wont allow me to dynamically
-# create a checkpoint directory in the training directory
+# create a checkpoint directory in the output directory at runtime
 s3 = boto3.client("s3", region_name=my_region)
 training_run_dir = f"training_run_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}/"
 checkpoint_dir = "checkpoints/"
