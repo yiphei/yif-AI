@@ -121,7 +121,10 @@ def parse_arguments():
     parser.add_argument("--config_file", type=str)
     parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)), default=True)
     parser.add_argument("--checkpoint_path", type=str, default="/opt/ml/checkpoints")
+    parser.add_argument("--local_checkpoint_path", type=str, default=None)
     args = parser.parse_args()
+    if args.local_checkpoint_path is not None:
+        assert args.is_local
     return args
 
 
@@ -215,12 +218,13 @@ if __name__ == "__main__":
         seed_offset = 0
 
     initialization_type = InitializationType.SCRATCH
+    checkpoint_path = args.local_checkpoint_path if args.is_local else args.checkpoint_path
     ckpt_file_path = None
-    if args.checkpoint_path is not None and not args.is_local:
-        assert os.path.isdir(args.checkpoint_path)
-        if os.path.isfile(os.path.join(args.checkpoint_path, 'ckpt.pt')):
+    if checkpoint_path is not None:
+        assert os.path.isdir(checkpoint_path)
+        if os.path.isfile(os.path.join(checkpoint_path, 'ckpt.pt')):
             initialization_type = InitializationType.RESUME
-            ckpt_file_path = os.path.join(args.checkpoint_path, 'ckpt.pt')
+            ckpt_file_path = os.path.join(checkpoint_path, 'ckpt.pt')
 
     torch.manual_seed(1337 + seed_offset)  # this allows for distributed training data
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
@@ -388,7 +392,7 @@ if __name__ == "__main__":
                 (
                     f"transformer_dropout/model_checkpoints/ckpt.pt"
                     if args.is_local
-                    else os.path.join(args.checkpoint_path, "ckpt.pt")
+                    else os.path.join(checkpoint_path, "ckpt.pt")
                 ),
             )
 
