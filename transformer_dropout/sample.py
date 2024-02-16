@@ -73,13 +73,12 @@ if __name__ == "__main__":
 
     model.eval()    
     model.to(SAMPLE_CONFIG.DEVICE)
-    if compile:
+    if SAMPLE_CONFIG.COMPILE:
         model = torch.compile(model) # requires PyTorch 2.0 (optional)
 
     enc = tiktoken.get_encoding("gtp2")
     encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
     decode = lambda l: enc.decode(l)
-
 
     start_ids = encode(SAMPLE_CONFIG.START_TOKEN)
     x = (torch.tensor(start_ids, dtype=torch.long, device=SAMPLE_CONFIG.DEVICE)[None, ...])
