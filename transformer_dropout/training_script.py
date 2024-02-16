@@ -15,12 +15,12 @@ from pathlib import Path
 import numpy as np
 import torch
 
-# ugly workound to make Sagemaker happy
+# ugly workound to make both Sagemaker, python, and me happy
 try:
-    # Attempt relative import when running as part of a package
+    # I like to run the script from the project root as a module, so it needs to be relative import
     from .model import DropoutTransformer, ModelConfig
 except ImportError:
-    # Fallback to absolute import when running as a standalone script (e.g., in SageMaker)
+    # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
     from model import DropoutTransformer, ModelConfig
 
 import wandb
@@ -99,14 +99,14 @@ class TrainConfig:
         # Filter out built-in items
         config_dict = {k: v for k, v in config_dict.items() if not k.startswith("__")}
 
-        model_config_props = [f.name.upper() for f in fields(ModelConfig)]
+        model_config_fields = [f.name.upper() for f in fields(ModelConfig)]
         model_config_dict = {
-            k.lower(): v for k, v in config_dict.items() if k in model_config_props
+            k.lower(): v for k, v in config_dict.items() if k in model_config_fields
         }
         model_config = ModelConfig(**model_config_dict)
 
         config_dict = {
-            k: v for k, v in config_dict.items() if k not in model_config_props
+            k: v for k, v in config_dict.items() if k not in model_config_fields
         }
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
@@ -253,25 +253,23 @@ if __name__ == "__main__":
     train_data = np.memmap(training_data_file_path, dtype=np.uint16, mode="r")
     val_data = np.memmap(val_date_file_path, dtype=np.uint16, mode="r")
 
-    meta_path = os.path.join(args.train, "meta.pkl")
-    with open(meta_path, "rb") as f:
-        meta = pickle.load(f)
-
-    TRAIN_CONFIG.MODEL_CONFIG.alphabet_size = meta["alphabet_size"]
-
     iter_num = 0
     if initialization_type == InitializationType.SCRATCH:
+        meta_path = os.path.join(args.train, "meta.pkl")
+        with open(meta_path, "rb") as f:
+            meta = pickle.load(f)
+
+        TRAIN_CONFIG.MODEL_CONFIG.alphabet_size = meta["alphabet_size"]
         model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
     else:
         print("Loading checkpoint...")
-        initialization_type == InitializationType.RESUME
+        assert initialization_type == InitializationType.RESUME
         checkpoint = torch.load(ckpt_file_path, map_location=TRAIN_CONFIG.DEVICE)
         TRAIN_CONFIG.MODEL_CONFIG = ModelConfig(**checkpoint["model_config"])
         # create the model
         model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
         state_dict = checkpoint["model"]
-        # fix the keys of the state dictionary :(
-        # honestly no idea how checkpoints sometimes get this prefix, have to debug more
+        # from https://github.com/karpathy/nanoGPT/blob/master/train.py
         unwanted_prefix = "_orig_mod."
         for k, v in list(state_dict.items()):
             if k.startswith(unwanted_prefix):
@@ -293,7 +291,7 @@ if __name__ == "__main__":
         optimizer.load_state_dict(checkpoint["optimizer"])
     checkpoint = None
 
-    # when using DDP and LearnedDropout, compiling the model causes a bug in sagemaker
+    # when using DDP and LearnedDropout, compiling the model causes a bug in sagemaker, so disabling for now
     if TRAIN_CONFIG.COMPILE and using_DDP and False:
         print("compiling the model... (takes a ~minute)")
         unoptimized_model = model
@@ -336,7 +334,7 @@ if __name__ == "__main__":
                 __file__
             ).parent,  # this must be in the same directory as the training script in order to make auto-resumption work
             mode="online",
-            # resume=True,
+            # resume=True, # enables resuming a previous run
         )
 
     raw_model = model.module if using_DP or using_DDP else model
