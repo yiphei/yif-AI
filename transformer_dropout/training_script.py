@@ -375,7 +375,7 @@ if __name__ == "__main__":
                     "est_lr": lr,
                 },
                 step=iter_num,
-                commit=True,
+                # commit=True,
             )
             checkpoint = {
                 "model": raw_model.state_dict(),
@@ -448,7 +448,7 @@ if __name__ == "__main__":
                     "time": float(f"{dt*1000:.2f}"),
                 },
                 step=iter_num,
-                commit=False,
+                # commit=False,
             )
         iter_num += 1
 
