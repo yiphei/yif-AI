@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
 
     checkpoint = torch.load(args.model_path, map_location=SAMPLE_CONFIG.DEVICE)
-    model_config = ModelConfig(**checkpoint['model_args'])
+    model_config = ModelConfig(**checkpoint['model_config'])
     model = DropoutTransformer(model_config)
     state_dict = checkpoint['model']
     unwanted_prefix = '_orig_mod.'
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     if SAMPLE_CONFIG.COMPILE:
         model = torch.compile(model) # requires PyTorch 2.0 (optional)
 
-    enc = tiktoken.get_encoding("gtp2")
+    enc = tiktoken.get_encoding("gpt2")
     encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
     decode = lambda l: enc.decode(l)
 

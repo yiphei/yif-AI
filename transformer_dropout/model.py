@@ -77,7 +77,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=config.bias)
 
         if config.use_learned_dropout:
-            self.dropout_1 = LearnedDropout(config.context_size)
+            self.dropout_1 = LearnedDropout(config.context_size, is_for_attention=True)
             self.dropout_2 = LearnedDropout(self.dim_in)
         else:
             self.dropout_1 = nn.Dropout(config.dropout_rate)
@@ -128,18 +128,24 @@ class OptimizedMultiAttentionHead(nn.Module):
 
 
 class LearnedDropout(nn.Module):
-    def __init__(self, dim_in):
+    def __init__(self, dim_in, is_for_attention = False):
         super().__init__()
+        self.is_for_attention = is_for_attention
         self.dim_in = dim_in
         self.A = nn.Parameter(torch.normal(0, 0.02, size=(dim_in,)))
         self.B = nn.Parameter(torch.normal(0, 0.02, size=(dim_in,)))
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
-        # self.dropout_entropy = None
-        # self.dropout_l1_norm = None
 
     def forward(self, x):
-        dropout_mask = 0.5 * torch.cos(self.A * x + self.B) + 0.5
+        if self.is_for_attention:
+            _, _, T1, T2 = x.shape
+            assert T1 == T2
+            dropout_mask = 0.5 * torch.cos(self.A[:T1] * x + self.B[:T1]) + 0.5
+        else:
+            dropout_mask = 0.5 * torch.cos(self.A * x + self.B) + 0.5
+
+        # TODO: need to add a is_training_flag s.t. these buffers are not calculated during sampling or eval
         self.dropout_entropy = (
             (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean(dim=-1).flatten()
         )
@@ -325,7 +331,7 @@ class DropoutTransformer(nn.Module):
     @torch.no_grad()
     def generate(self, x, max_tokens):
         for _ in range(max_tokens):
-            logits, _, _, _ = self(x[:, -self.context_size :], None)
+            logits, _, _, _ = self(x[:, -self.config.context_size :], None)
             probs = F.softmax(logits[:, -1, :], dim=-1)
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
