@@ -145,13 +145,13 @@ class LearnedDropout(nn.Module):
         else:
             dropout_mask = 0.5 * torch.cos(self.A * x + self.B) + 0.5
 
-        # TODO: need to add a is_training_flag s.t. these buffers are not calculated during sampling or eval
-        self.dropout_entropy = (
-            (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean(dim=-1).flatten()
-        )
-        self.dropout_l1_norm = (
-            torch.norm(dropout_mask, p=1, dim=-1) / self.dim_in
-        ).flatten()
+        if self.training:
+            self.dropout_entropy = (
+                (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean(dim=-1).flatten()
+            )
+            self.dropout_l1_norm = (
+                torch.norm(dropout_mask, p=1, dim=-1) / self.dim_in
+            ).flatten()
         return x * dropout_mask
 
 
@@ -231,7 +231,7 @@ class DropoutTransformer(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def get_mean_dropout_entropy(self):
-        if not self.config.use_learned_dropout:
+        if not self.config.use_learned_dropout or not self.training:
             return None
 
         entropy_list = []
@@ -241,7 +241,7 @@ class DropoutTransformer(nn.Module):
         return torch.cat(entropy_list, dim=0).mean()
 
     def get_mean_dropout_l1_norm(self):
-        if not self.config.use_learned_dropout:
+        if not self.config.use_learned_dropout or not self.training:
             return None
 
         l1_norm_list = []
