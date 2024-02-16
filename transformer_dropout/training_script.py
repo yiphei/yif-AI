@@ -119,7 +119,7 @@ def parse_arguments():
     parser.add_argument("--train_file", type=str)
     parser.add_argument("--val_file", type=str)
     parser.add_argument("--config_file", type=str)
-    parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)))
+    parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)), default=True)
     parser.add_argument("--checkpoint_path", type=str, default="/opt/ml/checkpoints")
     args = parser.parse_args()
     return args
@@ -216,7 +216,7 @@ if __name__ == "__main__":
 
     initialization_type = InitializationType.SCRATCH
     ckpt_file_path = None
-    if args.checkpoint_path is not None:
+    if args.checkpoint_path is not None and not args.is_local:
         assert os.path.isdir(args.checkpoint_path)
         if os.path.isfile(os.path.join(args.checkpoint_path, 'ckpt.pt')):
             initialization_type = InitializationType.RESUME
@@ -271,7 +271,7 @@ if __name__ == "__main__":
             if k.startswith(unwanted_prefix):
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
         model.load_state_dict(state_dict)
-        iter_num = checkpoint['iter_num']
+        iter_num = checkpoint['iter_num'] + 1
         wandb_run_id = checkpoint['wandb_run_id']
 
     model.to(TRAIN_CONFIG.DEVICE)
@@ -369,11 +369,11 @@ if __name__ == "__main__":
             )
             wandb.log(
                 {
-                    "est_iter": iter_num,
                     "est_train_loss": train_loss,
                     "est_val_loss": val_loss,
                     "est_lr": lr,
-                }
+                },
+                step = iter_num
             )
             checkpoint = {
                     'model': raw_model.state_dict(),
@@ -441,12 +441,12 @@ if __name__ == "__main__":
         if is_master_process:
             wandb.log(
                 {
-                    "iter": iter_num,
                     "loss": running_loss,
                     "dropout_entropy": running_entropy,
                     "dropout_l1_norm": running_l1_norm,
                     "time": float(f"{dt*1000:.2f}"),
-                }
+                },
+                step = iter_num
             )
         iter_num += 1
     if is_master_process:
