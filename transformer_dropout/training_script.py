@@ -10,6 +10,7 @@ from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -257,7 +258,6 @@ if __name__ == "__main__":
     TRAIN_CONFIG.MODEL_CONFIG.alphabet_size = meta["alphabet_size"]
 
     iter_num = 0
-    wandb_run_id = None
     if initialization_type == InitializationType.SCRATCH:
         model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
     else:
@@ -276,7 +276,6 @@ if __name__ == "__main__":
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
         model.load_state_dict(state_dict)
         iter_num = checkpoint['iter_num'] + 1
-        wandb_run_id = checkpoint['wandb_run_id']
 
     model.to(TRAIN_CONFIG.DEVICE)
 
@@ -322,23 +321,19 @@ if __name__ == "__main__":
         return TRAIN_CONFIG.MIN_LR + coeff * (TRAIN_CONFIG.LR - TRAIN_CONFIG.MIN_LR)
 
     if is_master_process:
-        if wandb_run_id is None:
-            wandb.init(
-                # set the wandb project where this run will be logged
-                project="transformer_dropout",
-                config={
-                    **asdict(TRAIN_CONFIG),
-                    "params": MODEL_PARAMS,
-                    "using_DP": using_DP,
-                    "using_DDP": using_DDP,
-                    "world_size": ddp_world_size if using_DDP else None,
-                },
-                mode="online",
-            )
-            # wandb_run_id = wandb.util.generate_id()
-            wandb_run_id = None
-        else:
-            wandb.init(resume="must", id=wandb_run_id)
+        wandb.init(
+            project="transformer_dropout",
+            config={
+                **asdict(TRAIN_CONFIG),
+                "params": MODEL_PARAMS,
+                "using_DP": using_DP,
+                "using_DDP": using_DDP,
+                "world_size": ddp_world_size if using_DDP else None,
+            },
+            dir=Path(__file__).parent, # this must be in the same directory as the training script in order to make auto-resumption work
+            mode="online",
+            # resume=True,
+        )
 
     raw_model = model.module if using_DP or using_DDP else model
     model.train()
@@ -377,7 +372,8 @@ if __name__ == "__main__":
                     "est_val_loss": val_loss,
                     "est_lr": lr,
                 },
-                step = iter_num
+                step = iter_num,
+                commit = True,
             )
             checkpoint = {
                     'model': raw_model.state_dict(),
@@ -385,7 +381,6 @@ if __name__ == "__main__":
                     'model_config': asdict(TRAIN_CONFIG.MODEL_CONFIG),
                     'iter_num': iter_num,
                     'config': asdict(TRAIN_CONFIG),
-                    "wandb_run_id": wandb_run_id,
                 }
             torch.save(
                 checkpoint,
@@ -450,9 +445,11 @@ if __name__ == "__main__":
                     "dropout_l1_norm": running_l1_norm,
                     "time": float(f"{dt*1000:.2f}"),
                 },
-                step = iter_num
+                step = iter_num,
+                commit = False
             )
         iter_num += 1
+
     if is_master_process:
         torch.save(
             {
