@@ -61,10 +61,10 @@ if __name__ == "__main__":
     ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 
-    checkpoint = torch.load(args.model_path, map_location=SAMPLE_CONFIG.DEVICE)
-    model_config = ModelConfig(**checkpoint['model_config'])
+    model_dict = torch.load(args.model_path, map_location=SAMPLE_CONFIG.DEVICE)
+    model_config = ModelConfig(**model_dict['model_config'])
     model = DropoutTransformer(model_config)
-    state_dict = checkpoint['model']
+    state_dict = model_dict['model']
     unwanted_prefix = '_orig_mod.'
     for k,v in list(state_dict.items()):
         if k.startswith(unwanted_prefix):
