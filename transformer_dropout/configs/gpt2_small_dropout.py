@@ -9,12 +9,14 @@ USE_DROPOUT_L1_NORM_IN_LOSS = True
 USE_LEARNED_DROPOUT = True
 
 # Training config
-BATCH_SIZE = 6 # works at 6, but failed at 9 and 7 with 1 instance of ml.p4d.24
+BATCH_SIZE = 6  # works at 6, but failed at 9 and 7 with 1 instance of ml.p4d.24
 TRAIN_STEPS = 600000
 LR = 6e-4
 WARMUP_ITERS = 2000
 MIN_LR = 6e-5
-GRADIENT_ACCUMULATION_STEPS = 1 * 8 # gpt2_baseline has 5*8 but this uses 2*8 because it has bigger memory footprint
+GRADIENT_ACCUMULATION_STEPS = (
+    1 * 8
+)  # gpt2_baseline has 5*8 but this uses 2*8 because it has bigger memory footprint
 LR_DECAY_ITERS = 600000
 
 # Estimation config

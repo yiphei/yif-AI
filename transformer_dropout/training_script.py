@@ -23,9 +23,8 @@ except ImportError:
     # Fallback to absolute import when running as a standalone script (e.g., in SageMaker)
     from model import DropoutTransformer, ModelConfig
 
-from torch.distributed import destroy_process_group, init_process_group
-
 import wandb
+from torch.distributed import destroy_process_group, init_process_group
 
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
@@ -36,6 +35,7 @@ def require_field_exception():
 class InitializationType(Enum):
     SCRATCH = "scratch"
     RESUME = "resume"
+
 
 @dataclass
 class TrainConfig:
@@ -219,13 +219,15 @@ if __name__ == "__main__":
         seed_offset = 0
 
     initialization_type = InitializationType.SCRATCH
-    checkpoint_path = args.local_checkpoint_path if args.is_local else args.checkpoint_path
+    checkpoint_path = (
+        args.local_checkpoint_path if args.is_local else args.checkpoint_path
+    )
     ckpt_file_path = None
     if checkpoint_path is not None:
         assert os.path.isdir(checkpoint_path)
-        if os.path.isfile(os.path.join(checkpoint_path, 'ckpt.pt')):
+        if os.path.isfile(os.path.join(checkpoint_path, "ckpt.pt")):
             initialization_type = InitializationType.RESUME
-            ckpt_file_path = os.path.join(checkpoint_path, 'ckpt.pt')
+            ckpt_file_path = os.path.join(checkpoint_path, "ckpt.pt")
 
     torch.manual_seed(1337 + seed_offset)  # this allows for distributed training data
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
@@ -264,18 +266,18 @@ if __name__ == "__main__":
         print("Loading checkpoint...")
         initialization_type == InitializationType.RESUME
         checkpoint = torch.load(ckpt_file_path, map_location=TRAIN_CONFIG.DEVICE)
-        TRAIN_CONFIG.MODEL_CONFIG = ModelConfig(**checkpoint['model_config'])
+        TRAIN_CONFIG.MODEL_CONFIG = ModelConfig(**checkpoint["model_config"])
         # create the model
         model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
-        state_dict = checkpoint['model']
+        state_dict = checkpoint["model"]
         # fix the keys of the state dictionary :(
         # honestly no idea how checkpoints sometimes get this prefix, have to debug more
-        unwanted_prefix = '_orig_mod.'
-        for k,v in list(state_dict.items()):
+        unwanted_prefix = "_orig_mod."
+        for k, v in list(state_dict.items()):
             if k.startswith(unwanted_prefix):
-                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+                state_dict[k[len(unwanted_prefix) :]] = state_dict.pop(k)
         model.load_state_dict(state_dict)
-        iter_num = checkpoint['iter_num'] + 1
+        iter_num = checkpoint["iter_num"] + 1
 
     model.to(TRAIN_CONFIG.DEVICE)
 
@@ -288,7 +290,7 @@ if __name__ == "__main__":
         device_type,
     )
     if initialization_type == InitializationType.RESUME:
-        optimizer.load_state_dict(checkpoint['optimizer'])
+        optimizer.load_state_dict(checkpoint["optimizer"])
     checkpoint = None
 
     # when using DDP and LearnedDropout, compiling the model causes a bug in sagemaker
@@ -330,7 +332,9 @@ if __name__ == "__main__":
                 "using_DDP": using_DDP,
                 "world_size": ddp_world_size if using_DDP else None,
             },
-            dir=Path(__file__).parent, # this must be in the same directory as the training script in order to make auto-resumption work
+            dir=Path(
+                __file__
+            ).parent,  # this must be in the same directory as the training script in order to make auto-resumption work
             mode="online",
             # resume=True,
         )
@@ -372,16 +376,16 @@ if __name__ == "__main__":
                     "est_val_loss": val_loss,
                     "est_lr": lr,
                 },
-                step = iter_num,
-                commit = True,
+                step=iter_num,
+                commit=True,
             )
             checkpoint = {
-                    'model': raw_model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'model_config': asdict(TRAIN_CONFIG.MODEL_CONFIG),
-                    'iter_num': iter_num,
-                    'config': asdict(TRAIN_CONFIG),
-                }
+                "model": raw_model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "model_config": asdict(TRAIN_CONFIG.MODEL_CONFIG),
+                "iter_num": iter_num,
+                "config": asdict(TRAIN_CONFIG),
+            }
             torch.save(
                 checkpoint,
                 (
@@ -445,8 +449,8 @@ if __name__ == "__main__":
                     "dropout_l1_norm": running_l1_norm,
                     "time": float(f"{dt*1000:.2f}"),
                 },
-                step = iter_num,
-                commit = False
+                step=iter_num,
+                commit=False,
             )
         iter_num += 1
 

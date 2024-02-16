@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+
 @dataclass
 class ModelConfig:
     context_size: int
@@ -25,7 +26,10 @@ class ModelConfig:
 
     def __post_init__(self):
         if not self.use_learned_dropout and (
-            self.use_dropout_entropy_in_loss or self.use_dropout_l1_norm_in_loss or self.dropout_entropy_lambda or self.dropout_l1_norm_lambda
+            self.use_dropout_entropy_in_loss
+            or self.use_dropout_l1_norm_in_loss
+            or self.dropout_entropy_lambda
+            or self.dropout_l1_norm_lambda
         ):
             raise ValueError(
                 "use_dropout_entropy_in_loss and use_dropout_l1_norm_in_loss require use_learned_dropout"
@@ -38,7 +42,7 @@ class ModelConfig:
             )
         elif not self.use_learned_dropout and self.dropout_rate is None:
             raise ValueError("dropout_rate must be set if not use_learned_dropout")
-        
+
         if self.use_learned_dropout and self.dropout_entropy_lambda is None:
             self.dropout_entropy_lambda = 1.0
         if self.use_learned_dropout and self.dropout_l1_norm_lambda is None:
@@ -139,7 +143,9 @@ class LearnedDropout(nn.Module):
         self.dropout_entropy = (
             (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean(dim=-1).flatten()
         )
-        self.dropout_l1_norm = (torch.norm(dropout_mask, p=1, dim=-1)/ self.dim_in).flatten()
+        self.dropout_l1_norm = (
+            torch.norm(dropout_mask, p=1, dim=-1) / self.dim_in
+        ).flatten()
         return x * dropout_mask
 
 
