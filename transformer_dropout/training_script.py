@@ -462,7 +462,7 @@ if __name__ == "__main__":
             (
                 f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
                 if args.is_local
-                else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth")
+                else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth") # this is not currently working on Sagemaker
             ),
         )
 
