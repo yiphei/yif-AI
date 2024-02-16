@@ -119,8 +119,8 @@ def parse_arguments():
     parser.add_argument("--train_file", type=str)
     parser.add_argument("--val_file", type=str)
     parser.add_argument("--config_file", type=str)
-    parser.add_argument("--checkpoint_path", type=str, default = None)
     parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)))
+    parser.add_argument("--checkpoint_path", type=str, default="/opt/ml/checkpoints")
     args = parser.parse_args()
     return args
 
@@ -183,14 +183,6 @@ if __name__ == "__main__":
     logger.info("Starting training script.")
 
     args = parse_arguments()
-    initialization_type = InitializationType.SCRATCH
-    ckpt_file_path = None
-    if args.checkpoint_path is not None:
-        assert os.path.isdir(args.checkpoint_path)
-        if os.path.isfile(os.path.join(args.checkpoint_path, 'ckpt.pt')):
-            initialization_type = InitializationType.RESUME
-            ckpt_file_path = os.path.join(args.checkpoint_path, 'ckpt.pt')
-
     TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file)
 
     using_DDP = (
@@ -221,6 +213,14 @@ if __name__ == "__main__":
     else:
         is_master_process = True
         seed_offset = 0
+
+    initialization_type = InitializationType.SCRATCH
+    ckpt_file_path = None
+    if args.checkpoint_path is not None:
+        assert os.path.isdir(args.checkpoint_path)
+        if os.path.isfile(os.path.join(args.checkpoint_path, 'ckpt.pt')):
+            initialization_type = InitializationType.RESUME
+            ckpt_file_path = os.path.join(args.checkpoint_path, 'ckpt.pt')
 
     torch.manual_seed(1337 + seed_offset)  # this allows for distributed training data
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
