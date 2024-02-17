@@ -10,13 +10,8 @@ def model_fn(model_dir):
     """
     Load the PyTorch model from the `model_dir` directory.
     """
-    print("YIFEII - MODEL_FN")
-    print("YIFEII - Loading model.")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print("YIFEII  - DEVICE")
-    print(model_dir)
     model_dict = torch.load(os.path.join(model_dir, 'model.pth'), map_location=device)
-    print("YIFEII  - LOADED")
     model_config = ModelConfig(**model_dict['model_config'])
     model = DropoutTransformer(model_config)
     state_dict = model_dict['model']
@@ -27,19 +22,15 @@ def model_fn(model_dir):
     model.load_state_dict(state_dict)
     model.eval()    
     model.to(device)
-    print("YIFEII  - DONEEEEE")
+    model_dict = None
     return model
 
 def input_fn(request_body, request_content_type):
     """
     Deserialize and prepare the prediction input.
     """
-    print("YIFEII - INPUT_FN")
     if request_content_type == 'application/json':
         # Assuming JSON inputs. Adjust as necessary.
-        print("YIFEII-input_fn")
-        print(request_body)
-        print(json.loads(request_body))
         return json.loads(request_body)
     else:
         # Handle other content-types here or raise an exception
@@ -49,7 +40,8 @@ def predict_fn(input_data, model):
     """
     Generate model predictions.
     """
-    print("YIFEII - PREDICT_FN")
+    torch.manual_seed(input_data["seed"])
+    torch.cuda.manual_seed(input_data["seed"])
     dtype = "bfloat16" if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "float16"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
@@ -58,7 +50,6 @@ def predict_fn(input_data, model):
     ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
     ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     enc = tiktoken.get_encoding("gpt2")
     encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
     decode = lambda l: enc.decode(l)
