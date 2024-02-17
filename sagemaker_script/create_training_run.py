@@ -96,3 +96,11 @@ pytorch_estimator.fit(
 
 # pytorch_model = pytorch_estimator.create_model(entry_point = 'inference.py')
 # sagemaker_session.create_model(name="test-model", role = role, container_defs=pytorch_model.prepare_container_def('ml.c5.9xlarge'))
+
+
+# model = pytorch_estimator.create_model(entry_point="inference.py", source_dir=SOURCE_DIR)
+
+# # Deploy the model to a ml.m4.xlarge instance
+# predictor = model.deploy(initial_instance_count=1, instance_type=args.instance_type)
+# print("MODEL_DEPLOYED. NOW PREDICTING")
+# response = predictor.predict({"instances": [1.0, 2.0, 5.0]})
