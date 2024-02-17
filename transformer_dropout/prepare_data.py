@@ -33,8 +33,8 @@ def get_encoding_fn(encoder_type: EncoderType, data: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--file", type=str)
-    parser.add_argument("--encoder", type=EncoderType)
+    parser.add_argument("--file", type=str, required=True)
+    parser.add_argument("--encoder", type=EncoderType, required=True)
     args = parser.parse_args()
 
     with open(args.file, "r") as f:

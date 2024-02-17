@@ -19,12 +19,13 @@ GPU_INSTANCE_TYPES = [
 ALL_INSTANCE_TYPES = GPU_INSTANCE_TYPES + ["ml.c5.18xlarge"]
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--endpoint_name", type=str)
+parser.add_argument("--endpoint_name", type=str, default=None)
 parser.add_argument("--model_name", type=str, default=None)
 parser.add_argument(
     "--instance_type",
     type=str,
     choices=ALL_INSTANCE_TYPES,
+    required=True,
 )
 args = parser.parse_args()
 
@@ -48,7 +49,7 @@ pytorch_model = PyTorchModel(
     role = role,
     name = args.model_name,
     sagemaker_session=sagemaker_session,
-    model_data='s3://dropout-transformer/training_run_12-42-32-16-02-24/pytorch-training-2024-02-16-20-42-33-036/output/model.tar.gz',  # S3 path to your trained model artifacts
+    model_data='s3://dropout-transformer/training_run_20-27-17-16-02-24/pytorch-training-2024-02-17-04-27-18-320/output/model.tar.gz',  # S3 path to your trained model artifacts
     entry_point='inference.py',  # Your inference script
     source_dir='transformer_dropout/',  # Directory containing your model.py and any other necessary files
     framework_version='2.1.0',  # Version of PyTorch you're using

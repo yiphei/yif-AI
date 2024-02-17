@@ -116,10 +116,10 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
-    parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"))
-    parser.add_argument("--train_file", type=str)
-    parser.add_argument("--val_file", type=str)
-    parser.add_argument("--config_file", type=str)
+    parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"), required=True)
+    parser.add_argument("--train_file", type=str, required=True)
+    parser.add_argument("--val_file", type=str, required=True)
+    parser.add_argument("--config_file", type=str, required = True)
     parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)), default=True)
     parser.add_argument("--checkpoint_path", type=str, default="/opt/ml/checkpoints")
     parser.add_argument("--local_checkpoint_path", type=str, default=None)
