@@ -12,7 +12,10 @@ def model_fn(model_dir):
     print("YIFEII - MODEL_FN")
     print("YIFEII - Loading model.")
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print("YIFEII  - DEVICE")
+    print(model_dir)
     model_dict = torch.load(model_dir, map_location=device)
+    print("YIFEII  - LOADED")
     model_config = ModelConfig(**model_dict['model_config'])
     model = DropoutTransformer(model_config)
     state_dict = model_dict['model']
@@ -23,6 +26,7 @@ def model_fn(model_dir):
     model.load_state_dict(state_dict)
     model.eval()    
     model.to(device)
+    print("YIFEII  - DONEEEEE")
     return model
 
 # def input_fn(request_body, request_content_type):
