@@ -27,6 +27,7 @@ parser.add_argument(
     choices=ALL_INSTANCE_TYPES,
     required=True,
 )
+parser.add_argument("--model_uri", type=str, required=True)
 args = parser.parse_args()
 
 
@@ -49,7 +50,7 @@ pytorch_model = PyTorchModel(
     role = role,
     name = args.model_name,
     sagemaker_session=sagemaker_session,
-    model_data='s3://dropout-transformer/training_run_14-01-10-17-02-24/pytorch-training-2024-02-17-22-01-11-367/output/model.tar.gz',  # S3 path to your trained model artifacts
+    model_data=args.model_uri,  # S3 path to your trained model artifacts
     entry_point='inference.py',  # Your inference script
     source_dir='transformer_dropout/',  # Directory containing your model.py and any other necessary files
     framework_version='2.1.0',  # Version of PyTorch you're using
