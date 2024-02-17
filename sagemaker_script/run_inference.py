@@ -22,7 +22,7 @@ sagemaker_session = sagemaker.Session(
 )
 
 # Specify your endpoint name
-endpoint_name = 'cccccc'
+endpoint_name = 'aaaaaaa'
 # Initialize the predictor
 predictor = Predictor(endpoint_name=endpoint_name, sagemaker_session=sagemaker_session, serializer = JSONSerializer())
 result = predictor.predict({"instances": [1.0, 2.0, 5.0]})
