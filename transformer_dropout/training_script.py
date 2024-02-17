@@ -116,7 +116,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
-    parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"), required=True)
+    parser.add_argument("--train", type=str)
     parser.add_argument("--train_file", type=str, required=True)
     parser.add_argument("--val_file", type=str, required=True)
     parser.add_argument("--config_file", type=str, required = True)
@@ -126,6 +126,11 @@ def parse_arguments():
     args = parser.parse_args()
     if args.local_checkpoint_path is not None:
         assert args.is_local
+    
+    if not args.is_local:
+        args.train = os.environ.get("SM_CHANNEL_TRAIN")
+    else:
+        assert args.train is not None
     return args
 
 
