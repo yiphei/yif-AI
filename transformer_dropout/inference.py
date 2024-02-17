@@ -39,7 +39,11 @@ def model_fn(model_dir):
     Load the PyTorch model from the `model_dir` directory.
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model_dict = torch.load(os.path.join(model_dir, 'model.pth'), map_location=device)
+    if os.path.isfile(os.path.join(model_dir, 'model.pth')):
+        model_dict = torch.load(os.path.join(model_dir, 'model.pth'), map_location=device)
+    else:
+        model_dict = torch.load(os.path.join(model_dir, 'ckpt.pt'), map_location=device)
+
     model_config = ModelConfig(**model_dict['model_config'])
     model = DropoutTransformer(model_config)
     state_dict = model_dict['model']
