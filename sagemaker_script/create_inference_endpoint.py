@@ -45,6 +45,7 @@ sagemaker_session = sagemaker.Session(
 )
 
 pytorch_model = PyTorchModel(
+    role = role,
     name = args.model_name,
     sagemaker_session=sagemaker_session,
     model_data='s3://dropout-transformer/training_run_12-42-32-16-02-24/pytorch-training-2024-02-16-20-42-33-036/output/model.tar.gz',  # S3 path to your trained model artifacts
@@ -54,4 +55,4 @@ pytorch_model = PyTorchModel(
     py_version='py310',  # Python version
 )
 
-predictor = pytorch_model.deploy(instance_type=args.instance_type, initial_instance_count=1)
+predictor = pytorch_model.deploy(endpoint_name = args.endpoint_name,instance_type=args.instance_type, initial_instance_count=1)
