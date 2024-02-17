@@ -22,13 +22,14 @@ GPU_INSTANCE_TYPES = [
 ALL_INSTANCE_TYPES = GPU_INSTANCE_TYPES + ["ml.c5.18xlarge"]
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--config_file", type=str)
+parser.add_argument("--config_file", type=str, required=True)
 parser.add_argument(
     "--instance_type",
     type=str,
     choices=ALL_INSTANCE_TYPES,
+    required=True,
 )
-parser.add_argument("--instance_count", type=int)
+parser.add_argument("--instance_count", type=int, required=True)
 parser.add_argument("--notes", type=str, default="")
 parser.add_argument("--use_spot", type=lambda v: bool(strtobool(v)), default=False)
 args = parser.parse_args()
