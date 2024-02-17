@@ -31,7 +31,6 @@ args = parser.parse_args()
 
 load_dotenv()
 role = os.getenv("SAGEMAKER_ROLE")
-wandb.sagemaker_auth(path="transformer_dropout")
 my_region = "us-east-1"
 
 # Creating the sagemaker client using boto3
