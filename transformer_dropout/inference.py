@@ -30,7 +30,10 @@ def input_fn(request_body, request_content_type):
     """
     if request_content_type == 'application/json':
         # Assuming JSON inputs. Adjust as necessary.
+        print("YIFEII-input_fn")
+        print(request_body)
         input_data = torch.tensor([json.loads(request_body)])
+        print(input_data)
         return input_data
     else:
         # Handle other content-types here or raise an exception
@@ -63,6 +66,8 @@ def predict_fn(input_data, model):
             for k in range(1):
                 y = model.generate(x, 10000)
                 predictions.append(decode(y[0].tolist()))
+
+    return predictions
 
 def output_fn(prediction_output, accept='application/json'):
     """
