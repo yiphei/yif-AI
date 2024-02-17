@@ -9,7 +9,8 @@ def model_fn(model_dir):
     """
     Load the PyTorch model from the `model_dir` directory.
     """
-    print("Loading model.")
+    print("YIFEII - MODEL_FN")
+    print("YIFEII - Loading model.")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model_dict = torch.load(model_dir, map_location=device)
     model_config = ModelConfig(**model_dict['model_config'])
@@ -28,6 +29,7 @@ def input_fn(request_body, request_content_type):
     """
     Deserialize and prepare the prediction input.
     """
+    print("YIFEII - INPUT_FN")
     if request_content_type == 'application/json':
         # Assuming JSON inputs. Adjust as necessary.
         print("YIFEII-input_fn")
@@ -43,6 +45,7 @@ def predict_fn(input_data, model):
     """
     Generate model predictions.
     """
+    print("YIFEII - PREDICT_FN")
     dtype = "bfloat16" if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "float16"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
@@ -73,6 +76,7 @@ def output_fn(prediction_output, accept='application/json'):
     """
     Serialize and prepare the prediction output.
     """
+    print("YIFEII - OUTPUT_FN")
     if accept == 'application/json':
         # Convert prediction output to JSON or other formats as needed
         response_body = json.dumps(prediction_output.tolist())
