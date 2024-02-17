@@ -39,9 +39,8 @@ def input_fn(request_body, request_content_type):
         # Assuming JSON inputs. Adjust as necessary.
         print("YIFEII-input_fn")
         print(request_body)
-        input_data = torch.tensor([json.loads(request_body)])
-        print(input_data)
-        return input_data
+        print(json.loads(request_body))
+        return json.loads(request_body)
     else:
         # Handle other content-types here or raise an exception
         raise ValueError(f"Unsupported content type: {request_content_type}")
@@ -64,7 +63,7 @@ def predict_fn(input_data, model):
     encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
     decode = lambda l: enc.decode(l)
 
-    start_ids = encode(input_data)
+    start_ids = encode(input_data["input_tokens"])
     x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
 
     predictions = []
@@ -72,7 +71,7 @@ def predict_fn(input_data, model):
     with torch.no_grad():
         with ctx:
             for k in range(1):
-                y = model.generate(x, 10000)
+                y = model.generate(x, input_data["max_tokens"])
                 predictions.append(decode(y[0].tolist()))
 
     return predictions
@@ -84,7 +83,8 @@ def output_fn(prediction_output, accept='application/json'):
     print("YIFEII - OUTPUT_FN")
     if accept == 'application/json':
         # Convert prediction output to JSON or other formats as needed
-        response_body = json.dumps(prediction_output.tolist())
+        response_dict = {f"pred_{str(i)}": pred for i, pred in enumerate(prediction_output)}
+        response_body = json.dumps(response_dict)
         return response_body
     else:
         raise ValueError(f"Unsupported accept type: {accept}")

@@ -3,6 +3,7 @@ import os
 import boto3
 import sagemaker
 from sagemaker.serializers import JSONSerializer
+from sagemaker.deserializers import JSONDeserializer
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -23,7 +24,7 @@ sagemaker_session = sagemaker.Session(
     sagemaker_runtime_client=sagemaker_runtime_client,
 )
 
-predictor = PyTorchPredictor(endpoint_name=args.endpoint_name, sagemaker_session=sagemaker_session, serializer = JSONSerializer())
-result = predictor.predict({"instances": [1.0, 2.0, 5.0]})
+predictor = PyTorchPredictor(endpoint_name=args.endpoint_name, sagemaker_session=sagemaker_session, serializer = JSONSerializer(), deserializer = JSONDeserializer())
+result = predictor.predict({"input_tokens": "\n", "max_tokens": 1000})
 # The response format depends on the `output_fn` in your inference script
 print(result)
