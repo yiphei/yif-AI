@@ -56,15 +56,13 @@ def predict_fn(input_data, model):
     start_ids = encode(input_data)
     x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
 
+    predictions = []
     # run generation
     with torch.no_grad():
         with ctx:
             for k in range(1):
                 y = model.generate(x, 10000)
-                print(decode(y[0].tolist()))
-                print('---------------')
-
-
+                predictions.append(decode(y[0].tolist()))
 
 def output_fn(prediction_output, accept='application/json'):
     """
@@ -76,5 +74,3 @@ def output_fn(prediction_output, accept='application/json'):
         return response_body
     else:
         raise ValueError(f"Unsupported accept type: {accept}")
-
-# Additional utility functions as needed from sample.py, such as encoding/decoding
