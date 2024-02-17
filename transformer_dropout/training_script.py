@@ -11,6 +11,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
+import tarfile
 
 import numpy as np
 import torch
@@ -160,6 +161,17 @@ def get_data_batch(device, device_type, context_size, batch_size, split="train")
         x, y = x.to(device), y.to(device)
     return x, y
 
+
+def save_checkpoint(checkpoint, checkpoint_path, is_local):
+    uncompressed_checkpoint_path = os.path.join(checkpoint_path, "ckpt.pt")
+    # Save the uncompressed checkpoint
+    torch.save(checkpoint, uncompressed_checkpoint_path)
+    
+    if not is_local:
+        compressed_checkpoint_path = os.path.join(checkpoint_path, "ckpt.tar.gz")
+        # Compress and save the checkpoint
+        with tarfile.open(compressed_checkpoint_path, "w:gz") as tar:
+            tar.add(uncompressed_checkpoint_path, arcname="ckpt.pt")
 
 @torch.no_grad()
 def estimate_loss(
@@ -389,14 +401,8 @@ if __name__ == "__main__":
                 "iter_num": iter_num,
                 "config": asdict(TRAIN_CONFIG),
             }
-            torch.save(
-                checkpoint,
-                (
-                    f"transformer_dropout/model_checkpoints/ckpt.pt"
-                    if args.is_local
-                    else os.path.join(checkpoint_path, "ckpt.pt")
-                ),
-            )
+
+            save_checkpoint(checkpoint,"transformer_dropout/model_checkpoints/" if args.is_local else checkpoint_path, args.is_local)
 
         running_loss = 0
         running_entropy = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
