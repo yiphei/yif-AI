@@ -55,4 +55,4 @@ pytorch_model = PyTorchModel(
     py_version='py310',  # Python version
 )
 
-predictor = pytorch_model.deploy(endpoint_name = args.endpoint_name,instance_type=args.instance_type, initial_instance_count=1)
+pytorch_model.deploy(endpoint_name = args.endpoint_name,instance_type=args.instance_type, initial_instance_count=1)
