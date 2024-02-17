@@ -25,6 +25,6 @@ sagemaker_session = sagemaker.Session(
 )
 
 predictor = PyTorchPredictor(endpoint_name=args.endpoint_name, sagemaker_session=sagemaker_session, serializer = JSONSerializer(), deserializer = JSONDeserializer())
-result = predictor.predict({"input_tokens": "\n", "max_tokens": 1000})
+result = predictor.predict({"start_tokens": "\n", "max_tokens": 1000})
 # The response format depends on the `output_fn` in your inference script
 print(result)
