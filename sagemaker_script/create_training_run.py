@@ -8,6 +8,7 @@ import sagemaker
 import wandb
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
+from botocore.exceptions import ClientError
 
 from transformer_dropout.training_script import TrainConfig
 
@@ -32,6 +33,9 @@ parser.add_argument(
 parser.add_argument("--instance_count", type=int, required=True)
 parser.add_argument("--notes", type=str, default="")
 parser.add_argument("--use_spot", type=lambda v: bool(strtobool(v)), default=False)
+parser.add_argument("--train", type=str, required=True)
+parser.add_argument("--train_file", type=str, required=True)
+parser.add_argument("--val_file", type=str, required=True)
 args = parser.parse_args()
 
 # Validate config
@@ -57,6 +61,23 @@ sagemaker_session = sagemaker.Session(
 # Annoying that I have to manually create these, but otherwise sagemaker wont allow me to dynamically
 # create a checkpoint directory in the output directory at runtime
 s3 = boto3.client("s3", region_name=my_region)
+
+
+def is_s3_file(bucket_name, key):
+    """Check if the key is a file in S3."""
+    try:
+        s3.head_object(Bucket=bucket_name, Key=key)
+    except ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == '404':
+            # The object does not exist
+            raise ValueError(f"{key} does not exist in {bucket_name}")
+        else:
+            raise
+
+is_s3_file(default_bucket, f"datasets/{args.train}/{args.train_file}")
+is_s3_file(default_bucket, f"datasets/{args.train}/{args.val_file}")
+
 training_run_dir = f"training_run_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}/"
 checkpoint_dir = "checkpoints/"
 s3.put_object(Bucket=default_bucket, Key=training_run_dir)
@@ -77,8 +98,8 @@ pytorch_estimator = PyTorch(
         else None
     ),
     hyperparameters={
-        "train_file": "full_harry_potter_train.bin",
-        "val_file": "full_harry_potter_val.bin",
+        "train_file": args.train_file,
+        "val_file": args.val_file,
         "config_file": args.config_file,
         "is_local": "False",
     },
@@ -91,7 +112,7 @@ pytorch_estimator = PyTorch(
 )
 
 pytorch_estimator.fit(
-    {"train": "s3://dropout-transformer/datasets/full_harry_potter/"}
+    {"train": f"s3://dropout-transformer/datasets/{args.train}/"}
 )  # add wait=False if you want to run asynchronously
 
 # pytorch_model = pytorch_estimator.create_model(entry_point = 'inference.py')
