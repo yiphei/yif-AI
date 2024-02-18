@@ -138,12 +138,23 @@ def get_data_batch(train_data, val_data, device, device_type, context_size, batc
         x, y = x.to(device), y.to(device)
     return x, y
 
+def get_torch_save_dict(raw_model, optimizer, train_config, iter_num):
+    return             {
+                "model": raw_model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "model_config": asdict(train_config.MODEL_CONFIG),
+                "iter_num": iter_num,
+                "config": asdict(train_config),
+                # "itoc": None,  # TODO: add decoder,
+            },
+
 
 def save_checkpoint(checkpoint, checkpoint_path, is_local):
     uncompressed_checkpoint_path = os.path.join(checkpoint_path, "ckpt.pt")
     # Save the uncompressed checkpoint
     torch.save(checkpoint, uncompressed_checkpoint_path)
 
+    # Creating a sagemaker model afterwards with the checkpoint requires it to be compressed
     if not is_local:
         compressed_checkpoint_path = os.path.join(checkpoint_path, "ckpt.tar.gz")
         # Compress and save the checkpoint
@@ -374,16 +385,8 @@ def train(args):
                 step=iter_num,
                 # commit=True,
             )
-            checkpoint = {
-                "model": raw_model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "model_config": asdict(TRAIN_CONFIG.MODEL_CONFIG),
-                "iter_num": iter_num,
-                "config": asdict(TRAIN_CONFIG),
-            }
-
             save_checkpoint(
-                checkpoint,
+                get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num),
                 (
                     "transformer_dropout/model_checkpoints/"
                     if args.is_local
@@ -455,14 +458,8 @@ def train(args):
 
     if is_master_process:
         torch.save(
-            {
-                "model": raw_model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "model_config": asdict(TRAIN_CONFIG.MODEL_CONFIG),
-                "iter_num": iter_num,
-                "config": asdict(TRAIN_CONFIG),
-                # "itoc": None,  # TODO: add decoder,
-            },
+            get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num)
+            ,
             (
                 f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
                 if args.is_local
