@@ -62,8 +62,16 @@ s3 = boto3.client("s3", region_name=my_region)
 # List objects within the specified S3 prefix
 response = s3.list_objects_v2(Bucket=default_bucket, Prefix=args.train)
 # Filter for files that end with '_train.bin'
-train_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('_train.bin')]
-val_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('_val.bin')]
+train_files = [
+    obj["Key"]
+    for obj in response.get("Contents", [])
+    if obj["Key"].endswith("_train.bin")
+]
+val_files = [
+    obj["Key"]
+    for obj in response.get("Contents", [])
+    if obj["Key"].endswith("_val.bin")
+]
 assert len(train_files) == 1 and len(val_files) == 1
 
 training_run_dir = f"training_run_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}/"
