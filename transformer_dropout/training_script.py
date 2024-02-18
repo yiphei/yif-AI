@@ -4,6 +4,7 @@ import math
 import os
 import pickle
 import sys
+import tarfile
 import time
 from contextlib import nullcontext
 from dataclasses import asdict, dataclass, field, fields
@@ -11,7 +12,6 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
-import tarfile
 
 import numpy as np
 import torch
@@ -120,14 +120,14 @@ def parse_arguments():
     parser.add_argument("--train", type=str)
     parser.add_argument("--train_file", type=str, required=True)
     parser.add_argument("--val_file", type=str, required=True)
-    parser.add_argument("--config_file", type=str, required = True)
+    parser.add_argument("--config_file", type=str, required=True)
     parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)), default=True)
     parser.add_argument("--checkpoint_path", type=str, default="/opt/ml/checkpoints")
     parser.add_argument("--local_checkpoint_path", type=str, default=None)
     args = parser.parse_args()
     if args.local_checkpoint_path is not None:
         assert args.is_local
-    
+
     if not args.is_local:
         args.train = os.environ.get("SM_CHANNEL_TRAIN")
     else:
@@ -166,12 +166,13 @@ def save_checkpoint(checkpoint, checkpoint_path, is_local):
     uncompressed_checkpoint_path = os.path.join(checkpoint_path, "ckpt.pt")
     # Save the uncompressed checkpoint
     torch.save(checkpoint, uncompressed_checkpoint_path)
-    
+
     if not is_local:
         compressed_checkpoint_path = os.path.join(checkpoint_path, "ckpt.tar.gz")
         # Compress and save the checkpoint
         with tarfile.open(compressed_checkpoint_path, "w:gz") as tar:
             tar.add(uncompressed_checkpoint_path, arcname="ckpt.pt")
+
 
 @torch.no_grad()
 def estimate_loss(
@@ -402,7 +403,15 @@ if __name__ == "__main__":
                 "config": asdict(TRAIN_CONFIG),
             }
 
-            save_checkpoint(checkpoint,"transformer_dropout/model_checkpoints/" if args.is_local else checkpoint_path, args.is_local)
+            save_checkpoint(
+                checkpoint,
+                (
+                    "transformer_dropout/model_checkpoints/"
+                    if args.is_local
+                    else checkpoint_path
+                ),
+                args.is_local,
+            )
 
         running_loss = 0
         running_entropy = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
@@ -476,7 +485,9 @@ if __name__ == "__main__":
             (
                 f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
                 if args.is_local
-                else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth") # this is not currently working on Sagemaker
+                else os.path.join(
+                    os.environ["SM_MODEL_DIR"], "model.pth"
+                )  # this is not currently working on Sagemaker
             ),
         )
 

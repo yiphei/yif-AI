@@ -7,7 +7,6 @@ import wandb
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorchModel
 
-
 SOURCE_DIR = "transformer_dropout/"
 GPU_INSTANCE_TYPES = [
     "ml.p3.2xlarge",
@@ -47,14 +46,18 @@ sagemaker_session = sagemaker.Session(
 )
 
 pytorch_model = PyTorchModel(
-    role = role,
-    name = args.model_name,
+    role=role,
+    name=args.model_name,
     sagemaker_session=sagemaker_session,
     model_data=args.model_uri,  # S3 path to your trained model artifacts
-    entry_point='inference.py',  # Your inference script
-    source_dir='transformer_dropout/',  # Directory containing your model.py and any other necessary files
-    framework_version='2.1.0',  # Version of PyTorch you're using
-    py_version='py310',  # Python version
+    entry_point="inference.py",  # Your inference script
+    source_dir="transformer_dropout/",  # Directory containing your model.py and any other necessary files
+    framework_version="2.1.0",  # Version of PyTorch you're using
+    py_version="py310",  # Python version
 )
 
-pytorch_model.deploy(endpoint_name = args.endpoint_name,instance_type=args.instance_type, initial_instance_count=1)
+pytorch_model.deploy(
+    endpoint_name=args.endpoint_name,
+    instance_type=args.instance_type,
+    initial_instance_count=1,
+)
