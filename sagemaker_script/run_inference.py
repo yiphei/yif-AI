@@ -6,9 +6,11 @@ import sagemaker
 from sagemaker.deserializers import JSONDeserializer
 from sagemaker.pytorch import PyTorchPredictor
 from sagemaker.serializers import JSONSerializer
+from distutils.util import strtobool
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--endpoint_name", type=str, required=True)
+parser.add_argument("--delete_endpoint", type=lambda v: bool(strtobool(v)), required=True)
 args = parser.parse_args()
 
 role = os.getenv("SAGEMAKER_ROLE")
@@ -34,5 +36,7 @@ predictor = PyTorchPredictor(
 result = predictor.predict({"start_tokens": "\n", "max_tokens": 1000})
 # The response format depends on the `output_fn` in your inference script
 print(result)
-predictor.delete_endpoint(delete_endpoint_config=True)
-predictor.delete_model()
+
+if args.delete_endpoint:
+    predictor.delete_endpoint(delete_endpoint_config=True)
+    predictor.delete_model()
