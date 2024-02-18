@@ -34,3 +34,5 @@ predictor = PyTorchPredictor(
 result = predictor.predict({"start_tokens": "\n", "max_tokens": 1000})
 # The response format depends on the `output_fn` in your inference script
 print(result)
+predictor.delete_endpoint(delete_endpoint_config=True)
+predictor.delete_model()
