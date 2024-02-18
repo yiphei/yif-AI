@@ -465,7 +465,7 @@ def train(args):
                 if args.is_local
                 else os.path.join(
                     os.environ["SM_MODEL_DIR"], "model.pth"
-                )  # this is not currently working on Sagemaker
+                )
             ),
         )
 
