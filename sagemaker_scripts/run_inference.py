@@ -1,16 +1,18 @@
 import argparse
 import os
+from distutils.util import strtobool
 
 import boto3
 import sagemaker
 from sagemaker.deserializers import JSONDeserializer
 from sagemaker.pytorch import PyTorchPredictor
 from sagemaker.serializers import JSONSerializer
-from distutils.util import strtobool
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--endpoint_name", type=str, required=True)
-parser.add_argument("--delete_endpoint", type=lambda v: bool(strtobool(v)), required=True)
+parser.add_argument(
+    "--delete_endpoint", type=lambda v: bool(strtobool(v)), required=True
+)
 args = parser.parse_args()
 
 role = os.getenv("SAGEMAKER_ROLE")

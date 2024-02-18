@@ -112,7 +112,10 @@ class TrainConfig:
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
 
-def get_data_batch(train_data, val_data, device, device_type, context_size, batch_size, split="train"):
+
+def get_data_batch(
+    train_data, val_data, device, device_type, context_size, batch_size, split="train"
+):
     data = train_data if split == "train" else val_data
     idxs = torch.randint(0, len(data) - context_size - 1, (batch_size,))
     x = torch.stack(
@@ -138,15 +141,18 @@ def get_data_batch(train_data, val_data, device, device_type, context_size, batc
         x, y = x.to(device), y.to(device)
     return x, y
 
+
 def get_torch_save_dict(raw_model, optimizer, train_config, iter_num):
-    return             {
-                "model": raw_model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "model_config": asdict(train_config.MODEL_CONFIG),
-                "iter_num": iter_num,
-                "config": asdict(train_config),
-                # "itoc": None,  # TODO: add decoder,
-            },
+    return (
+        {
+            "model": raw_model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "model_config": asdict(train_config.MODEL_CONFIG),
+            "iter_num": iter_num,
+            "config": asdict(train_config),
+            # "itoc": None,  # TODO: add decoder,
+        },
+    )
 
 
 def save_checkpoint(checkpoint, checkpoint_path, is_local):
@@ -164,7 +170,16 @@ def save_checkpoint(checkpoint, checkpoint_path, is_local):
 
 @torch.no_grad()
 def estimate_loss(
-    model, est_steps, context_size, batch_size, device, ctx, using_DP, device_type, train_data, val_data
+    model,
+    est_steps,
+    context_size,
+    batch_size,
+    device,
+    ctx,
+    using_DP,
+    device_type,
+    train_data,
+    val_data,
 ):
     mean_losses = []
     model.eval()
@@ -172,7 +187,13 @@ def estimate_loss(
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
             xb, yb = get_data_batch(
-                train_data, val_data, device, device_type, context_size, batch_size, split
+                train_data,
+                val_data,
+                device,
+                device_type,
+                context_size,
+                batch_size,
+                split,
             )
             with ctx:
                 _, loss, _, _ = model(xb, yb)
@@ -253,8 +274,8 @@ def train(args):
 
     # Load and prepare training data
     directory = Path(args.train)
-    [train_file_path] = list(directory.glob('*_train.bin'))
-    [val_file_path] = list(directory.glob('*_val.bin'))
+    [train_file_path] = list(directory.glob("*_train.bin"))
+    [val_file_path] = list(directory.glob("*_val.bin"))
     train_data = np.memmap(str(train_file_path), dtype=np.uint16, mode="r")
     val_data = np.memmap(str(val_file_path), dtype=np.uint16, mode="r")
 
@@ -375,7 +396,7 @@ def train(args):
                 using_DP,
                 device_type,
                 train_data,
-                val_data
+                val_data,
             )
             wandb.log(
                 {
@@ -459,14 +480,11 @@ def train(args):
 
     if is_master_process:
         torch.save(
-            get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num)
-            ,
+            get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num),
             (
                 f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
                 if args.is_local
-                else os.path.join(
-                    os.environ["SM_MODEL_DIR"], "model.pth"
-                )
+                else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth")
             ),
         )
 
@@ -491,5 +509,5 @@ if __name__ == "__main__":
         args.train = os.environ.get("SM_CHANNEL_TRAIN")
     else:
         assert args.train is not None
-    
+
     train(args)
