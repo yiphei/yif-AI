@@ -252,10 +252,11 @@ def train(args):
     )
 
     # Load and prepare training data
-    training_data_file_path = os.path.join(args.train, args.train_file)
-    val_date_file_path = os.path.join(args.train, args.val_file)
-    train_data = np.memmap(training_data_file_path, dtype=np.uint16, mode="r")
-    val_data = np.memmap(val_date_file_path, dtype=np.uint16, mode="r")
+    directory = Path(args.train)
+    [train_file_path] = list(directory.glob('*_train.bin'))
+    [val_file_path] = list(directory.glob('*_val.bin'))
+    train_data = np.memmap(str(train_file_path), dtype=np.uint16, mode="r")
+    val_data = np.memmap(str(val_file_path), dtype=np.uint16, mode="r")
 
     iter_num = 0
     if initialization_type == InitializationType.SCRATCH:
@@ -478,8 +479,6 @@ if __name__ == "__main__":
         description="Training script for transformer model."
     )
     parser.add_argument("--train", type=str)
-    parser.add_argument("--train_file", type=str, required=True)
-    parser.add_argument("--val_file", type=str, required=True)
     parser.add_argument("--config_file", type=str, required=True)
     parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)), default=True)
     parser.add_argument("--checkpoint_path", type=str, default="/opt/ml/checkpoints")
