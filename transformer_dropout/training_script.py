@@ -112,30 +112,7 @@ class TrainConfig:
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
 
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Training script for transformer model."
-    )
-    parser.add_argument("--train", type=str)
-    parser.add_argument("--train_file", type=str, required=True)
-    parser.add_argument("--val_file", type=str, required=True)
-    parser.add_argument("--config_file", type=str, required=True)
-    parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)), default=True)
-    parser.add_argument("--checkpoint_path", type=str, default="/opt/ml/checkpoints")
-    parser.add_argument("--local_checkpoint_path", type=str, default=None)
-    args = parser.parse_args()
-    if args.local_checkpoint_path is not None:
-        assert args.is_local
-
-    if not args.is_local:
-        args.train = os.environ.get("SM_CHANNEL_TRAIN")
-    else:
-        assert args.train is not None
-    return args
-
-
-def get_data_batch(device, device_type, context_size, batch_size, split="train"):
+def get_data_batch(train_data, val_data, device, device_type, context_size, batch_size, split="train"):
     data = train_data if split == "train" else val_data
     idxs = torch.randint(0, len(data) - context_size - 1, (batch_size,))
     x = torch.stack(
@@ -176,7 +153,7 @@ def save_checkpoint(checkpoint, checkpoint_path, is_local):
 
 @torch.no_grad()
 def estimate_loss(
-    model, est_steps, context_size, batch_size, device, ctx, using_DP, device_type
+    model, est_steps, context_size, batch_size, device, ctx, using_DP, device_type, train_data, val_data
 ):
     mean_losses = []
     model.eval()
@@ -184,7 +161,7 @@ def estimate_loss(
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
             xb, yb = get_data_batch(
-                device, device_type, context_size, batch_size, split
+                train_data, val_data, device, device_type, context_size, batch_size, split
             )
             with ctx:
                 _, loss, _, _ = model(xb, yb)
@@ -197,14 +174,12 @@ def estimate_loss(
     return mean_losses
 
 
-if __name__ == "__main__":
+def train(args):
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
     )
     logger = logging.getLogger()
     logger.info("Starting training script.")
-
-    args = parse_arguments()
     TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file)
 
     using_DDP = (
@@ -358,6 +333,8 @@ if __name__ == "__main__":
     raw_model = model.module if using_DP or using_DDP else model
     model.train()
     X, Y = get_data_batch(
+        train_data,
+        val_data,
         TRAIN_CONFIG.DEVICE,
         device_type,
         TRAIN_CONFIG.MODEL_CONFIG.context_size,
@@ -385,6 +362,8 @@ if __name__ == "__main__":
                 ctx,
                 using_DP,
                 device_type,
+                train_data,
+                val_data
             )
             wandb.log(
                 {
@@ -422,7 +401,7 @@ if __name__ == "__main__":
                     micro_step == TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS - 1
                 )
             with ctx:
-                logits, loss, entropy, dropout_l1_norm = model(X, Y)
+                _, loss, entropy, dropout_l1_norm = model(X, Y)
                 if using_DP:
                     loss = loss.mean()
                     if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
@@ -443,6 +422,8 @@ if __name__ == "__main__":
                     )
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y = get_data_batch(
+                train_data,
+                val_data,
                 TRAIN_CONFIG.DEVICE,
                 device_type,
                 TRAIN_CONFIG.MODEL_CONFIG.context_size,
@@ -493,3 +474,26 @@ if __name__ == "__main__":
 
     if using_DDP:
         destroy_process_group()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Training script for transformer model."
+    )
+    parser.add_argument("--train", type=str)
+    parser.add_argument("--train_file", type=str, required=True)
+    parser.add_argument("--val_file", type=str, required=True)
+    parser.add_argument("--config_file", type=str, required=True)
+    parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)), default=True)
+    parser.add_argument("--checkpoint_path", type=str, default="/opt/ml/checkpoints")
+    parser.add_argument("--local_checkpoint_path", type=str, default=None)
+    args = parser.parse_args()
+    if args.local_checkpoint_path is not None:
+        assert args.is_local
+
+    if not args.is_local:
+        args.train = os.environ.get("SM_CHANNEL_TRAIN")
+    else:
+        assert args.train is not None
+    
+    train(args)
