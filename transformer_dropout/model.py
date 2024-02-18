@@ -128,7 +128,7 @@ class OptimizedMultiAttentionHead(nn.Module):
 
 
 class LearnedDropout(nn.Module):
-    def __init__(self, dim_in, is_for_attention = False):
+    def __init__(self, dim_in, is_for_attention=False):
         super().__init__()
         self.is_for_attention = is_for_attention
         self.dim_in = dim_in

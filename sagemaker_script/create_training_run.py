@@ -6,9 +6,9 @@ from distutils.util import strtobool
 import boto3
 import sagemaker
 import wandb
+from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
-from botocore.exceptions import ClientError
 
 from transformer_dropout.training_script import TrainConfig
 
@@ -68,12 +68,13 @@ def is_s3_file(bucket_name, key):
     try:
         s3.head_object(Bucket=bucket_name, Key=key)
     except ClientError as e:
-        error_code = e.response['Error']['Code']
-        if error_code == '404':
+        error_code = e.response["Error"]["Code"]
+        if error_code == "404":
             # The object does not exist
             raise ValueError(f"{key} does not exist in {bucket_name}")
         else:
             raise
+
 
 is_s3_file(default_bucket, f"datasets/{args.train}/{args.train_file}")
 is_s3_file(default_bucket, f"datasets/{args.train}/{args.val_file}")

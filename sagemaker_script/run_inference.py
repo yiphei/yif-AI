@@ -1,10 +1,11 @@
-from sagemaker.pytorch import PyTorchPredictor
+import argparse
 import os
+
 import boto3
 import sagemaker
-from sagemaker.serializers import JSONSerializer
 from sagemaker.deserializers import JSONDeserializer
-import argparse
+from sagemaker.pytorch import PyTorchPredictor
+from sagemaker.serializers import JSONSerializer
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--endpoint_name", type=str, required=True)
@@ -24,7 +25,12 @@ sagemaker_session = sagemaker.Session(
     sagemaker_runtime_client=sagemaker_runtime_client,
 )
 
-predictor = PyTorchPredictor(endpoint_name=args.endpoint_name, sagemaker_session=sagemaker_session, serializer = JSONSerializer(), deserializer = JSONDeserializer())
+predictor = PyTorchPredictor(
+    endpoint_name=args.endpoint_name,
+    sagemaker_session=sagemaker_session,
+    serializer=JSONSerializer(),
+    deserializer=JSONDeserializer(),
+)
 result = predictor.predict({"start_tokens": "\n", "max_tokens": 1000})
 # The response format depends on the `output_fn` in your inference script
 print(result)
