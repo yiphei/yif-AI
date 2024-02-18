@@ -6,7 +6,6 @@ from distutils.util import strtobool
 import boto3
 import sagemaker
 import wandb
-from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
 
@@ -34,8 +33,6 @@ parser.add_argument("--instance_count", type=int, required=True)
 parser.add_argument("--notes", type=str, default="")
 parser.add_argument("--use_spot", type=lambda v: bool(strtobool(v)), default=False)
 parser.add_argument("--train", type=str, required=True)
-parser.add_argument("--train_file", type=str, required=True)
-parser.add_argument("--val_file", type=str, required=True)
 args = parser.parse_args()
 
 # Validate config
@@ -62,22 +59,12 @@ sagemaker_session = sagemaker.Session(
 # create a checkpoint directory in the output directory at runtime
 s3 = boto3.client("s3", region_name=my_region)
 
-
-def is_s3_file(bucket_name, key):
-    """Check if the key is a file in S3."""
-    try:
-        s3.head_object(Bucket=bucket_name, Key=key)
-    except ClientError as e:
-        error_code = e.response["Error"]["Code"]
-        if error_code == "404":
-            # The object does not exist
-            raise ValueError(f"{key} does not exist in {bucket_name}")
-        else:
-            raise
-
-
-is_s3_file(default_bucket, f"datasets/{args.train}/{args.train_file}")
-is_s3_file(default_bucket, f"datasets/{args.train}/{args.val_file}")
+# List objects within the specified S3 prefix
+response = s3.list_objects_v2(Bucket=default_bucket, Prefix=args.train)
+# Filter for files that end with '_train.bin'
+train_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('_train.bin')]
+val_files = [obj['Key'] for obj in response.get('Contents', []) if obj['Key'].endswith('_val.bin')]
+assert len(train_files) == 1 and len(val_files) == 1
 
 training_run_dir = f"training_run_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}/"
 checkpoint_dir = "checkpoints/"
@@ -99,8 +86,6 @@ pytorch_estimator = PyTorch(
         else None
     ),
     hyperparameters={
-        "train_file": args.train_file,
-        "val_file": args.val_file,
         "config_file": args.config_file,
         "is_local": "False",
     },
@@ -113,5 +98,5 @@ pytorch_estimator = PyTorch(
 )
 
 pytorch_estimator.fit(
-    {"train": f"s3://dropout-transformer/datasets/{args.train}/"}
+    {"train": f"s3://dropout-transformer/{args.train}"}
 )  # add wait=False if you want to run asynchronously
