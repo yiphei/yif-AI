@@ -115,10 +115,11 @@ class TrainConfig:
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
 
-# old but faster
-def get_data_batch(
+# Deprecated. No longer in use.
+def _get_data_batch(
     train_data, val_data, device, device_type, context_size, batch_size, split="train"
 ):
+    # old but faster
     data = train_data if split == "train" else val_data
     idxs = torch.randint(0, len(data) - context_size - 1, (batch_size,))
     x = torch.stack(
