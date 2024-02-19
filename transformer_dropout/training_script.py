@@ -12,8 +12,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
-from torch.utils.data import DataLoader
-
+from torch.utils.data import DataLoader, DistributedSampler
 import numpy as np
 import torch
 
@@ -287,8 +286,10 @@ def train(args):
     [val_file_path] = list(directory.glob("*_val.bin"))
     train_data = LocalDataset(train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
     val_data = LocalDataset(val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
-    train_data_loader = DataLoader(train_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, num_workers=2, shuffle=True, pin_memory= True if device_type == "cuda" else False)
-    val_data_loader = DataLoader(val_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, num_workers=2, shuffle=True,pin_memory= True if device_type == "cuda" else False)
+    train_sampler = DistributedSampler(train_data) if using_DDP else None
+    val_sampler = DistributedSampler(val_data) if using_DDP else None
+    train_data_loader = DataLoader(train_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, sampler = train_sampler, num_workers=0, shuffle=(train_sampler is None), pin_memory= True if device_type == "cuda" else False)
+    val_data_loader = DataLoader(val_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, sampler = val_sampler, num_workers=0, shuffle=(val_sampler is None) ,pin_memory= True if device_type == "cuda" else False)
 
     iter_num = 0
     if initialization_type == InitializationType.SCRATCH:
@@ -403,6 +404,10 @@ def train(args):
                 train_data_loader,
                 val_data_loader,
             )
+            if using_DDP:
+                val_sampler.set_epoch(iter_num)
+                train_sampler.set_epoch(iter_num)
+
             wandb.log(
                 {
                     "est_train_loss": train_loss,
@@ -463,6 +468,9 @@ def train(args):
         scaler.step(optimizer)
         scaler.update()
         optimizer.zero_grad(set_to_none=True)
+        
+        if using_DDP:
+            train_sampler.set_epoch(iter_num)
 
         t1 = time.time()
         dt = t1 - t0
