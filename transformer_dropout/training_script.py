@@ -12,6 +12,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
+from torch.utils.data import DataLoader
 
 import numpy as np
 import torch
@@ -20,9 +21,11 @@ import torch
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
     from .model import DropoutTransformer, ModelConfig
+    from .data_loading import LocalDataset
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
     from model import DropoutTransformer, ModelConfig
+    from data_loading import LocalDataset
 
 import wandb
 from torch.distributed import destroy_process_group, init_process_group
@@ -112,7 +115,7 @@ class TrainConfig:
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
 
-
+# old but faster
 def get_data_batch(
     train_data, val_data, device, device_type, context_size, batch_size, split="train"
 ):
@@ -141,6 +144,17 @@ def get_data_batch(
         x, y = x.to(device), y.to(device)
     return x, y
 
+
+def get_data_batch_loader(
+    train_data_loader, val_data_loader, device, split="train"
+):
+    data_loader = train_data_loader if split == "train" else val_data_loader
+    x, y = next(iter(data_loader))
+    if data_loader.pin_memory is True:
+        x, y = x.to(device, non_blocking=True), y.to(
+            device, non_blocking=True
+        )
+    return x, y
 
 def get_torch_save_dict(raw_model, optimizer, train_config, iter_num):
     return (
@@ -172,27 +186,21 @@ def save_checkpoint(checkpoint, checkpoint_path, is_local):
 def estimate_loss(
     model,
     est_steps,
-    context_size,
-    batch_size,
     device,
     ctx,
     using_DP,
-    device_type,
-    train_data,
-    val_data,
+    train_data_loader,
+    val_data_loader,
 ):
     mean_losses = []
     model.eval()
     for split in ["train", "val"]:
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
-            xb, yb = get_data_batch(
-                train_data,
-                val_data,
+            xb, yb = get_data_batch_loader(
+                train_data_loader,
+                val_data_loader,
                 device,
-                device_type,
-                context_size,
-                batch_size,
                 split,
             )
             with ctx:
@@ -276,8 +284,10 @@ def train(args):
     directory = Path(args.train)
     [train_file_path] = list(directory.glob("*_train.bin"))
     [val_file_path] = list(directory.glob("*_val.bin"))
-    train_data = np.memmap(str(train_file_path), dtype=np.uint16, mode="r")
-    val_data = np.memmap(str(val_file_path), dtype=np.uint16, mode="r")
+    train_data = LocalDataset(train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
+    val_data = LocalDataset(val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
+    train_data_loader = DataLoader(train_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, num_workers=2, shuffle=True, pin_memory= True if device_type == "cuda" else False)
+    val_data_loader = DataLoader(val_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, num_workers=2, shuffle=True,pin_memory= True if device_type == "cuda" else False)
 
     iter_num = 0
     if initialization_type == InitializationType.SCRATCH:
@@ -365,13 +375,10 @@ def train(args):
 
     raw_model = model.module if using_DP or using_DDP else model
     model.train()
-    X, Y = get_data_batch(
-        train_data,
-        val_data,
+    X, Y = get_data_batch_loader(
+        train_data_loader,
+        val_data_loader,
         TRAIN_CONFIG.DEVICE,
-        device_type,
-        TRAIN_CONFIG.MODEL_CONFIG.context_size,
-        TRAIN_CONFIG.BATCH_SIZE,
         "train",
     )  # fetch the very first batch
     t0 = time.time()
@@ -389,14 +396,11 @@ def train(args):
             train_loss, val_loss = estimate_loss(
                 model,
                 TRAIN_CONFIG.EST_STEPS,
-                TRAIN_CONFIG.MODEL_CONFIG.context_size,
-                TRAIN_CONFIG.BATCH_SIZE,
                 TRAIN_CONFIG.DEVICE,
                 ctx,
                 using_DP,
-                device_type,
-                train_data,
-                val_data,
+                train_data_loader,
+                val_data_loader,
             )
             wandb.log(
                 {
@@ -446,13 +450,10 @@ def train(args):
                         / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
                     )
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
-            X, Y = get_data_batch(
-                train_data,
-                val_data,
+            X, Y = get_data_batch_loader(
+                train_data_loader,
+                val_data_loader,
                 TRAIN_CONFIG.DEVICE,
-                device_type,
-                TRAIN_CONFIG.MODEL_CONFIG.context_size,
-                TRAIN_CONFIG.BATCH_SIZE,
                 "train",
             )
             # backward pass, with gradient scaling if training in fp16
