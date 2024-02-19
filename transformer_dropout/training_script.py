@@ -116,38 +116,6 @@ class TrainConfig:
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
 
-
-# Deprecated. No longer in use.
-def _get_data_batch(
-    train_data, val_data, device, device_type, context_size, batch_size, split="train"
-):
-    # old but faster
-    data = train_data if split == "train" else val_data
-    idxs = torch.randint(0, len(data) - context_size - 1, (batch_size,))
-    x = torch.stack(
-        [
-            torch.from_numpy((data[idx : idx + context_size]).astype(np.int64))
-            for idx in idxs
-        ]
-    )
-    y = torch.stack(
-        [
-            torch.from_numpy((data[idx + 1 : idx + context_size + 1]).astype(np.int64))
-            for idx in idxs
-        ]
-    )
-
-    if device_type == "cuda":
-        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-        # from https://github.com/karpathy/nanoGPT/blob/master/train.py
-        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(
-            device, non_blocking=True
-        )
-    else:
-        x, y = x.to(device), y.to(device)
-    return x, y
-
-
 def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device):
     new_data_iter = None
     try:
