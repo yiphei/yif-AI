@@ -12,15 +12,16 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
-from torch.utils.data import DataLoader, DistributedSampler
+
 import numpy as np
 import torch
+from torch.utils.data import DataLoader, DistributedSampler
 
 # ugly workound to make both Sagemaker, python, and me happy
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
-    from .model import DropoutTransformer, ModelConfig
     from .data_loading import LocalDataset
+    from .model import DropoutTransformer, ModelConfig
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
     from model import DropoutTransformer, ModelConfig
@@ -114,6 +115,7 @@ class TrainConfig:
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
 
+
 # Deprecated. No longer in use.
 def _get_data_batch(
     train_data, val_data, device, device_type, context_size, batch_size, split="train"
@@ -145,9 +147,7 @@ def _get_data_batch(
     return x, y
 
 
-def get_data_batch_loader(
-    data_iter, data_loader, data_sampler, iter_num, device
-):
+def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device):
     new_data_iter = None
     try:
         x, y = next(data_iter)
@@ -158,10 +158,9 @@ def get_data_batch_loader(
         x, y = next(new_data_iter)
 
     if data_loader.pin_memory is True:
-        x, y = x.to(device, non_blocking=True), y.to(
-            device, non_blocking=True
-        )
+        x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
     return x, y, new_data_iter
+
 
 def get_torch_save_dict(raw_model, optimizer, train_config, iter_num):
     return (
@@ -211,7 +210,7 @@ def estimate_loss(
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
             xb, yb, new_data_iter = get_data_batch_loader(
-                data_iter, data_loader, data_sampler,iter_num, device
+                data_iter, data_loader, data_sampler, iter_num, device
             )
             if new_data_iter is not None:
                 data_iter = new_data_iter
@@ -302,8 +301,22 @@ def train(args):
     val_data = LocalDataset(val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
     train_sampler = DistributedSampler(train_data) if using_DDP else None
     val_sampler = DistributedSampler(val_data) if using_DDP else None
-    train_data_loader = DataLoader(train_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, sampler = train_sampler, num_workers=0, shuffle=(train_sampler is None), pin_memory= True if device_type == "cuda" else False)
-    val_data_loader = DataLoader(val_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, sampler = val_sampler, num_workers=0, shuffle=(val_sampler is None) ,pin_memory= True if device_type == "cuda" else False)
+    train_data_loader = DataLoader(
+        train_data,
+        batch_size=TRAIN_CONFIG.BATCH_SIZE,
+        sampler=train_sampler,
+        num_workers=0,
+        shuffle=(train_sampler is None),
+        pin_memory=True if device_type == "cuda" else False,
+    )
+    val_data_loader = DataLoader(
+        val_data,
+        batch_size=TRAIN_CONFIG.BATCH_SIZE,
+        sampler=val_sampler,
+        num_workers=0,
+        shuffle=(val_sampler is None),
+        pin_memory=True if device_type == "cuda" else False,
+    )
     curr_train_iter = iter(train_data_loader)
     curr_val_iter = iter(val_data_loader)
 
@@ -476,11 +489,11 @@ def train(args):
                     )
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y, new_train_iter = get_data_batch_loader(
-                    curr_train_iter,
-                    train_data_loader,
-                    train_sampler,
-                    -1,
-                    TRAIN_CONFIG.DEVICE,
+                curr_train_iter,
+                train_data_loader,
+                train_sampler,
+                -1,
+                TRAIN_CONFIG.DEVICE,
             )
             if new_train_iter is not None:
                 curr_train_iter = new_train_iter
