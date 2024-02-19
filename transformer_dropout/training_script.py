@@ -146,15 +146,22 @@ def _get_data_batch(
 
 
 def get_data_batch_loader(
-    train_data_loader, val_data_loader, device, split="train"
+    data_iter, data_loader, data_sampler, iter_num, device
 ):
-    data_loader = train_data_loader if split == "train" else val_data_loader
-    x, y = next(iter(data_loader))
+    new_data_iter = None
+    try:
+        x, y = next(data_iter)
+    except StopIteration:
+        if data_sampler is not None:
+            data_sampler.set_epoch(iter_num)
+        new_data_iter = iter(data_loader)
+        x, y = next(new_data_iter)
+
     if data_loader.pin_memory is True:
         x, y = x.to(device, non_blocking=True), y.to(
             device, non_blocking=True
         )
-    return x, y
+    return x, y, new_data_iter
 
 def get_torch_save_dict(raw_model, optimizer, train_config, iter_num):
     return (
@@ -189,29 +196,36 @@ def estimate_loss(
     device,
     ctx,
     using_DP,
-    train_data_loader,
-    val_data_loader,
+    train_data_batch_args,
+    val_data_batch_args,
+    iter_num,
 ):
     mean_losses = []
     model.eval()
-    for split in ["train", "val"]:
+    new_data_iters = []
+    for args in [train_data_batch_args, val_data_batch_args]:
+        original_data_iter = args[0]
+        data_iter = args[0]
+        data_loader = args[1]
+        data_sampler = args[2]
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
-            xb, yb = get_data_batch_loader(
-                train_data_loader,
-                val_data_loader,
-                device,
-                split,
+            xb, yb, new_data_iter = get_data_batch_loader(
+                data_iter, data_loader, data_sampler,iter_num, device
             )
+            if new_data_iter is not None:
+                data_iter = new_data_iter
+
             with ctx:
                 _, loss, _, _ = model(xb, yb)
             if using_DP:
                 loss = loss.mean()
             losses[i] = loss
 
+        new_data_iters.append(data_iter if original_data_iter != data_iter else None)
         mean_losses.append(losses.mean().item())
     model.train()
-    return mean_losses
+    return (mean_losses, new_data_iters)
 
 
 def train(args):
@@ -290,6 +304,8 @@ def train(args):
     val_sampler = DistributedSampler(val_data) if using_DDP else None
     train_data_loader = DataLoader(train_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, sampler = train_sampler, num_workers=0, shuffle=(train_sampler is None), pin_memory= True if device_type == "cuda" else False)
     val_data_loader = DataLoader(val_data, batch_size=TRAIN_CONFIG.BATCH_SIZE, sampler = val_sampler, num_workers=0, shuffle=(val_sampler is None) ,pin_memory= True if device_type == "cuda" else False)
+    curr_train_iter = iter(train_data_loader)
+    curr_val_iter = iter(val_data_loader)
 
     iter_num = 0
     if initialization_type == InitializationType.SCRATCH:
@@ -377,11 +393,12 @@ def train(args):
 
     raw_model = model.module if using_DP or using_DDP else model
     model.train()
-    X, Y = get_data_batch_loader(
+    X, Y, _ = get_data_batch_loader(
+        curr_train_iter,
         train_data_loader,
-        val_data_loader,
+        train_sampler,
+        -1,
         TRAIN_CONFIG.DEVICE,
-        "train",
     )  # fetch the very first batch
     t0 = time.time()
     while iter_num < TRAIN_CONFIG.TRAIN_STEPS:
@@ -395,18 +412,20 @@ def train(args):
             and iter_num != (TRAIN_CONFIG.TRAIN_STEPS - 1)
             and iter_num != 0
         ) and is_master_process:
-            train_loss, val_loss = estimate_loss(
+            (train_loss, val_loss), (new_train_iter, new_val_iter) = estimate_loss(
                 model,
                 TRAIN_CONFIG.EST_STEPS,
                 TRAIN_CONFIG.DEVICE,
                 ctx,
                 using_DP,
-                train_data_loader,
-                val_data_loader,
+                (curr_train_iter, train_data_loader, train_sampler),
+                (curr_val_iter, val_data_loader, val_sampler),
+                iter_num,
             )
-            if using_DDP:
-                val_sampler.set_epoch(iter_num)
-                train_sampler.set_epoch(iter_num)
+            if new_train_iter is not None:
+                curr_train_iter = new_train_iter
+            if new_val_iter is not None:
+                curr_val_iter = new_val_iter
 
             wandb.log(
                 {
@@ -456,21 +475,21 @@ def train(args):
                         / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
                     )
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
-            X, Y = get_data_batch_loader(
-                train_data_loader,
-                val_data_loader,
-                TRAIN_CONFIG.DEVICE,
-                "train",
+            X, Y, new_train_iter = get_data_batch_loader(
+                    curr_train_iter,
+                    train_data_loader,
+                    train_sampler,
+                    -1,
+                    TRAIN_CONFIG.DEVICE,
             )
+            if new_train_iter is not None:
+                curr_train_iter = new_train_iter
             # backward pass, with gradient scaling if training in fp16
             scaler.scale(loss).backward()
 
         scaler.step(optimizer)
         scaler.update()
         optimizer.zero_grad(set_to_none=True)
-        
-        if using_DDP:
-            train_sampler.set_epoch(iter_num)
 
         t1 = time.time()
         dt = t1 - t0
