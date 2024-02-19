@@ -12,7 +12,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
-
+import random
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, DistributedSampler
@@ -47,6 +47,7 @@ class TrainConfig:
         default_factory=lambda: "cuda" if torch.cuda.is_available() else "cpu"
     )
     MODEL_CONFIG: ModelConfig = field(default_factory=require_field_exception)
+    RANDOM_SEED: int = field(default=1337)
     # Training
     BATCH_SIZE: int = field(
         default_factory=require_field_exception
@@ -275,7 +276,10 @@ def train(args):
             initialization_type = InitializationType.RESUME
             ckpt_file_path = os.path.join(checkpoint_path, "ckpt.pt")
 
-    torch.manual_seed(1337 + seed_offset)  # this allows for distributed training data
+    torch.manual_seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)  # this allows for distributed training data
+    np.random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
+    random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
+
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
