@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import pickle
+import random
 import sys
 import tarfile
 import time
@@ -12,21 +13,26 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
-import random
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, DistributedSampler
-from torchdata.datapipes.iter import Shuffler, S3FileLoader
+from torchdata.datapipes.iter import S3FileLoader, Shuffler
 
 # ugly workound to make both Sagemaker, python, and me happy
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
-    from .data_loading import MapLocalDataset, IterableLocalDataset, DistributedIterableLocalDataset
+    from .data_loading import (DistributedIterableLocalDataset,
+                               IterableLocalDataset, MapLocalDataset)
     from .model import DropoutTransformer, ModelConfig
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
     from model import DropoutTransformer, ModelConfig
-    from data_loading import MapLocalDataset, IterableLocalDataset, DistributedIterableLocalDataset
+    from data_loading import (
+        MapLocalDataset,
+        IterableLocalDataset,
+        DistributedIterableLocalDataset,
+    )
 
 import wandb
 from torch.distributed import destroy_process_group, init_process_group
@@ -116,6 +122,7 @@ class TrainConfig:
         }
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
+
 
 def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device):
     new_data_iter = None
@@ -245,7 +252,9 @@ def train(args):
             initialization_type = InitializationType.RESUME
             ckpt_file_path = os.path.join(checkpoint_path, "ckpt.pt")
 
-    torch.manual_seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)  # this allows for distributed training data
+    torch.manual_seed(
+        TRAIN_CONFIG.RANDOM_SEED + seed_offset
+    )  # this allows for distributed training data
     np.random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
     random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
 
@@ -270,8 +279,12 @@ def train(args):
     directory = Path(args.train)
     [train_file_path] = list(directory.glob("*_train.bin"))
     [val_file_path] = list(directory.glob("*_val.bin"))
-    train_data = DistributedIterableLocalDataset(train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
-    val_data = DistributedIterableLocalDataset(val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
+    train_data = DistributedIterableLocalDataset(
+        train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size
+    )
+    val_data = DistributedIterableLocalDataset(
+        val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size
+    )
     train_data = Shuffler(train_data, buffer_size=TRAIN_CONFIG.BATCH_SIZE * 1000)
     val_data = Shuffler(val_data, buffer_size=TRAIN_CONFIG.BATCH_SIZE * 1000)
     train_sampler = None
