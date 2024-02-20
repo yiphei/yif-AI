@@ -1,9 +1,9 @@
 import numpy as np
 import torch
-from torch.utils.data import Dataset, IterableDataset
 import torch.distributed as dist
-from torch.utils.data import DistributedSampler
+from torch.utils.data import Dataset, DistributedSampler, IterableDataset
 from torchdata.datapipes.iter import Shuffler
+
 
 class MapLocalDataset(Dataset):
     def __init__(self, file_path, context_size):
@@ -24,7 +24,7 @@ class MapLocalDataset(Dataset):
             )
             elements.append((x, y))
         return elements
-    
+
     @classmethod
     def create_with_distributed_sampler(cls, file_path, context_size, using_DDP):
         dataset = cls(file_path, context_size)
@@ -55,8 +55,9 @@ class IterableLocalDataset(IterableDataset):
     @classmethod
     def create_with_shuffler(cls, file_path, context_size, buffer_size):
         dataset = cls(file_path, context_size)
-        dataset = Shuffler(dataset, buffer_size = buffer_size )
+        dataset = Shuffler(dataset, buffer_size=buffer_size)
         return dataset
+
 
 class DistributedIterableLocalDataset(IterableDataset):
     def __init__(self, file_path, context_size):
@@ -72,12 +73,16 @@ class DistributedIterableLocalDataset(IterableDataset):
         worker_end = min(worker_start + per_process, total_size)
 
         for idx in range(worker_start, worker_end):
-            x = torch.from_numpy(self.data[idx: idx + self.context_size].astype(np.int64))
-            y = torch.from_numpy(self.data[idx + 1: idx + self.context_size + 1].astype(np.int64))
+            x = torch.from_numpy(
+                self.data[idx : idx + self.context_size].astype(np.int64)
+            )
+            y = torch.from_numpy(
+                self.data[idx + 1 : idx + self.context_size + 1].astype(np.int64)
+            )
             yield x, y
 
     @classmethod
     def create_with_shuffler(cls, file_path, context_size, buffer_size):
         dataset = cls(file_path, context_size)
-        dataset = Shuffler(dataset, buffer_size = buffer_size )
+        dataset = Shuffler(dataset, buffer_size=buffer_size)
         return dataset
