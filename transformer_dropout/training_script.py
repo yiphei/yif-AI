@@ -16,16 +16,17 @@ import random
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, DistributedSampler
+from torchdata.datapipes.iter import Shuffler, S3FileLoader
 
 # ugly workound to make both Sagemaker, python, and me happy
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
-    from .data_loading import LocalDataset
+    from .data_loading import MapLocalDataset, IterableLocalDataset, DistributedIterableLocalDataset
     from .model import DropoutTransformer, ModelConfig
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
     from model import DropoutTransformer, ModelConfig
-    from data_loading import LocalDataset
+    from data_loading import MapLocalDataset, IterableLocalDataset, DistributedIterableLocalDataset
 
 import wandb
 from torch.distributed import destroy_process_group, init_process_group
@@ -269,10 +270,12 @@ def train(args):
     directory = Path(args.train)
     [train_file_path] = list(directory.glob("*_train.bin"))
     [val_file_path] = list(directory.glob("*_val.bin"))
-    train_data = LocalDataset(train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
-    val_data = LocalDataset(val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
-    train_sampler = DistributedSampler(train_data) if using_DDP else None
-    val_sampler = DistributedSampler(val_data) if using_DDP else None
+    train_data = DistributedIterableLocalDataset(train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
+    val_data = DistributedIterableLocalDataset(val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size)
+    train_data = Shuffler(train_data, buffer_size=TRAIN_CONFIG.BATCH_SIZE * 100)
+    val_data = Shuffler(val_data, buffer_size=TRAIN_CONFIG.BATCH_SIZE * 100)
+    train_sampler = None
+    val_sampler = None
     train_data_loader = DataLoader(
         train_data,
         batch_size=TRAIN_CONFIG.BATCH_SIZE,
