@@ -279,16 +279,12 @@ def train(args):
     directory = Path(args.train)
     [train_file_path] = list(directory.glob("*_train.bin"))
     [val_file_path] = list(directory.glob("*_val.bin"))
-    train_data = DistributedIterableLocalDataset(
-        train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size
+    train_data, train_sampler = MapLocalDataset.create_with_distributed_sampler(
+        train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE
     )
-    val_data = DistributedIterableLocalDataset(
-        val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size
+    val_data, val_sampler = MapLocalDataset.create_with_distributed_sampler(
+        val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE
     )
-    train_data = Shuffler(train_data, buffer_size=TRAIN_CONFIG.BATCH_SIZE * 1000)
-    val_data = Shuffler(val_data, buffer_size=TRAIN_CONFIG.BATCH_SIZE * 1000)
-    train_sampler = None
-    val_sampler = None
     train_data_loader = DataLoader(
         train_data,
         batch_size=TRAIN_CONFIG.BATCH_SIZE,
