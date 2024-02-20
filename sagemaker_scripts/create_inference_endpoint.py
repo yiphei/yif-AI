@@ -38,6 +38,13 @@ sagemaker_client = boto3.client("sagemaker", region_name=my_region)
 sagemaker_runtime_client = boto3.client("sagemaker-runtime", region_name=my_region)
 default_bucket = "dropout-transformer"
 
+assert args.model_uri.endswith("ckpt.tar.gz")
+
+s3_uri_body = args.model_uri[len('s3://'):]
+bucket_name, key = s3_uri_body.split('/', 1)
+s3 = boto3.client("s3", region_name=my_region)
+s3.head_object(Bucket=bucket_name, Key=key) # this raises error if file doesnt exist
+
 sagemaker_session = sagemaker.Session(
     default_bucket=default_bucket,
     sagemaker_client=sagemaker_client,
