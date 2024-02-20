@@ -11,13 +11,7 @@ class CustomDistributedSampler(DistributedSampler):
     def __init__(self, dataset: Dataset, batch_size, num_replicas: Optional[int] = None,
                  rank: Optional[int] = None, shuffle: bool = True,
                  seed: int = 0, drop_last: bool = False) -> None:
-        adjusted_rank = rank
-        if adjusted_rank is None:
-            adjusted_rank = 0
-        adjusted_num_replicas = num_replicas
-        if adjusted_num_replicas is None:
-            adjusted_num_replicas = 1
-        super().__init__(dataset, adjusted_num_replicas, adjusted_rank, shuffle, seed, drop_last)
+        super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
         self.batch_size = batch_size
 
     def __iter__(self):
@@ -55,9 +49,10 @@ class MapLocalDataset(Dataset):
         return elements
 
     @classmethod
-    def create_with_distributed_sampler(cls, file_path, context_size, batch_size):
+    def create_with_distributed_sampler(cls, file_path, context_size, batch_size, using_DDP):
         dataset = cls(file_path, context_size)
-        sampler = CustomDistributedSampler(dataset, batch_size)
+        additional_args = {"rank": 0, "num_replicas": 1} if not using_DDP else {}
+        sampler = CustomDistributedSampler(dataset, batch_size, **additional_args)
         return dataset, sampler
 
 

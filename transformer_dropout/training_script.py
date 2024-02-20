@@ -280,10 +280,10 @@ def train(args):
     [train_file_path] = list(directory.glob("*_train.bin"))
     [val_file_path] = list(directory.glob("*_val.bin"))
     train_data, train_sampler = MapLocalDataset.create_with_distributed_sampler(
-        train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE
+        train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE, using_DDP
     )
     val_data, val_sampler = MapLocalDataset.create_with_distributed_sampler(
-        val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE
+        val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE, using_DDP
     )
     train_data_loader = DataLoader(
         train_data,
