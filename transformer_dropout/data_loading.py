@@ -40,10 +40,10 @@ class IterableLocalDataset(IterableDataset):
         self.context_size = context_size
 
     def __len__(self):
-        return len(self.data) - self.context_size - 1
+        return len(self.data) - self.context_size
 
     def __iter__(self):
-        for idx in range(len(self.data) - self.context_size - 1):
+        for idx in range(len(self.data) - self.context_size):
             x = torch.from_numpy(
                 (self.data[idx : idx + self.context_size]).astype(np.int64)
             )
@@ -66,7 +66,7 @@ class DistributedIterableLocalDataset(IterableDataset):
     def __iter__(self):
         rank = dist.get_rank() if dist.is_initialized() else 0
         world_size = dist.get_world_size() if dist.is_initialized() else 1
-        total_size = len(self.data) - self.context_size - 1
+        total_size = len(self.data) - self.context_size
         per_process = int(np.ceil(total_size / float(world_size)))
         worker_start = rank * per_process
         worker_end = min(worker_start + per_process, total_size)
