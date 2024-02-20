@@ -11,7 +11,6 @@ GPU_INSTANCE_TYPES = [
     "ml.p3.2xlarge",
     "ml.p3.8xlarge",
     "ml.p3.16xlarge",
-    "ml.p3dn.24xlarge",
     "ml.p4d.24xlarge",
 ]
 ALL_INSTANCE_TYPES = GPU_INSTANCE_TYPES + ["ml.c5.18xlarge"]
