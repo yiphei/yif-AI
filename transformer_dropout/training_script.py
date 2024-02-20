@@ -429,6 +429,7 @@ def train(args):
                     "est_train_loss": train_loss,
                     "est_val_loss": val_loss,
                     "est_lr": lr,
+                    "est_step": iter_num / TRAIN_CONFIG.EST_INTERVAL-1,
                 },
                 step=iter_num,
                 # commit=True,
