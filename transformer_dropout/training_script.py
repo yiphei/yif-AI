@@ -139,7 +139,7 @@ def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device
     return x, y, new_data_iter
 
 
-def get_torch_save_dict(raw_model, optimizer, train_config, iter_num):
+def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_loss):
     return (
         {
             "model": raw_model.state_dict(),
@@ -147,22 +147,23 @@ def get_torch_save_dict(raw_model, optimizer, train_config, iter_num):
             "model_config": asdict(train_config.MODEL_CONFIG),
             "iter_num": iter_num,
             "config": asdict(train_config),
+            "best_val_loss": best_val_loss,
             # "itoc": None,  # TODO: add decoder,
         },
     )
 
 
-def save_checkpoint(checkpoint, checkpoint_path, is_local):
-    uncompressed_checkpoint_path = os.path.join(checkpoint_path, "ckpt.pt")
+def save_checkpoint(filename,checkpoint, checkpoint_path, is_local):
+    uncompressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.pt")
     # Save the uncompressed checkpoint
     torch.save(checkpoint, uncompressed_checkpoint_path)
 
     # Creating a sagemaker model afterwards with the checkpoint requires it to be compressed
     if not is_local:
-        compressed_checkpoint_path = os.path.join(checkpoint_path, "ckpt.tar.gz")
+        compressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.tar.gz")
         # Compress and save the checkpoint
         with tarfile.open(compressed_checkpoint_path, "w:gz") as tar:
-            tar.add(uncompressed_checkpoint_path, arcname="ckpt.pt")
+            tar.add(uncompressed_checkpoint_path, arcname=f"{filename}.pt")
 
 
 @torch.no_grad()
@@ -304,6 +305,7 @@ def train(args):
     curr_train_iter = iter(train_data_loader)
     curr_val_iter = iter(val_data_loader)
 
+    best_val_loss = None
     iter_num = 0
     if initialization_type == InitializationType.SCRATCH:
         meta_path = os.path.join(args.train, "meta.pkl")
@@ -424,6 +426,11 @@ def train(args):
             if new_val_iter is not None:
                 curr_val_iter = new_val_iter
 
+            should_save_best_val_loss_checkpoint = False
+            if best_val_loss is None or val_loss <= best_val_loss:
+                best_val_loss = val_loss
+                should_save_best_val_loss_checkpoint = True
+
             wandb.log(
                 {
                     "est_train_loss": train_loss,
@@ -435,12 +442,24 @@ def train(args):
                 # commit=True,
             )
             save_checkpoint(
-                get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num),
+                 "ckpt",
+                get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss),
                 (
                     "transformer_dropout/model_checkpoints/"
                     if args.is_local
                     else checkpoint_path
                 ),
+                args.is_local,
+            )
+            if should_save_best_val_loss_checkpoint:
+                save_checkpoint(
+                    "best_ckpt",
+                    get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss),
+                    (
+                        "transformer_dropout/model_checkpoints/"
+                        if args.is_local
+                        else checkpoint_path
+                    ),
                 args.is_local,
             )
 
@@ -507,7 +526,7 @@ def train(args):
 
     if is_master_process:
         torch.save(
-            get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num),
+            get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss),
             (
                 f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
                 if args.is_local
