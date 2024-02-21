@@ -291,11 +291,11 @@ class DropoutTransformer(nn.Module):
             self.config.use_dropout_entropy_in_loss
             and self.config.use_dropout_l1_norm_in_loss
         ) and self.training:
-            return mean_dropout_entropy + mean_dropout_l1_norm
+            return self.config.dropout_entropy_lambda * mean_dropout_entropy + self.config.dropout_l1_norm_lambda * mean_dropout_l1_norm
         elif self.config.use_dropout_entropy_in_loss and self.training:
-            return mean_dropout_entropy
+            return self.config.dropout_entropy_lambda *  mean_dropout_entropy
         elif self.config.use_dropout_l1_norm_in_loss and self.training:
-            return mean_dropout_l1_norm
+            return self.config.dropout_l1_norm_lambda * mean_dropout_l1_norm
         else:
             return 0
 
