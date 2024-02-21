@@ -33,6 +33,7 @@ parser.add_argument("--instance_count", type=int, required=True)
 parser.add_argument("--notes", type=str, default="")
 parser.add_argument("--use_spot", type=lambda v: bool(strtobool(v)), default=False)
 parser.add_argument("--train", type=str, required=True)
+parser.add_argument("--output_dir_name", type=str, default = None)
 args = parser.parse_args()
 
 # Validate config
@@ -74,7 +75,7 @@ val_files = [
 ]
 assert len(train_files) == 1 and len(val_files) == 1
 
-training_run_dir = f"training_run_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}/"
+training_run_dir = f"training/training_run_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}/" if args.output_dir_name is None else f"training/{args.output_dir_name}/"
 checkpoint_dir = "checkpoints/"
 s3.put_object(Bucket=default_bucket, Key=training_run_dir)
 s3.put_object(Bucket=default_bucket, Key=training_run_dir + checkpoint_dir)
