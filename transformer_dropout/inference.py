@@ -48,9 +48,9 @@ def model_fn(model_dir):
         )
     else:
         model_dict = torch.load(os.path.join(model_dir, "ckpt.pt"), map_location=device)
-    
+
     assert len(model_dict) == 1
-    model_dict = model_dict[0] # somehow, model dict is saved as a tuple in sagemaker
+    model_dict = model_dict[0]  # somehow, model dict is saved as a tuple in sagemaker
     model_config = ModelConfig(**model_dict["model_config"])
     model = DropoutTransformer(model_config)
     state_dict = model_dict["model"]

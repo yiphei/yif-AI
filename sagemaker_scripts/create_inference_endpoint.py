@@ -39,10 +39,10 @@ default_bucket = "dropout-transformer"
 
 assert args.model_uri.endswith("ckpt.tar.gz") or args.model_uri.endswith("model.tar.gz")
 
-s3_uri_body = args.model_uri[len('s3://'):]
-bucket_name, key = s3_uri_body.split('/', 1)
+s3_uri_body = args.model_uri[len("s3://") :]
+bucket_name, key = s3_uri_body.split("/", 1)
 s3 = boto3.client("s3", region_name=my_region)
-s3.head_object(Bucket=bucket_name, Key=key) # this raises error if file doesnt exist
+s3.head_object(Bucket=bucket_name, Key=key)  # this raises error if file doesnt exist
 
 sagemaker_session = sagemaker.Session(
     default_bucket=default_bucket,
