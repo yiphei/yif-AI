@@ -153,7 +153,7 @@ def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_l
     )
 
 
-def save_checkpoint(filename,checkpoint, checkpoint_path, is_local):
+def save_checkpoint(filename, checkpoint, checkpoint_path, is_local):
     uncompressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.pt")
     # Save the uncompressed checkpoint
     torch.save(checkpoint, uncompressed_checkpoint_path)
@@ -281,10 +281,16 @@ def train(args):
     [train_file_path] = list(directory.glob("*_train.bin"))
     [val_file_path] = list(directory.glob("*_val.bin"))
     train_data, train_sampler = MapLocalDataset.create_with_distributed_sampler(
-        train_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE, using_DDP
+        train_file_path,
+        TRAIN_CONFIG.MODEL_CONFIG.context_size,
+        TRAIN_CONFIG.BATCH_SIZE,
+        using_DDP,
     )
     val_data, val_sampler = MapLocalDataset.create_with_distributed_sampler(
-        val_file_path, TRAIN_CONFIG.MODEL_CONFIG.context_size, TRAIN_CONFIG.BATCH_SIZE, using_DDP
+        val_file_path,
+        TRAIN_CONFIG.MODEL_CONFIG.context_size,
+        TRAIN_CONFIG.BATCH_SIZE,
+        using_DDP,
     )
     train_data_loader = DataLoader(
         train_data,
@@ -436,14 +442,16 @@ def train(args):
                     "est_train_loss": train_loss,
                     "est_val_loss": val_loss,
                     "est_lr": lr,
-                    "est_step": iter_num / TRAIN_CONFIG.EST_INTERVAL-1,
+                    "est_step": iter_num / TRAIN_CONFIG.EST_INTERVAL - 1,
                 },
                 step=iter_num,
                 # commit=True,
             )
             save_checkpoint(
-                 "ckpt",
-                get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss),
+                "ckpt",
+                get_torch_save_dict(
+                    raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
+                ),
                 (
                     "transformer_dropout/model_checkpoints/"
                     if args.is_local
@@ -454,14 +462,16 @@ def train(args):
             if should_save_best_val_loss_checkpoint:
                 save_checkpoint(
                     "best_ckpt",
-                    get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss),
+                    get_torch_save_dict(
+                        raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
+                    ),
                     (
                         "transformer_dropout/model_checkpoints/"
                         if args.is_local
                         else checkpoint_path
                     ),
-                args.is_local,
-            )
+                    args.is_local,
+                )
 
         running_loss = 0
         running_entropy = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
@@ -526,7 +536,9 @@ def train(args):
 
     if is_master_process:
         torch.save(
-            get_torch_save_dict(raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss),
+            get_torch_save_dict(
+                raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
+            ),
             (
                 f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
                 if args.is_local
