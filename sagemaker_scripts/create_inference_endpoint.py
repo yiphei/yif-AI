@@ -37,7 +37,7 @@ sagemaker_client = boto3.client("sagemaker", region_name=my_region)
 sagemaker_runtime_client = boto3.client("sagemaker-runtime", region_name=my_region)
 default_bucket = "dropout-transformer"
 
-assert args.model_uri.endswith("ckpt.tar.gz")
+assert args.model_uri.endswith("ckpt.tar.gz") or args.model_uri.endswith("model.tar.gz")
 
 s3_uri_body = args.model_uri[len('s3://'):]
 bucket_name, key = s3_uri_body.split('/', 1)
