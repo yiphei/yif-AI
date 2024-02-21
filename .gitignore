@@ -166,3 +166,4 @@ cython_debug/
 **/model_weights/
 **/model_checkpoints/
 **/openweb/
+**/download_s3.py
