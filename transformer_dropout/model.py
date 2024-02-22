@@ -164,8 +164,8 @@ class LearnedDropout(nn.Module):
             self.dropout_l1_norm = (
                 torch.norm(dropout_mask, p=1, dim=-1) / self.dim_in
             ).flatten()
-            self.dropout_near_one_percent = (x > 0.9).sum().item() / x.numel()
-            self.dropout_near_zero_percent = (x < 0.1).sum().item() / x.numel()
+            self.dropout_near_one_percent = (dropout_mask > 0.9).sum().item() / dropout_mask.numel()
+            self.dropout_near_zero_percent = (dropout_mask < 0.1).sum().item() / dropout_mask.numel()
         return x * dropout_mask
 
 
