@@ -9,6 +9,14 @@ from torch.nn import functional as F
 
 
 @dataclass
+class EntropyLambda:
+    min_lamba: float
+    max_lambda: float
+    warmup_steps: int
+    decay_steps: int
+
+
+@dataclass
 class ModelConfig:
     context_size: int
     n_embed: int
@@ -136,6 +144,10 @@ class LearnedDropout(nn.Module):
         self.B = nn.Parameter(torch.normal(0, 0.02, size=(dim_in,)))
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
+        # unsure if registering these two as buffer is beneficial
+        # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately too
+        self.dropout_near_one_percent = None
+        self.dropout_near_zero_percent = None
 
     def forward(self, x):
         if self.is_for_attention:
@@ -152,6 +164,8 @@ class LearnedDropout(nn.Module):
             self.dropout_l1_norm = (
                 torch.norm(dropout_mask, p=1, dim=-1) / self.dim_in
             ).flatten()
+            self.dropout_near_one_percent = (x > 0.9).sum().item() / x.numel()
+            self.dropout_near_zero_percent = (x < 0.1).sum().item() / x.numel()
         return x * dropout_mask
 
 
@@ -229,6 +243,29 @@ class DropoutTransformer(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+
+    def get_mean_dropout_near_one_percent(self):
+        if not self.config.use_learned_dropout or not self.training:
+            return None
+
+        values = []
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                values.append(module.dropout_near_one_percent)
+        return sum(values) / len(values)
+    
+
+    def get_mean_dropout_near_zero_percent(self):
+        if not self.config.use_learned_dropout or not self.training:
+            return None
+
+        values = []
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                values.append(module.dropout_near_zero_percent)
+        return sum(values) / len(values)
+
 
     def get_mean_dropout_entropy(self):
         if not self.config.use_learned_dropout or not self.training:
