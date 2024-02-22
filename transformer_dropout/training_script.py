@@ -13,6 +13,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
+from contextlib import contextmanager, ExitStack
 
 import numpy as np
 import torch
@@ -193,7 +194,7 @@ def estimate_loss(
             if new_data_iter is not None:
                 data_iter = new_data_iter
 
-            with ctx:
+            with ctx(i, False):
                 _, loss, _, _ = model(xb, yb)
             if using_DP:
                 loss = loss.mean()
@@ -204,6 +205,44 @@ def estimate_loss(
     model.train()
     return (mean_losses, new_data_iters)
 
+
+def make_autocast_context(device_type, ptdtype):
+    @contextmanager
+    def autocast_context():
+        ctx = (
+            nullcontext()
+            if device_type == "cpu"
+            else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
+        )
+        with ctx:
+            yield
+
+    return autocast_context
+
+def make_entropy_lambda_context(starting_training_step, model):
+    @contextmanager
+    def entropy_lambda_context(training_step, is_first_minibatch):
+        if model.config.use_learned_dropout and model.training and is_first_minibatch:
+            assert (model.training_step == training_step - 1 if training_step != starting_training_step else model.training_step is None)
+            model.training_step = training_step
+        yield
+    return entropy_lambda_context
+
+def create_training_context(model, starting_training_step, device_type, ptdtype):
+    autocast_context = make_autocast_context(device_type, ptdtype)
+    entropy_lambda_context = make_entropy_lambda_context(starting_training_step, model)
+
+    @contextmanager
+    def training_context(training_step, is_first_minibatch):
+        with ExitStack() as stack:
+            # Enter the temporary_attribute context
+            stack.enter_context(autocast_context())
+            # Enter the other_context
+            stack.enter_context(entropy_lambda_context(training_step, is_first_minibatch))
+            # Yield control to the block within the `with` statement
+            yield
+    
+    return training_context
 
 def train(args):
     logging.basicConfig(
@@ -270,11 +309,6 @@ def train(args):
         "bfloat16": torch.bfloat16,
         "float16": torch.float16,
     }[TRAIN_CONFIG.DTYPE]
-    ctx = (
-        nullcontext()
-        if device_type == "cpu"
-        else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
-    )
 
     # Load and prepare training data
     directory = Path(args.train)
@@ -337,6 +371,7 @@ def train(args):
         iter_num = checkpoint["iter_num"] + 1
 
     model.to(TRAIN_CONFIG.DEVICE)
+    ctx = create_training_context(model, iter_num, device_type, ptdtype)
 
     MODEL_PARAMS = model.get_num_params()
     scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.DTYPE == "float16"))
@@ -476,12 +511,13 @@ def train(args):
         running_loss = 0
         running_entropy = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
         running_l1_norm = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
+        is_first_mini_batch = True
         for micro_step in range(TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS):
             if using_DDP:
                 model.require_backward_grad_sync = (
                     micro_step == TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS - 1
                 )
-            with ctx:
+            with ctx(iter_num, is_first_mini_batch):
                 _, loss, entropy, dropout_l1_norm = model(X, Y)
                 if using_DP:
                     loss = loss.mean()
@@ -513,6 +549,7 @@ def train(args):
                 curr_train_iter = new_train_iter
             # backward pass, with gradient scaling if training in fp16
             scaler.scale(loss).backward()
+            is_first_mini_batch = False
 
         scaler.step(optimizer)
         scaler.update()
