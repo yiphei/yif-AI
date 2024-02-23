@@ -194,7 +194,7 @@ def estimate_loss(
                 data_iter = new_data_iter
 
             with ctx(i, False):
-                _, loss, _, _ = model(xb, yb)
+                _, loss, _ = model(xb, yb)
             if using_DP:
                 loss = loss.mean()
             losses[i] = loss
@@ -460,6 +460,7 @@ def train(args):
         if (
             iter_num % TRAIN_CONFIG.EST_INTERVAL == 0
             and iter_num != (TRAIN_CONFIG.TRAIN_STEPS - 1)
+            and iter_num != 0
         ) and is_master_process:
             (train_loss, val_loss), (new_train_iter, new_val_iter) = estimate_loss(
                 model,
@@ -527,7 +528,7 @@ def train(args):
                     micro_step == TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS - 1
                 )
             with ctx(iter_num, is_first_mini_batch):
-                _, loss, entropy, dropout_l1_norm = model(X, Y)
+                _, loss, (entropy, dropout_l1_norm, entropy_coefficient, dropout_l1_norm_coefficient) = model(X, Y)
                 if using_DP:
                     loss = loss.mean()
                     if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
@@ -576,6 +577,8 @@ def train(args):
                     "time": float(f"{dt*1000:.2f}"),
                     "mean_dropout_near_one_percent": raw_model.get_mean_dropout_near_one_percent(),
                     "mean_dropout_near_zero_percent": raw_model.get_mean_dropout_near_zero_percent(),
+                    "dropout_entropy_coefficient": entropy_coefficient,
+                    "dropout_l1_norm_coefficient": dropout_l1_norm_coefficient,
                 },
                 step=iter_num,
                 # commit=False,
