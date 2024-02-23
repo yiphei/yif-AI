@@ -7,13 +7,12 @@ import random
 import sys
 import tarfile
 import time
-from contextlib import nullcontext
+from contextlib import ExitStack, contextmanager, nullcontext
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
-from contextlib import contextmanager, ExitStack
 
 import numpy as np
 import torch
@@ -219,14 +218,21 @@ def make_autocast_context(device_type, ptdtype):
 
     return autocast_context
 
+
 def make_entropy_lambda_context(starting_training_step, model):
     @contextmanager
     def entropy_lambda_context(training_step, is_first_minibatch):
         if model.config.use_learned_dropout and model.training and is_first_minibatch:
-            assert (model.training_step == training_step - 1 if training_step != starting_training_step else model.training_step is None)
+            assert (
+                model.training_step == training_step - 1
+                if training_step != starting_training_step
+                else model.training_step is None
+            )
             model.training_step = training_step
         yield
+
     return entropy_lambda_context
+
 
 def create_training_context(model, starting_training_step, device_type, ptdtype):
     autocast_context = make_autocast_context(device_type, ptdtype)
@@ -238,11 +244,14 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
             # Enter the temporary_attribute context
             stack.enter_context(autocast_context())
             # Enter the other_context
-            stack.enter_context(entropy_lambda_context(training_step, is_first_minibatch))
+            stack.enter_context(
+                entropy_lambda_context(training_step, is_first_minibatch)
+            )
             # Yield control to the block within the `with` statement
             yield
-    
+
     return training_context
+
 
 def train(args):
     logging.basicConfig(
