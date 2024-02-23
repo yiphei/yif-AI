@@ -7,8 +7,8 @@ BIAS = False
 USE_DROPOUT_ENTROPY_IN_LOSS = True
 USE_DROPOUT_L1_NORM_IN_LOSS = True
 USE_LEARNED_DROPOUT = True
-DROPOUT_ENTROPY_LAMBDA = 2
-DROPOUT_L1_NORM_LAMBDA = 2
+DROPOUT_ENTROPY_LAMBDA = {"max_lambda": 2}
+DROPOUT_L1_NORM_LAMBDA = {"max_lambda": 2}
 
 # Training config
 BATCH_SIZE = 7  # workst with 6 and 7, but 12 and 8 failed with 2 ml.p4d.24 instances
