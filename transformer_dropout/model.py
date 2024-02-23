@@ -62,16 +62,24 @@ class ModelConfig:
         elif not self.use_learned_dropout and self.dropout_rate is None:
             raise ValueError("dropout_rate must be set if not use_learned_dropout")
 
+        if self.dropout_entropy_lambda is not None:
+            if type(self.dropout_entropy_lambda) not in [dict, EntropyLambdaConfig]:
+                raise ValueError("dropout_entropy_lambda must be a dict or EntropyLambdaConfig")
+
+            if type(self.dropout_entropy_lambda) == dict is not None:
+                self.dropout_entropy_lambda = EntropyLambdaConfig(**self.dropout_entropy_lambda)
+
+        if self.dropout_l1_norm_lambda is not None:
+            if type(self.dropout_l1_norm_lambda) not in [dict, EntropyLambdaConfig]:
+                raise ValueError("dropout_l1_norm_lambda must be a dict or EntropyLambdaConfig")
+
+            if type(self.dropout_l1_norm_lambda) == dict is not None:
+                self.dropout_l1_norm_lambda = EntropyLambdaConfig(**self.dropout_l1_norm_lambda)
+
         if self.use_learned_dropout and self.dropout_entropy_lambda is None:
             self.dropout_entropy_lambda = EntropyLambdaConfig(max_lambda=1)
         if self.use_learned_dropout and self.dropout_l1_norm_lambda is None:
             self.dropout_l1_norm_lambda = EntropyLambdaConfig(max_lambda=1)
-
-        if self.dropout_entropy_lambda is not None and type(self.dropout_entropy_lambda) == dict:
-            self.dropout_entropy_lambda = EntropyLambdaConfig(**self.dropout_entropy_lambda)
-
-        if self.dropout_l1_norm_lambda is not None and type(self.dropout_l1_norm_lambda) == dict:
-            self.dropout_l1_norm_lambda = EntropyLambdaConfig(**self.dropout_l1_norm_lambda)
 
 
 class LayerNorm(nn.Module):
