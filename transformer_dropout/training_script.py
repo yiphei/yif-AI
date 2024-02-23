@@ -371,11 +371,13 @@ def train(args):
         # create the model
         model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
         state_dict = checkpoint["model"]
-        # from https://github.com/karpathy/nanoGPT/blob/master/train.py
+
+        # This is caused by compiling the model. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         unwanted_prefix = "_orig_mod."
         for k, v in list(state_dict.items()):
             if k.startswith(unwanted_prefix):
                 state_dict[k[len(unwanted_prefix) :]] = state_dict.pop(k)
+
         model.load_state_dict(state_dict)
         iter_num = checkpoint["iter_num"] + 1
 
