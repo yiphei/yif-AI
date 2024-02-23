@@ -219,9 +219,9 @@ def make_autocast_context(device_type, ptdtype):
     return autocast_context
 
 
-def make_entropy_lambda_context(starting_training_step, model):
+def make_training_step_context(starting_training_step, model):
     @contextmanager
-    def entropy_lambda_context(training_step, is_first_minibatch):
+    def training_step_context(training_step, is_first_minibatch):
         if model.config.use_learned_dropout and model.training and is_first_minibatch:
             assert (
                 model.training_step == training_step - 1
@@ -231,12 +231,12 @@ def make_entropy_lambda_context(starting_training_step, model):
             model.training_step = training_step
         yield
 
-    return entropy_lambda_context
+    return training_step_context
 
 
 def create_training_context(model, starting_training_step, device_type, ptdtype):
     autocast_context = make_autocast_context(device_type, ptdtype)
-    entropy_lambda_context = make_entropy_lambda_context(starting_training_step, model)
+    entropy_lambda_context = make_training_step_context(starting_training_step, model)
 
     @contextmanager
     def training_context(training_step, is_first_minibatch):
@@ -449,8 +449,9 @@ def train(args):
         -1,
         TRAIN_CONFIG.DEVICE,
     )  # fetch the very first batch
-    t0 = time.time()
     while iter_num < TRAIN_CONFIG.TRAIN_STEPS:
+        t0 = time.time()
+
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         lr = get_lr(iter_num) if TRAIN_CONFIG.DECAY_LR else TRAIN_CONFIG.LR
         for param_group in optimizer.param_groups:
@@ -459,7 +460,6 @@ def train(args):
         if (
             iter_num % TRAIN_CONFIG.EST_INTERVAL == 0
             and iter_num != (TRAIN_CONFIG.TRAIN_STEPS - 1)
-            and iter_num != 0
         ) and is_master_process:
             (train_loss, val_loss), (new_train_iter, new_val_iter) = estimate_loss(
                 model,
@@ -539,6 +539,7 @@ def train(args):
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
                 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
+                    # these values do not reflect the true scaled values used in the loss
                     running_entropy += (
                         entropy.item() / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
                     )
@@ -566,7 +567,6 @@ def train(args):
 
         t1 = time.time()
         dt = t1 - t0
-        t0 = t1
         if is_master_process:
             wandb.log(
                 {
