@@ -1,14 +1,14 @@
 # ModelConfig
 CONTEXT_SIZE = 1024
-N_EMBED = 600
-N_LAYER = 6
-N_HEAD = 6
+N_EMBED = 400
+N_LAYER = 4
+N_HEAD = 4
 BIAS = False
 USE_DROPOUT_ENTROPY_IN_LOSS = True
 USE_DROPOUT_L1_NORM_IN_LOSS = True
 USE_LEARNED_DROPOUT = True
-DROPOUT_ENTROPY_LAMBDA = {"min_lambda": 0, "max_lambda": 3, "coefficient": 0.007}
-DROPOUT_L1_NORM_LAMBDA = {"min_lambda": 0, "max_lambda": 3, "coefficient": 0.007}
+DROPOUT_ENTROPY_LAMBDA = {"min_lambda": 0, "max_lambda": 2, "coefficient": 0.007}
+DROPOUT_L1_NORM_LAMBDA = {"min_lambda": 0, "max_lambda": 2, "coefficient": 0.007}
 
 # Training config
 BATCH_SIZE = 10
