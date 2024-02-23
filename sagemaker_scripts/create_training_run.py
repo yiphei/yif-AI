@@ -21,6 +21,17 @@ GPU_INSTANCE_TYPES = [
 ]
 ALL_INSTANCE_TYPES = GPU_INSTANCE_TYPES + ["ml.c5.18xlarge"]
 
+def expression_to_int(expression):
+    allowed_chars = set("0123456789*")
+    if not all(char in allowed_chars for char in expression.replace(" ", "")):
+        raise ValueError("Invalid characters in expression")
+    
+    try:
+        # Evaluate the expression
+        return eval(expression, {"__builtins__": None}, {})
+    except (SyntaxError, NameError):
+        raise ValueError("Invalid expression")
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--config_file", type=str, required=True)
 parser.add_argument(
@@ -34,6 +45,7 @@ parser.add_argument("--notes", type=str, default="")
 parser.add_argument("--use_spot", type=lambda v: bool(strtobool(v)), default=False)
 parser.add_argument("--train", type=str, required=True)
 parser.add_argument("--output_dir_name", type=str, default=None)
+parser.add_argument("--max_runtime", type=lambda exp: expression_to_int(exp), required = True)
 args = parser.parse_args()
 
 # Validate config
@@ -108,6 +120,7 @@ pytorch_estimator = PyTorch(
     use_spot_instances=args.use_spot,
     max_wait=(60 * 60 * 24) if args.use_spot else None,
     tags={"notes": args.notes},
+    # max_run = args.max_runtime, # this is currently not working.
 )
 
 pytorch_estimator.fit(
