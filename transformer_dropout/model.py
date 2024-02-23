@@ -306,10 +306,12 @@ class DropoutTransformer(nn.Module):
                 values.append(module.dropout_near_zero_percent)
         return sum(values) / len(values)
 
-    def get_annealed_dropout_stat(self, stat, entropy_lambda_config):
-        # 1) linear warmup for warmup_iters steps
+    def get_annealed_dropout_coefficient(self, entropy_lambda_config):
+        if not self.config.use_learned_dropout or not self.training:
+            return None
+
         if entropy_lambda_config.coefficient is None:
-            return stat * entropy_lambda_config.max_lambda
+            return entropy_lambda_config.max_lambda
 
         intersect = (
             entropy_lambda_config.min_lambda - 1
@@ -322,7 +324,6 @@ class DropoutTransformer(nn.Module):
                 + intersect,
                 entropy_lambda_config.max_lambda,
             )
-            * stat
         )
 
     def get_mean_dropout_entropy(self):
@@ -367,6 +368,9 @@ class DropoutTransformer(nn.Module):
 
         mean_dropout_entropy = self.get_mean_dropout_entropy()
         mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
+        mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(self.config.dropout_entropy_lambda)
+        mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(self.config.dropout_l1_norm_lambda)
+
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
@@ -374,31 +378,28 @@ class DropoutTransformer(nn.Module):
             logits = self.output_layer(out)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
+
+            additional_loss = 0
+            if self.training and self.config.use_learned_dropout:
+                additional_loss = self.get_additional_loss_terms(
+                mean_dropout_entropy * mean_dropout_entropy_coefficient, mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient
+            )
+
             loss = F.cross_entropy(
                 logits, targets.view(-1)
-            ) + self.get_additional_loss_terms(
-                mean_dropout_entropy, mean_dropout_l1_norm
-            )
-        return logits, loss, mean_dropout_entropy, mean_dropout_l1_norm
+            ) + additional_loss
+        return logits, loss, (mean_dropout_entropy, mean_dropout_l1_norm, mean_dropout_entropy_coefficient, mean_dropout_l1_norm_coefficient)
 
-    def get_additional_loss_terms(self, mean_dropout_entropy, mean_dropout_l1_norm):
+    def get_additional_loss_terms(self, annealed_mean_dropout_entropy, annealed_dropout_l1_norm):
         if (
             self.config.use_dropout_entropy_in_loss
             and self.config.use_dropout_l1_norm_in_loss
         ) and self.training:
-            return self.get_annealed_dropout_stat(
-                mean_dropout_entropy, self.config.dropout_entropy_lambda
-            ) + self.get_annealed_dropout_stat(
-                mean_dropout_l1_norm, self.config.dropout_l1_norm_lambda
-            )
+            return annealed_mean_dropout_entropy + annealed_dropout_l1_norm
         elif self.config.use_dropout_entropy_in_loss and self.training:
-            return self.get_annealed_dropout_stat(
-                mean_dropout_entropy, self.config.dropout_entropy_lambda
-            )
+            return annealed_mean_dropout_entropy
         elif self.config.use_dropout_l1_norm_in_loss and self.training:
-            return self.get_annealed_dropout_stat(
-                mean_dropout_l1_norm, self.config.dropout_l1_norm_lambda
-            )
+            return annealed_dropout_l1_norm
         else:
             return 0
 
@@ -434,7 +435,7 @@ class DropoutTransformer(nn.Module):
     @torch.no_grad()
     def generate(self, x, max_tokens):
         for _ in range(max_tokens):
-            logits, _, _, _ = self(x[:, -self.config.context_size :], None)
+            logits, _, _ = self(x[:, -self.config.context_size :], None)
             probs = F.softmax(logits[:, -1, :], dim=-1)
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
