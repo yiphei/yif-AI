@@ -3,17 +3,18 @@ import math
 from dataclasses import dataclass, field
 from typing import Optional
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-import numpy as np
+
 
 @dataclass
 class EntropyLambdaConfig:
     min_lambda: float = None
     max_lambda: float = 1.0
     coefficient: float = None
-    
+
     def __post_init__(self):
         assert self.max_lambda > 0
 
@@ -21,11 +22,12 @@ class EntropyLambdaConfig:
             self.min_lambda >= 0
             assert self.min_lambda < self.max_lambda
             assert self.coefficient is not None
-        
+
         if self.coefficient is not None:
             assert self.coefficient < 1
-            slope_1_step = np.log(1/self.coefficient) * (1/self.coefficient)
+            slope_1_step = np.log(1 / self.coefficient) * (1 / self.coefficient)
             print(f"STEP at which slope is 1: {slope_1_step}")
+
 
 @dataclass
 class ModelConfig:
@@ -64,17 +66,25 @@ class ModelConfig:
 
         if self.dropout_entropy_lambda is not None:
             if type(self.dropout_entropy_lambda) not in [dict, EntropyLambdaConfig]:
-                raise ValueError("dropout_entropy_lambda must be a dict or EntropyLambdaConfig")
+                raise ValueError(
+                    "dropout_entropy_lambda must be a dict or EntropyLambdaConfig"
+                )
 
             if type(self.dropout_entropy_lambda) == dict is not None:
-                self.dropout_entropy_lambda = EntropyLambdaConfig(**self.dropout_entropy_lambda)
+                self.dropout_entropy_lambda = EntropyLambdaConfig(
+                    **self.dropout_entropy_lambda
+                )
 
         if self.dropout_l1_norm_lambda is not None:
             if type(self.dropout_l1_norm_lambda) not in [dict, EntropyLambdaConfig]:
-                raise ValueError("dropout_l1_norm_lambda must be a dict or EntropyLambdaConfig")
+                raise ValueError(
+                    "dropout_l1_norm_lambda must be a dict or EntropyLambdaConfig"
+                )
 
             if type(self.dropout_l1_norm_lambda) == dict is not None:
-                self.dropout_l1_norm_lambda = EntropyLambdaConfig(**self.dropout_l1_norm_lambda)
+                self.dropout_l1_norm_lambda = EntropyLambdaConfig(
+                    **self.dropout_l1_norm_lambda
+                )
 
         if self.use_learned_dropout and self.dropout_entropy_lambda is None:
             self.dropout_entropy_lambda = EntropyLambdaConfig(max_lambda=1)
@@ -189,8 +199,12 @@ class LearnedDropout(nn.Module):
             self.dropout_l1_norm = (
                 torch.norm(dropout_mask, p=1, dim=-1) / self.dim_in
             ).flatten()
-            self.dropout_near_one_percent = (dropout_mask > 0.9).sum().item() / dropout_mask.numel()
-            self.dropout_near_zero_percent = (dropout_mask < 0.1).sum().item() / dropout_mask.numel()
+            self.dropout_near_one_percent = (
+                dropout_mask > 0.9
+            ).sum().item() / dropout_mask.numel()
+            self.dropout_near_zero_percent = (
+                dropout_mask < 0.1
+            ).sum().item() / dropout_mask.numel()
         return x * dropout_mask
 
 
@@ -236,7 +250,9 @@ class DropoutTransformer(nn.Module):
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
         self.config = config
-        self.training_step = None # this is provided by the context manager in the training script
+        self.training_step = (
+            None  # this is provided by the context manager in the training script
+        )
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
@@ -270,7 +286,6 @@ class DropoutTransformer(nn.Module):
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-
     def get_mean_dropout_near_one_percent(self):
         if not self.config.use_learned_dropout or not self.training:
             return None
@@ -280,7 +295,6 @@ class DropoutTransformer(nn.Module):
             if isinstance(module, LearnedDropout):
                 values.append(module.dropout_near_one_percent)
         return sum(values) / len(values)
-    
 
     def get_mean_dropout_near_zero_percent(self):
         if not self.config.use_learned_dropout or not self.training:
@@ -296,10 +310,20 @@ class DropoutTransformer(nn.Module):
         # 1) linear warmup for warmup_iters steps
         if entropy_lambda_config.coefficient is None:
             return stat * entropy_lambda_config.max_lambda
-        
-        intersect = entropy_lambda_config.min_lambda - 1 if entropy_lambda_config.min_lambda is not None else -1
-        return min(np.exp(entropy_lambda_config.coefficient * self.training_step) + intersect, entropy_lambda_config.max_lambda) * stat
 
+        intersect = (
+            entropy_lambda_config.min_lambda - 1
+            if entropy_lambda_config.min_lambda is not None
+            else -1
+        )
+        return (
+            min(
+                np.exp(entropy_lambda_config.coefficient * self.training_step)
+                + intersect,
+                entropy_lambda_config.max_lambda,
+            )
+            * stat
+        )
 
     def get_mean_dropout_entropy(self):
         if not self.config.use_learned_dropout or not self.training:
@@ -362,11 +386,19 @@ class DropoutTransformer(nn.Module):
             self.config.use_dropout_entropy_in_loss
             and self.config.use_dropout_l1_norm_in_loss
         ) and self.training:
-            return self.get_annealed_dropout_stat(mean_dropout_entropy, self.config.dropout_entropy_lambda) + self.get_annealed_dropout_stat(mean_dropout_l1_norm, self.config.dropout_l1_norm_lambda)
+            return self.get_annealed_dropout_stat(
+                mean_dropout_entropy, self.config.dropout_entropy_lambda
+            ) + self.get_annealed_dropout_stat(
+                mean_dropout_l1_norm, self.config.dropout_l1_norm_lambda
+            )
         elif self.config.use_dropout_entropy_in_loss and self.training:
-            return self.get_annealed_dropout_stat(mean_dropout_entropy, self.config.dropout_entropy_lambda)
+            return self.get_annealed_dropout_stat(
+                mean_dropout_entropy, self.config.dropout_entropy_lambda
+            )
         elif self.config.use_dropout_l1_norm_in_loss and self.training:
-            return self.get_annealed_dropout_stat(mean_dropout_l1_norm, self.config.dropout_l1_norm_lambda)
+            return self.get_annealed_dropout_stat(
+                mean_dropout_l1_norm, self.config.dropout_l1_norm_lambda
+            )
         else:
             return 0
 
