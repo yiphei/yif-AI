@@ -24,7 +24,7 @@ class EntropyLambdaConfig:
         
         if self.coefficient is not None:
             assert self.coefficient < 1
-            slope_1_step = 1/ (np.log(np.e * self.coefficient) * self.coefficient)
+            slope_1_step = np.log(1/self.coefficient) * (1/self.coefficient)
             print(f"STEP at which slope is 1: {slope_1_step}")
 
 @dataclass
@@ -66,6 +66,12 @@ class ModelConfig:
             self.dropout_entropy_lambda = EntropyLambdaConfig(max_lambda=1)
         if self.use_learned_dropout and self.dropout_l1_norm_lambda is None:
             self.dropout_l1_norm_lambda = EntropyLambdaConfig(max_lambda=1)
+
+        if self.dropout_entropy_lambda is not None and type(self.dropout_entropy_lambda) == dict:
+            self.dropout_entropy_lambda = EntropyLambdaConfig(**self.dropout_entropy_lambda)
+
+        if self.dropout_l1_norm_lambda is not None and type(self.dropout_l1_norm_lambda) == dict:
+            self.dropout_l1_norm_lambda = EntropyLambdaConfig(**self.dropout_l1_norm_lambda)
 
 
 class LayerNorm(nn.Module):
