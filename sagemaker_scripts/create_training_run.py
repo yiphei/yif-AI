@@ -45,7 +45,7 @@ parser.add_argument("--notes", type=str, default="")
 parser.add_argument("--use_spot", type=lambda v: bool(strtobool(v)), default=False)
 parser.add_argument("--train", type=str, required=True)
 parser.add_argument("--output_dir_name", type=str, default=None)
-parser.add_argument("--max_runtime", type=lambda exp: expression_to_int(exp), required = True)
+parser.add_argument("--max_runtime", type=lambda exp: expression_to_int(exp))
 args = parser.parse_args()
 
 # Validate config
