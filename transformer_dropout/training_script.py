@@ -530,7 +530,16 @@ def train(args):
                     micro_step == TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS - 1
                 )
             with ctx(iter_num, is_first_mini_batch):
-                _, loss, (entropy, dropout_l1_norm, entropy_coefficient, dropout_l1_norm_coefficient) = model(X, Y)
+                (
+                    _,
+                    loss,
+                    (
+                        entropy,
+                        dropout_l1_norm,
+                        entropy_coefficient,
+                        dropout_l1_norm_coefficient,
+                    ),
+                ) = model(X, Y)
                 if using_DP:
                     loss = loss.mean()
                     if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:

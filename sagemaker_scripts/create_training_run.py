@@ -21,16 +21,18 @@ GPU_INSTANCE_TYPES = [
 ]
 ALL_INSTANCE_TYPES = GPU_INSTANCE_TYPES + ["ml.c5.18xlarge"]
 
+
 def expression_to_int(expression):
     allowed_chars = set("0123456789*")
     if not all(char in allowed_chars for char in expression.replace(" ", "")):
         raise ValueError("Invalid characters in expression")
-    
+
     try:
         # Evaluate the expression
         return eval(expression, {"__builtins__": None}, {})
     except (SyntaxError, NameError):
         raise ValueError("Invalid expression")
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config_file", type=str, required=True)
