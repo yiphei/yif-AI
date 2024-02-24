@@ -318,12 +318,9 @@ class DropoutTransformer(nn.Module):
             if entropy_lambda_config.min_lambda is not None
             else -1
         )
-        return (
-            min(
-                np.exp(entropy_lambda_config.coefficient * self.training_step)
-                + intersect,
-                entropy_lambda_config.max_lambda,
-            )
+        return min(
+            np.exp(entropy_lambda_config.coefficient * self.training_step) + intersect,
+            entropy_lambda_config.max_lambda,
         )
 
     def get_mean_dropout_entropy(self):
@@ -368,8 +365,12 @@ class DropoutTransformer(nn.Module):
 
         mean_dropout_entropy = self.get_mean_dropout_entropy()
         mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
-        mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(self.config.dropout_entropy_lambda)
-        mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(self.config.dropout_l1_norm_lambda)
+        mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(
+            self.config.dropout_entropy_lambda
+        )
+        mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(
+            self.config.dropout_l1_norm_lambda
+        )
 
         if targets is None:
             loss = None
@@ -382,15 +383,25 @@ class DropoutTransformer(nn.Module):
             additional_loss = 0
             if self.training and self.config.use_learned_dropout:
                 additional_loss = self.get_additional_loss_terms(
-                mean_dropout_entropy * mean_dropout_entropy_coefficient, mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient
-            )
+                    mean_dropout_entropy * mean_dropout_entropy_coefficient,
+                    mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient,
+                )
 
-            loss = F.cross_entropy(
-                logits, targets.view(-1)
-            ) + additional_loss
-        return logits, loss, (mean_dropout_entropy, mean_dropout_l1_norm, mean_dropout_entropy_coefficient, mean_dropout_l1_norm_coefficient)
+            loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
+        return (
+            logits,
+            loss,
+            (
+                mean_dropout_entropy,
+                mean_dropout_l1_norm,
+                mean_dropout_entropy_coefficient,
+                mean_dropout_l1_norm_coefficient,
+            ),
+        )
 
-    def get_additional_loss_terms(self, annealed_mean_dropout_entropy, annealed_dropout_l1_norm):
+    def get_additional_loss_terms(
+        self, annealed_mean_dropout_entropy, annealed_dropout_l1_norm
+    ):
         if (
             self.config.use_dropout_entropy_in_loss
             and self.config.use_dropout_l1_norm_in_loss
