@@ -13,6 +13,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
+import inspect
 
 import numpy as np
 import torch
@@ -109,7 +110,7 @@ class TrainConfig:
         with open(config_file, "r") as file:
             exec(file.read(), {}, config_dict)
         # Filter out built-in items
-        config_dict = {k: v for k, v in config_dict.items() if not k.startswith("__")}
+        config_dict = {k: v for k, v in config_dict.items() if not k.startswith("__") and not inspect.ismodule(v)}
 
         model_config_fields = [f.name.upper() for f in fields(ModelConfig)]
         model_config_dict = {
