@@ -39,6 +39,10 @@ class ModelConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_learned_dropout: bool
+    use_canonical_entropy: bool
+    use_detached_x_in_dropout_mask: bool
+    b_param_mean: float = 0.0
+    b_param_std: float = 0.02
     dropout_entropy_lambda: Optional[EntropyLambdaConfig] = field(default=None)
     dropout_l1_norm_lambda: Optional[EntropyLambdaConfig] = field(default=None)
     dropout_rate: Optional[float] = field(default=None)
@@ -121,8 +125,8 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=config.bias)
 
         if config.use_learned_dropout:
-            self.dropout_1 = LearnedDropout(config.context_size,config.use_dropout_entropy_in_loss, config.use_dropout_l1_norm_in_loss, is_for_attention=True)
-            self.dropout_2 = LearnedDropout(self.dim_in, config.use_dropout_entropy_in_loss, config.use_dropout_l1_norm_in_loss)
+            self.dropout_1 = LearnedDropout(config.context_size, config, is_for_attention=True)
+            self.dropout_2 = LearnedDropout(self.dim_in, config)
         else:
             self.dropout_1 = nn.Dropout(config.dropout_rate)
             self.dropout_2 = nn.Dropout(config.dropout_rate)
@@ -172,17 +176,17 @@ class OptimizedMultiAttentionHead(nn.Module):
 
 
 class LearnedDropout(nn.Module):
-    def __init__(self, dim_in, use_dropout_entropy_in_loss, use_dropout_l1_norm_in_loss, is_for_attention=False):
+    def __init__(self, dim_in, config, is_for_attention=False):
         super().__init__()
         self.is_for_attention = is_for_attention
         self.dim_in = dim_in
-        self.use_dropout_entropy_in_loss = use_dropout_entropy_in_loss
-        self.use_dropout_l1_norm_in_loss = use_dropout_l1_norm_in_loss
-        self.dropout_entropy_context = nullcontext() if use_dropout_entropy_in_loss else torch.no_grad()
-        self.dropout_l1_norm_context = nullcontext() if use_dropout_l1_norm_in_loss else torch.no_grad()
+        self.dropout_entropy_context = nullcontext() if config.use_dropout_entropy_in_loss else torch.no_grad()
+        self.dropout_l1_norm_context = nullcontext() if config.use_dropout_l1_norm_in_loss else torch.no_grad()
+        self.use_detached_x_in_dropout_mask = config.use_detached_x_in_dropout_mask
+        self.entropy_fn = self.canonical_entropy if config.use_canonical_entropy else self.alternate_entropy
 
         self.A = nn.Parameter(torch.normal(0, 0.02, size=(dim_in,)))
-        self.B = nn.Parameter(torch.normal(0, 0.02, size=(dim_in,)))
+        self.B = nn.Parameter(torch.normal(config.b_param_mean, config.b_param_std, size=(dim_in,)))
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
         # unsure if registering these two as buffer is beneficial
@@ -190,27 +194,28 @@ class LearnedDropout(nn.Module):
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
 
-        self.canonical_entropy_fn = lambda x: (
-                    (x * -torch.log2(x + 1e-9)).mean(dim=-1).flatten()
-                )
+        
+    def canonical_entropy(self, x):
+        return (x * -torch.log2(x + 1e-9)).mean(dim=-1).flatten()
+    
+    def alternate_entropy(self, x):
         # the alternate entropy has the peak above 0.5, while the canonical one has
         # it below 0.5. In theory, this should be better for achieving low entropy
         # and low l1 norm at the same time because there is more curvature towards 0.
-        self.alternate_entropy_fn = lambda x: (
-                    ((x-1) * torch.log2((-x + 1) + 1e-9)).mean(dim=-1).flatten()
-                )
+        return ((x-1) * torch.log2((-x + 1) + 1e-9)).mean(dim=-1).flatten()
 
     def forward(self, x):
+        dropout_mask_x = x.detach() if self.use_detached_x_in_dropout_mask else x
         if self.is_for_attention:
             _, _, T1, T2 = x.shape
             assert T1 == T2
-            dropout_mask = 0.5 * torch.cos(self.A[:T1] * x + self.B[:T1]) + 0.5
+            dropout_mask = 0.5 * torch.cos(self.A[:T1] * dropout_mask_x + self.B[:T1]) + 0.5
         else:
-            dropout_mask = 0.5 * torch.cos(self.A * x + self.B) + 0.5
+            dropout_mask = 0.5 * torch.cos(self.A * dropout_mask_x + self.B) + 0.5
 
         if self.training:
             with self.dropout_entropy_context:
-                self.dropout_entropy = self.canonical_entropy_fn(dropout_mask)
+                self.dropout_entropy = self.entropy_fn(dropout_mask)
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
                     torch.norm(dropout_mask, p=1, dim=-1) / self.dim_in
@@ -233,7 +238,7 @@ class FeedForward(nn.Module):
             config.n_embed * 4, config.n_embed, bias=config.bias
         )
         if config.use_learned_dropout:
-            self.dropout = LearnedDropout(config.n_embed, config.use_dropout_entropy_in_loss, config.use_dropout_l1_norm_in_loss)
+            self.dropout = LearnedDropout(config.n_embed, config)
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
@@ -273,7 +278,7 @@ class DropoutTransformer(nn.Module):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         if config.use_learned_dropout:
-            self.dropout = LearnedDropout(config.n_embed, config.use_dropout_entropy_in_loss, config.use_dropout_l1_norm_in_loss)
+            self.dropout = LearnedDropout(config.n_embed, config)
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
