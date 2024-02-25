@@ -193,6 +193,9 @@ class LearnedDropout(nn.Module):
         self.canonical_entropy_fn = lambda x: (
                     (x * -torch.log2(x + 1e-9)).mean(dim=-1).flatten()
                 )
+        # the alternate entropy has the peak above 0.5, while the canonical one has
+        # it below 0.5. In theory, this should be better for achieving low entropy
+        # and low l1 norm at the same time because there is more curvature towards 0.
         self.alternate_entropy_fn = lambda x: (
                     ((x-1) * torch.log2((-x + 1) + 1e-9)).mean(dim=-1).flatten()
                 )
