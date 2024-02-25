@@ -4,13 +4,13 @@ N_EMBED = 100
 N_LAYER = 3
 N_HEAD = 2
 BIAS = False
-USE_DROPOUT_ENTROPY_IN_LOSS = True
-USE_DROPOUT_L1_NORM_IN_LOSS = True
 USE_LEARNED_DROPOUT = True
-DROPOUT_ENTROPY_LAMBDA = {"min_lambda": 0.1, "max_lambda": 2, "coefficient": 0.001}
-DROPOUT_L1_NORM_LAMBDA = {"min_lambda": 0.1, "max_lambda": 2, "coefficient": 0.001}
-USE_CANONICAL_ENTROPY = True
-USE_DETACHED_X_IN_DROPOUT_MASK = True
+LEARNED_DROPOUT_CONFIG = {"use_dropout_entropy_in_loss": True, 
+                  "use_dropout_l1_norm_in_loss": True, 
+                  "use_canonical_entropy": True, 
+                  "use_detached_x_in_dropout_mask": True,
+                  "dropout_entropy_lambda": {"min_lambda": 0.1, "max_lambda": 2, "coefficient": 0.001},
+                   "dropout_l1_norm_lambda": {"min_lambda": 0.1, "max_lambda": 2, "coefficient": 0.001} }
 
 # Training config
 BATCH_SIZE = 10
