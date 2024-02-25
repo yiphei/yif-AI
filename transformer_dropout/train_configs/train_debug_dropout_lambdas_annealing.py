@@ -9,6 +9,8 @@ USE_DROPOUT_L1_NORM_IN_LOSS = True
 USE_LEARNED_DROPOUT = True
 DROPOUT_ENTROPY_LAMBDA = {"min_lambda": 0.1, "max_lambda": 2, "coefficient": 0.001}
 DROPOUT_L1_NORM_LAMBDA = {"min_lambda": 0.1, "max_lambda": 2, "coefficient": 0.001}
+USE_CANONICAL_ENTROPY = True
+USE_DETACHED_X_IN_DROPOUT_MASK = True
 
 # Training config
 BATCH_SIZE = 10
