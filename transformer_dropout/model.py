@@ -190,6 +190,13 @@ class LearnedDropout(nn.Module):
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
 
+        self.canonical_entropy_fn = lambda x: (
+                    (x * -torch.log2(x + 1e-9)).mean(dim=-1).flatten()
+                )
+        self.alternate_entropy_fn = lambda x: (
+                    ((x-1) * torch.log2((-x + 1) + 1e-9)).mean(dim=-1).flatten()
+                )
+
     def forward(self, x):
         if self.is_for_attention:
             _, _, T1, T2 = x.shape
@@ -200,9 +207,7 @@ class LearnedDropout(nn.Module):
 
         if self.training:
             with self.dropout_entropy_context:
-                self.dropout_entropy = (
-                    (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean(dim=-1).flatten()
-                )
+                self.dropout_entropy = self.canonical_entropy_fn(dropout_mask)
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
                     torch.norm(dropout_mask, p=1, dim=-1) / self.dim_in
