@@ -29,6 +29,36 @@ class EntropyLambdaConfig:
             slope_1_step = np.log(1 / self.coefficient) * (1 / self.coefficient)
             print(f"STEP at which slope is 1: {slope_1_step}")
 
+@dataclass 
+class LearnedDropoutConfig:
+    use_canonical_entropy: bool
+    use_detached_x_in_dropout_mask: bool
+    use_dropout_entropy_in_loss: bool
+    use_dropout_l1_norm_in_loss: bool
+    b_param_mean: float = 0.0
+    b_param_std: float = 0.02
+    dropout_entropy_lambda: Optional[EntropyLambdaConfig] = field(default=None)
+    dropout_l1_norm_lambda: Optional[EntropyLambdaConfig] = field(default=None)
+
+    def __post_init__(self):
+        if not self.use_dropout_entropy_in_loss and self.dropout_entropy_lambda is not None:
+            raise ValueError("dropout_entropy_lambda is set but use_dropout_entropy_in_loss is False")
+
+        if not self.use_dropout_l1_norm_in_loss and self.dropout_l1_norm_lambda is not None:
+            raise ValueError("dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False")
+
+        for attr_name in ["dropout_entropy_lambda", "dropout_l1_norm_lambda"]:
+            attr_value = getattr(self, attr_name)
+            if attr_value is not None:
+                if type(attr_value) not in [dict, EntropyLambdaConfig]:
+                    raise ValueError(
+                        f"{attr_name} must be a dict or EntropyLambdaConfig"
+                    )
+
+                if type(attr_value) == dict:
+                    setattr(self, attr_name, EntropyLambdaConfig(**attr_value))
+            else:
+                setattr(self, attr_name, EntropyLambdaConfig(max_lambda=1))
 
 @dataclass
 class ModelConfig:
@@ -36,65 +66,24 @@ class ModelConfig:
     n_embed: int
     n_layer: int
     n_head: int
-    use_dropout_entropy_in_loss: bool
-    use_dropout_l1_norm_in_loss: bool
     use_learned_dropout: bool
-    use_canonical_entropy: bool
-    use_detached_x_in_dropout_mask: bool
-    b_param_mean: float = 0.0
-    b_param_std: float = 0.02
-    dropout_entropy_lambda: Optional[EntropyLambdaConfig] = field(default=None)
-    dropout_l1_norm_lambda: Optional[EntropyLambdaConfig] = field(default=None)
+    learned_dropout_config: LearnedDropoutConfig = None
     dropout_rate: Optional[float] = field(default=None)
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
     use_flash: bool = False
 
     def __post_init__(self):
-        if not self.use_learned_dropout and (
-            self.use_dropout_entropy_in_loss
-            or self.use_dropout_l1_norm_in_loss
-            or self.dropout_entropy_lambda
-            or self.dropout_l1_norm_lambda
-        ):
+        if not (self.use_learned_dropout == (self.learned_dropout_config is not None)):
             raise ValueError(
-                "use_dropout_entropy_in_loss and use_dropout_l1_norm_in_loss require use_learned_dropout"
+                "use_learned_dropout and learned_dropout_config are mutually inclusive"
             )
-        elif self.use_dropout_entropy_in_loss and not (
-            self.use_dropout_entropy_in_loss or self.use_dropout_l1_norm_in_loss
-        ):
-            raise ValueError(
-                "use_dropout_entropy_in_loss and use_dropout_l1_norm_in_loss cannot be both False"
-            )
+        
         elif not self.use_learned_dropout and self.dropout_rate is None:
             raise ValueError("dropout_rate must be set if not use_learned_dropout")
-
-        if self.dropout_entropy_lambda is not None:
-            if type(self.dropout_entropy_lambda) not in [dict, EntropyLambdaConfig]:
-                raise ValueError(
-                    "dropout_entropy_lambda must be a dict or EntropyLambdaConfig"
-                )
-
-            if type(self.dropout_entropy_lambda) == dict is not None:
-                self.dropout_entropy_lambda = EntropyLambdaConfig(
-                    **self.dropout_entropy_lambda
-                )
-
-        if self.dropout_l1_norm_lambda is not None:
-            if type(self.dropout_l1_norm_lambda) not in [dict, EntropyLambdaConfig]:
-                raise ValueError(
-                    "dropout_l1_norm_lambda must be a dict or EntropyLambdaConfig"
-                )
-
-            if type(self.dropout_l1_norm_lambda) == dict is not None:
-                self.dropout_l1_norm_lambda = EntropyLambdaConfig(
-                    **self.dropout_l1_norm_lambda
-                )
-
-        if self.use_learned_dropout and self.dropout_entropy_lambda is None:
-            self.dropout_entropy_lambda = EntropyLambdaConfig(max_lambda=1)
-        if self.use_learned_dropout and self.dropout_l1_norm_lambda is None:
-            self.dropout_l1_norm_lambda = EntropyLambdaConfig(max_lambda=1)
+        
+        if self.learned_dropout_config is not None and type(self.learned_dropout_config) == dict:
+            self.learned_dropout_config = LearnedDropoutConfig(**self.learned_dropout_config)
 
 
 class LayerNorm(nn.Module):
@@ -125,8 +114,8 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=config.bias)
 
         if config.use_learned_dropout:
-            self.dropout_1 = LearnedDropout(config.context_size, config, is_for_attention=True)
-            self.dropout_2 = LearnedDropout(self.dim_in, config)
+            self.dropout_1 = LearnedDropout(config.context_size, config.learned_dropout_config, is_for_attention=True)
+            self.dropout_2 = LearnedDropout(self.dim_in, config.learned_dropout_config)
         else:
             self.dropout_1 = nn.Dropout(config.dropout_rate)
             self.dropout_2 = nn.Dropout(config.dropout_rate)
@@ -238,7 +227,7 @@ class FeedForward(nn.Module):
             config.n_embed * 4, config.n_embed, bias=config.bias
         )
         if config.use_learned_dropout:
-            self.dropout = LearnedDropout(config.n_embed, config)
+            self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
@@ -278,7 +267,7 @@ class DropoutTransformer(nn.Module):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         if config.use_learned_dropout:
-            self.dropout = LearnedDropout(config.n_embed, config)
+            self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
@@ -387,10 +376,10 @@ class DropoutTransformer(nn.Module):
         mean_dropout_entropy = self.get_mean_dropout_entropy()
         mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
         mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(
-            self.config.dropout_entropy_lambda
+            self.config.learned_dropout_config.dropout_entropy_lambda
         )
         mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(
-            self.config.dropout_l1_norm_lambda
+            self.config.learned_dropout_config.dropout_l1_norm_lambda
         )
 
         if targets is None:
@@ -424,13 +413,13 @@ class DropoutTransformer(nn.Module):
         self, annealed_mean_dropout_entropy, annealed_dropout_l1_norm
     ):
         if (
-            self.config.use_dropout_entropy_in_loss
-            and self.config.use_dropout_l1_norm_in_loss
+            self.config.learned_dropout_config.use_dropout_entropy_in_loss
+            and self.config.learned_dropout_config.use_dropout_l1_norm_in_loss
         ) and self.training:
             return annealed_mean_dropout_entropy + annealed_dropout_l1_norm
-        elif self.config.use_dropout_entropy_in_loss and self.training:
+        elif self.config.learned_dropout_config.use_dropout_entropy_in_loss and self.training:
             return annealed_mean_dropout_entropy
-        elif self.config.use_dropout_l1_norm_in_loss and self.training:
+        elif self.config.learned_dropout_config.use_dropout_l1_norm_in_loss and self.training:
             return annealed_dropout_l1_norm
         else:
             return 0
