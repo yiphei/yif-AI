@@ -4,11 +4,22 @@ N_EMBED = 768
 N_LAYER = 12
 N_HEAD = 12
 BIAS = False
-USE_DROPOUT_ENTROPY_IN_LOSS = True
-USE_DROPOUT_L1_NORM_IN_LOSS = True
 USE_LEARNED_DROPOUT = True
-DROPOUT_ENTROPY_LAMBDA = {"max_lambda": 2}
-DROPOUT_L1_NORM_LAMBDA = {"max_lambda": 2}
+LEARNED_DROPOUT_CONFIG = {
+    "use_dropout_entropy_in_loss": True,
+    "use_dropout_l1_norm_in_loss": True,
+    "use_canonical_entropy": False,
+    "use_detached_x_in_dropout_mask": True,
+    "a_param_mean": 100000,
+    "a_param_std": 0.02,
+    "dropout_entropy_lambda": {
+        "max_lambda": 2,
+    },
+    "dropout_l1_norm_lambda": {
+        "max_lambda": 2,
+    },
+}
+
 
 # Training config
 BATCH_SIZE = 7  # workst with 6 and 7, but 12 and 8 failed with 2 ml.p4d.24 instances

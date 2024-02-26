@@ -36,6 +36,8 @@ class LearnedDropoutConfig:
     use_detached_x_in_dropout_mask: bool
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
+    a_param_mean: float
+    a_param_std: float
     b_param_mean: float = 0.0
     b_param_std: float = 0.02
     dropout_entropy_lambda: Optional[EntropyLambdaConfig] = field(default=None)
@@ -203,7 +205,7 @@ class LearnedDropout(nn.Module):
             else self.alternate_entropy
         )
 
-        self.A = nn.Parameter(torch.normal(0, 0.02, size=(dim_in,)))
+        self.A = nn.Parameter(torch.normal(config.a_param_mean, config.a_param_std, size=(dim_in,)))
         self.B = nn.Parameter(
             torch.normal(config.b_param_mean, config.b_param_std, size=(dim_in,))
         )
