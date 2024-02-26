@@ -27,7 +27,7 @@ try:
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
     from model import DropoutTransformer, ModelConfig
-    from .data_loading import MapLocalDataset
+    from data_loading import MapLocalDataset
 
 import wandb
 from torch.distributed import destroy_process_group, init_process_group
