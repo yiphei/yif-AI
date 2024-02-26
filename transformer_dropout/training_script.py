@@ -49,10 +49,13 @@ class InitializationType(Enum):
     RESUME = "resume"
 
 
-class InstanceType(str, Enum):
+class PlatformType(str, Enum):
     LOCAL = "LOCAL"
     SAGEMAKER = "SAGEMAKER"
     OTHER_CLOUD = "OTHER_CLOUD"
+
+    def __str__(self):
+        return self.value
 
 @dataclass
 class TrainConfig:
@@ -157,13 +160,13 @@ def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_l
         }
 
 
-def save_checkpoint(filename, checkpoint, checkpoint_path, instance_type):
+def save_checkpoint(filename, checkpoint, checkpoint_path, platform_type):
     uncompressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.pt")
     # Save the uncompressed checkpoint
     torch.save(checkpoint, uncompressed_checkpoint_path)
 
     # Creating a sagemaker model afterwards with the checkpoint requires it to be compressed
-    if instance_type == InstanceType.SAGEMAKER:
+    if platform_type == PlatformType.SAGEMAKER:
         compressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.tar.gz")
         # Compress and save the checkpoint
         with tarfile.open(compressed_checkpoint_path, "w:gz") as tar:
@@ -503,7 +506,7 @@ def train(args):
                 (
                  args.checkpoint_path
                 ),
-                args.instance_type,
+                args.platform_type,
             )
             if should_save_best_val_loss_checkpoint:
                 save_checkpoint(
@@ -514,7 +517,7 @@ def train(args):
                     (
                        args.checkpoint_path
                     ),
-                    args.instance_type,
+                    args.platform_type,
                 )
 
         running_loss = 0
@@ -605,7 +608,7 @@ def train(args):
                 raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
             ),
             (
-            os.path.join(args.model_path, f"model_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}.pth" if args.instance_type == InstanceType.LOCAL else "model.pth" )
+            os.path.join(args.model_path, f"model_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}.pth" if args.platform_type == PlatformType.LOCAL else "model.pth" )
             ),
         )
 
@@ -615,7 +618,7 @@ def train(args):
 
 
 def get_default_args(args):
-    if args.instance_type == InstanceType.SAGEMAKER:
+    if args.platform_type == PlatformType.SAGEMAKER:
         if args.checkpoint_path is None:
             args.checkpoint_path = "/opt/ml/checkpoints"
         if args.train is None:
@@ -624,7 +627,7 @@ def get_default_args(args):
             args.model_path = os.environ["SM_MODEL_DIR"]
         if args.resume_from_checkpoint is None:
             args.resume_from_checkpoint = True
-    elif args.instance_type == InstanceType.LOCAL:
+    elif args.platform_type == PlatformType.LOCAL:
         if args.checkpoint_path is None:
             args.checkpoint_path = "transformer_dropout/model_checkpoints/"
         assert args.train is not None
@@ -641,7 +644,7 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", type=str, required=True)
     parser.add_argument("--checkpoint_path", type=str)
     parser.add_argument("--model_path", type=str)
-    parser.add_argument("--instance_type", type=InstanceType, default=InstanceType.LOCAL)
+    parser.add_argument("--platform_type", type=PlatformType, default=PlatformType.LOCAL)
     parser.add_argument("--resume_from_checkpoint", type=lambda v: bool(strtobool(v)))
     args = parser.parse_args()
 

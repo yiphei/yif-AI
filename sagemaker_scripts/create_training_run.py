@@ -9,7 +9,7 @@ import wandb
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
 
-from transformer_dropout.training_script import TrainConfig
+from transformer_dropout.training_script import TrainConfig, PlatformType
 
 SOURCE_DIR = "transformer_dropout/"
 GPU_INSTANCE_TYPES = [
@@ -114,7 +114,7 @@ pytorch_estimator = PyTorch(
     ),
     hyperparameters={
         "config_file": args.config_file,
-        "is_local": "False",
+        "platform_type": PlatformType.SAGEMAKER,
     },
     output_path=f"s3://dropout-transformer/{training_run_dir}",
     code_location=f"s3://dropout-transformer/{training_run_dir}/code/",  # annoying that this has to be specified
