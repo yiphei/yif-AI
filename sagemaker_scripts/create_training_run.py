@@ -90,9 +90,9 @@ val_files = [
 assert len(train_files) == 1 and len(val_files) == 1
 
 training_run_dir = (
-    f"training/training_run_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}/"
+    f"training/sagemaker_training_run_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}/"
     if args.output_dir_name is None
-    else f"training/{args.output_dir_name}/"
+    else f"training/sagemaker_{args.output_dir_name}/"
 )
 checkpoint_dir = "checkpoints/"
 s3.put_object(Bucket=default_bucket, Key=training_run_dir)

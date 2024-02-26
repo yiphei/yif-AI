@@ -609,7 +609,7 @@ def train(args):
                 raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
             ),
             (
-                f"transformer_dropout/model_weights/model_{datetime.now().strftime('%H-%M-%S-%d-%m-%y')}.pth"
+                f"transformer_dropout/model_weights/model_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}.pth"
                 if args.is_local
                 else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth")
             ),
