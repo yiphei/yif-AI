@@ -49,6 +49,11 @@ class InitializationType(Enum):
     RESUME = "resume"
 
 
+class InstanceType(str, Enum):
+    LOCAL = "LOCAL"
+    SAGEMAKER = "SAGEMAKER"
+    OTHER_CLOUD = "OTHER_CLOUD"
+
 @dataclass
 class TrainConfig:
     DEVICE: str = field(
@@ -141,8 +146,7 @@ def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device
 
 
 def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_loss):
-    return (
-        {
+    return {
             "model": raw_model.state_dict(),
             "optimizer": optimizer.state_dict(),
             "model_config": asdict(train_config.MODEL_CONFIG),
@@ -150,17 +154,16 @@ def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_l
             "config": asdict(train_config),
             "best_val_loss": best_val_loss,
             # "itoc": None,  # TODO: add decoder,
-        },
-    )
+        }
 
 
-def save_checkpoint(filename, checkpoint, checkpoint_path, is_local):
+def save_checkpoint(filename, checkpoint, checkpoint_path, instance_type):
     uncompressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.pt")
     # Save the uncompressed checkpoint
     torch.save(checkpoint, uncompressed_checkpoint_path)
 
     # Creating a sagemaker model afterwards with the checkpoint requires it to be compressed
-    if not is_local:
+    if instance_type == InstanceType.SAGEMAKER:
         compressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.tar.gz")
         # Compress and save the checkpoint
         with tarfile.open(compressed_checkpoint_path, "w:gz") as tar:
@@ -292,15 +295,12 @@ def train(args):
         seed_offset = 0
 
     initialization_type = InitializationType.SCRATCH
-    checkpoint_path = (
-        args.local_checkpoint_path if args.is_local else args.checkpoint_path
-    )
     ckpt_file_path = None
-    if checkpoint_path is not None:
-        assert os.path.isdir(checkpoint_path)
-        if os.path.isfile(os.path.join(checkpoint_path, "ckpt.pt")):
+    if args.checkpoint_path is not None and args.resume_from_checkpoint:
+        assert os.path.isdir(args.checkpoint_path)
+        if os.path.isfile(os.path.join(args.checkpoint_path, "ckpt.pt")):
             initialization_type = InitializationType.RESUME
-            ckpt_file_path = os.path.join(checkpoint_path, "ckpt.pt")
+            ckpt_file_path = os.path.join(args.checkpoint_path, "ckpt.pt")
 
     torch.manual_seed(
         TRAIN_CONFIG.RANDOM_SEED + seed_offset
@@ -501,11 +501,9 @@ def train(args):
                     raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
                 ),
                 (
-                    "transformer_dropout/model_checkpoints/"
-                    if args.is_local
-                    else checkpoint_path
+                 args.checkpoint_path
                 ),
-                args.is_local,
+                args.instance_type,
             )
             if should_save_best_val_loss_checkpoint:
                 save_checkpoint(
@@ -514,11 +512,9 @@ def train(args):
                         raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
                     ),
                     (
-                        "transformer_dropout/model_checkpoints/"
-                        if args.is_local
-                        else checkpoint_path
+                       args.checkpoint_path
                     ),
-                    args.is_local,
+                    args.instance_type,
                 )
 
         running_loss = 0
@@ -609,9 +605,7 @@ def train(args):
                 raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
             ),
             (
-                f"transformer_dropout/model_weights/model_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}.pth"
-                if args.is_local
-                else os.path.join(os.environ["SM_MODEL_DIR"], "model.pth")
+            os.path.join(args.model_path, f"model_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}.pth" if args.instance_type == InstanceType.LOCAL else "model.pth" )
             ),
         )
 
@@ -619,22 +613,37 @@ def train(args):
         destroy_process_group()
 
 
+
+def get_default_args(args):
+    if args.instance_type == InstanceType.SAGEMAKER:
+        if args.checkpoint_path is None:
+            args.checkpoint_path = "/opt/ml/checkpoints"
+        if args.train is None:
+            args.train = os.environ.get("SM_CHANNEL_TRAIN")
+        if args.model_path is None:
+            args.model_path = os.environ["SM_MODEL_DIR"]
+        if args.resume_from_checkpoint is None:
+            args.resume_from_checkpoint = True
+    elif args.instance_type == InstanceType.LOCAL:
+        if args.checkpoint_path is None:
+            args.checkpoint_path = "transformer_dropout/model_checkpoints/"
+        assert args.train is not None
+        if args.model_path is None:
+            args.model_path = 'transformer_dropout/model_weights/'
+        if args.resume_from_checkpoint is None:
+            args.resume_from_checkpoint = False
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
     parser.add_argument("--train", type=str)
     parser.add_argument("--config_file", type=str, required=True)
-    parser.add_argument("--is_local", type=lambda v: bool(strtobool(v)), default=True)
-    parser.add_argument("--checkpoint_path", type=str, default="/opt/ml/checkpoints")
-    parser.add_argument("--local_checkpoint_path", type=str, default=None)
+    parser.add_argument("--checkpoint_path", type=str)
+    parser.add_argument("--model_path", type=str)
+    parser.add_argument("--instance_type", type=InstanceType, default=InstanceType.LOCAL)
+    parser.add_argument("--resume_from_checkpoint", type=lambda v: bool(strtobool(v)))
     args = parser.parse_args()
-    if args.local_checkpoint_path is not None:
-        assert args.is_local
 
-    if not args.is_local:
-        args.train = os.environ.get("SM_CHANNEL_TRAIN")
-    else:
-        assert args.train is not None
-
+    get_default_args(args)
     train(args)
