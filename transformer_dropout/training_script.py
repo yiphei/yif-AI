@@ -581,6 +581,8 @@ def train(args):
         t1 = time.time()
         dt = t1 - t0
         if is_master_process:
+            A_mean, A_std = raw_model.get_A_stats()
+            B_mean, B_std = raw_model.get_B_stats()
             wandb.log(
                 {
                     "loss": running_loss,
@@ -591,6 +593,10 @@ def train(args):
                     "mean_dropout_near_zero_percent": raw_model.get_mean_dropout_near_zero_percent(),
                     "dropout_entropy_coefficient": entropy_coefficient,
                     "dropout_l1_norm_coefficient": dropout_l1_norm_coefficient,
+                    "A_mean": A_mean,
+                    "A_std": A_std,
+                    "B_mean": B_mean,
+                    "B_std": B_std,
                 },
                 step=iter_num,
                 # commit=False,
