@@ -4,10 +4,15 @@ N_EMBED = 100
 N_LAYER = 3
 N_HEAD = 2
 BIAS = False
-USE_DROPOUT_ENTROPY_IN_LOSS = True
-USE_DROPOUT_L1_NORM_IN_LOSS = True
 USE_LEARNED_DROPOUT = True
-
+LEARNED_DROPOUT_CONFIG = {
+    "use_dropout_entropy_in_loss": True,
+    "use_dropout_l1_norm_in_loss": True,
+    "use_canonical_entropy": True,
+    "use_detached_x_in_dropout_mask": False,
+    "a_param_mean": 0,
+    "a_param_std": 0.02,
+}
 # Training config
 BATCH_SIZE = 10
 TRAIN_STEPS = 500

@@ -66,3 +66,12 @@ pytorch_model.deploy(
     instance_type=args.instance_type,
     initial_instance_count=1,
 )
+
+
+# TODO: Handle compressing the checkpoint path before creating the inference endpoint
+# # Creating a sagemaker model afterwards with the checkpoint requires it to be compressed
+# if platform_type == PlatformType.SAGEMAKER:
+#     compressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.tar.gz")
+#     # Compress and save the checkpoint
+#     with tarfile.open(compressed_checkpoint_path, "w:gz") as tar:
+#         tar.add(uncompressed_checkpoint_path, arcname=f"{filename}.pt")
