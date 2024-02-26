@@ -5,7 +5,6 @@ import os
 import pickle
 import random
 import sys
-import tarfile
 import time
 from contextlib import ExitStack, contextmanager, nullcontext
 from dataclasses import asdict, dataclass, field, fields
@@ -14,26 +13,21 @@ from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
 import inspect
+import boto3
+import io
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, DistributedSampler
-from torchdata.datapipes.iter import S3FileLoader, Shuffler
-
+from torch.utils.data import DataLoader
 # ugly workound to make both Sagemaker, python, and me happy
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
-    from .data_loading import (DistributedIterableLocalDataset,
-                               IterableLocalDataset, MapLocalDataset)
+    from .data_loading import MapLocalDataset
     from .model import DropoutTransformer, ModelConfig
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
     from model import DropoutTransformer, ModelConfig
-    from data_loading import (
-        MapLocalDataset,
-        IterableLocalDataset,
-        DistributedIterableLocalDataset,
-    )
+    from .data_loading import MapLocalDataset
 
 import wandb
 from torch.distributed import destroy_process_group, init_process_group
@@ -52,7 +46,7 @@ class InitializationType(Enum):
 class PlatformType(str, Enum):
     LOCAL = "LOCAL"
     SAGEMAKER = "SAGEMAKER"
-    OTHER_CLOUD = "OTHER_CLOUD"
+    LAMBDA = "LAMBDA"
 
     def __str__(self):
         return self.value
@@ -133,6 +127,8 @@ class TrainConfig:
         return cls(**config_dict)
 
 
+DEFAULT_BUCKET = "dropout-transformer"
+
 def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device):
     new_data_iter = None
     try:
@@ -160,18 +156,16 @@ def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_l
         }
 
 
-def save_checkpoint(filename, checkpoint, checkpoint_path, platform_type):
-    uncompressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.pt")
-    # Save the uncompressed checkpoint
-    torch.save(checkpoint, uncompressed_checkpoint_path)
-
-    # Creating a sagemaker model afterwards with the checkpoint requires it to be compressed
-    if platform_type == PlatformType.SAGEMAKER:
-        compressed_checkpoint_path = os.path.join(checkpoint_path, f"{filename}.tar.gz")
-        # Compress and save the checkpoint
-        with tarfile.open(compressed_checkpoint_path, "w:gz") as tar:
-            tar.add(uncompressed_checkpoint_path, arcname=f"{filename}.pt")
-
+def save_model_artifact(filenames, model_dict, dir_path, s3_client):
+    for filename in filenames:
+        file_path = os.path.join(dir_path, filename)
+        if s3_client is None:
+            torch.save(model_dict, file_path)
+        else:
+            buffer = io.BytesIO()
+            torch.save(model_dict, buffer)
+            buffer.seek(0)
+            s3_client.upload_fileobj(buffer, DEFAULT_BUCKET, file_path)
 
 @torch.no_grad()
 def estimate_loss(
@@ -296,6 +290,22 @@ def train(args):
     else:
         is_master_process = True
         seed_offset = 0
+
+    s3_client = None
+    if is_master_process and args.platform_type not in [PlatformType.SAGEMAKER, PlatformType.LOCAL] and (args.model_path is None or args.checkpoint_path is None):
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=args.aws_access_key_id,
+            aws_secret_access_key=args.aws_secret_access_key
+        )
+        training_run_dir = f"training/{args.platform_type.lower()}_training_run_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}/"
+        # s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir)
+        if args.model_path is None:
+            s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir + "model/")
+            args.model_path = training_run_dir + "model/"
+        if args.checkpoint_path is None:
+            s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir + "checkpoints/")
+            args.checkpoint_path = training_run_dir + "checkpoints/"
 
     initialization_type = InitializationType.SCRATCH
     ckpt_file_path = None
@@ -499,27 +509,17 @@ def train(args):
                 step=iter_num,
                 # commit=True,
             )
-            save_checkpoint(
-                "ckpt",
+
+            filenames = ["ckpt.pt"] if not should_save_best_val_loss_checkpoint else ["best_ckpt.pt", "ckpt.pt"]
+            save_model_artifact(
+                filenames,
                 get_torch_save_dict(
                     raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
                 ),
-                (
                  args.checkpoint_path
-                ),
-                args.platform_type,
+                ,
+                s3_client,
             )
-            if should_save_best_val_loss_checkpoint:
-                save_checkpoint(
-                    "best_ckpt",
-                    get_torch_save_dict(
-                        raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
-                    ),
-                    (
-                       args.checkpoint_path
-                    ),
-                    args.platform_type,
-                )
 
         running_loss = 0
         running_entropy = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
@@ -604,13 +604,14 @@ def train(args):
         iter_num += 1
 
     if is_master_process:
-        torch.save(
-            get_torch_save_dict(
-                raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
-            ),
-            (
-            os.path.join(args.model_path, f"model_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}.pth" if args.platform_type == PlatformType.LOCAL else "model.pth" )
-            ),
+        save_model_artifact(
+                [f"model_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}.pth" if args.platform_type == PlatformType.LOCAL else "model.pth"],
+                get_torch_save_dict(
+                    raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
+                ),
+                 args.model_path
+                ,
+                s3_client,
         )
 
     if using_DDP:
@@ -636,6 +637,9 @@ def get_default_args(args):
             args.model_path = 'transformer_dropout/model_weights/'
         if args.resume_from_checkpoint is None:
             args.resume_from_checkpoint = False
+    elif args.platform_type == PlatformType.LAMBDA:
+        if args.checkpoint_path is None or args.model_path is None:
+            assert args.aws_access_key_id is not None and args.aws_secret_access_key is not None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -647,6 +651,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str)
     parser.add_argument("--platform_type", type=PlatformType, default=PlatformType.LOCAL)
     parser.add_argument("--resume_from_checkpoint", type=lambda v: bool(strtobool(v)))
+    parser.add_argument("--aws_access_key_id", type=str)
+    parser.add_argument("--aws_secret_access_key", type=str)
     args = parser.parse_args()
 
     get_default_args(args)
