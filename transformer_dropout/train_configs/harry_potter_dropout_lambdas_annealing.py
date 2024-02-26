@@ -12,6 +12,8 @@ LEARNED_DROPOUT_CONFIG = {
     "use_detached_x_in_dropout_mask": True,
     "a_param_mean": 100000,
     "a_param_std": 0.02,
+    "b_param_mean": 0,
+    "b_param_std": 0.02,
 }
 
 # Training config
