@@ -384,6 +384,7 @@ def train(args):
 
         model.load_state_dict(state_dict)
         iter_num = checkpoint["iter_num"] + 1
+        best_val_loss = checkpoint["best_val_loss"]
 
     model.to(TRAIN_CONFIG.DEVICE)
     ctx = create_training_context(model, iter_num, device_type, ptdtype)
