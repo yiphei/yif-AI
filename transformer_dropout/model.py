@@ -387,6 +387,32 @@ class DropoutTransformer(nn.Module):
                 l1_norm_list.append(module.dropout_l1_norm)
         return torch.cat(l1_norm_list, dim=0).mean()
 
+    @torch.no_grad()
+    def get_A_stats(self):
+        if not self.config.use_learned_dropout:
+            raise ValueError("Model is not using learned dropout.")
+
+        A_list = []
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                A_list.append(module.A)
+
+        A_tensor = torch.cat(A_list, dim=0)
+        return A_tensor.mean(), A_tensor.std()
+    
+    @torch.no_grad()
+    def get_B_stats(self):
+        if not self.config.use_learned_dropout:
+            raise ValueError("Model is not using learned dropout.")
+
+        B_list = []
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                B_list.append(module.B)
+
+        B_tensor = torch.cat(B_list, dim=0)
+        return B_tensor.mean(), B_tensor.std()
+
     def print_dropout_params(self):
         if not self.config.use_learned_dropout:
             raise ValueError("Model is not using learned dropout.")
