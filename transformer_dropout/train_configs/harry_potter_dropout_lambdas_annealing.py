@@ -9,7 +9,7 @@ LEARNED_DROPOUT_CONFIG = {
     "use_dropout_entropy_in_loss": True,
     "use_dropout_l1_norm_in_loss": False,
     "a_param_mean": 100000,
-    "a_param_std": 0.02,
+    "a_param_std": 10,
     "b_param_mean": 0,
     "b_param_std": 0.02,
     "dropout_entropy_lambda": {
