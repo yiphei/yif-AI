@@ -2,13 +2,14 @@ import inspect
 import math
 from contextlib import nullcontext
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from enum import Enum
+
 
 class OptimizerType(str, Enum):
     ADAMW = "ADAMW"
@@ -16,6 +17,7 @@ class OptimizerType(str, Enum):
 
     def __str__(self):
         return self.value
+
 
 @dataclass
 class EntropyLambdaConfig:
@@ -508,14 +510,21 @@ class DropoutTransformer(nn.Module):
         param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
 
         sgd_filter = lambda param_name: False
-        if self.config.use_learned_dropout and self.config.learned_dropout_config.optimizer_type == OptimizerType.SGD:
+        if (
+            self.config.use_learned_dropout
+            and self.config.learned_dropout_config.optimizer_type == OptimizerType.SGD
+        ):
             sgd_filter = lambda param_name: param_name.endswith((".A", ".B"))
 
         sgd_optimizer_params = [p for n, p in param_dict.items() if sgd_filter(n)]
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2 and not sgd_filter(n)]
-        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2 and not sgd_filter(n)]
+        decay_params = [
+            p for n, p in param_dict.items() if p.dim() >= 2 and not sgd_filter(n)
+        ]
+        nodecay_params = [
+            p for n, p in param_dict.items() if p.dim() < 2 and not sgd_filter(n)
+        ]
         optim_groups = [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": nodecay_params, "weight_decay": 0.0},
@@ -528,7 +537,11 @@ class DropoutTransformer(nn.Module):
             optim_groups, lr=learning_rate, betas=betas, **extra_args
         )
         print(f"using fused AdamW: {use_fused}")
-        sgd_optimizer = torch.optim.SGD(sgd_optimizer_params, lr=learning_rate) if len(sgd_optimizer_params) > 0 else None
+        sgd_optimizer = (
+            torch.optim.SGD(sgd_optimizer_params, lr=learning_rate)
+            if len(sgd_optimizer_params) > 0
+            else None
+        )
         return CustomOptimizer(adam_optimizer, sgd_optimizer)
 
     def get_num_params(self):
@@ -545,6 +558,7 @@ class DropoutTransformer(nn.Module):
             x = torch.cat((x, next_t), dim=1)
         return x
 
+
 class CustomOptimizer:
     def __init__(self, adam_optimizer, sgd_optimizer):
         self.adam_optimizer = adam_optimizer
@@ -553,9 +567,13 @@ class CustomOptimizer:
     def state_dict(self):
         return {
             "adam_optimizer": self.adam_optimizer.state_dict(),
-            **({"sgd_optimizer": self.sgd_optimizer.state_dict()} if self.sgd_optimizer is not None else {}),
+            **(
+                {"sgd_optimizer": self.sgd_optimizer.state_dict()}
+                if self.sgd_optimizer is not None
+                else {}
+            ),
         }
-    
+
     def load_state_dict(self, state_dict):
         self.adam_optimizer.load_state_dict(state_dict["adam_optimizer"])
         if state_dict.get("sgd_optimizer", None) is not None:
