@@ -39,15 +39,15 @@ class EntropyLambdaConfig:
 
 @dataclass
 class LearnedDropoutConfig:
-    use_canonical_entropy: bool
-    use_detached_x_in_dropout_mask: bool
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
-    optimizer_type: OptimizerType
     a_param_mean: float
     a_param_std: float
     b_param_mean: float = 0.0
     b_param_std: float = 0.02
+    optimizer_type: OptimizerType = OptimizerType.SGD
+    use_canonical_entropy: bool = False
+    use_detached_x_in_dropout_mask: bool = True
     dropout_entropy_lambda: Optional[EntropyLambdaConfig] = field(default=None)
     dropout_l1_norm_lambda: Optional[EntropyLambdaConfig] = field(default=None)
 
