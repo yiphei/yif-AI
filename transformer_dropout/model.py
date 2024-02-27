@@ -205,7 +205,9 @@ class LearnedDropout(nn.Module):
             else self.alternate_entropy
         )
 
-        self.A = nn.Parameter(torch.normal(config.a_param_mean, config.a_param_std, size=(dim_in,)))
+        self.A = nn.Parameter(
+            torch.normal(config.a_param_mean, config.a_param_std, size=(dim_in,))
+        )
         self.B = nn.Parameter(
             torch.normal(config.b_param_mean, config.b_param_std, size=(dim_in,))
         )
@@ -399,7 +401,7 @@ class DropoutTransformer(nn.Module):
 
         A_tensor = torch.cat(A_list, dim=0)
         return A_tensor.mean(), A_tensor.std()
-    
+
     @torch.no_grad()
     def get_B_stats(self):
         if not self.config.use_learned_dropout:

@@ -1,4 +1,6 @@
 import argparse
+import inspect
+import io
 import logging
 import math
 import os
@@ -12,13 +14,12 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
-import inspect
-import boto3
-import io
 
+import boto3
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+
 # ugly workound to make both Sagemaker, python, and me happy
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
@@ -50,6 +51,7 @@ class PlatformType(str, Enum):
 
     def __str__(self):
         return self.value
+
 
 @dataclass
 class TrainConfig:
@@ -112,7 +114,11 @@ class TrainConfig:
         with open(config_file, "r") as file:
             exec(file.read(), {}, config_dict)
         # Filter out built-in items
-        config_dict = {k: v for k, v in config_dict.items() if not k.startswith("__") and not inspect.ismodule(v)}
+        config_dict = {
+            k: v
+            for k, v in config_dict.items()
+            if not k.startswith("__") and not inspect.ismodule(v)
+        }
 
         model_config_fields = [f.name.upper() for f in fields(ModelConfig)]
         model_config_dict = {
@@ -128,6 +134,7 @@ class TrainConfig:
 
 
 DEFAULT_BUCKET = "dropout-transformer"
+
 
 def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device):
     new_data_iter = None
@@ -146,14 +153,14 @@ def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device
 
 def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_loss):
     return {
-            "model": raw_model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "model_config": asdict(train_config.MODEL_CONFIG),
-            "iter_num": iter_num,
-            "config": asdict(train_config),
-            "best_val_loss": best_val_loss,
-            # "itoc": None,  # TODO: add decoder,
-        }
+        "model": raw_model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "model_config": asdict(train_config.MODEL_CONFIG),
+        "iter_num": iter_num,
+        "config": asdict(train_config),
+        "best_val_loss": best_val_loss,
+        # "itoc": None,  # TODO: add decoder,
+    }
 
 
 def save_model_artifact(filenames, model_dict, dir_path, s3_client):
@@ -166,6 +173,7 @@ def save_model_artifact(filenames, model_dict, dir_path, s3_client):
             torch.save(model_dict, buffer)
             buffer.seek(0)
             s3_client.upload_fileobj(buffer, DEFAULT_BUCKET, file_path)
+
 
 @torch.no_grad()
 def estimate_loss(
@@ -292,11 +300,15 @@ def train(args):
         seed_offset = 0
 
     s3_client = None
-    if is_master_process and args.platform_type not in [PlatformType.SAGEMAKER, PlatformType.LOCAL] and (args.model_path is None or args.checkpoint_path is None):
+    if (
+        is_master_process
+        and args.platform_type not in [PlatformType.SAGEMAKER, PlatformType.LOCAL]
+        and (args.model_path is None or args.checkpoint_path is None)
+    ):
         s3_client = boto3.client(
-            's3',
+            "s3",
             aws_access_key_id=args.aws_access_key_id,
-            aws_secret_access_key=args.aws_secret_access_key
+            aws_secret_access_key=args.aws_secret_access_key,
         )
         training_run_dir = f"training/{args.platform_type.lower()}_training_run_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}/"
         # s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir)
@@ -304,7 +316,9 @@ def train(args):
             s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir + "model/")
             args.model_path = training_run_dir + "model/"
         if args.checkpoint_path is None:
-            s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir + "checkpoints/")
+            s3_client.put_object(
+                Bucket=DEFAULT_BUCKET, Key=training_run_dir + "checkpoints/"
+            )
             args.checkpoint_path = training_run_dir + "checkpoints/"
 
     initialization_type = InitializationType.SCRATCH
@@ -510,14 +524,17 @@ def train(args):
                 # commit=True,
             )
 
-            filenames = ["ckpt.pt"] if not should_save_best_val_loss_checkpoint else ["best_ckpt.pt", "ckpt.pt"]
+            filenames = (
+                ["ckpt.pt"]
+                if not should_save_best_val_loss_checkpoint
+                else ["best_ckpt.pt", "ckpt.pt"]
+            )
             save_model_artifact(
                 filenames,
                 get_torch_save_dict(
                     raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
                 ),
-                 args.checkpoint_path
-                ,
+                args.checkpoint_path,
                 s3_client,
             )
 
@@ -605,18 +622,22 @@ def train(args):
 
     if is_master_process:
         save_model_artifact(
-                [f"model_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}.pth" if args.platform_type == PlatformType.LOCAL else "model.pth"],
-                get_torch_save_dict(
-                    raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
-                ),
-                 args.model_path
-                ,
-                s3_client,
+            [
+                (
+                    f"model_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}.pth"
+                    if args.platform_type == PlatformType.LOCAL
+                    else "model.pth"
+                )
+            ],
+            get_torch_save_dict(
+                raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
+            ),
+            args.model_path,
+            s3_client,
         )
 
     if using_DDP:
         destroy_process_group()
-
 
 
 def get_default_args(args):
@@ -634,12 +655,16 @@ def get_default_args(args):
             args.checkpoint_path = "transformer_dropout/model_checkpoints/"
         assert args.train is not None
         if args.model_path is None:
-            args.model_path = 'transformer_dropout/model_weights/'
+            args.model_path = "transformer_dropout/model_weights/"
         if args.resume_from_checkpoint is None:
             args.resume_from_checkpoint = False
     elif args.platform_type == PlatformType.LAMBDA:
         if args.checkpoint_path is None or args.model_path is None:
-            assert args.aws_access_key_id is not None and args.aws_secret_access_key is not None
+            assert (
+                args.aws_access_key_id is not None
+                and args.aws_secret_access_key is not None
+            )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -649,7 +674,9 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", type=str, required=True)
     parser.add_argument("--checkpoint_path", type=str)
     parser.add_argument("--model_path", type=str)
-    parser.add_argument("--platform_type", type=PlatformType, default=PlatformType.LOCAL)
+    parser.add_argument(
+        "--platform_type", type=PlatformType, default=PlatformType.LOCAL
+    )
     parser.add_argument("--resume_from_checkpoint", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--aws_access_key_id", type=str)
     parser.add_argument("--aws_secret_access_key", type=str)
