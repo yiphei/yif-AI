@@ -12,7 +12,7 @@ LEARNED_DROPOUT_CONFIG = {
     "use_detached_x_in_dropout_mask": True,
     "a_param_mean": 100000,
     "a_param_std": 0.02,
-        "dropout_entropy_lambda": {
+    "dropout_entropy_lambda": {
         "max_lambda": 100,
     },
 }
