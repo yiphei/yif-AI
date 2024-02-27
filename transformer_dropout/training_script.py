@@ -441,13 +441,14 @@ def train(args):
     # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
     def get_lr(training_step):
         # 1) linear warmup for warmup_iters steps
-        if training_step < TRAIN_CONFIG.WARMUP_ITERS:
-            return TRAIN_CONFIG.LR * training_step / TRAIN_CONFIG.WARMUP_ITERS
+        adjusted_training_step = training_step + 1
+        if adjusted_training_step < TRAIN_CONFIG.WARMUP_ITERS:
+            return TRAIN_CONFIG.LR * adjusted_training_step / TRAIN_CONFIG.WARMUP_ITERS
         # 2) if it > lr_decay_iters, return min learning rate
-        if training_step > TRAIN_CONFIG.LR_DECAY_ITERS:
+        if adjusted_training_step > TRAIN_CONFIG.LR_DECAY_ITERS:
             return TRAIN_CONFIG.MIN_LR
         # 3) in between, use cosine decay down to min learning rate
-        decay_ratio = (training_step - TRAIN_CONFIG.WARMUP_ITERS) / (
+        decay_ratio = (adjusted_training_step - TRAIN_CONFIG.WARMUP_ITERS) / (
             TRAIN_CONFIG.LR_DECAY_ITERS - TRAIN_CONFIG.WARMUP_ITERS
         )
         assert 0 <= decay_ratio <= 1
