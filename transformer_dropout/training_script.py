@@ -486,8 +486,7 @@ def train(args):
 
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         lr = get_lr(iter_num) if TRAIN_CONFIG.DECAY_LR else TRAIN_CONFIG.LR
-        for param_group in optimizer.param_groups:
-            param_group["lr"] = lr
+        optimizer.change_lr(lr)
 
         if (
             iter_num % TRAIN_CONFIG.EST_INTERVAL == 0
