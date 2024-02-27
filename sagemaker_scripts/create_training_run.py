@@ -9,7 +9,7 @@ import wandb
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
 
-from transformer_dropout.training_script import TrainConfig, PlatformType
+from transformer_dropout.training_script import PlatformType, TrainConfig
 
 SOURCE_DIR = "transformer_dropout/"
 GPU_INSTANCE_TYPES = [
