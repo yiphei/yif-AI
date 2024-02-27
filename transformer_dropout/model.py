@@ -507,14 +507,15 @@ class DropoutTransformer(nn.Module):
         # filter out those that do not require grad
         param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
 
-        sgd_optimizer_params = []
+        sgd_filter = lambda param_name: False
         if self.config.use_learned_dropout and self.config.learned_dropout_config.optimizer_type == OptimizerType.SGD:
-            sgd_optimizer_params = [p for n, p in param_dict.items() if n.endswith((".A", ".B"))]
+            sgd_filter = lambda param_name: param_name.endswith((".A", ".B"))
 
+        sgd_optimizer_params = [p for n, p in param_dict.items() if sgd_filter(n)]
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2 and p not in sgd_optimizer_params]
-        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2 and p not in sgd_optimizer_params]
+        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2 and not sgd_filter(n)]
+        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2 and not sgd_filter(n)]
         optim_groups = [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": nodecay_params, "weight_decay": 0.0},
