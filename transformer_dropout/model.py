@@ -494,14 +494,16 @@ class DropoutTransformer(nn.Module):
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
         """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
+        is_learned_dropout_param = lambda param_name: param_name.endswith((".A", ".B"))
         # start with all of the candidate parameters
         param_dict = {pn: p for pn, p in self.named_parameters()}
         # filter out those that do not require grad
         param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
-        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
+        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2 and not is_learned_dropout_param(n)]
+        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2 and not is_learned_dropout_param(n)]
+        learned_dropout_params = [p for n, p in param_dict.items() if is_learned_dropout_param(n)]
         optim_groups = [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": nodecay_params, "weight_decay": 0.0},
@@ -510,11 +512,12 @@ class DropoutTransformer(nn.Module):
         fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters
         use_fused = fused_available and device_type == "cuda"
         extra_args = dict(fused=True) if use_fused else dict()
-        optimizer = torch.optim.AdamW(
+        adam_optimizer = torch.optim.AdamW(
             optim_groups, lr=learning_rate, betas=betas, **extra_args
         )
         print(f"using fused AdamW: {use_fused}")
-        return optimizer
+        sgd_optimizer = torch.optim.SGD(learned_dropout_params, lr=learning_rate)
+        return CustomOptimizer(adam_optimizer, sgd_optimizer)
 
     def get_num_params(self):
         n_params = sum(p.numel() for p in self.parameters())
@@ -529,3 +532,31 @@ class DropoutTransformer(nn.Module):
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
         return x
+
+class CustomOptimizer:
+    def __init__(self, adam_optimizer, sgd_optimizer):
+        self.adam_optimizer = adam_optimizer
+        self.sgd_optimizer = sgd_optimizer
+
+    def state_dict(self):
+        return {
+            "adam_optimizer": self.adam_optimizer.state_dict(),
+            "sgd_optimizer": self.sgd_optimizer.state_dict(),
+        }
+    
+    def load_state_dict(self, state_dict):
+        self.adam_optimizer.load_state_dict(state_dict["adam_optimizer"])
+        self.sgd_optimizer.load_state_dict(state_dict["sgd_optimizer"])
+
+    def change_lr(self, lr):
+        for optimizer in [self.adam_optimizer, self.sgd_optimizer]:
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = lr
+
+    def step(self, *args, **kwargs):
+        self.adam_optimizer.step(*args, **kwargs)
+        self.sgd_optimizer.step(*args, **kwargs)
+
+    def zero_grad(self, *args, **kwargs):
+        self.adam_optimizer.zero_grad(*args, **kwargs)
+        self.sgd_optimizer.zero_grad(*args, **kwargs)
