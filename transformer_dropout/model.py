@@ -343,6 +343,21 @@ class DropoutTransformer(nn.Module):
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
+    @classmethod
+    def init_from_checkpoint(cls, checkpoint_dict):
+        model_config = ModelConfig(**checkpoint_dict["model_config"])
+        # create the model
+        model = cls(model_config)
+        state_dict = checkpoint_dict["model"]
+
+        # This is caused by compiling the model. From https://github.com/karpathy/nanoGPT/blob/master/train.py
+        unwanted_prefix = "_orig_mod."
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix) :]] = state_dict.pop(k)
+
+        model.load_state_dict(state_dict)
+        return model
 
     def get_aggregated_learned_dropout_attributes(self, attr_name, aggregation_fn, is_training_attr):
         if not self.config.use_learned_dropout or (is_training_attr and not self.training):

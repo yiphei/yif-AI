@@ -384,18 +384,8 @@ def train(args):
     else:
         print("Loading checkpoint...")
         checkpoint = torch.load(ckpt_file_path, map_location=TRAIN_CONFIG.DEVICE)
-        TRAIN_CONFIG.MODEL_CONFIG = ModelConfig(**checkpoint["model_config"])
-        # create the model
-        model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
-        state_dict = checkpoint["model"]
-
-        # This is caused by compiling the model. From https://github.com/karpathy/nanoGPT/blob/master/train.py
-        unwanted_prefix = "_orig_mod."
-        for k, v in list(state_dict.items()):
-            if k.startswith(unwanted_prefix):
-                state_dict[k[len(unwanted_prefix) :]] = state_dict.pop(k)
-
-        model.load_state_dict(state_dict)
+        model = DropoutTransformer.init_from_checkpoint(checkpoint)
+        TRAIN_CONFIG.MODEL_CONFIG = model.config
         iter_num = checkpoint["iter_num"] + 1
         best_val_loss = checkpoint["best_val_loss"]
 
