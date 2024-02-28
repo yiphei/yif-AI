@@ -359,22 +359,30 @@ class DropoutTransformer(nn.Module):
         model.load_state_dict(state_dict)
         return model
 
-    def get_aggregated_learned_dropout_attributes(self, attr_name, aggregation_fn, is_training_attr):
-        if not self.config.use_learned_dropout or (is_training_attr and not self.training):
+    def get_aggregated_learned_dropout_attributes(
+        self, attr_name, aggregation_fn, is_training_attr
+    ):
+        if not self.config.use_learned_dropout or (
+            is_training_attr and not self.training
+        ):
             return None
-        
+
         values = []
         for module in self.modules():
             if isinstance(module, LearnedDropout):
-                values.append(getattr(module,  attr_name))
+                values.append(getattr(module, attr_name))
 
         return aggregation_fn(values)
 
     def get_mean_dropout_near_one_percent(self):
-        return self.get_aggregated_learned_dropout_attributes("dropout_near_one_percent", np.mean, True)
+        return self.get_aggregated_learned_dropout_attributes(
+            "dropout_near_one_percent", np.mean, True
+        )
 
     def get_mean_dropout_near_zero_percent(self):
-        return self.get_aggregated_learned_dropout_attributes("dropout_near_zero_percent", np.mean, True)
+        return self.get_aggregated_learned_dropout_attributes(
+            "dropout_near_zero_percent", np.mean, True
+        )
 
     def get_annealed_dropout_coefficient(self, lambda_config):
         if not self.config.use_learned_dropout or not self.training:
@@ -384,9 +392,7 @@ class DropoutTransformer(nn.Module):
             return lambda_config.max_lambda
 
         intersect = (
-            lambda_config.min_lambda - 1
-            if lambda_config.min_lambda is not None
-            else -1
+            lambda_config.min_lambda - 1 if lambda_config.min_lambda is not None else -1
         )
         return min(
             np.exp(lambda_config.coefficient * self.training_step) + intersect,
@@ -394,19 +400,27 @@ class DropoutTransformer(nn.Module):
         )
 
     def get_mean_dropout_entropy(self):
-        return self.get_aggregated_learned_dropout_attributes("dropout_entropy", lambda x: torch.cat(x, dim=0).mean(), True)
+        return self.get_aggregated_learned_dropout_attributes(
+            "dropout_entropy", lambda x: torch.cat(x, dim=0).mean(), True
+        )
 
     def get_mean_dropout_l1_norm(self):
-        return self.get_aggregated_learned_dropout_attributes("dropout_l1_norm", lambda x: torch.cat(x, dim=0).mean(), True)
+        return self.get_aggregated_learned_dropout_attributes(
+            "dropout_l1_norm", lambda x: torch.cat(x, dim=0).mean(), True
+        )
 
     @torch.no_grad()
     def get_A_stats(self):
-        A_tensor =  self.get_aggregated_learned_dropout_attributes("A", lambda x: torch.cat(x, dim=0), False)
+        A_tensor = self.get_aggregated_learned_dropout_attributes(
+            "A", lambda x: torch.cat(x, dim=0), False
+        )
         return A_tensor.mean(), A_tensor.std()
 
     @torch.no_grad()
     def get_B_stats(self):
-        B_tensor =  self.get_aggregated_learned_dropout_attributes("B", lambda x: torch.cat(x, dim=0), False)
+        B_tensor = self.get_aggregated_learned_dropout_attributes(
+            "B", lambda x: torch.cat(x, dim=0), False
+        )
         return B_tensor.mean(), B_tensor.std()
 
     def forward(self, x, targets=None):

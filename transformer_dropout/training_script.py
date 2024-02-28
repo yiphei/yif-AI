@@ -38,6 +38,7 @@ from torch.distributed import destroy_process_group, init_process_group
 def required_field_exception():
     raise ValueError("Missing required property")
 
+
 class PlatformType(str, Enum):
     LOCAL = "LOCAL"
     SAGEMAKER = "SAGEMAKER"
@@ -45,6 +46,7 @@ class PlatformType(str, Enum):
 
     def __str__(self):
         return self.value
+
 
 @dataclass
 class TrainConfig:
@@ -319,9 +321,7 @@ def train(args):
             ckpt_file_path = os.path.join(args.checkpoint_path, "ckpt.pt")
 
     # seed_offset allows for distributed training data
-    torch.manual_seed(
-        TRAIN_CONFIG.RANDOM_SEED + seed_offset
-    ) 
+    torch.manual_seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
     np.random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
     random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
 
@@ -419,7 +419,9 @@ def train(args):
 
     # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
     def get_lr(training_step):
-        adjusted_training_step = training_step + 1 # to avoid zero division when training_step = 0
+        adjusted_training_step = (
+            training_step + 1
+        )  # to avoid zero division when training_step = 0
         # 1) linear warmup for warmup_iters steps
         if adjusted_training_step < TRAIN_CONFIG.WARMUP_ITERS:
             return TRAIN_CONFIG.LR * adjusted_training_step / TRAIN_CONFIG.WARMUP_ITERS
