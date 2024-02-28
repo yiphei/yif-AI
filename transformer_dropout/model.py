@@ -343,25 +343,23 @@ class DropoutTransformer(nn.Module):
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def get_mean_dropout_near_one_percent(self):
+
+    def get_aggregated_learned_dropout_attributes(self, attr_name, aggregation_fn):
         if not self.config.use_learned_dropout or not self.training:
             return None
-
+        
         values = []
         for module in self.modules():
             if isinstance(module, LearnedDropout):
-                values.append(module.dropout_near_one_percent)
-        return sum(values) / len(values)
+                values.append(getattr(module,  attr_name))
+
+        return aggregation_fn(values)
+
+    def get_mean_dropout_near_one_percent(self):
+        return self.get_aggregated_learned_dropout_attributes("dropout_near_one_percent", np.mean)
 
     def get_mean_dropout_near_zero_percent(self):
-        if not self.config.use_learned_dropout or not self.training:
-            return None
-
-        values = []
-        for module in self.modules():
-            if isinstance(module, LearnedDropout):
-                values.append(module.dropout_near_zero_percent)
-        return sum(values) / len(values)
+        return self.get_aggregated_learned_dropout_attributes("dropout_near_zero_percent", np.mean)
 
     def get_annealed_dropout_coefficient(self, lambda_config):
         if not self.config.use_learned_dropout or not self.training:
@@ -381,24 +379,10 @@ class DropoutTransformer(nn.Module):
         )
 
     def get_mean_dropout_entropy(self):
-        if not self.config.use_learned_dropout or not self.training:
-            return None
-
-        entropy_list = []
-        for module in self.modules():
-            if isinstance(module, LearnedDropout):
-                entropy_list.append(module.dropout_entropy)
-        return torch.cat(entropy_list, dim=0).mean()
+        return self.get_aggregated_learned_dropout_attributes("dropout_entropy", lambda x: torch.cat(x, dim=0).mean())
 
     def get_mean_dropout_l1_norm(self):
-        if not self.config.use_learned_dropout or not self.training:
-            return None
-
-        l1_norm_list = []
-        for module in self.modules():
-            if isinstance(module, LearnedDropout):
-                l1_norm_list.append(module.dropout_l1_norm)
-        return torch.cat(l1_norm_list, dim=0).mean()
+        return self.get_aggregated_learned_dropout_attributes("dropout_l1_norm", lambda x: torch.cat(x, dim=0).mean())
 
     @torch.no_grad()
     def get_A_stats(self):
@@ -500,21 +484,21 @@ class DropoutTransformer(nn.Module):
         # filter out those that do not require grad
         param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
 
-        sgd_filter = lambda param_name: False
+        sgd_param_filter = lambda param_name: False
         if (
             self.config.use_learned_dropout
             and self.config.learned_dropout_config.optimizer_type == OptimizerType.SGD
         ):
-            sgd_filter = lambda param_name: param_name.endswith((".A", ".B"))
+            sgd_param_filter = lambda param_name: param_name.endswith((".A", ".B"))
 
-        sgd_optimizer_params = [p for n, p in param_dict.items() if sgd_filter(n)]
+        sgd_optimizer_params = [p for n, p in param_dict.items() if sgd_param_filter(n)]
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
         decay_params = [
-            p for n, p in param_dict.items() if p.dim() >= 2 and not sgd_filter(n)
+            p for n, p in param_dict.items() if p.dim() >= 2 and not sgd_param_filter(n)
         ]
         nodecay_params = [
-            p for n, p in param_dict.items() if p.dim() < 2 and not sgd_filter(n)
+            p for n, p in param_dict.items() if p.dim() < 2 and not sgd_param_filter(n)
         ]
         optim_groups = [
             {"params": decay_params, "weight_decay": weight_decay},
