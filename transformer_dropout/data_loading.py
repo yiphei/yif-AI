@@ -6,10 +6,9 @@ import torch.distributed as dist
 from torch.utils.data import Dataset, DistributedSampler, IterableDataset
 from torchdata.datapipes.iter import Shuffler
 
-
+# A DistributedSampler that works with both distributed and non-distributed training
 class CustomDistributedSampler(DistributedSampler):
-
-    # there is a better way to do this, but too lazy. The only new param is batch_size
+    # there is prob a better way to do this, but too lazy. The only new param is batch_size
     def __init__(
         self,
         dataset: Dataset,
@@ -24,9 +23,9 @@ class CustomDistributedSampler(DistributedSampler):
         self.batch_size = batch_size
 
     def __iter__(self):
-        idx_window_per_process = len(self.dataset) // self.num_replicas
-        start_idx = idx_window_per_process * self.rank
-        end_idx = min(start_idx + idx_window_per_process, len(self.dataset))
+        idx_range_per_process = len(self.dataset) // self.num_replicas
+        start_idx = idx_range_per_process * self.rank
+        end_idx = min(start_idx + idx_range_per_process, len(self.dataset))
         rand_idxs_iter = iter(
             torch.randint(start_idx, end_idx, (self.batch_size,)).tolist()
         )
