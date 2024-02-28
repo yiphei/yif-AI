@@ -55,17 +55,7 @@ def model_fn(model_dir):
         print("Model_dict is a tuple but expected a dict")
         model_dict = model_dict[0]
 
-    model_config = ModelConfig(**model_dict["model_config"])
-    model = DropoutTransformer(model_config)
-    state_dict = model_dict["model"]
-
-    # This is caused by compiling the model. From https://github.com/karpathy/nanoGPT/blob/master/train.py
-    unwanted_prefix = "_orig_mod."
-    for k, v in list(state_dict.items()):
-        if k.startswith(unwanted_prefix):
-            state_dict[k[len(unwanted_prefix) :]] = state_dict.pop(k)
-
-    model.load_state_dict(state_dict)
+    model = DropoutTransformer.init_from_checkpoint(model_dict)
     model.eval()
     model.to(device)
     model_dict = None
