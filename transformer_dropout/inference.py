@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import tiktoken
 import torch
-from model import DropoutTransformer, ModelConfig
+from model import DropoutTransformer
 
 
 @dataclass
