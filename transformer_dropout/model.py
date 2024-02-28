@@ -168,7 +168,7 @@ class OptimizedMultiAttentionHead(nn.Module):
             self.flash = True
 
     def forward(self, x):
-        B, T, C = x.shape  # B, T, C
+        B, T, C = x.shape
 
         q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
         k = k.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
