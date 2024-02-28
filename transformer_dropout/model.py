@@ -344,8 +344,8 @@ class DropoutTransformer(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
 
-    def get_aggregated_learned_dropout_attributes(self, attr_name, aggregation_fn):
-        if not self.config.use_learned_dropout or not self.training:
+    def get_aggregated_learned_dropout_attributes(self, attr_name, aggregation_fn, is_training_attr):
+        if not self.config.use_learned_dropout or (is_training_attr and not self.training):
             return None
         
         values = []
@@ -356,10 +356,10 @@ class DropoutTransformer(nn.Module):
         return aggregation_fn(values)
 
     def get_mean_dropout_near_one_percent(self):
-        return self.get_aggregated_learned_dropout_attributes("dropout_near_one_percent", np.mean)
+        return self.get_aggregated_learned_dropout_attributes("dropout_near_one_percent", np.mean, True)
 
     def get_mean_dropout_near_zero_percent(self):
-        return self.get_aggregated_learned_dropout_attributes("dropout_near_zero_percent", np.mean)
+        return self.get_aggregated_learned_dropout_attributes("dropout_near_zero_percent", np.mean, True)
 
     def get_annealed_dropout_coefficient(self, lambda_config):
         if not self.config.use_learned_dropout or not self.training:
@@ -379,35 +379,19 @@ class DropoutTransformer(nn.Module):
         )
 
     def get_mean_dropout_entropy(self):
-        return self.get_aggregated_learned_dropout_attributes("dropout_entropy", lambda x: torch.cat(x, dim=0).mean())
+        return self.get_aggregated_learned_dropout_attributes("dropout_entropy", lambda x: torch.cat(x, dim=0).mean(), True)
 
     def get_mean_dropout_l1_norm(self):
-        return self.get_aggregated_learned_dropout_attributes("dropout_l1_norm", lambda x: torch.cat(x, dim=0).mean())
+        return self.get_aggregated_learned_dropout_attributes("dropout_l1_norm", lambda x: torch.cat(x, dim=0).mean(), True)
 
     @torch.no_grad()
     def get_A_stats(self):
-        if not self.config.use_learned_dropout:
-            raise ValueError("Model is not using learned dropout.")
-
-        A_list = []
-        for module in self.modules():
-            if isinstance(module, LearnedDropout):
-                A_list.append(module.A)
-
-        A_tensor = torch.cat(A_list, dim=0)
+        A_tensor =  self.get_aggregated_learned_dropout_attributes("A", lambda x: torch.cat(x, dim=0), False)
         return A_tensor.mean(), A_tensor.std()
 
     @torch.no_grad()
     def get_B_stats(self):
-        if not self.config.use_learned_dropout:
-            raise ValueError("Model is not using learned dropout.")
-
-        B_list = []
-        for module in self.modules():
-            if isinstance(module, LearnedDropout):
-                B_list.append(module.B)
-
-        B_tensor = torch.cat(B_list, dim=0)
+        B_tensor =  self.get_aggregated_learned_dropout_attributes("B", lambda x: torch.cat(x, dim=0), False)
         return B_tensor.mean(), B_tensor.std()
 
     def forward(self, x, targets=None):
