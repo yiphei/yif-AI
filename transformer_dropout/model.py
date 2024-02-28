@@ -223,25 +223,26 @@ class LearnedDropout(nn.Module):
         )
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
-        # unsure if registering these two as buffer is beneficial
-        # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately too
+        # unsure if I shold register these two as buffer
+        # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
 
     def canonical_entropy(self, x):
+        # the small constant is for numerical stability
         return (x * -torch.log2(x + 1e-9)).mean(dim=-1).flatten()
 
     def alternate_entropy(self, x):
         # the alternate entropy has the peak above 0.5, while the canonical one has
-        # it below 0.5. In theory, this should be better for achieving low entropy
-        # and low l1 norm at the same time because there is more curvature towards 0.
+        # it below 0.5. In theory, this should be better for achieving both low entropy
+        # and low l1 norm because there is more curvature towards 0.
         return ((x - 1) * torch.log2((-x + 1) + 1e-9)).mean(dim=-1).flatten()
 
     def forward(self, x):
         dropout_mask_x = x.detach() if self.use_detached_x_in_dropout_mask else x
         if self.is_for_attention:
-            _, _, T1, T2 = x.shape
-            assert T1 == T2
+            _, _, T1, _ = x.shape
+            # TODO: check if self.A[:T1] indexing is really needed
             dropout_mask = (
                 0.5 * torch.cos(self.A[:T1] * dropout_mask_x + self.B[:T1]) + 0.5
             )
@@ -362,21 +363,21 @@ class DropoutTransformer(nn.Module):
                 values.append(module.dropout_near_zero_percent)
         return sum(values) / len(values)
 
-    def get_annealed_dropout_coefficient(self, entropy_lambda_config):
+    def get_annealed_dropout_coefficient(self, lambda_config):
         if not self.config.use_learned_dropout or not self.training:
             return None
 
-        if entropy_lambda_config.coefficient is None:
-            return entropy_lambda_config.max_lambda
+        if lambda_config.coefficient is None:
+            return lambda_config.max_lambda
 
         intersect = (
-            entropy_lambda_config.min_lambda - 1
-            if entropy_lambda_config.min_lambda is not None
+            lambda_config.min_lambda - 1
+            if lambda_config.min_lambda is not None
             else -1
         )
         return min(
-            np.exp(entropy_lambda_config.coefficient * self.training_step) + intersect,
-            entropy_lambda_config.max_lambda,
+            np.exp(lambda_config.coefficient * self.training_step) + intersect,
+            lambda_config.max_lambda,
         )
 
     def get_mean_dropout_entropy(self):
@@ -425,15 +426,6 @@ class DropoutTransformer(nn.Module):
         B_tensor = torch.cat(B_list, dim=0)
         return B_tensor.mean(), B_tensor.std()
 
-    def print_dropout_params(self):
-        if not self.config.use_learned_dropout:
-            raise ValueError("Model is not using learned dropout.")
-
-        for module in self.modules():
-            if isinstance(module, LearnedDropout):
-                print(module.A, module.B)
-                print("----------------")
-
     def forward(self, x, targets=None):
         device = x.device
         token_embed = self.token_embedding(x)
@@ -464,7 +456,7 @@ class DropoutTransformer(nn.Module):
 
             additional_loss = 0
             if self.training and self.config.use_learned_dropout:
-                additional_loss = self.get_additional_loss_terms(
+                additional_loss = self.get_dropout_regularizing_term(
                     mean_dropout_entropy * mean_dropout_entropy_coefficient,
                     mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient,
                 )
@@ -481,7 +473,7 @@ class DropoutTransformer(nn.Module):
             ),
         )
 
-    def get_additional_loss_terms(
+    def get_dropout_regularizing_term(
         self, annealed_mean_dropout_entropy, annealed_dropout_l1_norm
     ):
         if (
@@ -503,7 +495,6 @@ class DropoutTransformer(nn.Module):
             return 0
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
-        """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
         # start with all of the candidate parameters
         param_dict = {pn: p for pn, p in self.named_parameters()}
         # filter out those that do not require grad
@@ -542,7 +533,7 @@ class DropoutTransformer(nn.Module):
             if len(sgd_optimizer_params) > 0
             else None
         )
-        return CustomOptimizer(adam_optimizer, sgd_optimizer)
+        return OptimizerWrapper(adam_optimizer, sgd_optimizer)
 
     def get_num_params(self):
         n_params = sum(p.numel() for p in self.parameters())
@@ -559,7 +550,7 @@ class DropoutTransformer(nn.Module):
         return x
 
 
-class CustomOptimizer:
+class OptimizerWrapper:
     def __init__(self, adam_optimizer, sgd_optimizer):
         self.adam_optimizer = adam_optimizer
         self.sgd_optimizer = sgd_optimizer
