@@ -35,7 +35,7 @@ from torch.distributed import destroy_process_group, init_process_group
 
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
-def require_field_exception():
+def required_field_exception():
     raise ValueError("Missing required property")
 
 
@@ -58,15 +58,15 @@ class TrainConfig:
     DEVICE: str = field(
         default_factory=lambda: "cuda" if torch.cuda.is_available() else "cpu"
     )
-    MODEL_CONFIG: ModelConfig = field(default_factory=require_field_exception)
+    MODEL_CONFIG: ModelConfig = field(default_factory=required_field_exception)
     RANDOM_SEED: int = field(default=1337)
     # Training
     BATCH_SIZE: int = field(
-        default_factory=require_field_exception
+        default_factory=required_field_exception
     )  # this will be scaled by GRADIENT_ACCUMULATION_STEPS
-    TRAIN_STEPS: int = field(default_factory=require_field_exception)
+    TRAIN_STEPS: int = field(default_factory=required_field_exception)
     GRADIENT_ACCUMULATION_STEPS: int = field(
-        default_factory=require_field_exception
+        default_factory=required_field_exception
     )  # used to simulate large batches. Must be a multiple of world_size (i.e. # of GPUs) if using DDP
     # Optimizer
     LR: float = field(default=6e-4)  # max learning rate
@@ -74,12 +74,12 @@ class TrainConfig:
     BETA1: float = field(default=0.9)
     BETA2: float = field(default=0.95)
     DECAY_LR: bool = True
-    WARMUP_ITERS: int = field(default_factory=require_field_exception)
-    LR_DECAY_ITERS: int = field(default_factory=require_field_exception)
+    WARMUP_ITERS: int = field(default_factory=required_field_exception)
+    LR_DECAY_ITERS: int = field(default_factory=required_field_exception)
     MIN_LR: float = field(default=6e-5)
     # Estimation
-    EST_INTERVAL: int = field(default_factory=require_field_exception)
-    EST_STEPS: int = field(default_factory=require_field_exception)
+    EST_INTERVAL: int = field(default_factory=required_field_exception)
+    EST_STEPS: int = field(default_factory=required_field_exception)
     # Other
     DTYPE: str = field(
         default_factory=lambda: (
@@ -214,7 +214,7 @@ def estimate_loss(
     return (mean_losses, new_data_iters)
 
 
-def make_autocast_context(device_type, ptdtype):
+def create_autocast_context(device_type, ptdtype):
     @contextmanager
     def autocast_context():
         ctx = (
@@ -228,7 +228,7 @@ def make_autocast_context(device_type, ptdtype):
     return autocast_context
 
 
-def make_training_step_context(starting_training_step, model):
+def create_training_step_context(starting_training_step, model):
     @contextmanager
     def training_step_context(training_step, is_first_minibatch):
         if model.config.use_learned_dropout and model.training and is_first_minibatch:
@@ -244,19 +244,16 @@ def make_training_step_context(starting_training_step, model):
 
 
 def create_training_context(model, starting_training_step, device_type, ptdtype):
-    autocast_context = make_autocast_context(device_type, ptdtype)
-    entropy_lambda_context = make_training_step_context(starting_training_step, model)
+    autocast_context = create_autocast_context(device_type, ptdtype)
+    entropy_lambda_context = create_training_step_context(starting_training_step, model)
 
     @contextmanager
     def training_context(training_step, is_first_minibatch):
         with ExitStack() as stack:
-            # Enter the temporary_attribute context
             stack.enter_context(autocast_context())
-            # Enter the other_context
             stack.enter_context(
                 entropy_lambda_context(training_step, is_first_minibatch)
             )
-            # Yield control to the block within the `with` statement
             yield
 
     return training_context
@@ -311,7 +308,6 @@ def train(args):
             aws_secret_access_key=args.aws_secret_access_key,
         )
         training_run_dir = f"training/{args.platform_type.lower()}_training_run_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}/"
-        # s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir)
         if args.model_path is None:
             s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir + "model/")
             args.model_path = training_run_dir + "model/"
@@ -329,9 +325,10 @@ def train(args):
             initialization_type = InitializationType.RESUME
             ckpt_file_path = os.path.join(args.checkpoint_path, "ckpt.pt")
 
+    # seed_offset allows for distributed training data
     torch.manual_seed(
         TRAIN_CONFIG.RANDOM_SEED + seed_offset
-    )  # this allows for distributed training data
+    ) 
     np.random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
     random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
 
@@ -440,8 +437,8 @@ def train(args):
 
     # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
     def get_lr(training_step):
+        adjusted_training_step = training_step + 1 # to avoid zero division when training_step = 0
         # 1) linear warmup for warmup_iters steps
-        adjusted_training_step = training_step + 1
         if adjusted_training_step < TRAIN_CONFIG.WARMUP_ITERS:
             return TRAIN_CONFIG.LR * adjusted_training_step / TRAIN_CONFIG.WARMUP_ITERS
         # 2) if it > lr_decay_iters, return min learning rate
@@ -480,7 +477,7 @@ def train(args):
         train_sampler,
         -1,
         TRAIN_CONFIG.DEVICE,
-    )  # fetch the very first batch
+    )
     while iter_num < TRAIN_CONFIG.TRAIN_STEPS:
         t0 = time.time()
 
@@ -544,6 +541,7 @@ def train(args):
         is_first_mini_batch = True
         for micro_step in range(TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS):
             if using_DDP:
+                # this defers gradient sync until the last micro_step
                 model.require_backward_grad_sync = (
                     micro_step == TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS - 1
                 )
