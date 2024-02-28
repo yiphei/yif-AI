@@ -13,7 +13,7 @@ LEARNED_DROPOUT_CONFIG = {
     "b_param_mean": 0,
     "b_param_std": 0.02,
     "dropout_entropy_lambda": {
-        "max_lambda": 1000000000,
+        "max_lambda": 100000000,
     }
 }
 
