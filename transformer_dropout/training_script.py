@@ -38,12 +38,6 @@ from torch.distributed import destroy_process_group, init_process_group
 def required_field_exception():
     raise ValueError("Missing required property")
 
-
-class InitializationType(Enum):
-    SCRATCH = "scratch"
-    RESUME = "resume"
-
-
 class PlatformType(str, Enum):
     LOCAL = "LOCAL"
     SAGEMAKER = "SAGEMAKER"
@@ -51,7 +45,6 @@ class PlatformType(str, Enum):
 
     def __str__(self):
         return self.value
-
 
 @dataclass
 class TrainConfig:
@@ -317,12 +310,12 @@ def train(args):
             )
             args.checkpoint_path = training_run_dir + "checkpoints/"
 
-    initialization_type = InitializationType.SCRATCH
+    initialize_from_checkpoint = False
     ckpt_file_path = None
     if args.checkpoint_path is not None and args.resume_from_checkpoint:
         assert os.path.isdir(args.checkpoint_path)
         if os.path.isfile(os.path.join(args.checkpoint_path, "ckpt.pt")):
-            initialization_type = InitializationType.RESUME
+            initialize_from_checkpoint = True
             ckpt_file_path = os.path.join(args.checkpoint_path, "ckpt.pt")
 
     # seed_offset allows for distributed training data
@@ -381,7 +374,7 @@ def train(args):
 
     best_val_loss = None
     iter_num = 0
-    if initialization_type == InitializationType.SCRATCH:
+    if not initialize_from_checkpoint:
         meta_path = os.path.join(args.train, "meta.pkl")
         with open(meta_path, "rb") as f:
             meta = pickle.load(f)
@@ -390,7 +383,6 @@ def train(args):
         model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
     else:
         print("Loading checkpoint...")
-        assert initialization_type == InitializationType.RESUME
         checkpoint = torch.load(ckpt_file_path, map_location=TRAIN_CONFIG.DEVICE)
         TRAIN_CONFIG.MODEL_CONFIG = ModelConfig(**checkpoint["model_config"])
         # create the model
@@ -418,7 +410,7 @@ def train(args):
         (TRAIN_CONFIG.BETA1, TRAIN_CONFIG.BETA2),
         device_type,
     )
-    if initialization_type == InitializationType.RESUME:
+    if initialize_from_checkpoint:
         optimizer.load_state_dict(checkpoint["optimizer"])
     checkpoint = None
 
