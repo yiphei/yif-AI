@@ -511,11 +511,16 @@ class DropoutTransformer(nn.Module):
             p for n, p in param_dict.items() if p.dim() >= 2 and not sgd_param_filter(n)
         ]
         nodecay_params = [
-            p for n, p in param_dict.items() if p.dim() < 2 and not sgd_param_filter(n)
+            p for n, p in param_dict.items() if p.dim() < 2 and not n.endswith(".A")
+        ]
+        special_params = [
+            p for n, p in param_dict.items() if p.dim() < 2 and n.endswith(".A")
         ]
         optim_groups = [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": nodecay_params, "weight_decay": 0.0},
+            {"params": special_params, "weight_decay": 0.0, "is_special": True, "lr": 10},
+            # {"params": special_params, "weight_decay": 0.0, "is_special": True, "lr": 1000},
         ]
         # Create AdamW optimizer and use the fused version if it is available
         fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters
@@ -573,6 +578,8 @@ class OptimizerWrapper:
                 continue
 
             for param_group in optimizer.param_groups:
+                if param_group.get("is_special", False):
+                    continue
                 param_group["lr"] = lr
 
     def step(self, *args, **kwargs):
