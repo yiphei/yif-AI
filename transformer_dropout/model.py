@@ -417,6 +417,8 @@ class DropoutTransformer(nn.Module):
         A_tensor = self.get_aggregated_learned_dropout_attributes(
             "A", lambda x: torch.cat(x, dim=0), False
         )
+        if A_tensor is None:
+            return None, None
         return A_tensor.mean(), A_tensor.std()
 
     @torch.no_grad()
@@ -424,6 +426,8 @@ class DropoutTransformer(nn.Module):
         B_tensor = self.get_aggregated_learned_dropout_attributes(
             "B", lambda x: torch.cat(x, dim=0), False
         )
+        if B_tensor is None:
+            return None, None
         return B_tensor.mean(), B_tensor.std()
 
     def forward(self, x, targets=None):
@@ -439,12 +443,15 @@ class DropoutTransformer(nn.Module):
 
         mean_dropout_entropy = self.get_mean_dropout_entropy()
         mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
-        mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(
-            self.config.learned_dropout_config.dropout_entropy_lambda
-        )
-        mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(
-            self.config.learned_dropout_config.dropout_l1_norm_lambda
-        )
+        mean_dropout_entropy_coefficient = None
+        mean_dropout_l1_norm_coefficient = None
+        if self.config.use_learned_dropout:
+            mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(
+                self.config.learned_dropout_config.dropout_entropy_lambda
+            )
+            mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(
+                self.config.learned_dropout_config.dropout_l1_norm_lambda
+            )
 
         if targets is None:
             loss = None
@@ -500,8 +507,6 @@ class DropoutTransformer(nn.Module):
         # filter out those that do not require grad
         param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
 
-        A_params = [p for n, p in param_dict.items() if n.endswith(".A")]
-        B_params = [p for n, p in param_dict.items() if n.endswith(".B")]
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
         decay_params = [
@@ -517,18 +522,21 @@ class DropoutTransformer(nn.Module):
         ]
         sgd_groups = []
 
-        A_params_group = {"params": A_params, "weight_decay": 0.0, "lr": self.config.learned_dropout_config.A_lr or learning_rate , "is_lr_fixed": self.config.learned_dropout_config.A_lr is not None}
-        B_params_group = {"params": B_params, "weight_decay": 0.0, "lr": self.config.learned_dropout_config.B_lr or learning_rate,
-                           "is_lr_fixed": self.config.learned_dropout_config.B_lr is not None}
-        if self.config.learned_dropout_config.A_optimizer_type == OptimizerType.SGD:
-            sgd_groups.append(A_params_group)
-        else:
-            adamw_groups.append(A_params_group)
+        if self.config.use_learned_dropout:
+            A_params = [p for n, p in param_dict.items() if n.endswith(".A")]
+            B_params = [p for n, p in param_dict.items() if n.endswith(".B")]
+            A_params_group = {"params": A_params, "weight_decay": 0.0, "lr": self.config.learned_dropout_config.A_lr or learning_rate , "is_lr_fixed": self.config.learned_dropout_config.A_lr is not None}
+            B_params_group = {"params": B_params, "weight_decay": 0.0, "lr": self.config.learned_dropout_config.B_lr or learning_rate,
+                            "is_lr_fixed": self.config.learned_dropout_config.B_lr is not None}
+            if self.config.learned_dropout_config.A_optimizer_type == OptimizerType.SGD:
+                sgd_groups.append(A_params_group)
+            else:
+                adamw_groups.append(A_params_group)
 
-        if self.config.learned_dropout_config.B_optimizer_type == OptimizerType.SGD:
-            sgd_groups.append(B_params_group)
-        else:
-            adamw_groups.append(B_params_group)
+            if self.config.learned_dropout_config.B_optimizer_type == OptimizerType.SGD:
+                sgd_groups.append(B_params_group)
+            else:
+                adamw_groups.append(B_params_group)
 
         # Create AdamW optimizer and use the fused version if it is available
         fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters
