@@ -12,9 +12,9 @@ LEARNED_DROPOUT_CONFIG = {
     "a_param_std": 10,
     "b_param_mean": 0,
     "b_param_std": 0.02,
-    "dropout_entropy_lambda": {
-        "max_lambda": 100000000,
-    },
+    "A_optimizer_type": "ADAMW",
+    "B_optimizer_type": "ADAMW",
+    "A_lr": 10,
 }
 
 # Training config
