@@ -43,11 +43,14 @@ class EntropyLambdaConfig:
 class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
+    A_optimizer_type: OptimizerType
+    B_optimizer_type: OptimizerType
     a_param_mean: float
     a_param_std: float
     b_param_mean: float = 0.0
     b_param_std: float = 0.02
-    optimizer_type: OptimizerType = OptimizerType.SGD
+    A_lr: float = None
+    B_lr: float = None
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = True
     dropout_entropy_lambda: Optional[EntropyLambdaConfig] = field(default=None)
@@ -497,42 +500,47 @@ class DropoutTransformer(nn.Module):
         # filter out those that do not require grad
         param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
 
-        sgd_param_filter = lambda param_name: False
-        if (
-            self.config.use_learned_dropout
-            and self.config.learned_dropout_config.optimizer_type == OptimizerType.SGD
-        ):
-            sgd_param_filter = lambda param_name: param_name.endswith((".A", ".B"))
-
-        sgd_optimizer_params = [p for n, p in param_dict.items() if sgd_param_filter(n)]
+        A_params = [p for n, p in param_dict.items() if n.endswith(".A")]
+        B_params = [p for n, p in param_dict.items() if n.endswith(".B")]
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
         decay_params = [
-            p for n, p in param_dict.items() if p.dim() >= 2 and not sgd_param_filter(n)
+            p for n, p in param_dict.items() if p.dim() >= 2 and not n.endswith((".B", ".A"))
         ]
         nodecay_params = [
-            p for n, p in param_dict.items() if p.dim() < 2 and not n.endswith(".A")
+            p for n, p in param_dict.items() if p.dim() < 2 and not n.endswith((".B", ".A"))
         ]
-        special_params = [
-            p for n, p in param_dict.items() if p.dim() < 2 and n.endswith(".A")
-        ]
-        optim_groups = [
+
+        adamw_groups = [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": nodecay_params, "weight_decay": 0.0},
-            {"params": special_params, "weight_decay": 0.0, "is_special": True, "lr": 10},
-            # {"params": special_params, "weight_decay": 0.0, "is_special": True, "lr": 1000},
         ]
+        sgd_groups = []
+
+        A_params_group = {"params": A_params, "weight_decay": 0.0, "lr": self.config.learned_dropout_config.A_lr or learning_rate , "is_lr_fixed": self.config.learned_dropout_config.A_lr is not None}
+        B_params_group = {"params": B_params, "weight_decay": 0.0, "lr": self.config.learned_dropout_config.B_lr or learning_rate,
+                           "is_lr_fixed": self.config.learned_dropout_config.B_lr is not None}
+        if self.config.learned_dropout_config.A_optimizer_type == OptimizerType.SGD:
+            sgd_groups.append(A_params_group)
+        else:
+            adamw_groups.append(A_params_group)
+
+        if self.config.learned_dropout_config.B_optimizer_type == OptimizerType.SGD:
+            sgd_groups.append(B_params_group)
+        else:
+            adamw_groups.append(B_params_group)
+
         # Create AdamW optimizer and use the fused version if it is available
         fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters
         use_fused = fused_available and device_type == "cuda"
         extra_args = dict(fused=True) if use_fused else dict()
         adam_optimizer = torch.optim.AdamW(
-            optim_groups, lr=learning_rate, betas=betas, **extra_args
+            adamw_groups, lr=learning_rate, betas=betas, **extra_args
         )
         print(f"using fused AdamW: {use_fused}")
         sgd_optimizer = (
-            torch.optim.SGD(sgd_optimizer_params, lr=learning_rate)
-            if len(sgd_optimizer_params) > 0
+            torch.optim.SGD(sgd_groups, lr=learning_rate)
+            if len(sgd_groups) > 0
             else None
         )
         return OptimizerWrapper(adam_optimizer, sgd_optimizer)
@@ -553,13 +561,13 @@ class DropoutTransformer(nn.Module):
 
 
 class OptimizerWrapper:
-    def __init__(self, adam_optimizer, sgd_optimizer):
-        self.adam_optimizer = adam_optimizer
+    def __init__(self, adamw_optimizer, sgd_optimizer):
+        self.adamw_optimizer = adamw_optimizer
         self.sgd_optimizer = sgd_optimizer
 
     def state_dict(self):
         return {
-            "adam_optimizer": self.adam_optimizer.state_dict(),
+            "adam_optimizer": self.adamw_optimizer.state_dict(),
             **(
                 {"sgd_optimizer": self.sgd_optimizer.state_dict()}
                 if self.sgd_optimizer is not None
@@ -568,26 +576,26 @@ class OptimizerWrapper:
         }
 
     def load_state_dict(self, state_dict):
-        self.adam_optimizer.load_state_dict(state_dict["adam_optimizer"])
+        self.adamw_optimizer.load_state_dict(state_dict["adam_optimizer"])
         if state_dict.get("sgd_optimizer", None) is not None:
             self.sgd_optimizer.load_state_dict(state_dict["sgd_optimizer"])
 
     def change_lr(self, lr):
-        for optimizer in [self.adam_optimizer, self.sgd_optimizer]:
+        for optimizer in [self.adamw_optimizer, self.sgd_optimizer]:
             if optimizer is None:
                 continue
 
             for param_group in optimizer.param_groups:
-                if param_group.get("is_special", False):
+                if param_group.get("is_lr_fixed", False):
                     continue
                 param_group["lr"] = lr
 
     def step(self, *args, **kwargs):
-        self.adam_optimizer.step(*args, **kwargs)
+        self.adamw_optimizer.step(*args, **kwargs)
         if self.sgd_optimizer is not None:
             self.sgd_optimizer.step(*args, **kwargs)
 
     def zero_grad(self, *args, **kwargs):
-        self.adam_optimizer.zero_grad(*args, **kwargs)
+        self.adamw_optimizer.zero_grad(*args, **kwargs)
         if self.sgd_optimizer is not None:
             self.sgd_optimizer.zero_grad(*args, **kwargs)
