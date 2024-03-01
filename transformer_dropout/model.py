@@ -41,6 +41,7 @@ class EntropyLambdaConfig:
 
 @dataclass
 class LearnedDropoutConfig:
+    use_sigmoid_on_dropout_mask: bool
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     A_optimizer_type: OptimizerType
@@ -217,6 +218,7 @@ class LearnedDropout(nn.Module):
             if config.use_canonical_entropy
             else self.alternate_entropy
         )
+        self.use_sigmoid_on_dropout_mask = config.use_sigmoid_on_dropout_mask
 
         self.A = nn.Parameter(
             torch.normal(config.a_param_mean, config.a_param_std, size=(dim_in,))
@@ -265,6 +267,11 @@ class LearnedDropout(nn.Module):
             self.dropout_near_zero_percent = (
                 dropout_mask < 0.1
             ).sum().item() / dropout_mask.numel()
+
+        if self.use_sigmoid_on_dropout_mask:
+            # TODO: make the coefficient and constant to be learnable
+            dropout_mask = 1 / (1 + torch.exp(-(dropout_mask * 60 - 30)))
+
         return x * dropout_mask
 
 
