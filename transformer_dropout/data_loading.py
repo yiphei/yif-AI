@@ -6,6 +6,7 @@ import torch.distributed as dist
 from torch.utils.data import Dataset, DistributedSampler, IterableDataset
 from torchdata.datapipes.iter import Shuffler
 
+
 # A DistributedSampler that works with both distributed and non-distributed training
 class CustomDistributedSampler(DistributedSampler):
     # there is prob a better way to do this, but too lazy. The only new param is batch_size

@@ -24,6 +24,7 @@ from torch.utils.data import DataLoader
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
     from transformer_dropout.data_loading import MapLocalDataset
+
     from .model import DropoutTransformer, ModelConfig
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
@@ -449,7 +450,7 @@ def train(args):
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         lr = get_lr(iter_num) if TRAIN_CONFIG.DECAY_LR else TRAIN_CONFIG.LR
         for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
+            param_group["lr"] = lr
 
         if (
             iter_num % TRAIN_CONFIG.EST_INTERVAL == 0
