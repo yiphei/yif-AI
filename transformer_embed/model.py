@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+
 @dataclass
 class ModelConfig:
     context_size: int
@@ -21,6 +22,7 @@ class ModelConfig:
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
     use_flash: bool = False
+
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -40,7 +42,12 @@ class OutputLayer(nn.Module):
         self.weight = nn.Parameter(torch.randn(in_dim, out_dim) * 0.02)
 
     def forward(self, x):
-        w_exp = self.weight.unsqueeze(0).expand(x.shape[1], -1, -1).unsqueeze(0).expand(x.shape[0],-1,-1,-1)
+        w_exp = (
+            self.weight.unsqueeze(0)
+            .expand(x.shape[1], -1, -1)
+            .unsqueeze(0)
+            .expand(x.shape[0], -1, -1, -1)
+        )
         x_exp = x.unsqueeze(2).expand(-1, -1, self.weight.shape[0], -1)
         mse = ((w_exp - x_exp) ** 2).mean(dim=3)
         # there are additional things I can do here like making mse smaller
@@ -155,7 +162,9 @@ class DropoutTransformer(nn.Module):
         )
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
-        self.positional_embedding = nn.Embedding(config.context_size+1, config.n_embed)
+        self.positional_embedding = nn.Embedding(
+            config.context_size + 1, config.n_embed
+        )
         self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
             *[TransformerBlock(config) for _ in range(config.n_layer)]
@@ -165,8 +174,8 @@ class DropoutTransformer(nn.Module):
             self.output_layer = OutputLayer(config.alphabet_size, config.n_embed)
         else:
             self.output_layer = nn.Linear(
-            config.n_embed, config.alphabet_size, bias=config.bias
-        )
+                config.n_embed, config.alphabet_size, bias=config.bias
+            )
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
@@ -223,11 +232,13 @@ class DropoutTransformer(nn.Module):
                 loss = F.cross_entropy(logits, targets.view(-1))
             else:
                 final_pos_embed = self.positional_embedding(
-            torch.arange(1, x.shape[1]+1, dtype=torch.long, device=device)
-        )
+                    torch.arange(1, x.shape[1] + 1, dtype=torch.long, device=device)
+                )
                 out = out - final_pos_embed
                 logits = self.output_layer(out)
-                targets_exp = targets.unsqueeze(2)  # Adds a third dimension for compatibility with gather
+                targets_exp = targets.unsqueeze(
+                    2
+                )  # Adds a third dimension for compatibility with gather
                 loss = torch.gather(logits, 2, targets_exp).squeeze(2).view(-1).mean()
 
         return (
@@ -244,12 +255,8 @@ class DropoutTransformer(nn.Module):
 
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = [
-            p for n, p in param_dict.items() if p.dim() >= 2
-        ]
-        nodecay_params = [
-            p for n, p in param_dict.items() if p.dim() < 2
-        ]
+        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
+        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
         optim_groups = [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": nodecay_params, "weight_decay": 0.0},
