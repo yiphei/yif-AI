@@ -145,6 +145,8 @@ def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device
 
     if data_loader.pin_memory is True:
         x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
+    else:
+        x, y = x.to(device), y.to(device)
     return x, y, new_data_iter
 
 
