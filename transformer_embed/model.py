@@ -221,23 +221,19 @@ class DropoutTransformer(nn.Module):
             self.config.learned_dropout_config.dropout_l1_norm_lambda
         )
 
-        # TODO: handle loss here
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
         else:
             logits = self.output_layer(out)
-            B, T, C = logits.shape
-            logits = logits.view(B * T, C)
+            if self.use_new_output_layer:
+                B, T, C = logits.shape
+                logits = logits.view(B * T, C)
+                loss = F.cross_entropy(logits, targets.view(-1))
+            else:
+                targets_exp = targets.unsqueeze(2)  # Adds a third dimension for compatibility with gather
+                loss = torch.gather(logits, 2, targets_exp).squeeze(2).view(-1).mean()
 
-            additional_loss = 0
-            if self.training and self.config.use_learned_dropout:
-                additional_loss = self.get_dropout_regularizing_term(
-                    mean_dropout_entropy * mean_dropout_entropy_coefficient,
-                    mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient,
-                )
-
-            loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
         return (
             logits,
             loss,
