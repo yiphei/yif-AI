@@ -17,7 +17,7 @@ class ModelConfig:
     n_layer: int
     n_head: int
     use_new_output_layer: bool
-    dropout_rate: Optional[float] = field(default=None)
+    dropout_rate: float
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
     use_flash: bool = False
@@ -212,21 +212,12 @@ class DropoutTransformer(nn.Module):
         out = self.transformer_blocks(embed)
         out = self.ln(out)
 
-        mean_dropout_entropy = self.get_mean_dropout_entropy()
-        mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
-        mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(
-            self.config.learned_dropout_config.dropout_entropy_lambda
-        )
-        mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(
-            self.config.learned_dropout_config.dropout_l1_norm_lambda
-        )
-
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
         else:
             logits = self.output_layer(out)
-            if self.use_new_output_layer:
+            if not self.config.use_new_output_layer:
                 B, T, C = logits.shape
                 logits = logits.view(B * T, C)
                 loss = F.cross_entropy(logits, targets.view(-1))
@@ -237,12 +228,7 @@ class DropoutTransformer(nn.Module):
         return (
             logits,
             loss,
-            (
-                mean_dropout_entropy,
-                mean_dropout_l1_norm,
-                mean_dropout_entropy_coefficient,
-                mean_dropout_l1_norm_coefficient,
-            ),
+            (),
         )
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
