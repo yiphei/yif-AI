@@ -37,11 +37,11 @@ class LayerNorm(nn.Module):
 class OutputLayer(nn.Module):
     def __init__(self, in_dim, out_dim):
         super().__init__()
-        self.w = nn.Parameter(torch.randn(in_dim, out_dim) * 0.02)
+        self.weight = nn.Parameter(torch.randn(in_dim, out_dim) * 0.02)
 
     def forward(self, x):
-        w_exp = self.w.unsqueeze(1).expand(-1, x.shape[2], -1).unsqueeze(0).expand(x.shape[0],-1,-1,-1)
-        x_exp = x.transpose(1, 2).unsqueeze(1).expand(-1, self.w.shape[0], -1, -1)
+        w_exp = self.weight.unsqueeze(1).expand(-1, x.shape[2], -1).unsqueeze(0).expand(x.shape[0],-1,-1,-1)
+        x_exp = x.transpose(1, 2).unsqueeze(1).expand(-1, self.weight.shape[0], -1, -1)
         mse = ((w_exp - x_exp) ** 2).mean(dim=3)
         # there are additional things I can do here like making mse smaller
         # to avoid gradient explosion. One way to make it smaller is by passint
@@ -155,7 +155,7 @@ class DropoutTransformer(nn.Module):
         )
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
-        self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
+        self.positional_embedding = nn.Embedding(config.context_size+1, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
             *[TransformerBlock(config) for _ in range(config.n_layer)]
@@ -233,7 +233,7 @@ class DropoutTransformer(nn.Module):
         return (
             logits,
             loss,
-            (),
+            None,
         )
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
