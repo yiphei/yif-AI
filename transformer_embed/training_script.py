@@ -14,6 +14,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
+from torch.nn import functional as F
 
 import boto3
 import numpy as np
@@ -185,27 +186,32 @@ def estimate_loss(
     mean_losses = []
     model.eval()
     new_data_iters = []
-    for args in [train_data_batch_args, val_data_batch_args]:
-        original_data_iter = args[0]
-        data_iter = args[0]
-        data_loader = args[1]
-        data_sampler = args[2]
-        losses = torch.zeros(est_steps, device=device)
-        for i in range(est_steps):
-            xb, yb, new_data_iter = get_data_batch_loader(
-                data_iter, data_loader, data_sampler, iter_num, device
-            )
-            if new_data_iter is not None:
-                data_iter = new_data_iter
 
-            with ctx(i, False):
-                _, loss, _ = model(xb, yb)
-            if using_DP:
-                loss = loss.mean()
-            losses[i] = loss
+    original_data_iter = val_data_batch_args[0]
+    data_iter = val_data_batch_args[0]
+    data_loader = val_data_batch_args[1]
+    data_sampler = val_data_batch_args[2]
+    losses = torch.zeros(est_steps, device=device)
+    for i in range(est_steps):
+        xb, yb, new_data_iter = get_data_batch_loader(
+            data_iter, data_loader, data_sampler, iter_num, device
+        )
+        if new_data_iter is not None:
+            data_iter = new_data_iter
 
-        new_data_iters.append(data_iter if original_data_iter != data_iter else None)
-        mean_losses.append(losses.mean().item())
+        with ctx(i, False):
+            logits, _, _ = model(xb, yb)
+
+        if model.config.use_new_output_layer:
+            loss = (logits.min(dim=-1).indices.view(-1) != yb.view(-1)).sum()
+        else:
+            probs = F.softmax(logits, dim=-1)
+            loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).sum()
+
+        losses[i] = loss
+
+    new_data_iters.append(data_iter if original_data_iter != data_iter else None)
+    mean_losses.append(losses.mean().item())
     model.train()
     return (mean_losses, new_data_iters)
 
@@ -457,7 +463,7 @@ def train(args):
             and iter_num != (TRAIN_CONFIG.TRAIN_STEPS - 1)
             and iter_num != 0
         ) and is_master_process:
-            (train_loss, val_loss), (new_train_iter, new_val_iter) = estimate_loss(
+            [val_loss], [new_val_iter] = estimate_loss(
                 model,
                 TRAIN_CONFIG.EST_STEPS,
                 TRAIN_CONFIG.DEVICE,
@@ -467,8 +473,6 @@ def train(args):
                 (curr_val_iter, val_data_loader, val_sampler),
                 iter_num,
             )
-            if new_train_iter is not None:
-                curr_train_iter = new_train_iter
             if new_val_iter is not None:
                 curr_val_iter = new_val_iter
 
@@ -479,7 +483,6 @@ def train(args):
 
             wandb.log(
                 {
-                    "est_train_loss": train_loss,
                     "est_val_loss": val_loss,
                     "est_lr": lr,
                     "est_step": iter_num / TRAIN_CONFIG.EST_INTERVAL - 1,
