@@ -16,6 +16,7 @@ class ModelConfig:
     n_embed: int
     n_layer: int
     n_head: int
+    use_new_output_layer: bool
     dropout_rate: Optional[float] = field(default=None)
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
@@ -160,7 +161,12 @@ class DropoutTransformer(nn.Module):
             *[TransformerBlock(config) for _ in range(config.n_layer)]
         )
         self.ln = LayerNorm(config.n_embed, config.bias)
-        self.output_layer = OutputLayer(config.alphabet_size, config.n_embed)
+        if config.use_new_output_layer:
+            self.output_layer = OutputLayer(config.alphabet_size, config.n_embed)
+        else:
+            self.output_layer = nn.Linear(
+            config.n_embed, config.alphabet_size, bias=config.bias
+        )
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
@@ -215,6 +221,7 @@ class DropoutTransformer(nn.Module):
             self.config.learned_dropout_config.dropout_l1_norm_lambda
         )
 
+        # TODO: handle loss here
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
