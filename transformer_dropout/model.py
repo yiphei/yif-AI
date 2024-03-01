@@ -252,7 +252,7 @@ class LearnedDropout(nn.Module):
                 0.5 * torch.cos(self.A[:T1] * dropout_mask_x + self.B[:T1]) + 0.5
             )
         else:
-            dropout_mask = 0.5 * torch.cos(self.A * dropout_mask_x + self.B) + 0.5
+            dropout_mask = 0.5 * torch.cos(self.A * self.embed + self.B) + 0.5
 
         if self.training:
             with self.dropout_entropy_context:
@@ -323,10 +323,6 @@ class DropoutTransformer(nn.Module):
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
-        if config.use_learned_dropout:
-            self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
-        else:
-            self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
             *[TransformerBlock(config) for _ in range(config.n_layer)]
         )
@@ -444,7 +440,10 @@ class DropoutTransformer(nn.Module):
             torch.arange(x.shape[1], dtype=torch.long, device=device)
         )
         embed = token_embed + pos_embed
-        embed = self.dropout(embed)
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                module.embed = embed.detach()
+
         out = self.transformer_blocks(embed)
         out = self.ln(out)
 
