@@ -24,13 +24,13 @@ from torch.utils.data import DataLoader
 # ugly workound to make both Sagemaker, python, and me happy
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
-    from transformer_dropout.data_loading import MapLocalDataset
+    from .data_loading import MapLocalDataset
 
     from .model import DropoutTransformer, ModelConfig
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
     from model import DropoutTransformer, ModelConfig
-    from transformer_dropout.data_loading import MapLocalDataset
+    from data_loading import MapLocalDataset
 
 import wandb
 from torch.distributed import destroy_process_group, init_process_group
