@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 # ugly workound to make both Sagemaker, python, and me happy
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
-    from ..transformer_dropout.data_loading import MapLocalDataset
+    from transformer_dropout.data_loading import MapLocalDataset
     from .model import DropoutTransformer, ModelConfig
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
@@ -223,32 +223,13 @@ def create_autocast_context(device_type, ptdtype):
     return autocast_context
 
 
-def create_training_step_context(starting_training_step, model):
-    @contextmanager
-    def training_step_context(training_step, is_first_minibatch):
-        if model.config.use_learned_dropout and model.training and is_first_minibatch:
-            assert (
-                model.training_step == training_step - 1
-                if training_step != starting_training_step
-                else model.training_step is None
-            )
-            model.training_step = training_step
-        yield
-
-    return training_step_context
-
-
 def create_training_context(model, starting_training_step, device_type, ptdtype):
     autocast_context = create_autocast_context(device_type, ptdtype)
-    entropy_lambda_context = create_training_step_context(starting_training_step, model)
 
     @contextmanager
     def training_context(training_step, is_first_minibatch):
         with ExitStack() as stack:
             stack.enter_context(autocast_context())
-            stack.enter_context(
-                entropy_lambda_context(training_step, is_first_minibatch)
-            )
             yield
 
     return training_context
@@ -467,7 +448,8 @@ def train(args):
 
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         lr = get_lr(iter_num) if TRAIN_CONFIG.DECAY_LR else TRAIN_CONFIG.LR
-        optimizer.change_lr(lr)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
 
         if (
             iter_num % TRAIN_CONFIG.EST_INTERVAL == 0
@@ -520,8 +502,6 @@ def train(args):
             )
 
         running_loss = 0
-        running_entropy = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
-        running_l1_norm = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
         is_first_mini_batch = True
         for micro_step in range(TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS):
             if using_DDP:
@@ -533,12 +513,7 @@ def train(args):
                 (
                     _,
                     loss,
-                    (
-                        entropy,
-                        dropout_l1_norm,
-                        entropy_coefficient,
-                        dropout_l1_norm_coefficient,
-                    ),
+                    _,
                 ) = model(X, Y)
                 if using_DP:
                     loss = loss.mean()
@@ -550,15 +525,7 @@ def train(args):
                     loss / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
-                if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
-                    # these values do not reflect the true scaled values used in the loss
-                    running_entropy += (
-                        entropy.item() / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
-                    )
-                    running_l1_norm += (
-                        dropout_l1_norm.item()
-                        / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
-                    )
+
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y, new_train_iter = get_data_batch_loader(
                 curr_train_iter,
@@ -580,22 +547,10 @@ def train(args):
         t1 = time.time()
         dt = t1 - t0
         if is_master_process:
-            A_mean, A_std = raw_model.get_A_stats()
-            B_mean, B_std = raw_model.get_B_stats()
             wandb.log(
                 {
                     "loss": running_loss,
-                    "dropout_entropy": running_entropy,
-                    "dropout_l1_norm": running_l1_norm,
                     "time": float(f"{dt*1000:.2f}"),
-                    "mean_dropout_near_one_percent": raw_model.get_mean_dropout_near_one_percent(),
-                    "mean_dropout_near_zero_percent": raw_model.get_mean_dropout_near_zero_percent(),
-                    "dropout_entropy_coefficient": entropy_coefficient,
-                    "dropout_l1_norm_coefficient": dropout_l1_norm_coefficient,
-                    "A_mean": A_mean,
-                    "A_std": A_std,
-                    "B_mean": B_mean,
-                    "B_std": B_std,
                 },
                 step=iter_num,
                 # commit=False,
