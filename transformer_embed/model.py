@@ -26,6 +26,9 @@ class ModelConfig:
     bias: bool = False
     use_flash: bool = False
 
+    def __post_init__(self):
+        if not self.use_new_output_layer and self.use_cross_entropy_loss and self.subtract_out_pos_embed:
+            raise ValueError("If not using new output layer, use_cross_entropy_loss and subtract_out_pos_embed must be False.")
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -235,28 +238,22 @@ class DropoutTransformer(nn.Module):
             loss = None
             logits = self.output_layer(out[:, [-1], :])
         else:
-            if not self.config.use_new_output_layer:
-                logits = self.output_layer(out)
+            if self.config.subtract_out_pos_embed and self.config.use_new_output_layer:
+                final_pos_embed = self.positional_embedding(
+                    torch.arange(1, x.shape[1] + 1, dtype=torch.long, device=device)
+                )
+                out = out - final_pos_embed
+            logits = self.output_layer(out)
+            if self.config.use_cross_entropy_loss or not self.config.use_new_output_layer:
+                logits = - logits
                 B, T, C = logits.shape
                 logits = logits.view(B * T, C)
                 loss = F.cross_entropy(logits, targets.view(-1))
             else:
-                if self.config.subtract_out_pos_embed:
-                    final_pos_embed = self.positional_embedding(
-                        torch.arange(1, x.shape[1] + 1, dtype=torch.long, device=device)
-                    )
-                    out = out - final_pos_embed
-                logits = self.output_layer(out)
-                if self.use_cross_entropy_loss:
-                    logits = - logits
-                    B, T, C = logits.shape
-                    logits = logits.view(B * T, C)
-                    loss = F.cross_entropy(logits, targets.view(-1))
-                else:
-                    targets_exp = targets.unsqueeze(
-                        2
-                    )  # Adds a third dimension for compatibility with gather
-                    loss = torch.gather(logits, 2, targets_exp).squeeze(2).view(-1).mean()
+                targets_exp = targets.unsqueeze(
+                    2
+                )  # Adds a third dimension for compatibility with gather
+                loss = torch.gather(logits, 2, targets_exp).squeeze(2).view(-1).mean()
         return (
             logits,
             loss,
