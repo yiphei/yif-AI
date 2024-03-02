@@ -209,13 +209,11 @@ def estimate_loss(
             with ctx(i, False):
                 logits, traditional_loss, _ = model(xb, yb)
 
-            # if model.config.use_new_output_layer:
-            #     loss = (logits.min(dim=-1).indices.view(-1) != yb.view(-1)).sum()
-            # else:
-            # probs = F.softmax(logits, dim=-1)
-            # loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).sum()
-            probs = F.softmax(logits, dim=-1)
-            loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).float().mean()
+            if not model.config.use_cross_entropy_loss and model.config.use_new_output_layer:
+                loss = (logits.min(dim=-1).indices.view(-1) != yb.view(-1)).float().mean()
+            else:
+                probs = F.softmax(logits, dim=-1)
+                loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).float().mean()
 
             losses[i] = loss
             trad_losses[i] = traditional_loss
