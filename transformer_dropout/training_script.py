@@ -317,6 +317,7 @@ def train(args):
                 Bucket=DEFAULT_BUCKET, Key=training_run_dir + "checkpoints/"
             )
             args.checkpoint_path = training_run_dir + "checkpoints/"
+        print(f"S3 folder is: {training_run_dir}")
 
     initialize_from_checkpoint = False
     ckpt_file_path = None
