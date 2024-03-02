@@ -14,18 +14,17 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
-from torch.nn import functional as F
 
 import boto3
 import numpy as np
 import torch
+from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 # ugly workound to make both Sagemaker, python, and me happy
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
     from .data_loading import MapLocalDataset
-
     from .model import DropoutTransformer, ModelConfig
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
@@ -209,8 +208,8 @@ def estimate_loss(
             # if model.config.use_new_output_layer:
             #     loss = (logits.min(dim=-1).indices.view(-1) != yb.view(-1)).sum()
             # else:
-                #probs = F.softmax(logits, dim=-1)
-                #loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).sum()
+            # probs = F.softmax(logits, dim=-1)
+            # loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).sum()
             probs = F.softmax(logits, dim=-1)
             loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).float().mean()
 
@@ -471,7 +470,11 @@ def train(args):
             and iter_num != (TRAIN_CONFIG.TRAIN_STEPS - 1)
             and iter_num != 0
         ) and is_master_process:
-            (train_loss, val_loss),(trad_train_loss, trad_val_loss), (new_train_iter, new_val_iter) = estimate_loss(
+            (
+                (train_loss, val_loss),
+                (trad_train_loss, trad_val_loss),
+                (new_train_iter, new_val_iter),
+            ) = estimate_loss(
                 model,
                 TRAIN_CONFIG.EST_STEPS,
                 TRAIN_CONFIG.DEVICE,
