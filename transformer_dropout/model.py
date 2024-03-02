@@ -20,7 +20,7 @@ class OptimizerType(str, Enum):
 
 
 @dataclass
-class EntropyLambdaConfig:
+class RegularizingLambdaConfig:
     min_lambda: float = None
     max_lambda: float = 1.0
     coefficient: float = None
@@ -54,8 +54,8 @@ class LearnedDropoutConfig:
     B_param_config: DropoutParamConfig = field(default_factory = lambda: DropoutParamConfig(0, 0.02, OptimizerType.ADAMW))
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = True
-    dropout_entropy_lambda: Optional[EntropyLambdaConfig] = field(default=None)
-    dropout_l1_norm_lambda: Optional[EntropyLambdaConfig] = field(default=None)
+    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
+    dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
 
     def __post_init__(self):
         if (
@@ -77,15 +77,15 @@ class LearnedDropoutConfig:
         for attr_name in ["dropout_entropy_lambda", "dropout_l1_norm_lambda"]:
             attr_value = getattr(self, attr_name)
             if attr_value is not None:
-                if type(attr_value) not in [dict, EntropyLambdaConfig]:
+                if type(attr_value) not in [dict, RegularizingLambdaConfig]:
                     raise ValueError(
-                        f"{attr_name} must be a dict or EntropyLambdaConfig"
+                        f"{attr_name} must be a dict or RegularizingLambdaConfig"
                     )
 
                 if type(attr_value) == dict:
-                    setattr(self, attr_name, EntropyLambdaConfig(**attr_value))
+                    setattr(self, attr_name, RegularizingLambdaConfig(**attr_value))
             else:
-                setattr(self, attr_name, EntropyLambdaConfig(max_lambda=1))
+                setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
 
         for attr_name in ["A_param_config", "B_param_config"]:
             attr_value = getattr(self, attr_name)
@@ -281,6 +281,8 @@ class LearnedDropout(nn.Module):
 
         if self.use_sigmoid_on_dropout_mask:
             # TODO: make the coefficient and constant to be learnable
+            # the final form should be `1 / (1 + torch.exp(-(dropout_mask * a - a/2)))``
+            # where a is a learnable parameter
             dropout_mask = 1 / (1 + torch.exp(-(dropout_mask * 60 - 30)))
 
         return x * dropout_mask
