@@ -427,7 +427,7 @@ class DropoutTransformer(nn.Module):
 
         if lambda_config.coefficient is None:
             return lambda_config.max_lambda
-        
+
         assert self.training_step is not None
         intersect = (
             lambda_config.min_lambda - 1 if lambda_config.min_lambda is not None else -1
@@ -475,8 +475,13 @@ class DropoutTransformer(nn.Module):
         embed = self.dropout(embed)
         out = self.transformer_blocks(embed)
         out = self.ln(out)
-        
-        mean_dropout_entropy, mean_dropout_l1_norm, mean_dropout_entropy_coefficient, mean_dropout_l1_norm_coefficient = [None] * 4
+
+        (
+            mean_dropout_entropy,
+            mean_dropout_l1_norm,
+            mean_dropout_entropy_coefficient,
+            mean_dropout_l1_norm_coefficient,
+        ) = [None] * 4
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
@@ -489,12 +494,16 @@ class DropoutTransformer(nn.Module):
             if self.training and self.config.use_learned_dropout:
                 mean_dropout_entropy = self.get_mean_dropout_entropy()
                 mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
-                mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(
+                mean_dropout_entropy_coefficient = (
+                    self.get_annealed_dropout_coefficient(
                         self.config.learned_dropout_config.dropout_entropy_lambda
                     )
-                mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(
+                )
+                mean_dropout_l1_norm_coefficient = (
+                    self.get_annealed_dropout_coefficient(
                         self.config.learned_dropout_config.dropout_l1_norm_lambda
                     )
+                )
                 additional_loss = self.get_dropout_regularizing_term(
                     mean_dropout_entropy * mean_dropout_entropy_coefficient,
                     mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient,
