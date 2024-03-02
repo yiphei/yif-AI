@@ -221,7 +221,7 @@ def estimate_loss(
         mean_losses.append(losses.mean().item())
         mean_trad_losses.append(trad_losses.mean().item())
     model.train()
-    return (mean_losses, trad_losses, new_data_iters)
+    return (mean_losses, mean_trad_losses, new_data_iters)
 
 
 def create_autocast_context(device_type, ptdtype):
