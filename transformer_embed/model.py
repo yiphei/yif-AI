@@ -19,6 +19,7 @@ class ModelConfig:
     n_head: int
     use_new_output_layer: bool
     use_final_ln_layer: bool
+    use_cross_entropy_loss: bool
     subtract_out_pos_embed: bool
     dropout_rate: float
     alphabet_size: Optional[int] = field(default=None)
@@ -245,15 +246,17 @@ class DropoutTransformer(nn.Module):
                         torch.arange(1, x.shape[1] + 1, dtype=torch.long, device=device)
                     )
                     out = out - final_pos_embed
-                logits = -self.output_layer(out)
-                B, T, C = logits.shape
-                logits = logits.view(B * T, C)
-                loss = F.cross_entropy(logits, targets.view(-1))
-                # targets_exp = targets.unsqueeze(
-                #     2
-                # )  # Adds a third dimension for compatibility with gather
-                # loss = torch.gather(logits, 2, targets_exp).squeeze(2).view(-1).mean()
-
+                logits = self.output_layer(out)
+                if self.use_cross_entropy_loss:
+                    logits = - logits
+                    B, T, C = logits.shape
+                    logits = logits.view(B * T, C)
+                    loss = F.cross_entropy(logits, targets.view(-1))
+                else:
+                    targets_exp = targets.unsqueeze(
+                        2
+                    )  # Adds a third dimension for compatibility with gather
+                    loss = torch.gather(logits, 2, targets_exp).squeeze(2).view(-1).mean()
         return (
             logits,
             loss,
