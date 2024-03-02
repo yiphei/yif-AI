@@ -34,4 +34,3 @@ LR_DECAY_ITERS = 500
 # Estimation config
 EST_INTERVAL = 100
 EST_STEPS = 20
-DEVICE = "mps"
