@@ -172,7 +172,11 @@ class DropoutTransformer(nn.Module):
         self.transformer_blocks = nn.Sequential(
             *[TransformerBlock(config) for _ in range(config.n_layer)]
         )
-        self.ln = LayerNorm(config.n_embed, config.bias) if self.config.use_final_ln_layer else None
+        self.ln = (
+            LayerNorm(config.n_embed, config.bias)
+            if self.config.use_final_ln_layer
+            else None
+        )
         if config.use_new_output_layer:
             self.output_layer = OutputLayer(config.alphabet_size, config.n_embed)
         else:

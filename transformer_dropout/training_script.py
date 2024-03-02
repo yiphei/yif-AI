@@ -53,11 +53,10 @@ def get_default_device():
         return "cuda"
     return "mps" if torch.backends.mps.is_available() else "cpu"
 
+
 @dataclass
 class TrainConfig:
-    DEVICE: str = field(
-        default_factory=get_default_device
-    )
+    DEVICE: str = field(default_factory=get_default_device)
     MODEL_CONFIG: ModelConfig = field(default_factory=required_field_exception)
     RANDOM_SEED: int = field(default=1337)
     # Training
