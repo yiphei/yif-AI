@@ -48,10 +48,15 @@ class PlatformType(str, Enum):
         return self.value
 
 
+def get_default_device():
+    if torch.cuda.is_available():
+        return "cuda"
+    return "mps" if torch.backends.mps.is_available() else "cpu"
+
 @dataclass
 class TrainConfig:
     DEVICE: str = field(
-        default_factory=lambda: "cuda" if torch.cuda.is_available() else "cpu"
+        default_factory=get_default_device
     )
     MODEL_CONFIG: ModelConfig = field(default_factory=required_field_exception)
     RANDOM_SEED: int = field(default=1337)
@@ -263,7 +268,6 @@ def train(args):
     logger = logging.getLogger()
     logger.info("Starting training script.")
     TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file)
-
     using_DDP = (
         TRAIN_CONFIG.USE_DDP
         and TRAIN_CONFIG.DEVICE == "cuda"
