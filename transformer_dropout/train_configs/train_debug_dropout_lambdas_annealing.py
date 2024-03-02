@@ -7,19 +7,12 @@ BIAS = False
 USE_LEARNED_DROPOUT = True
 LEARNED_DROPOUT_CONFIG = {
     "use_dropout_entropy_in_loss": True,
-    "use_dropout_l1_norm_in_loss": True,
+    "use_dropout_l1_norm_in_loss": False,
     "a_param_mean": 100000,
     "a_param_std": 0.02,
-    "dropout_entropy_lambda": {
-        "min_lambda": 0.1,
-        "max_lambda": 2,
-        "coefficient": 0.001,
-    },
-    "dropout_l1_norm_lambda": {
-        "min_lambda": 0.1,
-        "max_lambda": 2,
-        "coefficient": 0.001,
-    },
+    "A_optimizer_type": "ADAMW",
+    "B_optimizer_type": "ADAMW",
+    "A_lr": 1000,
 }
 
 # Training config
