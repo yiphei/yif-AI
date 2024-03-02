@@ -19,6 +19,7 @@ class ModelConfig:
     n_head: int
     use_new_output_layer: bool
     use_final_ln_layer: bool
+    subtract_out_pos_embed: bool
     dropout_rate: float
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
@@ -239,10 +240,11 @@ class DropoutTransformer(nn.Module):
                 logits = logits.view(B * T, C)
                 loss = F.cross_entropy(logits, targets.view(-1))
             else:
-                final_pos_embed = self.positional_embedding(
-                    torch.arange(1, x.shape[1] + 1, dtype=torch.long, device=device)
-                )
-                out = out - final_pos_embed
+                if self.config.subtract_out_pos_embed:
+                    final_pos_embed = self.positional_embedding(
+                        torch.arange(1, x.shape[1] + 1, dtype=torch.long, device=device)
+                    )
+                    out = out - final_pos_embed
                 logits = -self.output_layer(out)
                 B, T, C = logits.shape
                 logits = logits.view(B * T, C)
