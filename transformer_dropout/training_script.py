@@ -440,7 +440,11 @@ def train(args):
 
     if is_master_process:
         wandb.init(
-            project="transformer_dropout_2" if args.platform_type != PlatformType.LOCAL else "local_test",
+            project=(
+                "transformer_dropout_2"
+                if args.platform_type != PlatformType.LOCAL
+                else "local_test"
+            ),
             config={
                 **asdict(TRAIN_CONFIG),
                 "params": MODEL_PARAMS,

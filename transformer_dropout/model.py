@@ -38,6 +38,7 @@ class RegularizingLambdaConfig:
             slope_1_step = np.log(1 / self.coefficient) * (1 / self.coefficient)
             print(f"STEP at which slope is 1: {slope_1_step}")
 
+
 @dataclass
 class DropoutParamConfig:
     init_mean: float
@@ -45,13 +46,18 @@ class DropoutParamConfig:
     optimizer_type: OptimizerType
     lr: float = None
 
+
 @dataclass
 class LearnedDropoutConfig:
     use_sigmoid_on_dropout_mask: bool
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
-    A_param_config: DropoutParamConfig = field(default_factory = lambda: DropoutParamConfig(100000, 10, OptimizerType.ADAMW, 1))
-    B_param_config: DropoutParamConfig = field(default_factory = lambda: DropoutParamConfig(0, 0.02, OptimizerType.ADAMW))
+    A_param_config: DropoutParamConfig = field(
+        default_factory=lambda: DropoutParamConfig(100000, 10, OptimizerType.ADAMW, 1)
+    )
+    B_param_config: DropoutParamConfig = field(
+        default_factory=lambda: DropoutParamConfig(0, 0.02, OptimizerType.ADAMW)
+    )
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = True
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
@@ -232,10 +238,18 @@ class LearnedDropout(nn.Module):
         self.use_sigmoid_on_dropout_mask = config.use_sigmoid_on_dropout_mask
 
         self.A = nn.Parameter(
-            torch.normal(config.A_param_config.init_mean,config.A_param_config.init_std, size=(dim_in,))
+            torch.normal(
+                config.A_param_config.init_mean,
+                config.A_param_config.init_std,
+                size=(dim_in,),
+            )
         )
         self.B = nn.Parameter(
-            torch.normal(config.B_param_config.init_mean,config.B_param_config.init_std, size=(dim_in,))
+            torch.normal(
+                config.B_param_config.init_mean,
+                config.B_param_config.init_std,
+                size=(dim_in,),
+            )
         )
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
@@ -530,10 +544,14 @@ class DropoutTransformer(nn.Module):
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
         decay_params = [
-            p for n, p in param_dict.items() if p.dim() >= 2 and not n.endswith((".B", ".A"))
+            p
+            for n, p in param_dict.items()
+            if p.dim() >= 2 and not n.endswith((".B", ".A"))
         ]
         nodecay_params = [
-            p for n, p in param_dict.items() if p.dim() < 2 and not n.endswith((".B", ".A"))
+            p
+            for n, p in param_dict.items()
+            if p.dim() < 2 and not n.endswith((".B", ".A"))
         ]
 
         adamw_groups = [
@@ -547,16 +565,31 @@ class DropoutTransformer(nn.Module):
             B_params = [p for n, p in param_dict.items() if n.endswith(".B")]
             A_lr = self.config.learned_dropout_config.A_param_config.lr
             B_lr = self.config.learned_dropout_config.B_param_config.lr
-            A_params_group = {"params": A_params, "weight_decay": 0.0, "lr": A_lr or learning_rate , "is_lr_fixed": A_lr is not None}
-            B_params_group = {"params": B_params, "weight_decay": 0.0, "lr": B_lr or learning_rate,
-                            "is_lr_fixed": B_lr is not None}
-            
-            if self.config.learned_dropout_config.A_param_config.optimizer_type == OptimizerType.SGD:
+            A_params_group = {
+                "params": A_params,
+                "weight_decay": 0.0,
+                "lr": A_lr or learning_rate,
+                "is_lr_fixed": A_lr is not None,
+            }
+            B_params_group = {
+                "params": B_params,
+                "weight_decay": 0.0,
+                "lr": B_lr or learning_rate,
+                "is_lr_fixed": B_lr is not None,
+            }
+
+            if (
+                self.config.learned_dropout_config.A_param_config.optimizer_type
+                == OptimizerType.SGD
+            ):
                 sgd_groups.append(A_params_group)
             else:
                 adamw_groups.append(A_params_group)
 
-            if self.config.learned_dropout_config.B_param_config.optimizer_type == OptimizerType.SGD:
+            if (
+                self.config.learned_dropout_config.B_param_config.optimizer_type
+                == OptimizerType.SGD
+            ):
                 sgd_groups.append(B_params_group)
             else:
                 adamw_groups.append(B_params_group)

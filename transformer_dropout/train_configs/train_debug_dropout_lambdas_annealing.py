@@ -19,7 +19,7 @@ LEARNED_DROPOUT_CONFIG = {
         "init_mean": 0.0,
         "init_std": 0.2,
         "optimizer_type": "ADAMW",
-    }
+    },
 }
 
 # Training config
