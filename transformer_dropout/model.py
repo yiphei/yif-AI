@@ -427,7 +427,8 @@ class DropoutTransformer(nn.Module):
 
         if lambda_config.coefficient is None:
             return lambda_config.max_lambda
-
+        
+        assert self.training_step is not None
         intersect = (
             lambda_config.min_lambda - 1 if lambda_config.min_lambda is not None else -1
         )
@@ -448,21 +449,21 @@ class DropoutTransformer(nn.Module):
 
     @torch.no_grad()
     def get_A_stats(self):
-        A_tensor = self.get_aggregated_learned_dropout_attributes(
+        aggregated_A = self.get_aggregated_learned_dropout_attributes(
             "A", lambda x: torch.cat(x, dim=0), False
         )
-        if A_tensor is None:
+        if aggregated_A is None:
             return None, None
-        return A_tensor.mean(), A_tensor.std()
+        return aggregated_A.mean(), aggregated_A.std()
 
     @torch.no_grad()
     def get_B_stats(self):
-        B_tensor = self.get_aggregated_learned_dropout_attributes(
+        aggregated_B = self.get_aggregated_learned_dropout_attributes(
             "B", lambda x: torch.cat(x, dim=0), False
         )
-        if B_tensor is None:
+        if aggregated_B is None:
             return None, None
-        return B_tensor.mean(), B_tensor.std()
+        return aggregated_B.mean(), aggregated_B.std()
 
     def forward(self, x, targets=None):
         device = x.device
@@ -474,19 +475,8 @@ class DropoutTransformer(nn.Module):
         embed = self.dropout(embed)
         out = self.transformer_blocks(embed)
         out = self.ln(out)
-
-        mean_dropout_entropy = self.get_mean_dropout_entropy()
-        mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
-        mean_dropout_entropy_coefficient = None
-        mean_dropout_l1_norm_coefficient = None
-        if self.config.use_learned_dropout:
-            mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(
-                self.config.learned_dropout_config.dropout_entropy_lambda
-            )
-            mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(
-                self.config.learned_dropout_config.dropout_l1_norm_lambda
-            )
-
+        
+        mean_dropout_entropy, mean_dropout_l1_norm, mean_dropout_entropy_coefficient, mean_dropout_l1_norm_coefficient = [None] * 4
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
@@ -497,6 +487,14 @@ class DropoutTransformer(nn.Module):
 
             additional_loss = 0
             if self.training and self.config.use_learned_dropout:
+                mean_dropout_entropy = self.get_mean_dropout_entropy()
+                mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
+                mean_dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(
+                        self.config.learned_dropout_config.dropout_entropy_lambda
+                    )
+                mean_dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(
+                        self.config.learned_dropout_config.dropout_l1_norm_lambda
+                    )
                 additional_loss = self.get_dropout_regularizing_term(
                     mean_dropout_entropy * mean_dropout_entropy_coefficient,
                     mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient,
