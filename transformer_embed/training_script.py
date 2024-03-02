@@ -186,6 +186,7 @@ def estimate_loss(
     iter_num,
 ):
     mean_losses = []
+    mean_trad_losses = []
     model.eval()
     new_data_iters = []
     for args in [train_data_batch_args, val_data_batch_args]:
@@ -194,6 +195,7 @@ def estimate_loss(
         data_loader = args[1]
         data_sampler = args[2]
         losses = torch.zeros(est_steps, device=device)
+        trad_losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
             xb, yb, new_data_iter = get_data_batch_loader(
                 data_iter, data_loader, data_sampler, iter_num, device
@@ -202,19 +204,24 @@ def estimate_loss(
                 data_iter = new_data_iter
 
             with ctx(i, False):
-                logits, _, _ = model(xb, yb)
+                logits, traditional_loss, _ = model(xb, yb)
 
-            if model.config.use_new_output_layer:
-                loss = (logits.min(dim=-1).indices.view(-1) != yb.view(-1)).sum()
-            else:
-                probs = F.softmax(logits, dim=-1)
-                loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).sum()
+            # if model.config.use_new_output_layer:
+            #     loss = (logits.min(dim=-1).indices.view(-1) != yb.view(-1)).sum()
+            # else:
+                #probs = F.softmax(logits, dim=-1)
+                #loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).sum()
+            probs = F.softmax(logits, dim=-1)
+            loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).sum()
+
             losses[i] = loss
+            trad_losses[i] = traditional_loss
 
         new_data_iters.append(data_iter if original_data_iter != data_iter else None)
         mean_losses.append(losses.mean().item())
+        mean_trad_losses.append(trad_losses.mean().item())
     model.train()
-    return (mean_losses, new_data_iters)
+    return (mean_losses, trad_losses, new_data_iters)
 
 
 def create_autocast_context(device_type, ptdtype):
@@ -464,7 +471,7 @@ def train(args):
             and iter_num != (TRAIN_CONFIG.TRAIN_STEPS - 1)
             and iter_num != 0
         ) and is_master_process:
-            (train_loss, val_loss), (new_train_iter, new_val_iter) = estimate_loss(
+            (train_loss, val_loss),(trad_train_loss, trad_val_loss), (new_train_iter, new_val_iter) = estimate_loss(
                 model,
                 TRAIN_CONFIG.EST_STEPS,
                 TRAIN_CONFIG.DEVICE,
@@ -487,7 +494,9 @@ def train(args):
             wandb.log(
                 {
                     "est_train_loss": train_loss,
+                    "est_trad_train_loss": trad_train_loss,
                     "est_val_loss": val_loss,
+                    "est_trad_val_loss": trad_val_loss,
                     "est_lr": lr,
                     "est_step": iter_num / TRAIN_CONFIG.EST_INTERVAL - 1,
                 },

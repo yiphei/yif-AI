@@ -237,11 +237,14 @@ class DropoutTransformer(nn.Module):
                     torch.arange(1, x.shape[1] + 1, dtype=torch.long, device=device)
                 )
                 out = out - final_pos_embed
-                logits = self.output_layer(out)
-                targets_exp = targets.unsqueeze(
-                    2
-                )  # Adds a third dimension for compatibility with gather
-                loss = torch.gather(logits, 2, targets_exp).squeeze(2).view(-1).mean()
+                logits = - self.output_layer(out)
+                B, T, C = logits.shape
+                logits = logits.view(B * T, C)
+                loss = F.cross_entropy(logits, targets.view(-1))
+                # targets_exp = targets.unsqueeze(
+                #     2
+                # )  # Adds a third dimension for compatibility with gather
+                # loss = torch.gather(logits, 2, targets_exp).squeeze(2).view(-1).mean()
 
         return (
             logits,
