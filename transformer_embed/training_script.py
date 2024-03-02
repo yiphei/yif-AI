@@ -212,7 +212,7 @@ def estimate_loss(
                 #probs = F.softmax(logits, dim=-1)
                 #loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).sum()
             probs = F.softmax(logits, dim=-1)
-            loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).sum()
+            loss = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).float().mean()
 
             losses[i] = loss
             trad_losses[i] = traditional_loss
