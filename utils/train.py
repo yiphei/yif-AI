@@ -18,13 +18,11 @@ from pathlib import Path
 import boto3
 import numpy as np
 import torch
+from torch.distributed import destroy_process_group, init_process_group
 from torch.utils.data import DataLoader
 
-from utils.data_loading import MapLocalDataset
-
-from torch.distributed import destroy_process_group, init_process_group
-
 import wandb
+from utils.data_loading import MapLocalDataset
 
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
@@ -101,7 +99,9 @@ class TrainConfig:
             raise ValueError("WARMUP_ITERS must be less than LR_DECAY_ITERS")
 
     @classmethod
-    def create_from_config_file(cls, config_file: str, model_config_cls, is_sweep=False):
+    def create_from_config_file(
+        cls, config_file: str, model_config_cls, is_sweep=False
+    ):
         config_dict = {}
         with open(config_file, "r") as file:
             exec(file.read(), {}, config_dict)
@@ -230,6 +230,7 @@ def save_model_artifact(filenames, model_dict, dir_path, s3_client):
             torch.save(model_dict, buffer)
             buffer.seek(0)
             s3_client.upload_fileobj(buffer, DEFAULT_BUCKET, file_path)
+
 
 def _train(args, batch_stats_class, model_cls, create_training_context_fn, local_dir):
     logging.basicConfig(
@@ -605,10 +606,10 @@ def get_default_args(args, local_dir):
             args.resume_from_checkpoint = True
     elif args.platform_type == PlatformType.LOCAL:
         if args.checkpoint_path is None:
-            args.checkpoint_path = local_dir + 'model_checkpoints/'
+            args.checkpoint_path = local_dir + "model_checkpoints/"
         assert args.train is not None
         if args.model_path is None:
-            args.model_path = local_dir + 'model_weights/'
+            args.model_path = local_dir + "model_weights/"
         if args.resume_from_checkpoint is None:
             args.resume_from_checkpoint = False
     elif args.platform_type == PlatformType.LAMBDA:
@@ -643,9 +644,17 @@ def train(batch_stats_class, model_cls, create_training_context_fn, local_dir):
     if args.sweep_id is not None:
         wandb.agent(
             args.sweep_id,
-            function=lambda: _train(args, batch_stats_class, model_cls, create_training_context_fn, local_dir),
+            function=lambda: _train(
+                args,
+                batch_stats_class,
+                model_cls,
+                create_training_context_fn,
+                local_dir,
+            ),
             count=args.sweep_count,
             project="sweep-test",
         )
     else:
-        _train(args, batch_stats_class, model_cls, create_training_context_fn, local_dir)
+        _train(
+            args, batch_stats_class, model_cls, create_training_context_fn, local_dir
+        )
