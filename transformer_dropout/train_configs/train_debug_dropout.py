@@ -8,8 +8,7 @@ USE_LEARNED_DROPOUT = True
 LEARNED_DROPOUT_CONFIG = {
     "use_dropout_entropy_in_loss": True,
     "use_dropout_l1_norm_in_loss": True,
-    "a_param_mean": 0,
-    "a_param_std": 0.02,
+    "use_sigmoid_on_dropout_mask": False,
 }
 # Training config
 BATCH_SIZE = 10

@@ -20,8 +20,8 @@ class ModelConfig:
     use_new_output_layer: bool
     use_final_ln_layer: bool
     use_cross_entropy_loss: bool
-    subtract_out_pos_embed: bool
     dropout_rate: float
+    subtract_out_pos_embed: Optional[bool] = None
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
     use_flash: bool = False
@@ -35,6 +35,8 @@ class ModelConfig:
             raise ValueError(
                 "If not using new output layer, use_cross_entropy_loss and subtract_out_pos_embed must be False."
             )
+        if self.use_new_output_layer:
+            assert self.subtract_out_pos_embed is not None
 
 
 class LayerNorm(nn.Module):
