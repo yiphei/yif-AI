@@ -22,14 +22,16 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from utils.data_loading import MapLocalDataset
+
 try:
     from transformer_dropout.model import DropoutTransformer, ModelConfig
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
     from model import DropoutTransformer, ModelConfig
 
-import wandb
 from torch.distributed import destroy_process_group, init_process_group
+
+import wandb
 
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
@@ -206,11 +208,18 @@ def estimate_loss(
             with ctx(i, False):
                 logits, loss, _ = model(xb, yb)
 
-            if not model.config.use_cross_entropy_loss and model.config.use_new_output_layer:
-                accuracy = (logits.min(dim=-1).indices.view(-1) != yb.view(-1)).float().mean()
+            if (
+                not model.config.use_cross_entropy_loss
+                and model.config.use_new_output_layer
+            ):
+                accuracy = (
+                    (logits.min(dim=-1).indices.view(-1) != yb.view(-1)).float().mean()
+                )
             else:
                 probs = F.softmax(logits, dim=-1)
-                accuracy = (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).float().mean()
+                accuracy = (
+                    (probs.max(dim=-1).indices.view(-1) != yb.view(-1)).float().mean()
+                )
 
             accuracies[i] = accuracy
             losses[i] = loss
