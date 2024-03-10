@@ -231,7 +231,7 @@ def save_model_artifact(filenames, model_dict, dir_path, s3_client):
             buffer.seek(0)
             s3_client.upload_fileobj(buffer, DEFAULT_BUCKET, file_path)
 
-def _train(args, batch_stats_class, model_cls, create_training_context_fn):
+def _train(args, batch_stats_class, model_cls, create_training_context_fn, local_dir):
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
     )
@@ -276,9 +276,7 @@ def _train(args, batch_stats_class, model_cls, create_training_context_fn):
                 if args.platform_type != PlatformType.LOCAL
                 else "local_test"
             ),
-            dir=Path(
-                __file__
-            ).parent,  # this must be in the same directory as the training script in order to make auto-resumption work
+            dir=local_dir,  # this must be in the same directory as the training script in order to make auto-resumption work
             mode="online",
             # resume=True, # enables resuming a previous run
         )
@@ -595,7 +593,7 @@ def _train(args, batch_stats_class, model_cls, create_training_context_fn):
         destroy_process_group()
 
 
-def get_default_args(args, local_checkpoint_dir, local_weights_dir):
+def get_default_args(args, local_dir):
     if args.platform_type == PlatformType.SAGEMAKER:
         if args.checkpoint_path is None:
             args.checkpoint_path = "/opt/ml/checkpoints"
@@ -607,10 +605,10 @@ def get_default_args(args, local_checkpoint_dir, local_weights_dir):
             args.resume_from_checkpoint = True
     elif args.platform_type == PlatformType.LOCAL:
         if args.checkpoint_path is None:
-            args.checkpoint_path = local_checkpoint_dir
+            args.checkpoint_path = local_dir + 'model_checkpoints/'
         assert args.train is not None
         if args.model_path is None:
-            args.model_path = local_weights_dir
+            args.model_path = local_dir + 'model_weights/'
         if args.resume_from_checkpoint is None:
             args.resume_from_checkpoint = False
     elif args.platform_type == PlatformType.LAMBDA:
@@ -623,7 +621,7 @@ def get_default_args(args, local_checkpoint_dir, local_weights_dir):
         assert args.sweep_count is not None
 
 
-def train(batch_stats_class, model_cls, create_training_context_fn, local_checkpoint_dir, local_weights_dir):
+def train(batch_stats_class, model_cls, create_training_context_fn, local_dir):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
@@ -641,13 +639,13 @@ def train(batch_stats_class, model_cls, create_training_context_fn, local_checkp
     parser.add_argument("--sweep_count", type=int, default=None)
     args = parser.parse_args()
 
-    get_default_args(args, local_checkpoint_dir, local_weights_dir)
+    get_default_args(args, local_dir)
     if args.sweep_id is not None:
         wandb.agent(
             args.sweep_id,
-            function=lambda: _train(args, batch_stats_class, model_cls, create_training_context_fn),
+            function=lambda: _train(args, batch_stats_class, model_cls, create_training_context_fn, local_dir),
             count=args.sweep_count,
             project="sweep-test",
         )
     else:
-        _train(args, batch_stats_class, model_cls, create_training_context_fn)
+        _train(args, batch_stats_class, model_cls, create_training_context_fn, local_dir)
