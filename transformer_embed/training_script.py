@@ -22,7 +22,10 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from utils.data_loading import MapLocalDataset
-from transformer_embed.model import DropoutTransformer, ModelConfig
+try:
+    from transformer_dropout.model import DropoutTransformer, ModelConfig
+except ImportError:
+    from model import DropoutTransformer, ModelConfig
 
 import wandb
 from torch.distributed import destroy_process_group, init_process_group
