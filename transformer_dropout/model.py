@@ -622,6 +622,12 @@ class DropoutTransformer(nn.Module):
         n_params = sum(p.numel() for p in self.parameters())
         n_params -= self.positional_embedding.weight.numel()
         return n_params
+    
+    def get_accuracy(self, logits, targets):
+        probs = F.softmax(logits, dim=-1)
+        return (
+            (probs.max(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
+        )
 
     @torch.no_grad()
     def generate(self, x, max_tokens):

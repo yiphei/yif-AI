@@ -175,6 +175,51 @@ def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_l
     }
 
 
+@torch.no_grad()
+def estimate_loss(
+    model,
+    raw_model,
+    est_steps,
+    device,
+    ctx,
+    using_DP,
+    train_data_batch_args,
+    val_data_batch_args,
+    iter_num,
+):
+    mean_accuracies = []
+    mean_losses = []
+    model.eval()
+    new_data_iters = []
+    for args in [train_data_batch_args, val_data_batch_args]:
+        original_data_iter = args[0]
+        data_iter = args[0]
+        data_loader = args[1]
+        data_sampler = args[2]
+        accuracies = torch.zeros(est_steps, device=device)
+        losses = torch.zeros(est_steps, device=device)
+        for i in range(est_steps):
+            xb, yb, new_data_iter = get_data_batch_loader(
+                data_iter, data_loader, data_sampler, iter_num, device
+            )
+            if new_data_iter is not None:
+                data_iter = new_data_iter
+
+            with ctx(i, False):
+                logits, loss, _ = model(xb, yb)
+            if using_DP:
+                loss = loss.mean()
+            losses[i] = loss
+
+            accuracies[i] = raw_model.get_accuracy(logits, yb)
+
+        new_data_iters.append(data_iter if original_data_iter != data_iter else None)
+        mean_accuracies.append(accuracies.mean().item())
+        mean_losses.append(losses.mean().item())
+    model.train()
+    return (mean_accuracies, mean_losses, new_data_iters)
+
+
 def save_model_artifact(filenames, model_dict, dir_path, s3_client):
     for filename in filenames:
         file_path = os.path.join(dir_path, filename)
@@ -186,7 +231,7 @@ def save_model_artifact(filenames, model_dict, dir_path, s3_client):
             buffer.seek(0)
             s3_client.upload_fileobj(buffer, DEFAULT_BUCKET, file_path)
 
-def _train(args, estimate_loss_fn, batch_stats_class, model_cls, create_training_context_fn):
+def _train(args, batch_stats_class, model_cls, create_training_context_fn):
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
     )
@@ -424,8 +469,9 @@ def _train(args, estimate_loss_fn, batch_stats_class, model_cls, create_training
                 (train_accuracy, val_accuracy),
                 (train_loss, val_loss),
                 (new_train_iter, new_val_iter),
-            ) = estimate_loss_fn(
+            ) = estimate_loss(
                 model,
+                raw_model,
                 TRAIN_CONFIG.est_steps,
                 TRAIN_CONFIG.device,
                 ctx,
@@ -433,7 +479,6 @@ def _train(args, estimate_loss_fn, batch_stats_class, model_cls, create_training
                 (curr_train_iter, train_data_loader, train_sampler),
                 (curr_val_iter, val_data_loader, val_sampler),
                 iter_num,
-                get_data_batch_loader,
             )
             if new_train_iter is not None:
                 curr_train_iter = new_train_iter
@@ -578,7 +623,7 @@ def get_default_args(args):
         assert args.sweep_count is not None
 
 
-def train(estimate_loss_fn, batch_stats_class, model_cls, create_training_context_fn):
+def train(batch_stats_class, model_cls, create_training_context_fn):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
@@ -600,9 +645,9 @@ def train(estimate_loss_fn, batch_stats_class, model_cls, create_training_contex
     if args.sweep_id is not None:
         wandb.agent(
             args.sweep_id,
-            function=lambda: _train(args, estimate_loss_fn, batch_stats_class, model_cls, create_training_context_fn),
+            function=lambda: _train(args, batch_stats_class, model_cls, create_training_context_fn),
             count=args.sweep_count,
             project="sweep-test",
         )
     else:
-        _train(args, estimate_loss_fn, batch_stats_class, model_cls, create_training_context_fn)
+        _train(args, batch_stats_class, model_cls, create_training_context_fn)
