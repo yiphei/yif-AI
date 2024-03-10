@@ -106,7 +106,7 @@ class TrainConfig:
             raise ValueError("WARMUP_ITERS must be less than LR_DECAY_ITERS")
 
     @classmethod
-    def create_from_config_file(cls, config_file: str):
+    def create_from_config_file(cls, config_file: str, is_sweep = False):
         config_dict = {}
         with open(config_file, "r") as file:
             exec(file.read(), {}, config_dict)
@@ -118,10 +118,13 @@ class TrainConfig:
         }
 
         model_config_fields = [f.name for f in fields(ModelConfig)]
-        model_config_dict = {
-            k: v for k, v in config_dict.items() if k in model_config_fields
-        }
-        model_config = ModelConfig(**model_config_dict)
+        if not is_sweep:
+            model_config_dict = {
+                k: v for k, v in config_dict.items() if k in model_config_fields
+            }
+            model_config = ModelConfig(**model_config_dict)
+        else:
+            model_config = None
 
         config_dict = {
             k: v for k, v in config_dict.items() if k not in model_config_fields
@@ -133,6 +136,9 @@ class TrainConfig:
 
         def update_config(existing_config_dict, new_config_dict):
             for k, v in new_config_dict.items():
+                if k == "model_config":
+                    continue
+
                 assert hasattr(existing_config_dict, k)
                 if type(v) == dict:
                     update_config(getattr(existing_config_dict, k), v)
@@ -275,7 +281,7 @@ def train(args):
     )
     logger = logging.getLogger()
     logger.info("Starting training script.")
-    TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file)
+    TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file, args.sweep_id is not None)
     using_DDP = (
         TRAIN_CONFIG.use_DDP
         and TRAIN_CONFIG.device == "cuda"
@@ -319,7 +325,11 @@ def train(args):
             # resume=True, # enables resuming a previous run
         )
 
-    TRAIN_CONFIG.update_from_sweep_config(wandb.config)
+    if args.sweep_id is not None:
+        model_config = ModelConfig(**wandb.config.model_config)
+        TRAIN_CONFIG.model_config = model_config
+        TRAIN_CONFIG.update_from_sweep_config(wandb.config)
+
     s3_client = None
     if (
         is_master_process
@@ -466,9 +476,7 @@ def train(args):
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
         return TRAIN_CONFIG.min_lr + coeff * (TRAIN_CONFIG.lr - TRAIN_CONFIG.min_lr)
 
-
     wandb.config.update({**asdict(TRAIN_CONFIG), "num_params": MODEL_NUM_PARAMS, "using_DP": using_DP, "using_DDP": using_DDP, "world_size": ddp_world_size if using_DDP else None})
-
 
     raw_model = model.module if using_DP or using_DDP else model
     model.train()
