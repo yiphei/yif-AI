@@ -102,6 +102,7 @@ pytorch_estimator = PyTorch(
     sagemaker_session=sagemaker_session,
     entry_point="training_script.py",
     source_dir=SOURCE_DIR,
+    dependencies=["utils"],
     role=role,
     framework_version="2.1.0",
     instance_count=args.instance_count,  # increase for multi-node distributed training

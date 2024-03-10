@@ -670,3 +670,7 @@ class OptimizerWrapper:
         self.adamw_optimizer.zero_grad(*args, **kwargs)
         if self.sgd_optimizer is not None:
             self.sgd_optimizer.zero_grad(*args, **kwargs)
+
+    @property
+    def param_groups(self):
+        return self.adamw_optimizer.param_groups + (self.sgd_optimizer.param_groups if self.sgd_optimizer is not None else [])
