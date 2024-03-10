@@ -233,12 +233,9 @@ class DropoutTransformer(nn.Module):
 
         model.load_state_dict(state_dict)
         return model
-    
+
     def get_accuracy(self, logits, targets):
-        if (
-            not self.config.use_cross_entropy_loss
-            and self.config.use_new_output_layer
-        ):
+        if not self.config.use_cross_entropy_loss and self.config.use_new_output_layer:
             return (
                 (logits.min(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
             )

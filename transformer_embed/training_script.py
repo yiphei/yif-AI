@@ -1,9 +1,10 @@
+from contextlib import ExitStack, contextmanager, nullcontext
+from dataclasses import dataclass
 
 import torch
-from utils.train import train
 from torch.nn import functional as F
-from dataclasses import dataclass
-from contextlib import ExitStack, contextmanager, nullcontext
+
+from utils.train import train
 
 try:
     from transformer_embed.model import DropoutTransformer
@@ -18,10 +19,10 @@ class BatchStats:
     train_config: dataclass
 
     @classmethod
-    def initialize(cls,train_config, model):
+    def initialize(cls, train_config, model):
         return cls(
-            model = model,
-            train_config = train_config,
+            model=model,
+            train_config=train_config,
         )
 
     def add_mini_batch_stats(self, mini_batch_stats):
@@ -64,4 +65,4 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
 
 
 if __name__ == "__main__":
-    train( BatchStats, DropoutTransformer, create_training_context, "transformer_embed/")
+    train(BatchStats, DropoutTransformer, create_training_context, "transformer_embed/")
