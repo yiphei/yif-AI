@@ -5,10 +5,10 @@ from distutils.util import strtobool
 
 import boto3
 import sagemaker
-import wandb
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
 
+import wandb
 from transformer_dropout.training_script import PlatformType, TrainConfig
 
 SOURCE_DIR = "transformer_dropout/"

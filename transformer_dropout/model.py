@@ -673,4 +673,6 @@ class OptimizerWrapper:
 
     @property
     def param_groups(self):
-        return self.adamw_optimizer.param_groups + (self.sgd_optimizer.param_groups if self.sgd_optimizer is not None else [])
+        return self.adamw_optimizer.param_groups + (
+            self.sgd_optimizer.param_groups if self.sgd_optimizer is not None else []
+        )

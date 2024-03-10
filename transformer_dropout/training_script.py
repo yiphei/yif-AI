@@ -28,8 +28,9 @@ except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
     from model import DropoutTransformer, ModelConfig
 
-import wandb
 from torch.distributed import destroy_process_group, init_process_group
+
+import wandb
 
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
@@ -106,7 +107,7 @@ class TrainConfig:
             raise ValueError("WARMUP_ITERS must be less than LR_DECAY_ITERS")
 
     @classmethod
-    def create_from_config_file(cls, config_file: str, is_sweep = False):
+    def create_from_config_file(cls, config_file: str, is_sweep=False):
         config_dict = {}
         with open(config_file, "r") as file:
             exec(file.read(), {}, config_dict)
@@ -131,7 +132,7 @@ class TrainConfig:
         }
         config_dict["model_config"] = model_config
         return cls(**config_dict)
-    
+
     def update_from_sweep_config(self, sweep_config):
 
         def update_config(existing_config_dict, new_config_dict):
@@ -146,6 +147,7 @@ class TrainConfig:
                     setattr(existing_config_dict, k, v)
 
         update_config(self, sweep_config)
+
 
 DEFAULT_BUCKET = "dropout-transformer"
 
@@ -281,7 +283,9 @@ def train(args):
     )
     logger = logging.getLogger()
     logger.info("Starting training script.")
-    TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file, args.sweep_id is not None)
+    TRAIN_CONFIG = TrainConfig.create_from_config_file(
+        args.config_file, args.sweep_id is not None
+    )
     using_DDP = (
         TRAIN_CONFIG.use_DDP
         and TRAIN_CONFIG.device == "cuda"
@@ -476,7 +480,15 @@ def train(args):
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
         return TRAIN_CONFIG.min_lr + coeff * (TRAIN_CONFIG.lr - TRAIN_CONFIG.min_lr)
 
-    wandb.config.update({**asdict(TRAIN_CONFIG), "num_params": MODEL_NUM_PARAMS, "using_DP": using_DP, "using_DDP": using_DDP, "world_size": ddp_world_size if using_DDP else None})
+    wandb.config.update(
+        {
+            **asdict(TRAIN_CONFIG),
+            "num_params": MODEL_NUM_PARAMS,
+            "using_DP": using_DP,
+            "using_DDP": using_DDP,
+            "world_size": ddp_world_size if using_DDP else None,
+        }
+    )
 
     raw_model = model.module if using_DP or using_DDP else model
     model.train()
@@ -695,6 +707,11 @@ if __name__ == "__main__":
 
     get_default_args(args)
     if args.sweep_id is not None:
-        wandb.agent(args.sweep_id, function=lambda: train(args), count = args.sweep_count, project = 'sweep-test')
+        wandb.agent(
+            args.sweep_id,
+            function=lambda: train(args),
+            count=args.sweep_count,
+            project="sweep-test",
+        )
     else:
         train(args)
