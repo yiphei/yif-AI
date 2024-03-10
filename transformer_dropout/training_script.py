@@ -54,55 +54,55 @@ def get_default_device():
 
 @dataclass
 class TrainConfig:
-    DEVICE: str = field(default_factory=get_default_device)
-    MODEL_CONFIG: ModelConfig = field(default_factory=required_field_exception)
-    RANDOM_SEED: int = field(default=1337)
+    device: str = field(default_factory=get_default_device)
+    model_config: ModelConfig = field(default_factory=required_field_exception)
+    random_seed: int = field(default=1337)
     # Training
-    BATCH_SIZE: int = field(
+    batch_size: int = field(
         default_factory=required_field_exception
     )  # this will be scaled by GRADIENT_ACCUMULATION_STEPS
-    TRAIN_STEPS: int = field(default_factory=required_field_exception)
-    GRADIENT_ACCUMULATION_STEPS: int = field(
+    train_steps: int = field(default_factory=required_field_exception)
+    gradient_accumulation_steps: int = field(
         default_factory=required_field_exception
     )  # used to simulate large batches. Must be a multiple of world_size (i.e. # of GPUs) if using DDP
     # Optimizer
-    LR: float = field(default=6e-4)  # max learning rate
-    WEIGHT_DECAY: float = field(default=1e-1)
-    BETA1: float = field(default=0.9)
-    BETA2: float = field(default=0.95)
-    DECAY_LR: bool = True
-    WARMUP_ITERS: int = field(default_factory=required_field_exception)
-    LR_DECAY_ITERS: int = field(default_factory=required_field_exception)
-    MIN_LR: float = field(default=6e-5)
+    lr: float = field(default=6e-4)  # max learning rate
+    weight_decay: float = field(default=1e-1)
+    beta1: float = field(default=0.9)
+    beta2: float = field(default=0.95)
+    decay_lr: bool = True
+    warmup_iters: int = field(default_factory=required_field_exception)
+    lr_decay_iters: int = field(default_factory=required_field_exception)
+    min_lr: float = field(default=6e-5)
     # Estimation
-    EST_INTERVAL: int = field(default_factory=required_field_exception)
-    EST_STEPS: int = field(default_factory=required_field_exception)
+    est_interval: int = field(default_factory=required_field_exception)
+    est_steps: int = field(default_factory=required_field_exception)
     # Other
-    DTYPE: str = field(
+    dtype: str = field(
         default_factory=lambda: (
             "bfloat16"
             if torch.cuda.is_available() and torch.cuda.is_bf16_supported()
             else "float16"
         )
     )
-    COMPILE: bool = True
-    USE_DP: bool = False  # DataParallel
-    USE_DDP: bool = True  # DistributedDataParallel
+    compile: bool = True
+    use_DP: bool = False  # DataParallel
+    use_DDP: bool = True  # DistributedDataParallel
 
     def __post_init__(self):
-        if self.USE_DDP and self.USE_DP:
+        if self.use_DDP and self.use_DP:
             raise ValueError("cannot have both USE_DDP and USE_DP set to True")
-        if self.TRAIN_STEPS <= self.EST_INTERVAL:
+        if self.train_steps <= self.est_interval:
             raise ValueError("EST_INTERVAL must be less than TRAIN_STEPS")
-        if self.MIN_LR >= self.LR:
+        if self.min_lr >= self.lr:
             raise ValueError("MIN_LR must be less than LR")
-        if self.WARMUP_ITERS >= self.TRAIN_STEPS:
+        if self.warmup_iters >= self.train_steps:
             raise ValueError("WARMUP_ITERS must be less than TRAIN_STEPS")
-        if self.EST_STEPS >= self.TRAIN_STEPS:
+        if self.est_steps >= self.train_steps:
             raise ValueError("EST_STEPS must be less than TRAIN_STEPS")
-        if self.LR_DECAY_ITERS > self.TRAIN_STEPS:
+        if self.lr_decay_iters > self.train_steps:
             raise ValueError("LR_DECAY_ITERS must be less than TRAIN_STEPS")
-        if self.WARMUP_ITERS > self.LR_DECAY_ITERS:
+        if self.warmup_iters > self.lr_decay_iters:
             raise ValueError("WARMUP_ITERS must be less than LR_DECAY_ITERS")
 
     @classmethod
@@ -112,33 +112,32 @@ class TrainConfig:
             exec(file.read(), {}, config_dict)
         # Filter out built-in items
         config_dict = {
-            k: v
+            k.lower(): v
             for k, v in config_dict.items()
             if not k.startswith("__") and not inspect.ismodule(v)
         }
 
-        model_config_fields = [f.name.upper() for f in fields(ModelConfig)]
+        model_config_fields = [f.name for f in fields(ModelConfig)]
         model_config_dict = {
-            k.lower(): v for k, v in config_dict.items() if k in model_config_fields
+            k: v for k, v in config_dict.items() if k in model_config_fields
         }
         model_config = ModelConfig(**model_config_dict)
 
         config_dict = {
             k: v for k, v in config_dict.items() if k not in model_config_fields
         }
-        config_dict["MODEL_CONFIG"] = model_config
+        config_dict["model_config"] = model_config
         return cls(**config_dict)
     
     def update_from_sweep_config(self, sweep_config):
 
         def update_config(existing_config_dict, new_config_dict):
             for k, v in new_config_dict.items():
-                upper_k = k.upper() if existing_config_dict == self else k
-                assert hasattr(existing_config_dict, upper_k)
+                assert hasattr(existing_config_dict, k)
                 if type(v) == dict:
-                    update_config(getattr(existing_config_dict, upper_k), v)
+                    update_config(getattr(existing_config_dict, k), v)
                 else:
-                    setattr(existing_config_dict, upper_k, v)
+                    setattr(existing_config_dict, k, v)
 
         update_config(self, sweep_config)
 
@@ -166,7 +165,7 @@ def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_l
     return {
         "model": raw_model.state_dict(),
         "optimizer": optimizer.state_dict(),
-        "model_config": asdict(train_config.MODEL_CONFIG),
+        "model_config": asdict(train_config.model_config),
         "iter_num": iter_num,
         "config": asdict(train_config),
         "best_val_loss": best_val_loss,
@@ -278,30 +277,30 @@ def train(args):
     logger.info("Starting training script.")
     TRAIN_CONFIG = TrainConfig.create_from_config_file(args.config_file)
     using_DDP = (
-        TRAIN_CONFIG.USE_DDP
-        and TRAIN_CONFIG.DEVICE == "cuda"
+        TRAIN_CONFIG.use_DDP
+        and TRAIN_CONFIG.device == "cuda"
         and torch.cuda.device_count() > 1
     )
     using_DP = (
-        TRAIN_CONFIG.DEVICE == "cuda"
+        TRAIN_CONFIG.device == "cuda"
         and torch.cuda.device_count() > 1
-        and TRAIN_CONFIG.USE_DP
+        and TRAIN_CONFIG.use_DP
     )
     if using_DDP:
         init_process_group(backend="nccl")
         ddp_rank = torch.distributed.get_rank()
         ddp_local_rank = int(os.environ["LOCAL_RANK"])
         ddp_world_size = torch.distributed.get_world_size()
-        TRAIN_CONFIG.DEVICE = f"cuda:{ddp_local_rank}"
-        torch.cuda.set_device(TRAIN_CONFIG.DEVICE)
+        TRAIN_CONFIG.device = f"cuda:{ddp_local_rank}"
+        torch.cuda.set_device(TRAIN_CONFIG.device)
         is_master_process = (
             ddp_rank == 0
         )  # this process will do logging, checkpointing etc.
         seed_offset = ddp_rank  # each process gets a different seed
         # world_size number of processes will be training simultaneously, so we can scale
         # down the desired gradient accumulation iterations per process proportionally
-        assert TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS % ddp_world_size == 0
-        TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS //= ddp_world_size
+        assert TRAIN_CONFIG.gradient_accumulation_steps % ddp_world_size == 0
+        TRAIN_CONFIG.gradient_accumulation_steps //= ddp_world_size
     else:
         is_master_process = True
         seed_offset = 0
@@ -352,21 +351,21 @@ def train(args):
             ckpt_file_path = os.path.join(args.checkpoint_path, "ckpt.pt")
 
     # seed_offset allows for distributed training data
-    torch.manual_seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
-    np.random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
-    random.seed(TRAIN_CONFIG.RANDOM_SEED + seed_offset)
+    torch.manual_seed(TRAIN_CONFIG.random_seed + seed_offset)
+    np.random.seed(TRAIN_CONFIG.random_seed + seed_offset)
+    random.seed(TRAIN_CONFIG.random_seed + seed_offset)
 
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
     device_type = (
-        "cuda" if "cuda" in TRAIN_CONFIG.DEVICE else "cpu"
+        "cuda" if "cuda" in TRAIN_CONFIG.device else "cpu"
     )  # for later use in torch.autocast
     # note: float16 data type will automatically use a GradScaler
     ptdtype = {
         "bfloat16": torch.bfloat16,
         "float16": torch.float16,
-    }[TRAIN_CONFIG.DTYPE]
+    }[TRAIN_CONFIG.dtype]
 
     # Load and prepare training data
     directory = Path(args.train)
@@ -374,19 +373,19 @@ def train(args):
     [val_file_path] = list(directory.glob("*_val.bin"))
     train_data, train_sampler = MapLocalDataset.create_with_distributed_sampler(
         train_file_path,
-        TRAIN_CONFIG.MODEL_CONFIG.context_size,
-        TRAIN_CONFIG.BATCH_SIZE,
+        TRAIN_CONFIG.model_config.context_size,
+        TRAIN_CONFIG.batch_size,
         using_DDP,
     )
     val_data, val_sampler = MapLocalDataset.create_with_distributed_sampler(
         val_file_path,
-        TRAIN_CONFIG.MODEL_CONFIG.context_size,
-        TRAIN_CONFIG.BATCH_SIZE,
+        TRAIN_CONFIG.model_config.context_size,
+        TRAIN_CONFIG.batch_size,
         using_DDP,
     )
     train_data_loader = DataLoader(
         train_data,
-        batch_size=TRAIN_CONFIG.BATCH_SIZE,
+        batch_size=TRAIN_CONFIG.batch_size,
         sampler=train_sampler,
         num_workers=0,
         shuffle=(train_sampler is None),
@@ -394,7 +393,7 @@ def train(args):
     )
     val_data_loader = DataLoader(
         val_data,
-        batch_size=TRAIN_CONFIG.BATCH_SIZE,
+        batch_size=TRAIN_CONFIG.batch_size,
         sampler=val_sampler,
         num_workers=0,
         shuffle=(val_sampler is None),
@@ -410,25 +409,25 @@ def train(args):
         with open(meta_path, "rb") as f:
             meta = pickle.load(f)
 
-        TRAIN_CONFIG.MODEL_CONFIG.alphabet_size = meta["alphabet_size"]
-        model = DropoutTransformer(TRAIN_CONFIG.MODEL_CONFIG)
+        TRAIN_CONFIG.model_config.alphabet_size = meta["alphabet_size"]
+        model = DropoutTransformer(TRAIN_CONFIG.model_config)
     else:
         print("Loading checkpoint...")
-        checkpoint = torch.load(ckpt_file_path, map_location=TRAIN_CONFIG.DEVICE)
+        checkpoint = torch.load(ckpt_file_path, map_location=TRAIN_CONFIG.device)
         model = DropoutTransformer.init_from_checkpoint(checkpoint)
-        TRAIN_CONFIG.MODEL_CONFIG = model.config
+        TRAIN_CONFIG.model_config = model.config
         iter_num = checkpoint["iter_num"] + 1
         best_val_loss = checkpoint["best_val_loss"]
 
-    model.to(TRAIN_CONFIG.DEVICE)
+    model.to(TRAIN_CONFIG.device)
     ctx = create_training_context(model, iter_num, device_type, ptdtype)
 
-    MODEL_PARAMS = model.get_num_params()
-    scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.DTYPE == "float16"))
+    MODEL_NUM_PARAMS = model.get_num_params()
+    scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.dtype == "float16"))
     optimizer = model.configure_optimizer(
-        TRAIN_CONFIG.WEIGHT_DECAY,
-        TRAIN_CONFIG.LR,
-        (TRAIN_CONFIG.BETA1, TRAIN_CONFIG.BETA2),
+        TRAIN_CONFIG.weight_decay,
+        TRAIN_CONFIG.lr,
+        (TRAIN_CONFIG.beta1, TRAIN_CONFIG.beta2),
         device_type,
     )
     if initialize_from_checkpoint:
@@ -436,7 +435,7 @@ def train(args):
     checkpoint = None
 
     # when using DDP and LearnedDropout, compiling the model causes a bug in sagemaker, so disabling for now
-    if TRAIN_CONFIG.COMPILE and using_DDP and False:
+    if TRAIN_CONFIG.compile and using_DDP and False:
         print("compiling the model... (takes a ~minute)")
         unoptimized_model = model
         model = torch.compile(model)  # requires PyTorch 2.0
@@ -454,21 +453,21 @@ def train(args):
             training_step + 1
         )  # to avoid zero division when training_step = 0
         # 1) linear warmup for warmup_iters steps
-        if adjusted_training_step < TRAIN_CONFIG.WARMUP_ITERS:
-            return TRAIN_CONFIG.LR * adjusted_training_step / TRAIN_CONFIG.WARMUP_ITERS
+        if adjusted_training_step < TRAIN_CONFIG.warmup_iters:
+            return TRAIN_CONFIG.lr * adjusted_training_step / TRAIN_CONFIG.warmup_iters
         # 2) if it > lr_decay_iters, return min learning rate
-        if adjusted_training_step > TRAIN_CONFIG.LR_DECAY_ITERS:
-            return TRAIN_CONFIG.MIN_LR
+        if adjusted_training_step > TRAIN_CONFIG.lr_decay_iters:
+            return TRAIN_CONFIG.min_lr
         # 3) in between, use cosine decay down to min learning rate
-        decay_ratio = (adjusted_training_step - TRAIN_CONFIG.WARMUP_ITERS) / (
-            TRAIN_CONFIG.LR_DECAY_ITERS - TRAIN_CONFIG.WARMUP_ITERS
+        decay_ratio = (adjusted_training_step - TRAIN_CONFIG.warmup_iters) / (
+            TRAIN_CONFIG.lr_decay_iters - TRAIN_CONFIG.warmup_iters
         )
         assert 0 <= decay_ratio <= 1
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
-        return TRAIN_CONFIG.MIN_LR + coeff * (TRAIN_CONFIG.LR - TRAIN_CONFIG.MIN_LR)
+        return TRAIN_CONFIG.min_lr + coeff * (TRAIN_CONFIG.lr - TRAIN_CONFIG.min_lr)
 
 
-    wandb.config.update({**asdict(TRAIN_CONFIG), "params": MODEL_PARAMS, "using_DP": using_DP, "using_DDP": using_DDP, "world_size": ddp_world_size if using_DDP else None})
+    wandb.config.update({**asdict(TRAIN_CONFIG), "num_params": MODEL_NUM_PARAMS, "using_DP": using_DP, "using_DDP": using_DDP, "world_size": ddp_world_size if using_DDP else None})
 
 
     raw_model = model.module if using_DP or using_DDP else model
@@ -478,24 +477,24 @@ def train(args):
         train_data_loader,
         train_sampler,
         -1,
-        TRAIN_CONFIG.DEVICE,
+        TRAIN_CONFIG.device,
     )
-    while iter_num < TRAIN_CONFIG.TRAIN_STEPS:
+    while iter_num < TRAIN_CONFIG.train_steps:
         t0 = time.time()
 
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
-        lr = get_lr(iter_num) if TRAIN_CONFIG.DECAY_LR else TRAIN_CONFIG.LR
+        lr = get_lr(iter_num) if TRAIN_CONFIG.decay_lr else TRAIN_CONFIG.lr
         optimizer.change_lr(lr)
 
         if (
-            iter_num % TRAIN_CONFIG.EST_INTERVAL == 0
-            and iter_num != (TRAIN_CONFIG.TRAIN_STEPS - 1)
+            iter_num % TRAIN_CONFIG.est_interval == 0
+            and iter_num != (TRAIN_CONFIG.train_steps - 1)
             and iter_num != 0
         ) and is_master_process:
             (train_loss, val_loss), (new_train_iter, new_val_iter) = estimate_loss(
                 model,
-                TRAIN_CONFIG.EST_STEPS,
-                TRAIN_CONFIG.DEVICE,
+                TRAIN_CONFIG.est_steps,
+                TRAIN_CONFIG.device,
                 ctx,
                 using_DP,
                 (curr_train_iter, train_data_loader, train_sampler),
@@ -517,7 +516,7 @@ def train(args):
                     "est_train_loss": train_loss,
                     "est_val_loss": val_loss,
                     "est_lr": lr,
-                    "est_step": iter_num / TRAIN_CONFIG.EST_INTERVAL - 1,
+                    "est_step": iter_num / TRAIN_CONFIG.est_interval - 1,
                 },
                 step=iter_num,
                 # commit=True,
@@ -538,14 +537,14 @@ def train(args):
             )
 
         running_loss = 0
-        running_entropy = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
-        running_l1_norm = 0 if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout else None
+        running_entropy = 0 if TRAIN_CONFIG.model_config.use_learned_dropout else None
+        running_l1_norm = 0 if TRAIN_CONFIG.model_config.use_learned_dropout else None
         is_first_mini_batch = True
-        for micro_step in range(TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS):
+        for micro_step in range(TRAIN_CONFIG.gradient_accumulation_steps):
             if using_DDP:
                 # this defers gradient sync until the last micro_step
                 model.require_backward_grad_sync = (
-                    micro_step == TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS - 1
+                    micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1
                 )
             with ctx(iter_num, is_first_mini_batch):
                 (
@@ -560,22 +559,22 @@ def train(args):
                 ) = model(X, Y)
                 if using_DP:
                     loss = loss.mean()
-                    if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
+                    if TRAIN_CONFIG.model_config.use_learned_dropout:
                         entropy = entropy.mean()
                         dropout_l1_norm = dropout_l1_norm.mean()
 
                 loss = (
-                    loss / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
+                    loss / TRAIN_CONFIG.gradient_accumulation_steps
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
-                if TRAIN_CONFIG.MODEL_CONFIG.use_learned_dropout:
+                if TRAIN_CONFIG.model_config.use_learned_dropout:
                     # these values do not reflect the true scaled values used in the loss
                     running_entropy += (
-                        entropy.item() / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
+                        entropy.item() / TRAIN_CONFIG.gradient_accumulation_steps
                     )
                     running_l1_norm += (
                         dropout_l1_norm.item()
-                        / TRAIN_CONFIG.GRADIENT_ACCUMULATION_STEPS
+                        / TRAIN_CONFIG.gradient_accumulation_steps
                     )
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y, new_train_iter = get_data_batch_loader(
@@ -583,7 +582,7 @@ def train(args):
                 train_data_loader,
                 train_sampler,
                 -1,
-                TRAIN_CONFIG.DEVICE,
+                TRAIN_CONFIG.device,
             )
             if new_train_iter is not None:
                 curr_train_iter = new_train_iter
