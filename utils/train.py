@@ -186,52 +186,7 @@ def save_model_artifact(filenames, model_dict, dir_path, s3_client):
             buffer.seek(0)
             s3_client.upload_fileobj(buffer, DEFAULT_BUCKET, file_path)
 
-def create_autocast_context(device_type, ptdtype):
-    @contextmanager
-    def autocast_context():
-        ctx = (
-            nullcontext()
-            if device_type == "cpu"
-            else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
-        )
-        with ctx:
-            yield
-
-    return autocast_context
-
-
-def create_training_step_context(starting_training_step, model):
-    @contextmanager
-    def training_step_context(training_step, is_first_minibatch):
-        if model.config.use_learned_dropout and model.training and is_first_minibatch:
-            assert (
-                model.training_step == training_step - 1
-                if training_step != starting_training_step
-                else model.training_step is None
-            )
-            model.training_step = training_step
-        yield
-
-    return training_step_context
-
-
-def create_training_context(model, starting_training_step, device_type, ptdtype):
-    autocast_context = create_autocast_context(device_type, ptdtype)
-    entropy_lambda_context = create_training_step_context(starting_training_step, model)
-
-    @contextmanager
-    def training_context(training_step, is_first_minibatch):
-        with ExitStack() as stack:
-            stack.enter_context(autocast_context())
-            stack.enter_context(
-                entropy_lambda_context(training_step, is_first_minibatch)
-            )
-            yield
-
-    return training_context
-
-
-def _train(args, estimate_loss_fn, batch_stats_class, model_cls):
+def _train(args, estimate_loss_fn, batch_stats_class, model_cls, create_training_context_fn):
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
     )
@@ -388,7 +343,7 @@ def _train(args, estimate_loss_fn, batch_stats_class, model_cls):
         best_val_loss = checkpoint["best_val_loss"]
 
     model.to(TRAIN_CONFIG.device)
-    ctx = create_training_context(model, iter_num, device_type, ptdtype)
+    ctx = create_training_context_fn(model, iter_num, device_type, ptdtype)
 
     MODEL_NUM_PARAMS = model.get_num_params()
     scaler = torch.cuda.amp.GradScaler(enabled=(TRAIN_CONFIG.dtype == "float16"))
@@ -623,7 +578,7 @@ def get_default_args(args):
         assert args.sweep_count is not None
 
 
-def train(estimate_loss_fn, batch_stats_class, model_cls):
+def train(estimate_loss_fn, batch_stats_class, model_cls, create_training_context_fn):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
@@ -645,9 +600,9 @@ def train(estimate_loss_fn, batch_stats_class, model_cls):
     if args.sweep_id is not None:
         wandb.agent(
             args.sweep_id,
-            function=lambda: _train(args, estimate_loss_fn, batch_stats_class, model_cls),
+            function=lambda: _train(args, estimate_loss_fn, batch_stats_class, model_cls, create_training_context_fn),
             count=args.sweep_count,
             project="sweep-test",
         )
     else:
-        _train(args, estimate_loss_fn, batch_stats_class, model_cls)
+        _train(args, estimate_loss_fn, batch_stats_class, model_cls, create_training_context_fn)
