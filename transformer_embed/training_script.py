@@ -64,4 +64,4 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
 
 
 if __name__ == "__main__":
-    train( BatchStats, DropoutTransformer, create_training_context)
+    train( BatchStats, DropoutTransformer, create_training_context, "transformer_embed/model_checkpoints/", "transformer_embed/model_weights/")
