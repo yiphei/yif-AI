@@ -166,6 +166,9 @@ class TransformerBlock(nn.Module):
 
 
 class DropoutTransformer(nn.Module):
+
+    model_config_cls = ModelConfig
+
     def __init__(self, config: ModelConfig):
         super().__init__()
         assert (
@@ -292,6 +295,12 @@ class DropoutTransformer(nn.Module):
             optim_groups, lr=learning_rate, betas=betas, **extra_args
         )
         print(f"using fused AdamW: {use_fused}")
+
+        def change_lr(self, lr):
+            for param_group in self.param_groups:
+                param_group["lr"] = lr
+
+        adam_optimizer.change_lr = change_lr.__get__(adam_optimizer)
         return adam_optimizer
 
     def get_num_params(self):

@@ -338,6 +338,8 @@ class TransformerBlock(nn.Module):
 
 
 class DropoutTransformer(nn.Module):
+    model_config_cls = ModelConfig
+
     def __init__(self, config: ModelConfig):
         super().__init__()
         assert (
