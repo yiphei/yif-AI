@@ -128,7 +128,19 @@ class TrainConfig:
         }
         config_dict["MODEL_CONFIG"] = model_config
         return cls(**config_dict)
+    
+    def update_from_sweep_config(self, sweep_config):
 
+        def update_config(existing_config_dict, new_config_dict):
+            for k, v in new_config_dict.items():
+                upper_k = k.upper() if existing_config_dict == self else k
+                assert hasattr(existing_config_dict, upper_k)
+                if type(v) == dict:
+                    update_config(getattr(existing_config_dict, upper_k), v)
+                else:
+                    setattr(existing_config_dict, upper_k, v)
+
+        update_config(self, sweep_config)
 
 DEFAULT_BUCKET = "dropout-transformer"
 
@@ -294,6 +306,21 @@ def train(args):
         is_master_process = True
         seed_offset = 0
 
+    if is_master_process:
+        wandb.init(
+            project=(
+                "transformer_dropout_2"
+                if args.platform_type != PlatformType.LOCAL
+                else "local_test"
+            ),
+            dir=Path(
+                __file__
+            ).parent,  # this must be in the same directory as the training script in order to make auto-resumption work
+            mode="online",
+            # resume=True, # enables resuming a previous run
+        )
+
+    TRAIN_CONFIG.update_from_sweep_config(wandb.config)
     s3_client = None
     if (
         is_master_process
@@ -440,26 +467,9 @@ def train(args):
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
         return TRAIN_CONFIG.MIN_LR + coeff * (TRAIN_CONFIG.LR - TRAIN_CONFIG.MIN_LR)
 
-    if is_master_process:
-        wandb.init(
-            project=(
-                "transformer_dropout_2"
-                if args.platform_type != PlatformType.LOCAL
-                else "local_test"
-            ),
-            config={
-                **asdict(TRAIN_CONFIG),
-                "params": MODEL_PARAMS,
-                "using_DP": using_DP,
-                "using_DDP": using_DDP,
-                "world_size": ddp_world_size if using_DDP else None,
-            },
-            dir=Path(
-                __file__
-            ).parent,  # this must be in the same directory as the training script in order to make auto-resumption work
-            mode="online",
-            # resume=True, # enables resuming a previous run
-        )
+
+    wandb.config.update({**asdict(TRAIN_CONFIG), "params": MODEL_PARAMS, "using_DP": using_DP, "using_DDP": using_DDP, "world_size": ddp_world_size if using_DDP else None})
+
 
     raw_model = model.module if using_DP or using_DDP else model
     model.train()
@@ -654,6 +664,8 @@ def get_default_args(args):
                 args.aws_access_key_id is not None
                 and args.aws_secret_access_key is not None
             )
+    if args.sweep_id is not None:
+        assert args.sweep_count is not None
 
 
 if __name__ == "__main__":
@@ -670,7 +682,12 @@ if __name__ == "__main__":
     parser.add_argument("--resume_from_checkpoint", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--aws_access_key_id", type=str)
     parser.add_argument("--aws_secret_access_key", type=str)
+    parser.add_argument("--sweep_id", type=str, default=None)
+    parser.add_argument("--sweep_count", type=int, default=None)
     args = parser.parse_args()
 
     get_default_args(args)
-    train(args)
+    if args.sweep_id is not None:
+        wandb.agent(args.sweep_id, function=lambda: train(args), count = args.sweep_count, project = 'sweep-test')
+    else:
+        train(args)
