@@ -595,7 +595,7 @@ def _train(args, batch_stats_class, model_cls, create_training_context_fn):
         destroy_process_group()
 
 
-def get_default_args(args):
+def get_default_args(args, local_checkpoint_dir, local_weights_dir):
     if args.platform_type == PlatformType.SAGEMAKER:
         if args.checkpoint_path is None:
             args.checkpoint_path = "/opt/ml/checkpoints"
@@ -607,10 +607,10 @@ def get_default_args(args):
             args.resume_from_checkpoint = True
     elif args.platform_type == PlatformType.LOCAL:
         if args.checkpoint_path is None:
-            args.checkpoint_path = "transformer_dropout/model_checkpoints/"
+            args.checkpoint_path = local_checkpoint_dir
         assert args.train is not None
         if args.model_path is None:
-            args.model_path = "transformer_dropout/model_weights/"
+            args.model_path = local_weights_dir
         if args.resume_from_checkpoint is None:
             args.resume_from_checkpoint = False
     elif args.platform_type == PlatformType.LAMBDA:
@@ -623,7 +623,7 @@ def get_default_args(args):
         assert args.sweep_count is not None
 
 
-def train(batch_stats_class, model_cls, create_training_context_fn):
+def train(batch_stats_class, model_cls, create_training_context_fn, local_checkpoint_dir, local_weights_dir):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
@@ -641,7 +641,7 @@ def train(batch_stats_class, model_cls, create_training_context_fn):
     parser.add_argument("--sweep_count", type=int, default=None)
     args = parser.parse_args()
 
-    get_default_args(args)
+    get_default_args(args, local_checkpoint_dir, local_weights_dir)
     if args.sweep_id is not None:
         wandb.agent(
             args.sweep_id,
