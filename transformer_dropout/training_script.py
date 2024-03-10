@@ -25,6 +25,7 @@ from utils.data_loading import MapLocalDataset
 try:
     from transformer_dropout.model import DropoutTransformer, ModelConfig
 except ImportError:
+    # I only upload the direct parent module to sagemaker, so I need a different import path
     from model import DropoutTransformer, ModelConfig
 
 import wandb
