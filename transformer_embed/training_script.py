@@ -2,7 +2,6 @@ from contextlib import ExitStack, contextmanager, nullcontext
 from dataclasses import dataclass
 
 import torch
-from torch.nn import functional as F
 
 from utils.train import train
 
