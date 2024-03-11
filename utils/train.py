@@ -79,8 +79,6 @@ class TrainConfig:
         )
     )
     compile: bool = True
-    use_DP: bool = False  # DataParallel
-    use_DDP: bool = True  # DistributedDataParallel
 
     def __post_init__(self):
         self.validate_field_values()
@@ -254,16 +252,17 @@ def _train(
         args.config_file, model_cls.model_config_cls, args.sweep_id is not None
     )
     DEVICE = get_default_device()
-    
+
     using_DDP = (
-        TRAIN_CONFIG.use_DDP
-        and DEVICE == "cuda"
+         DEVICE == "cuda"
         and torch.cuda.device_count() > 1
     )
+
+    # This is always false for now.
     using_DP = (
         DEVICE == "cuda"
         and torch.cuda.device_count() > 1
-        and TRAIN_CONFIG.use_DP
+        and False
     )
     if using_DDP:
         init_process_group(backend="nccl")
