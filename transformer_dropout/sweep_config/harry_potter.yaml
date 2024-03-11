@@ -38,7 +38,7 @@ parameters:
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
-                                values: [1e-1, 1e-2, 1e-3, 1, 10, None]
+                                values: [1e-1, 1e-2, 1e-3, 1, 10, null]
                     B_param_config:
                         parameters:
                             init_mean:
@@ -48,23 +48,23 @@ parameters:
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
-                                values: [6e-4, 6e-3, 6e-2, 6e-5, None]
+                                values: [6e-4, 6e-3, 6e-2, 6e-5, null]
                     dropout_entropy_lambda:
                         parameters:
                             min_lambda:
-                              values: [0, 0.1, 0.01, 0.001, None]
+                              values: [0, 0.1, 0.01, 0.001, null]
                             max_lambda:
                               values: [1,2,3,5]
                             coefficient:
-                              values: [0.001, 0.0001, 0.00001, 0.000001, 0.0000001, None]
-                    dropout_entropy_lambda:
+                              values: [0.001, 0.0001, 0.00001, 0.000001, 0.0000001, null]
+                    dropout_l1_norm_lambda:
                         parameters:
                             min_lambda:
-                              values: [0, 0.1, 0.01, 0.001, None]
+                              values: [0, 0.1, 0.01, 0.001, null]
                             max_lambda:
                               values: [1,2,3,5]
                             coefficient:
-                              values: [0.001, 0.0001, 0.00001, 0.000001, 0.0000001, None]
+                              values: [0.001, 0.0001, 0.00001, 0.000001, 0.0000001, null]
     batch_size: 
         value: 15
     train_steps: 
