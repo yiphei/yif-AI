@@ -14,6 +14,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
+from typing import Optional
 
 import boto3
 import numpy as np
@@ -48,7 +49,7 @@ def get_default_device():
 
 @dataclass
 class TrainConfig:
-    model_config: dataclass = field(default_factory=required_field_exception)
+    model_config: Optional[dataclass]
     random_seed: int = field(default=1337)
     # Training
     batch_size: int = field(
@@ -129,19 +130,12 @@ class TrainConfig:
         return cls(**config_dict)
 
     def update_from_sweep_config(self, sweep_config):
+        for k, v in sweep_config.items():
+            if k == "model_config":
+                continue
 
-        def update_config(existing_config_dict, new_config_dict):
-            for k, v in new_config_dict.items():
-                if k == "model_config":
-                    continue
-
-                assert hasattr(existing_config_dict, k)
-                if type(v) == dict:
-                    update_config(getattr(existing_config_dict, k), v)
-                else:
-                    setattr(existing_config_dict, k, v)
-
-        update_config(self, sweep_config)
+            assert hasattr(self, k)
+            setattr(self, k, v)
 
         self.validate_field_values()
 
@@ -296,8 +290,7 @@ def _train(
         )
 
     if args.sweep_id is not None:
-        model_config = model_cls.model_config_cls(**wandb.config.model_config)
-        TRAIN_CONFIG.model_config = model_config
+        TRAIN_CONFIG.model_config = model_cls.model_config_cls(**wandb.config.model_config)
         TRAIN_CONFIG.update_from_sweep_config(wandb.config)
 
     s3_client = None
