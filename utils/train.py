@@ -83,6 +83,9 @@ class TrainConfig:
     use_DDP: bool = True  # DistributedDataParallel
 
     def __post_init__(self):
+        self.validate_field_values()
+        
+    def validate_field_values(self):
         if self.use_DDP and self.use_DP:
             raise ValueError("cannot have both USE_DDP and USE_DP set to True")
         if self.train_steps <= self.est_interval:
@@ -141,6 +144,8 @@ class TrainConfig:
                     setattr(existing_config_dict, k, v)
 
         update_config(self, sweep_config)
+
+        self.validate_field_values()
 
 
 DEFAULT_BUCKET = "dropout-transformer"
