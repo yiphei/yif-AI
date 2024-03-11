@@ -84,7 +84,7 @@ class TrainConfig:
 
     def __post_init__(self):
         self.validate_field_values()
-        
+
     def validate_field_values(self):
         if self.use_DDP and self.use_DP:
             raise ValueError("cannot have both USE_DDP and USE_DP set to True")

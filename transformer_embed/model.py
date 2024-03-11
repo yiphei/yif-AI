@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+
 @dataclass
 class NewOutputLayerConfig:
     subtract_out_pos_embed: bool
@@ -29,7 +30,9 @@ class ModelConfig:
 
     def __post_init__(self):
         if self.use_new_output_layer and self.new_output_layer_config is None:
-            raise ValueError("new_output_layer_config must be provided when using new output layer")
+            raise ValueError(
+                "new_output_layer_config must be provided when using new output layer"
+            )
 
         if (
             self.new_output_layer_config is not None
@@ -236,7 +239,10 @@ class DropoutTransformer(nn.Module):
         return model
 
     def get_accuracy(self, logits, targets):
-        if self.config.use_new_output_layer and not self.config.new_output_layer_config.use_cross_entropy_loss:
+        if (
+            self.config.use_new_output_layer
+            and not self.config.new_output_layer_config.use_cross_entropy_loss
+        ):
             return (
                 (logits.min(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
             )
@@ -262,16 +268,19 @@ class DropoutTransformer(nn.Module):
             loss = None
             logits = self.output_layer(out[:, [-1], :])
         else:
-            if self.config.use_new_output_layer and self.config.new_output_layer_config.subtract_out_pos_embed:
+            if (
+                self.config.use_new_output_layer
+                and self.config.new_output_layer_config.subtract_out_pos_embed
+            ):
                 final_pos_embed = self.positional_embedding(
                     torch.arange(1, x.shape[1] + 1, dtype=torch.long, device=device)
                 )
                 out = out - final_pos_embed
             logits = self.output_layer(out)
             if (
-                (self.config.use_new_output_layer and self.config.new_output_layer_config.use_cross_entropy_loss)
-                or not self.config.use_new_output_layer
-            ):
+                self.config.use_new_output_layer
+                and self.config.new_output_layer_config.use_cross_entropy_loss
+            ) or not self.config.use_new_output_layer:
                 logits = -logits
                 B, T, C = logits.shape
                 logits = logits.view(B * T, C)
