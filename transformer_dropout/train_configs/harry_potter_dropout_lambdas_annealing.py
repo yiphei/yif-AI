@@ -8,13 +8,6 @@ USE_LEARNED_DROPOUT = True
 LEARNED_DROPOUT_CONFIG = {
     "use_dropout_entropy_in_loss": True,
     "use_dropout_l1_norm_in_loss": False,
-    "a_param_mean": 100000,
-    "a_param_std": 10,
-    "b_param_mean": 0,
-    "b_param_std": 0.02,
-    "A_optimizer_type": "ADAMW",
-    "B_optimizer_type": "ADAMW",
-    "A_lr": 10,
 }
 
 # Training config
