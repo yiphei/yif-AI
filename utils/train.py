@@ -232,7 +232,14 @@ def save_model_artifact(filenames, model_dict, dir_path, s3_client):
             s3_client.upload_fileobj(buffer, DEFAULT_BUCKET, file_path)
 
 
-def _train(args, batch_stats_class, model_cls, create_training_context_fn, local_dir, wandb_project):
+def _train(
+    args,
+    batch_stats_class,
+    model_cls,
+    create_training_context_fn,
+    local_dir,
+    wandb_project,
+):
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
     )
@@ -622,7 +629,9 @@ def get_default_args(args, local_dir):
         assert args.sweep_count is not None
 
 
-def train(batch_stats_class, model_cls, create_training_context_fn, local_dir, wandb_project):
+def train(
+    batch_stats_class, model_cls, create_training_context_fn, local_dir, wandb_project
+):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
@@ -657,5 +666,10 @@ def train(batch_stats_class, model_cls, create_training_context_fn, local_dir, w
         )
     else:
         _train(
-            args, batch_stats_class, model_cls, create_training_context_fn, local_dir, wandb_project
+            args,
+            batch_stats_class,
+            model_cls,
+            create_training_context_fn,
+            local_dir,
+            wandb_project,
         )
