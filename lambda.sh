@@ -24,11 +24,11 @@ process_address() {
     git ls-files | rsync -avz --files-from=- -e "ssh -i ~/Downloads/lambda.pem -o StrictHostKeyChecking=no" ./ "$address":~/yif-AI/
 
     # SSH into the server, start a tmux session, and run the commands
-    ssh -i ~/Downloads/lambda.pem -o StrictHostKeyChecking=no "$address" <<'EOF'
-    tmux new-session -d -s mySession 'cd yif-AI && pip install -r requirements.txt'
-    tmux send-keys -t mySession 'pip install --upgrade pyOpenSSL cryptography boto3 botocore' C-m
+    ssh -i ~/Downloads/lambda.pem -o StrictHostKeyChecking=no "$address" <<EOF
+    tmux new-session -d -s mySession "cd yif-AI && pip install -r requirements.txt"
+    tmux send-keys -t mySession "pip install --upgrade pyOpenSSL cryptography boto3 botocore" C-m
     tmux send-keys -t mySession "export WANDB_API_KEY='${api_key}'" C-m
-    tmux send-keys -t mySession 'torchrun --standalone --nproc_per_node=1 transformer_dropout/training_script.py --config_file transformer_dropout/train_configs/harry_potter_baseline.py --train datasets/full_harry_potter/ --platform_type LAMBDA --aws_access_key_id '${aws_access_key}' --aws_secret_access_key '${aws_secret_key}'' C-m
+    tmux send-keys -t mySession "torchrun --standalone --nproc_per_node=1 transformer_dropout/training_script.py --config_file transformer_dropout/train_configs/harry_potter_baseline.py --train datasets/full_harry_potter/ --platform_type LAMBDA --aws_access_key_id ${aws_access_key} --aws_secret_access_key ${aws_secret_key}" C-m
 EOF
 
     echo "Commands executed in tmux session for $address"
