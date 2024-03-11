@@ -38,7 +38,7 @@ EOF
 }
 
 # Read each address from the file and process it in the background
-while IFS= read -r address || [[ -n "$address" ]]; do
+while IFS=' ' read -r ssh_cmd address _ || [[ -n "$address" ]]; do
     if [[ -z "$address" ]]; then
         continue
     fi
