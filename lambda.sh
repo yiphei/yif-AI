@@ -27,6 +27,7 @@ process_address() {
     ssh -i ~/Downloads/lambda.pem -o StrictHostKeyChecking=no "$address" <<EOF
     tmux new-session -d -s mySession /bin/bash
     tmux send-keys -t mySession "cd yif-AI" C-m
+    tmux send-keys -t mySession "pip install -r requirements.txt" C-m
     tmux send-keys -t mySession "pip install --upgrade pyOpenSSL cryptography boto3 botocore" C-m
     tmux send-keys -t mySession "export WANDB_API_KEY='${api_key}'" C-m
     tmux send-keys -t mySession "torchrun --standalone --nproc_per_node=1 -m transformer_dropout.training_script --config_file transformer_dropout/train_configs/harry_potter_baseline.py --train datasets/full_harry_potter/ --platform_type LAMBDA --aws_access_key_id ${aws_access_key} --aws_secret_access_key ${aws_secret_key}" C-m
