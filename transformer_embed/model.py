@@ -10,6 +10,11 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+@dataclass
+class NewOutputLayerConfig:
+    subtract_out_pos_embed: bool
+    use_cross_entropy_loss: bool
+
 
 @dataclass
 class ModelConfig:
@@ -19,24 +24,23 @@ class ModelConfig:
     n_head: int
     use_new_output_layer: bool
     use_final_ln_layer: bool
-    use_cross_entropy_loss: bool
     dropout_rate: float
-    subtract_out_pos_embed: Optional[bool] = None
+    new_output_layer_config: Optional[NewOutputLayerConfig] = None
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
     use_flash: bool = False
 
     def __post_init__(self):
+        if self.use_new_output_layer and self.new_output_layer_config is None:
+            raise ValueError("new_output_layer_config must be provided when using new output layer")
+
         if (
-            not self.use_new_output_layer
-            and self.use_cross_entropy_loss
-            and self.subtract_out_pos_embed
+            self.new_output_layer_config is not None
+            and type(self.new_output_layer_config) == dict
         ):
-            raise ValueError(
-                "If not using new output layer, use_cross_entropy_loss and subtract_out_pos_embed must be False."
+            self.new_output_layer_config = NewOutputLayerConfig(
+                **self.new_output_layer_config
             )
-        if self.use_new_output_layer:
-            assert self.subtract_out_pos_embed is not None
 
 
 class LayerNorm(nn.Module):
