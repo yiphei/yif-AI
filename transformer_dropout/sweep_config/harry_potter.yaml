@@ -32,13 +32,13 @@ parameters:
                     A_param_config:
                         parameters:
                             init_mean:
-                                values: [100000, 0, 10000, 1000, 1000000]
+                                values: [100000, 0, 10000, 1000000]
                             init_std:
                                 values: [0.02, 1, 10, 100, 1000]
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
-                                values: [1e-1, 1e-2, 1e-3, 1, 10, null]
+                                values: [0.1, 0.01, 1, 10, null]
                     B_param_config:
                         parameters:
                             init_mean:
@@ -54,7 +54,7 @@ parameters:
                             min_lambda:
                               values: [0, 0.1, 0.01, 0.001, null]
                             max_lambda:
-                              values: [1,2,3,5]
+                              values: [0.5, 1,2,3,5]
                             coefficient:
                               values: [0.001, 0.0001, 0.00001, 0.000001, 0.0000001, null]
                     dropout_l1_norm_lambda:
@@ -62,7 +62,7 @@ parameters:
                             min_lambda:
                               values: [0, 0.1, 0.01, 0.001, null]
                             max_lambda:
-                              values: [1,2,3,5]
+                              values: [0.5, 1,2,3,5]
                             coefficient:
                               values: [0.001, 0.0001, 0.00001, 0.000001, 0.0000001, null]
     batch_size: 
