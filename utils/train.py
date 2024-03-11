@@ -85,8 +85,6 @@ class TrainConfig:
         self.validate_field_values()
 
     def validate_field_values(self):
-        if self.use_DDP and self.use_DP:
-            raise ValueError("cannot have both USE_DDP and USE_DP set to True")
         if self.train_steps <= self.est_interval:
             raise ValueError("EST_INTERVAL must be less than TRAIN_STEPS")
         if self.min_lr >= self.lr:
