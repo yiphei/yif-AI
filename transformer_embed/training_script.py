@@ -65,4 +65,10 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
 
 
 if __name__ == "__main__":
-    train(BatchStats, DropoutTransformer, create_training_context, "transformer_embed/", 'transformer_embed')
+    train(
+        BatchStats,
+        DropoutTransformer,
+        create_training_context,
+        "transformer_embed/",
+        "transformer_embed",
+    )
