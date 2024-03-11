@@ -38,9 +38,11 @@ EOF
 }
 
 # Read each address from the file and process it in the background
-while IFS= read -r address
-do
-    process_address "$address" "$API_KEY" "$AWS_ACCESS_KEY" "$AWS_SECRET_KEY" &
+while IFS= read -r address || [[ -n "$address" ]]; do
+    if [[ -z "$address" ]]; then
+        continue
+    fi
+    process_address "$address" "$API_KEY" "$AWS_ACCESS_KEY" "$AWS_SECRET_KEY"
 done < "$ADDRESS_FILE"
 
 # Wait for all background processes to finish
