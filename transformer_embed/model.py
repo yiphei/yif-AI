@@ -1,11 +1,8 @@
 import inspect
 import math
-from contextlib import nullcontext
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Optional
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -265,14 +262,14 @@ class DropoutTransformer(nn.Module):
             loss = None
             logits = self.output_layer(out[:, [-1], :])
         else:
-            if self.config.subtract_out_pos_embed and self.config.use_new_output_layer:
+            if self.config.use_new_output_layer and self.config.new_output_layer_config.subtract_out_pos_embed:
                 final_pos_embed = self.positional_embedding(
                     torch.arange(1, x.shape[1] + 1, dtype=torch.long, device=device)
                 )
                 out = out - final_pos_embed
             logits = self.output_layer(out)
             if (
-                self.config.use_cross_entropy_loss
+                (self.config.use_new_output_layer and self.config.new_output_layer_config.use_cross_entropy_loss)
                 or not self.config.use_new_output_layer
             ):
                 logits = -logits
