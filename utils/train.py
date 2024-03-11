@@ -48,7 +48,6 @@ def get_default_device():
 
 @dataclass
 class TrainConfig:
-    device: str = field(default_factory=get_default_device)
     model_config: dataclass = field(default_factory=required_field_exception)
     random_seed: int = field(default=1337)
     # Training
@@ -254,13 +253,15 @@ def _train(
     TRAIN_CONFIG = TrainConfig.create_from_config_file(
         args.config_file, model_cls.model_config_cls, args.sweep_id is not None
     )
+    DEVICE = get_default_device()
+    
     using_DDP = (
         TRAIN_CONFIG.use_DDP
-        and TRAIN_CONFIG.device == "cuda"
+        and DEVICE == "cuda"
         and torch.cuda.device_count() > 1
     )
     using_DP = (
-        TRAIN_CONFIG.device == "cuda"
+        DEVICE == "cuda"
         and torch.cuda.device_count() > 1
         and TRAIN_CONFIG.use_DP
     )
@@ -269,8 +270,8 @@ def _train(
         ddp_rank = torch.distributed.get_rank()
         ddp_local_rank = int(os.environ["LOCAL_RANK"])
         ddp_world_size = torch.distributed.get_world_size()
-        TRAIN_CONFIG.device = f"cuda:{ddp_local_rank}"
-        torch.cuda.set_device(TRAIN_CONFIG.device)
+        DEVICE = f"cuda:{ddp_local_rank}"
+        torch.cuda.set_device(DEVICE)
         is_master_process = (
             ddp_rank == 0
         )  # this process will do logging, checkpointing etc.
@@ -342,7 +343,7 @@ def _train(
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
     device_type = (
-        "cuda" if "cuda" in TRAIN_CONFIG.device else "cpu"
+        "cuda" if "cuda" in DEVICE else "cpu"
     )  # for later use in torch.autocast
     # note: float16 data type will automatically use a GradScaler
     ptdtype = {
@@ -396,13 +397,13 @@ def _train(
         model = model_cls(TRAIN_CONFIG.model_config)
     else:
         print("Loading checkpoint...")
-        checkpoint = torch.load(ckpt_file_path, map_location=TRAIN_CONFIG.device)
+        checkpoint = torch.load(ckpt_file_path, map_location=DEVICE)
         model = model_cls.init_from_checkpoint(checkpoint)
         TRAIN_CONFIG.model_config = model.config
         iter_num = checkpoint["iter_num"] + 1
         best_val_loss = checkpoint["best_val_loss"]
 
-    model.to(TRAIN_CONFIG.device)
+    model.to(DEVICE)
     ctx = create_training_context_fn(model, iter_num, device_type, ptdtype)
 
     MODEL_NUM_PARAMS = model.get_num_params()
@@ -456,6 +457,7 @@ def _train(
             "using_DP": using_DP,
             "using_DDP": using_DDP,
             "world_size": ddp_world_size if using_DDP else None,
+            "device": DEVICE,
         }
     )
 
@@ -466,7 +468,7 @@ def _train(
         train_data_loader,
         train_sampler,
         -1,
-        TRAIN_CONFIG.device,
+        DEVICE,
     )
     while iter_num < TRAIN_CONFIG.train_steps:
         t0 = time.time()
@@ -488,7 +490,7 @@ def _train(
                 model,
                 raw_model,
                 TRAIN_CONFIG.est_steps,
-                TRAIN_CONFIG.device,
+                DEVICE,
                 ctx,
                 using_DP,
                 (curr_train_iter, train_data_loader, train_sampler),
@@ -564,7 +566,7 @@ def _train(
                 train_data_loader,
                 train_sampler,
                 -1,
-                TRAIN_CONFIG.device,
+                DEVICE,
             )
             if new_train_iter is not None:
                 curr_train_iter = new_train_iter
