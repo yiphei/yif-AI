@@ -1,5 +1,6 @@
 program: transformer_dropout.training_script.py
 name: harry_potter_dropout
+project: transfomer_dropout_3
 method: random
 metric:
   goal: minimize

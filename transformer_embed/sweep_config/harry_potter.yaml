@@ -1,5 +1,6 @@
 program: transformer_embed.training_script.py
 name: harry_potter_embed
+project: transfomer_embed
 method: random
 metric:
   goal: minimize
