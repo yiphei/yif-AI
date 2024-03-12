@@ -1,16 +1,15 @@
 #!/bin/bash
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <API_KEY> <AWS_ACCESS_KEY> <AWS_SECRET_KEY>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $0 <ADDRESS_FILE_PATH> <API_KEY> <AWS_ACCESS_KEY> <AWS_SECRET_KEY>"
     exit 1
 fi
 
 # Assign the arguments to variables
-API_KEY=$1
-AWS_ACCESS_KEY=$2
-AWS_SECRET_KEY=$3
-
-ADDRESS_FILE="addresses.txt"
+ADDRESS_FILE=$1
+API_KEY=$2
+AWS_ACCESS_KEY=$3
+AWS_SECRET_KEY=$4
 
 process_address() {
     address=$1
