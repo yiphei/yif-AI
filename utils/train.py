@@ -279,6 +279,7 @@ def _train(
             mode="online",
             # resume=True, # enables resuming a previous run
         )
+        wandb.run.log_code(".")
 
     if args.sweep_id is not None:
         TRAIN_CONFIG.model_config = model_cls.model_config_cls(
