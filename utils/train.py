@@ -42,6 +42,7 @@ class PlatformType(str, Enum):
 def get_default_device():
     if torch.cuda.is_available():
         return "cuda"
+    # NB: "mps" introduces non-deterministic behavior, despite explicitly setting random seeds.
     return "mps" if torch.backends.mps.is_available() else "cpu"
 
 
