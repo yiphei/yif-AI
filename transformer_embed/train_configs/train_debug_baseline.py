@@ -7,8 +7,6 @@ BIAS = False
 DROPOUT_RATE = 0.1
 USE_NEW_OUTPUT_LAYER = False
 USE_FINAL_LN_LAYER = True
-USE_CROSS_ENTROPY_LOSS = True
-
 
 # Training config
 BATCH_SIZE = 10

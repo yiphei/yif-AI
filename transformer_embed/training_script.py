@@ -1,41 +1,14 @@
 from contextlib import ExitStack, contextmanager, nullcontext
-from dataclasses import dataclass
-
 import torch
 
 from utils.train import train
+from utils.train_common import BatchStatsBase
 
 try:
     from transformer_embed.model import DropoutTransformer
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
     from model import DropoutTransformer
-
-
-@dataclass
-class BatchStats:
-    model: DropoutTransformer
-    train_config: dataclass
-
-    @classmethod
-    def initialize(cls, train_config, model):
-        return cls(
-            model=model,
-            train_config=train_config,
-        )
-
-    def add_mini_batch_stats(self, mini_batch_stats):
-        return
-
-    def mean(self):
-        return
-
-    def scale(self):
-        return
-
-    def get_wandb_batch_stats(self):
-        return {}
-
 
 def create_autocast_context(device_type, ptdtype):
     @contextmanager
@@ -65,7 +38,7 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
 
 if __name__ == "__main__":
     train(
-        BatchStats,
+        BatchStatsBase,
         DropoutTransformer,
         create_training_context,
         "transformer_embed/",

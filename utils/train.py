@@ -14,6 +14,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
 from pathlib import Path
+from typing import Optional
 
 import boto3
 import numpy as np
@@ -48,8 +49,7 @@ def get_default_device():
 
 @dataclass
 class TrainConfig:
-    device: str = field(default_factory=get_default_device)
-    model_config: dataclass = field(default_factory=required_field_exception)
+    model_config: Optional[dataclass]
     random_seed: int = field(default=1337)
     # Training
     batch_size: int = field(
@@ -80,15 +80,11 @@ class TrainConfig:
         )
     )
     compile: bool = True
-    use_DP: bool = False  # DataParallel
-    use_DDP: bool = True  # DistributedDataParallel
 
     def __post_init__(self):
         self.validate_field_values()
 
     def validate_field_values(self):
-        if self.use_DDP and self.use_DP:
-            raise ValueError("cannot have both USE_DDP and USE_DP set to True")
         if self.train_steps <= self.est_interval:
             raise ValueError("EST_INTERVAL must be less than TRAIN_STEPS")
         if self.min_lr >= self.lr:
@@ -132,19 +128,12 @@ class TrainConfig:
         return cls(**config_dict)
 
     def update_from_sweep_config(self, sweep_config):
+        for k, v in sweep_config.items():
+            if k == "model_config":
+                continue
 
-        def update_config(existing_config_dict, new_config_dict):
-            for k, v in new_config_dict.items():
-                if k == "model_config":
-                    continue
-
-                assert hasattr(existing_config_dict, k)
-                if type(v) == dict:
-                    update_config(getattr(existing_config_dict, k), v)
-                else:
-                    setattr(existing_config_dict, k, v)
-
-        update_config(self, sweep_config)
+            assert hasattr(self, k)
+            setattr(self, k, v)
 
         self.validate_field_values()
 
@@ -254,23 +243,26 @@ def _train(
     TRAIN_CONFIG = TrainConfig.create_from_config_file(
         args.config_file, model_cls.model_config_cls, args.sweep_id is not None
     )
+    DEVICE = get_default_device()
+
     using_DDP = (
-        TRAIN_CONFIG.use_DDP
-        and TRAIN_CONFIG.device == "cuda"
+         DEVICE == "cuda"
         and torch.cuda.device_count() > 1
     )
+
+    # This is always false for now.
     using_DP = (
-        TRAIN_CONFIG.device == "cuda"
+        DEVICE == "cuda"
         and torch.cuda.device_count() > 1
-        and TRAIN_CONFIG.use_DP
+        and False
     )
     if using_DDP:
         init_process_group(backend="nccl")
         ddp_rank = torch.distributed.get_rank()
         ddp_local_rank = int(os.environ["LOCAL_RANK"])
         ddp_world_size = torch.distributed.get_world_size()
-        TRAIN_CONFIG.device = f"cuda:{ddp_local_rank}"
-        torch.cuda.set_device(TRAIN_CONFIG.device)
+        DEVICE = f"cuda:{ddp_local_rank}"
+        torch.cuda.set_device(DEVICE)
         is_master_process = (
             ddp_rank == 0
         )  # this process will do logging, checkpointing etc.
@@ -296,8 +288,7 @@ def _train(
         )
 
     if args.sweep_id is not None:
-        model_config = model_cls.model_config_cls(**wandb.config.model_config)
-        TRAIN_CONFIG.model_config = model_config
+        TRAIN_CONFIG.model_config = model_cls.model_config_cls(**wandb.config.model_config)
         TRAIN_CONFIG.update_from_sweep_config(wandb.config)
 
     s3_client = None
@@ -342,7 +333,7 @@ def _train(
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
     device_type = (
-        "cuda" if "cuda" in TRAIN_CONFIG.device else "cpu"
+        "cuda" if "cuda" in DEVICE else "cpu"
     )  # for later use in torch.autocast
     # note: float16 data type will automatically use a GradScaler
     ptdtype = {
@@ -396,13 +387,13 @@ def _train(
         model = model_cls(TRAIN_CONFIG.model_config)
     else:
         print("Loading checkpoint...")
-        checkpoint = torch.load(ckpt_file_path, map_location=TRAIN_CONFIG.device)
+        checkpoint = torch.load(ckpt_file_path, map_location=DEVICE)
         model = model_cls.init_from_checkpoint(checkpoint)
         TRAIN_CONFIG.model_config = model.config
         iter_num = checkpoint["iter_num"] + 1
         best_val_loss = checkpoint["best_val_loss"]
 
-    model.to(TRAIN_CONFIG.device)
+    model.to(DEVICE)
     ctx = create_training_context_fn(model, iter_num, device_type, ptdtype)
 
     MODEL_NUM_PARAMS = model.get_num_params()
@@ -456,6 +447,7 @@ def _train(
             "using_DP": using_DP,
             "using_DDP": using_DDP,
             "world_size": ddp_world_size if using_DDP else None,
+            "device": DEVICE,
         }
     )
 
@@ -466,7 +458,7 @@ def _train(
         train_data_loader,
         train_sampler,
         -1,
-        TRAIN_CONFIG.device,
+        DEVICE,
     )
     while iter_num < TRAIN_CONFIG.train_steps:
         t0 = time.time()
@@ -488,7 +480,7 @@ def _train(
                 model,
                 raw_model,
                 TRAIN_CONFIG.est_steps,
-                TRAIN_CONFIG.device,
+                DEVICE,
                 ctx,
                 using_DP,
                 (curr_train_iter, train_data_loader, train_sampler),
@@ -564,7 +556,7 @@ def _train(
                 train_data_loader,
                 train_sampler,
                 -1,
-                TRAIN_CONFIG.device,
+                DEVICE,
             )
             if new_train_iter is not None:
                 curr_train_iter = new_train_iter
