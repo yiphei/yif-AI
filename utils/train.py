@@ -666,7 +666,7 @@ def train(
                 local_dir,
                 wandb_project,
             ),
-            project = wandb_project,
+            project=wandb_project,
             count=args.sweep_count,
         )
     else:
