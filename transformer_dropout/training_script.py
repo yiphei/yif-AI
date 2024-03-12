@@ -6,6 +6,7 @@ import torch
 from torch.nn import functional as F
 
 from utils.train import train
+from utils.train_common import BatchStatsBase
 
 try:
     from transformer_dropout.model import DropoutTransformer
@@ -15,9 +16,7 @@ except ImportError:
 
 
 @dataclass
-class BatchStats:
-    model: DropoutTransformer
-    train_config: dataclass
+class BatchStats(BatchStatsBase):
     running_entropy: Optional[float]
     running_l1_norm: Optional[float]
     entropy: Optional[float] = None
