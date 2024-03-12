@@ -1,5 +1,5 @@
 program: transformer_embed.training_script.py
-name: harry_potter_embed
+name: harry_potter_embed_new
 project: transformer_embed_2
 run_cap: 200
 method: random
