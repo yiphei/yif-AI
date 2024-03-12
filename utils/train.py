@@ -300,10 +300,13 @@ def _train(
         TRAIN_CONFIG.update_from_sweep_config(wandb.config)
 
     s3_client = None
+    # need to create locally scoped variables because sweep runs necessitate creating new paths for each run
+    current_checkpoint_path = args.checkpoint_path
+    current_model_path = args.model_path
     if (
         is_master_process
         and args.platform_type not in [PlatformType.SAGEMAKER, PlatformType.LOCAL]
-        and (args.model_path is None or args.checkpoint_path is None)
+        and (current_model_path is None or current_checkpoint_path is None)
     ):
         s3_client = boto3.client(
             "s3",
@@ -311,23 +314,23 @@ def _train(
             aws_secret_access_key=args.aws_secret_access_key,
         )
         training_run_dir = f"training/{args.platform_type.lower()}_training_run_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}/"
-        if args.model_path is None:
+        if current_model_path is None:
             s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir + "model/")
-            args.model_path = training_run_dir + "model/"
-        if args.checkpoint_path is None:
+            current_model_path = training_run_dir + "model/"
+        if current_checkpoint_path is None:
             s3_client.put_object(
                 Bucket=DEFAULT_BUCKET, Key=training_run_dir + "checkpoints/"
             )
-            args.checkpoint_path = training_run_dir + "checkpoints/"
+            current_checkpoint_path = training_run_dir + "checkpoints/"
         print(f"S3 folder is: {training_run_dir}")
 
     initialize_from_checkpoint = False
     ckpt_file_path = None
-    if args.checkpoint_path is not None and args.resume_from_checkpoint:
-        assert os.path.isdir(args.checkpoint_path)
-        if os.path.isfile(os.path.join(args.checkpoint_path, "ckpt.pt")):
+    if current_checkpoint_path is not None and args.resume_from_checkpoint:
+        assert os.path.isdir(current_checkpoint_path)
+        if os.path.isfile(os.path.join(current_checkpoint_path, "ckpt.pt")):
             initialize_from_checkpoint = True
-            ckpt_file_path = os.path.join(args.checkpoint_path, "ckpt.pt")
+            ckpt_file_path = os.path.join(current_checkpoint_path, "ckpt.pt")
 
     # seed_offset allows for distributed training data
     torch.manual_seed(TRAIN_CONFIG.random_seed + seed_offset)
@@ -524,7 +527,7 @@ def _train(
                 get_torch_save_dict(
                     raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
                 ),
-                args.checkpoint_path,
+                current_checkpoint_path,
                 s3_client,
             )
 
@@ -598,7 +601,7 @@ def _train(
             get_torch_save_dict(
                 raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
             ),
-            args.model_path,
+            current_model_path,
             s3_client,
         )
 
@@ -632,6 +635,9 @@ def get_default_args(args, local_dir):
             )
     if args.sweep_id is not None:
         assert args.sweep_count is not None
+        assert not args.resume_from_checkpoint
+        if args.sweep_count > 1:
+            assert args.checkpoint_path is None and args.model_path is None
 
 
 def train(
