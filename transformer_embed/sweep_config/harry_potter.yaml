@@ -1,6 +1,7 @@
 program: transformer_embed.training_script.py
 name: harry_potter_embed
-project: transfomer_embed
+project: transformer_embed_2
+run_cap: 200
 method: random
 metric:
   goal: minimize
@@ -30,7 +31,7 @@ parameters:
                         values: [True, False]
 
     batch_size: 
-        value: 15
+        value: 13
     train_steps: 
         value: 6000
     lr: 
