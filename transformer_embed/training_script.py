@@ -1,4 +1,5 @@
 from contextlib import ExitStack, contextmanager, nullcontext
+
 import torch
 
 from utils.train import train
@@ -9,6 +10,7 @@ try:
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
     from model import DropoutTransformer
+
 
 def create_autocast_context(device_type, ptdtype):
     @contextmanager

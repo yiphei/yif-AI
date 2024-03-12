@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class BatchStatsBase:
     model: dataclass
@@ -8,6 +9,7 @@ class BatchStatsBase:
     @classmethod
     def initialize(cls, train_config, model):
         return cls(model, train_config)
+
     def add_mini_batch_stats(self, *args, **kwargs):
         pass
 
