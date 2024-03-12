@@ -279,7 +279,8 @@ def _train(
             mode="online",
             # resume=True, # enables resuming a previous run
         )
-        wandb.run.log_code(".")
+        if args.save_code:
+            wandb.run.log_code(".")
 
     if args.sweep_id is not None:
         TRAIN_CONFIG.model_config = model_cls.model_config_cls(
@@ -647,6 +648,7 @@ def train(
     parser.add_argument("--aws_secret_access_key", type=str)
     parser.add_argument("--sweep_id", type=str, default=None)
     parser.add_argument("--sweep_count", type=int, default=None)
+    parser.add_argument("--save_code", type=lambda v: bool(strtobool(v)), default=False)
     args = parser.parse_args()
 
     get_default_args(args, local_dir)
