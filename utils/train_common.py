@@ -7,8 +7,7 @@ class BatchStatsBase:
 
     @classmethod
     def initialize(cls, train_config, model):
-        pass
-
+        return cls(model, train_config)
     def add_mini_batch_stats(self, *args, **kwargs):
         pass
 
@@ -19,4 +18,4 @@ class BatchStatsBase:
         pass
 
     def get_wandb_batch_stats(self):
-        pass
+        return {}
