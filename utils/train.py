@@ -245,17 +245,10 @@ def _train(
     )
     DEVICE = get_default_device()
 
-    using_DDP = (
-         DEVICE == "cuda"
-        and torch.cuda.device_count() > 1
-    )
+    using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1
 
     # This is always false for now.
-    using_DP = (
-        DEVICE == "cuda"
-        and torch.cuda.device_count() > 1
-        and False
-    )
+    using_DP = DEVICE == "cuda" and torch.cuda.device_count() > 1 and False
     if using_DDP:
         init_process_group(backend="nccl")
         ddp_rank = torch.distributed.get_rank()
@@ -288,7 +281,9 @@ def _train(
         )
 
     if args.sweep_id is not None:
-        TRAIN_CONFIG.model_config = model_cls.model_config_cls(**wandb.config.model_config)
+        TRAIN_CONFIG.model_config = model_cls.model_config_cls(
+            **wandb.config.model_config
+        )
         TRAIN_CONFIG.update_from_sweep_config(wandb.config)
 
     s3_client = None

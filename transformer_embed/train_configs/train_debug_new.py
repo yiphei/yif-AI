@@ -8,8 +8,8 @@ DROPOUT_RATE = 0.1
 USE_NEW_OUTPUT_LAYER = True
 USE_FINAL_LN_LAYER = True
 NEW_OUTPUT_LAYER_CONFIG = {
-    'subtract_out_pos_embed': True,
-    'use_cross_entropy_loss': True,
+    "subtract_out_pos_embed": True,
+    "use_cross_entropy_loss": True,
 }
 
 # Training config
