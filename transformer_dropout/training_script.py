@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Optional
 
 import torch
-from torch.nn import functional as F
 
 from utils.train import train
 from utils.train_common import BatchStatsBase
