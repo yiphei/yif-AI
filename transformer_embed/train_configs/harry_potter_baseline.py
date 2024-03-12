@@ -6,6 +6,7 @@ N_HEAD = 4
 BIAS = False
 USE_NEW_OUTPUT_LAYER = False
 DROPOUT_RATE = 0.1
+USE_FINAL_LN_LAYER = False
 
 # Training config
 BATCH_SIZE = 10

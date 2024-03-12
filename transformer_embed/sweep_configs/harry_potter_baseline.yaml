@@ -1,7 +1,7 @@
 program: transformer_embed.training_script.py
 name: harry_potter_embed_baseline
 project: transformer_embed_2
-run_cap: 20
+run_cap: 31
 method: grid
 metric:
   goal: minimize
