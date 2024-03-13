@@ -616,7 +616,7 @@ def get_default_args(args, local_dir):
     if args.sweep_id is not None:
         assert args.sweep_count is not None
         assert not args.resume_from_checkpoint
-        if args.sweep_count > 1:
+        if args.sweep_count > 1 and args.platform_type != PlatformType.LOCAL:
             assert args.checkpoint_path is None and args.model_path is None
 
 
