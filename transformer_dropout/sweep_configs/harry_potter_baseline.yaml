@@ -23,6 +23,8 @@ parameters:
                 values: [0, 0.1, 0.2, 0.3, 0.4]
             bias:
                 values: [True, False]
+            use_flash:
+                value: True
     batch_size: 
         value: 15
     train_steps: 

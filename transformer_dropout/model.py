@@ -381,7 +381,7 @@ class DropoutTransformer(nn.Module):
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-            if module.bias:
+            if module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
@@ -626,7 +626,6 @@ class DropoutTransformer(nn.Module):
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
         return x
-
 
 class OptimizerWrapper:
     def __init__(self, adamw_optimizer, sgd_optimizer):
