@@ -1,5 +1,5 @@
 program: transformer_dropout.training_script.py
-name: harry_potter_dropout
+name: harry_potter_dropout_new
 project: transfomer_dropout_3
 method: random
 run_cap: 500
