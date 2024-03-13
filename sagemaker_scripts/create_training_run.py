@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
 
 import wandb
-from transformer_dropout.training_script import PlatformType, TrainConfig
+from utils.train import PlatformType, TrainConfig
+from transformer_dropout.model import ModelConfig
 
 SOURCE_DIR = "transformer_dropout/"
 GPU_INSTANCE_TYPES = [
@@ -52,7 +53,7 @@ args = parser.parse_args()
 
 # Validate config
 assert os.path.exists(f"{SOURCE_DIR}{args.config_file}")
-_ = TrainConfig.create_from_config_file(f"{SOURCE_DIR}{args.config_file}")
+_ = TrainConfig.create_from_config_file(f"{SOURCE_DIR}{args.config_file}", ModelConfig)
 
 load_dotenv()
 role = os.getenv("SAGEMAKER_ROLE")
