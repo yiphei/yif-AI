@@ -68,7 +68,7 @@ parameters:
                             coefficient:
                               values: [0.001, 0.00075, 0.0005, 0.00025, null]
     batch_size: 
-        value: 15
+        value: 13
     train_steps: 
         value: 6000
     lr: 

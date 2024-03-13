@@ -26,7 +26,7 @@ parameters:
             use_flash:
                 value: True
     batch_size: 
-        value: 15
+        value: 13
     train_steps: 
         value: 6000
     lr: 

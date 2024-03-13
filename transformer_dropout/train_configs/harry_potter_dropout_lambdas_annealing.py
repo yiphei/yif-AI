@@ -12,8 +12,8 @@ LEARNED_DROPOUT_CONFIG = {
                     "use_canonical_entropy": False,
                     "use_detached_x_in_dropout_mask": False,
                     "A_param_config": {
-                            "init_mean": 100000,
-                            "init_std": 10, 
+                            "init_mean": 0,
+                            "init_std": 1, 
                             "optimizer_type": "ADAMW",
                             'lr': 1,
                     },
@@ -35,7 +35,7 @@ LEARNED_DROPOUT_CONFIG = {
 }
 
 # Training config
-BATCH_SIZE = 15
+BATCH_SIZE = 13
 TRAIN_STEPS = 20000
 LR = 6e-4
 WARMUP_ITERS = 1000
