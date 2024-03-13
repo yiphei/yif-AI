@@ -80,7 +80,7 @@ class LearnedDropoutConfig:
                 "dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False"
             )
 
-        for attr_name in ["dropout_entropy_lambda", "dropout_l1_norm_lambda"]:
+        for attr_name, flag_attr_name in [("dropout_entropy_lambda", "use_dropout_entropy_in_loss"), ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss")]:
             attr_value = getattr(self, attr_name)
             if attr_value is not None:
                 if type(attr_value) not in [dict, RegularizingLambdaConfig]:
@@ -91,7 +91,8 @@ class LearnedDropoutConfig:
                 if type(attr_value) == dict:
                     setattr(self, attr_name, RegularizingLambdaConfig(**attr_value))
             else:
-                setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
+                if getattr(self, flag_attr_name):
+                    setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
 
         for attr_name in ["A_param_config", "B_param_config"]:
             attr_value = getattr(self, attr_name)
@@ -424,7 +425,7 @@ class DropoutTransformer(nn.Module):
         )
 
     def get_annealed_dropout_coefficient(self, lambda_config):
-        if not self.config.use_learned_dropout or not self.training:
+        if not self.config.use_learned_dropout or not self.training or lambda_config is None:
             return None
 
         if lambda_config.coefficient is None:
@@ -506,10 +507,13 @@ class DropoutTransformer(nn.Module):
                         self.config.learned_dropout_config.dropout_l1_norm_lambda
                     )
                 )
-                additional_loss = self.get_dropout_regularizing_term(
-                    mean_dropout_entropy * mean_dropout_entropy_coefficient,
-                    mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient,
-                )
+                if (
+                    self.config.learned_dropout_config.use_dropout_entropy_in_loss):
+                    additional_loss += mean_dropout_entropy * mean_dropout_entropy_coefficient
+                if (
+                    self.config.learned_dropout_config.use_dropout_l1_norm_in_loss
+                ):
+                    additional_loss += mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient
 
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
         return (
@@ -522,27 +526,6 @@ class DropoutTransformer(nn.Module):
                 mean_dropout_l1_norm_coefficient,
             ),
         )
-
-    def get_dropout_regularizing_term(
-        self, annealed_mean_dropout_entropy, annealed_dropout_l1_norm
-    ):
-        if (
-            self.config.learned_dropout_config.use_dropout_entropy_in_loss
-            and self.config.learned_dropout_config.use_dropout_l1_norm_in_loss
-        ) and self.training:
-            return annealed_mean_dropout_entropy + annealed_dropout_l1_norm
-        elif (
-            self.config.learned_dropout_config.use_dropout_entropy_in_loss
-            and self.training
-        ):
-            return annealed_mean_dropout_entropy
-        elif (
-            self.config.learned_dropout_config.use_dropout_l1_norm_in_loss
-            and self.training
-        ):
-            return annealed_dropout_l1_norm
-        else:
-            return 0
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters
