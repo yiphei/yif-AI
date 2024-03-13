@@ -437,16 +437,17 @@ def _train(
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
         return TRAIN_CONFIG.min_lr + coeff * (TRAIN_CONFIG.lr - TRAIN_CONFIG.min_lr)
 
-    wandb.config.update(
-        {
-            **asdict(TRAIN_CONFIG),
-            "num_params": MODEL_NUM_PARAMS,
-            "using_DP": using_DP,
-            "using_DDP": using_DDP,
-            "world_size": ddp_world_size if using_DDP else None,
-            "device": DEVICE,
-        }
-    )
+    if is_master_process:
+        wandb.config.update(
+            {
+                **asdict(TRAIN_CONFIG),
+                "num_params": MODEL_NUM_PARAMS,
+                "using_DP": using_DP,
+                "using_DDP": using_DDP,
+                "world_size": ddp_world_size if using_DDP else None,
+                "device": DEVICE,
+            }
+        )
 
     raw_model = model.module if using_DP or using_DDP else model
     model.train()
