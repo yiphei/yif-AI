@@ -177,7 +177,6 @@ def estimate_loss(
     est_steps,
     device,
     ctx,
-    using_DP,
     train_data_batch_args,
     val_data_batch_args,
     iter_num,
@@ -202,8 +201,7 @@ def estimate_loss(
 
             with ctx(i, False):
                 logits, loss, _ = model(xb, yb)
-            if using_DP:
-                loss = loss.mean()
+
             losses[i] = loss
 
             accuracies[i] = raw_model.get_accuracy(logits, yb)
@@ -247,8 +245,6 @@ def _train(
 
     using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1
 
-    # This is always false for now.
-    using_DP = DEVICE == "cuda" and torch.cuda.device_count() > 1 and False
     if using_DDP:
         init_process_group(backend="nccl")
         ddp_rank = torch.distributed.get_rank()
@@ -411,9 +407,7 @@ def _train(
         unoptimized_model = model
         model = torch.compile(model)  # requires PyTorch 2.0
 
-    if using_DP:
-        model = torch.nn.DataParallel(model)
-    elif using_DDP:
+    if using_DDP:
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[ddp_local_rank]
         )
@@ -442,14 +436,13 @@ def _train(
             {
                 **asdict(TRAIN_CONFIG),
                 "num_params": MODEL_NUM_PARAMS,
-                "using_DP": using_DP,
                 "using_DDP": using_DDP,
                 "world_size": ddp_world_size if using_DDP else None,
                 "device": DEVICE,
             }
         )
 
-    raw_model = model.module if using_DP or using_DDP else model
+    raw_model = model.module if using_DDP else model
     model.train()
     X, Y, _ = get_data_batch_loader(
         curr_train_iter,
@@ -480,7 +473,6 @@ def _train(
                 TRAIN_CONFIG.est_steps,
                 DEVICE,
                 ctx,
-                using_DP,
                 (curr_train_iter, train_data_loader, train_sampler),
                 (curr_val_iter, val_data_loader, val_sampler),
                 iter_num,
@@ -538,9 +530,6 @@ def _train(
                     mini_batch_stats,
                 ) = model(X, Y)
                 current_batch_stats.add_mini_batch_stats(mini_batch_stats)
-                if using_DP:
-                    loss = loss.mean()
-                    current_batch_stats.mean()
 
                 loss = (
                     loss / TRAIN_CONFIG.gradient_accumulation_steps

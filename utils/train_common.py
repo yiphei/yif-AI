@@ -13,9 +13,6 @@ class BatchStatsBase:
     def add_mini_batch_stats(self, *args, **kwargs):
         pass
 
-    def mean(self):
-        pass
-
     def scale(self):
         pass
 

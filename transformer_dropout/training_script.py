@@ -45,11 +45,6 @@ class BatchStats(BatchStatsBase):
         self.entropy_coefficient = entropy_coefficient
         self.dropout_l1_norm_coefficient = dropout_l1_norm_coefficient
 
-    def mean(self):
-        if self.train_config.model_config.use_learned_dropout:
-            self.dropout_l1_norm = self.dropout_l1_norm.mean()
-            self.entropy = self.entropy.mean()
-
     def scale(self):
         if self.train_config.model_config.use_learned_dropout:
             self.running_entropy += (
