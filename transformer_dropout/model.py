@@ -80,7 +80,10 @@ class LearnedDropoutConfig:
                 "dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False"
             )
 
-        for attr_name, flag_attr_name in [("dropout_entropy_lambda", "use_dropout_entropy_in_loss"), ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss")]:
+        for attr_name, flag_attr_name in [
+            ("dropout_entropy_lambda", "use_dropout_entropy_in_loss"),
+            ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss"),
+        ]:
             attr_value = getattr(self, attr_name)
             if attr_value is not None:
                 if type(attr_value) not in [dict, RegularizingLambdaConfig]:
@@ -425,7 +428,11 @@ class DropoutTransformer(nn.Module):
         )
 
     def get_annealed_dropout_coefficient(self, lambda_config):
-        if not self.config.use_learned_dropout or not self.training or lambda_config is None:
+        if (
+            not self.config.use_learned_dropout
+            or not self.training
+            or lambda_config is None
+        ):
             return None
 
         if lambda_config.coefficient is None:
@@ -507,13 +514,14 @@ class DropoutTransformer(nn.Module):
                         self.config.learned_dropout_config.dropout_l1_norm_lambda
                     )
                 )
-                if (
-                    self.config.learned_dropout_config.use_dropout_entropy_in_loss):
-                    additional_loss += mean_dropout_entropy * mean_dropout_entropy_coefficient
-                if (
-                    self.config.learned_dropout_config.use_dropout_l1_norm_in_loss
-                ):
-                    additional_loss += mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient
+                if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
+                    additional_loss += (
+                        mean_dropout_entropy * mean_dropout_entropy_coefficient
+                    )
+                if self.config.learned_dropout_config.use_dropout_l1_norm_in_loss:
+                    additional_loss += (
+                        mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient
+                    )
 
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
         return (
