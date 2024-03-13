@@ -1,8 +1,8 @@
 program: transformer_dropout.training_script.py
 name: harry_potter_dropout_baseline
 project: transfomer_dropout_3
-method: random
-run_cap: 500
+method: grid
+run_cap: 31
 metric:
   goal: minimize
   name: est_val_loss
@@ -20,7 +20,9 @@ parameters:
             use_learned_dropout:
                 value: False
             dropout_rate:
-                values: [0, 0.1, 0.2, 0.3, 0.4, 0.5]
+                values: [0, 0.1, 0.2, 0.3, 0.4]
+            bias:
+                values: [True, False]
     batch_size: 
         value: 15
     train_steps: 
