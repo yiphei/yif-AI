@@ -1,4 +1,4 @@
-program: transformer_dropout.training_script.py
+program: transformer_dropout/training_script.py
 name: harry_potter_dropout_baseline
 project: transformer_dropout_3
 method: grid
