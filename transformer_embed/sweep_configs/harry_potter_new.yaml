@@ -1,8 +1,8 @@
 program: transformer_embed.training_script.py
-name: harry_potter_embed_new
+name: harry_potter_embed_new_grid
 project: transformer_embed_2
-run_cap: 200
-method: random
+run_cap: 49
+method: grid
 metric:
   goal: minimize
   name: est_val_accuracy
@@ -28,18 +28,18 @@ parameters:
                     subtract_out_pos_embed:
                         values: [True, False]
                     use_cross_entropy_loss:
-                        values: [True, False]
+                        value: True
 
     batch_size: 
         value: 13
     train_steps: 
         value: 6000
     lr: 
-        values: [6e-1, 6e-2, 6e-3,6e-4, 6e-5]
+        values: [6e-2, 6e-3,6e-4, 6e-5]
     warmup_iters: 
         value: 600
     min_lr: 
-        values: [6e-2, 6e-3, 6e-4,6e-5, 6e-6]
+        values: [6e-3, 6e-4,6e-5, 6e-6]
     gradient_accumulation_steps: 
         value: 8
     lr_decay_iters: 
