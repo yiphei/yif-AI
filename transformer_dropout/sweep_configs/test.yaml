@@ -1,4 +1,4 @@
-program: transformer_dropout.training_script.py
+program: transformer_dropout/training_script.py
 name: transformer_dropout
 project: local_test
 method: random
