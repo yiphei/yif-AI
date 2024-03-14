@@ -26,7 +26,7 @@ class ModelConfig:
     new_output_layer_config: Optional[NewOutputLayerConfig] = None
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
-    use_flash: bool = False
+    use_flash: bool = True
 
     def __post_init__(self):
         if self.use_new_output_layer and self.new_output_layer_config is None:
