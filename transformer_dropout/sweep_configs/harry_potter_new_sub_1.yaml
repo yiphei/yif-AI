@@ -9,6 +9,8 @@ metric:
 parameters:
     model_config:
         parameters:
+            bias:
+                value: False
             context_size:
                 value: 1024
             n_embed: 
