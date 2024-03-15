@@ -2,7 +2,7 @@ program: transformer_dropout/training_script.py
 name: harry_potter_dropout_new_sub_4
 project: transformer_dropout_3
 method: random
-run_cap: 500
+run_cap: 4000
 metric:
   goal: minimize
   name: est_val_loss
