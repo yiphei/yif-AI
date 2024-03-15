@@ -1,6 +1,11 @@
 program: transformer_dropout/training_script.py
 name: harry_potter_dropout_new_sub_2_yes_coeff
 project: transformer_dropout_3
+early_terminate:
+    type: hyperband
+    min_iter: 1000
+    eta: 2
+    strict: True
 method: random
 run_cap: 4000
 metric:
