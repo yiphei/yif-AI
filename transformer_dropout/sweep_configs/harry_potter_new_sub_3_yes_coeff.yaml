@@ -37,7 +37,7 @@ parameters:
                     use_canonical_entropy:
                         values: [True, False]
                     use_detached_x_in_dropout_mask:
-                        values: [True, False]
+                        value: True
                     A_param_config:
                         parameters:
                             init_mean:
