@@ -133,6 +133,10 @@ class TrainConfig:
                 continue
 
             assert hasattr(self, k)
+
+            # for some reason, sometimes wandb does not convert this to a float
+            if k in ['lr', 'min_lr']:
+                v = float(v)
             setattr(self, k, v)
 
         self.validate_field_values()
