@@ -2,13 +2,13 @@
 
 The **Boolean Neural Net** (BNN) is a new architecture that consists of a novel forward pass and backward pass. More precisely, the forward pass is a weighted boolean conjuction of the input, and the backward pass uses a discrete optimizer (i.e. no gradient descent). So the 'neural net' suffix is a bit of a misnomer since the only major element BNN retains from canonical neural nets is the net shape. Perhaps Boolean Neural Circuit is more adequate. 
 
-### Motivation
+## Motivation
 I wanted to investigate how a model could become a more rigorous reasoner. Part of the reason for human's ability to do so is symbolic reasoning (this is sometimes also referred as System 2 thinking). Now, I will refrain from opining on the actual symbolic representation in human brains (I actually dont think it's discrete), but I think it's fair to say that even in a continuous space, these symbols tend to be relatively stable. Thus, it became obvious that restricting the data domain of the hidden layers' outputs to just discrete values would be an interesting direction to experiment with.
 
-### Architecture
+## Architecture
 For this implementation, I placed more restrictions beyond those dictated by the original motivation in order to make this a more lightweight and quicker experiment. In addition to the hidden layers, both the input and output layers are also discrete, and the discrete values are bits. The output of the model is a single bit. Each layer consists of a free parameter $W$, which also consists of bits.
 
-##### Feed forward
+### Feed forward
 
 Instead of the traditional feedforward algorithm, which is a weighted sum passed through a non-linear activation function, BNN uses a weighted boolean conjuction. Namely, for a single neuron, given an input $X \in \\{1,0\\}^N$ and weights $W \in \\{1,0\\}^{2N}$, we first construct the expanded input
 
@@ -35,13 +35,13 @@ The idea behind this forwad pass is to simulate propositional logic using boolea
 
 Another way to understand this expressivity is to view the model as building a circuit of NAND gates (technically, it requires two layers to have a single NAND gate). Remember that the NAND operation is functionally complete, meaning that any Boolean expression can be equivalently re-expressed with only NAND operations.
 
-##### Back prop
+### Back prop
 The backprop algorithm essentially consists of a variant of the boolean satisfiability (BSAT) problem. In the canonical BSAT, you look for literal values for which a boolean expression consisting of those literals would evaluate to True. In our case, the literals are fixed (they are the inputs), so we look for expressions (i.e. weights) over the input literals that evaluate to the expected value. Unfortunately, BSAT and its variants are more than NP-hard; they are NP-complete. However, there are heuristical solutions that can solve it more quickly on average. Here, I implemented my own heuristically beam search for it. Nonetheless, I regret my implementation’s complexity, which precludes me from summarizing it in beautiful mathematical expressions.
 
-### Evaluation
+## Evaluation
 Because of the NAND gates, it can model non-linear relationships, provided that those relationships can be expressed in bits. There is an accompanying jupyter notebook that shows it learning to predict non-linear data.
 
-### Conclusions
+## Conclusions
 This is a proof of concept and there are many things that can be improved:
 - Have a hybrid neural net that uses both this weighted boolean conjunction layer and the traditional weighted sum of continuous values
 - Extend support for > 1 bit output shape
