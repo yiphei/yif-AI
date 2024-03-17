@@ -10,7 +10,7 @@ For this implementation, I placed more restrictions beyond those dictated by the
 
 ##### Feed forward
 
-Instead of the traditional feedforward algorithm, which is a weighted sum passed through a non-linear activation function, BNN uses a weighted boolean conjuction. Namely, given an input $X \in \{1,0\}^N$ and weights $W \in \{1,0\}^{2N}$ at a single neuron, we first construct the expanded input 
+Instead of the traditional feedforward algorithm, which is a weighted sum passed through a non-linear activation function, BNN uses a weighted boolean conjuction. Namely, for a single neuron, given an input $X \in \{1,0\}^N$ and weights $W \in \{1,0\}^{2N}$, we first construct the expanded input
 
 $$ \tilde{X} = X \frown \neg{X} \quad \text{where} \frown \text{represents vector concatenation}$$
 
@@ -26,7 +26,7 @@ then, the selected indices are $i \in \{1,2,6\}$, so the output is
 
 $$h = \tilde{X_1} *\tilde{X_2} * \tilde{X_6} = 1 * 0 * 0 = 0$$
 
-At the layer level, the equations at the neuron level become the following:
+At the layer level, the equations become the following:
 
 $$
 \begin{align*}
@@ -48,8 +48,9 @@ The backprop algorithm essentially consists of a variant of the boolean satisfia
 Because of the NAND gates, it can model non-linear relationships, provided that those relationships can be expressed in bits. There is an accompanying jupyter notebook that shows it learning to predict non-linear data.
 
 ### Conclusions
-This is a proof of concept and there are many things to take this further:
-- Have a hybrid neural net that uses both this boolean layer and the traditional weighted sum of continuous values
+This is a proof of concept and there are many things that can be improved:
+- Have a hybrid neural net that uses both this weighted boolean conjunction layer and the traditional weighted sum of continuous values
 - Extend support for > 1 bit output shape
+- Better backprop beam search
 
-But ultimately, its achilles heel is also what makes canonical NN so appealing: gradient descent. In my simple experiments, the model simply didn’t scale because of bottleneck caused by the backprop algorithms. There is definitely room for improvements, and indeed, I was able to make incremental gains in algorithmic efficiency, but it is still dwarfed by gradient descent. So I just decided to end my experiment here.
+But ultimately, the architecture's achilles heel is also what makes canonical NN so appealing: gradient descent. In my simple experiments, the model simply didn’t scale because of bottleneck caused by the backprop algorithm. There is definitely room for improvements, and indeed, I was able to make incremental gains in algorithmic efficiency, but it is still dwarfed by gradient descent. Therefore, I just decided to end my experiment here.
