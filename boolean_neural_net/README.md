@@ -10,13 +10,13 @@ For this implementation, I placed more restrictions beyond those dictated by the
 
 ##### Feed forward
 
-Instead of the traditional feedforward algorithm, which is a weighted sum passed through a non-linear activation function, BNN uses a weighted boolean conjuction. Namely, for a single neuron, given an input $X \in \{1,0\}^N$ and weights $W \in \{1,0\}^{2N}$, we first construct the expanded input
+Instead of the traditional feedforward algorithm, which is a weighted sum passed through a non-linear activation function, BNN uses a weighted boolean conjuction. Namely, for a single neuron, given an input $X \in \\{1,0\\}^N$ and weights $W \in \\{1,0\\}^{2N}$, we first construct the expanded input
 
 $$ \tilde{X} = X \frown \neg{X} \quad \text{where} \frown \text{represents vector concatenation}$$
 
 then, the output of that neuron is
 
-$$h = \prod_{i} \tilde{X_i} \quad \text{where} \quad i \in \{j : W_j = 1\}$$
+$$h = \prod_{i} \tilde{X_i} \quad \text{where} \quad i \in \\{j : W_j = 1\\}$$
 
 To offer an example, given input $X = [1,0,1]$ and weights $W = [1,1,0,0,0,1]$, the expanded input is
 
