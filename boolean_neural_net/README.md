@@ -26,7 +26,7 @@ then, the selected indices are $i \in \\{1,2,6\\}$, so the output is
 
 $$h = \tilde{X_1} \times \tilde{X_2} \times \tilde{X_6} = 1 \times 0 \times 0 = 0$$
 
-The operations at the neuron level can be batched and optimizer at the layer level. Given an input $X \in \\{1,0\\}^N$, you now have weights $W \in \\{1,0\\}^{M\times 2N}$, where $M$ is the width of the layer (i.e. # of neurons). Then, with $\tilde{X}$ being calculated the same way, you have the output of the layer as
+The operations at the neuron level can be batched and optimizer at the layer level. Given an input $X \in \\{1,0\\}^N$, you now have weights $W \in \\{1,0\\}^{M\times 2N}$, where $M$ is the width of the layer (i.e. # of neurons). Then, with $\tilde{X}$ being calculated the same way, you have the output of the layer as the vector
 
 $$\mathbf{h} = \left(h_z\right)_{M}, \quad \text{where} \quad h_z = \prod\_{i} \tilde{X}\_{i} \quad \text{for} \quad i \in \\{j: W\_{z,j} = 1\\}$$
 
