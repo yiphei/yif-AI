@@ -26,15 +26,9 @@ then, the selected indices are $i \in \\{1,2,6\\}$, so the output is
 
 $$h = \tilde{X_1} \times \tilde{X_2} \times \tilde{X_6} = 1 \times 0 \times 0 = 0$$
 
-At the layer level, the equations become the following:
+The operations at the neuron level can be batched and optimizer at the layer level. Given an input $X &\in \\{1,0\\}^N$, you now have weights $W \in \\{1,0\\}^{M\times 2N}$, where $M$ is the width of the layer (i.e. # of neurons). Then, with $\tilde{X}$ being calculated the same way, you have the output of the layer as
 
-$$
-\begin{aligned}
-\text{Given input } X &\in \\{1,0\\}^N \text{ and } W \in \\{1,0\\}^{M\times 2N}, \text{ where } M \text{ is the width of the layer (i.e. \\# of neurons)} \\
-\tilde{X} &= X \frown \neg X \quad \text{where } \frown \text{ represents vector concatenation} \\
-\mathbf{h} &= \left(h_z\right)_{M}, \quad \text{where} \quad h_z = \prod\_{i} \tilde{X}\_{i} \quad \text{for} \quad i \in \\{j: W\_{z,j} = 1\\} \\
-\end{aligned}
-$$
+$$\mathbf{h} &= \left(h_z\right)_{M}, \quad \text{where} \quad h_z = \prod\_{i} \tilde{X}\_{i} \quad \text{for} \quad i \in \\{j: W\_{z,j} = 1\\}$$
 
  
 The idea behind this forwad pass is to simulate propositional logic using boolean algebra. For inputs, the bit value 0 corresponds to False and 1 corresponds to True. Then, the weights essentially select the inputs (1 = select, 0 = unselect/ignore) and then a boolean conjunction is computed on selected inputs. Just by doing this, each hidden layer can express any (first-order) propositional logic, and with many layers, the model can express any arbitrarily nested (first-order) propositional logic. 
