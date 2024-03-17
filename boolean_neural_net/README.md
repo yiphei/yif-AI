@@ -29,16 +29,11 @@ $$h = \tilde{X_1} *\tilde{X_2} * \tilde{X_6} = 1 * 0 * 0 = 0$$
 At the layer level, the equations at the neuron level become the following:
 
 $$
-\begin{aligned}
-\text{Given input }X\in \{1,0\}^N \text{ and } W \in \{1,0\}^{2NM}\text{ ,where } M \text{ is the width of the layer (i.e. \# of neurons)} \\
-\tilde{X} = X \frown \neg{X} \quad \text{where} \frown \text{represents vector concatenation} \\
-h &= \begin{bmatrix}
-\sum_{i=1}^{2N} \tilde{X}_i W_{i1} \\
-\sum_{i=1}^{2N} \tilde{X}_i W_{i2} \\
-\vdots \\
-\sum_{i=1}^{2N} \tilde{X}_i W_{iM}
-\end{bmatrix} \\
-\end{aligned}
+\begin{align*}
+\text{Given input } X &\in \{1,0\}^N \text{ and } W \in \{1,0\}^{2NM}, \text{ where } M \text{ is the width of the layer (i.e. \# of neurons)} \\
+\tilde{X} &= X \frown \neg X \quad \text{where } \frown \text{ represents vector concatenation} \\
+\mathbf{h} &= \left(h_z\right)_{M}, \quad \text{where} \quad h_z = \prod_{i} \tilde{X}_{i} \quad \text{for} \quad i \in \{j: W_{z,j} = 1\}
+\end{align*}
 $$
 
  
