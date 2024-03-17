@@ -22,15 +22,15 @@ To offer an example, given input $X = [1,0,1]$ and weights $W = [1,1,0,0,0,1]$, 
 
 $$ \tilde{X} = [1,0,1] \frown [0,1,0] = [1,0,1,0,1,0] $$
 
-then, the selected indices are $i \in \{1,2,6\}$, so the output is
+then, the selected indices are $i \in \\{1,2,6\\}$, so the output is
 
-$$h = \tilde{X_1} *\tilde{X_2} * \tilde{X_6} = 1 * 0 * 0 = 0$$
+$$h = \tilde{X_1} \times \tilde{X_2} \times \tilde{X_6} = 1 \times 0 \times 0 = 0$$
 
 At the layer level, the equations become the following:
 
 $$
 \begin{aligned}
-\text{Given input } X &\in \{1,0\}^N \text{ and } W \in \{1,0\}^{M\times 2N}, \text{ where } M \text{ is the width of the layer (i.e. \\# of neurons)} \\
+\text{Given input } X &\in \\{1,0\\}^N \text{ and } W \in \\{1,0\\}^{M\times 2N}, \text{ where } M \text{ is the width of the layer (i.e. \\# of neurons)} \\
 \tilde{X} &= X \frown \neg X \quad \text{where } \frown \text{ represents vector concatenation} \\
 \mathbf{h} &= \left(h_z\right)_{M}, \quad \text{where} \quad h_z = \prod\_{i} \tilde{X}\_{i} \quad \text{for} \quad i \in \\{j: W\_{z,j} = 1\\} \\
 \end{aligned}
