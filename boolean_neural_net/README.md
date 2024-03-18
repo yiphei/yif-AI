@@ -38,6 +38,7 @@ Another way to understand this expressivity is to view the model as building a c
 #### Example: XOR
 
 The XOR operation on two inputs is one of the simplest non-linear relationships. The simplest BNN model that captures this relationship is the following
+
 ![XOR example](assets/BNN.svg)
 
 where $X_1$ and $X_2$ are the inputs to the model. Converting the above model's forward pass into a single boolean expression, we get
