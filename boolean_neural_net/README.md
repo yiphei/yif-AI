@@ -18,11 +18,11 @@ then, the output of that neuron is
 
 $$h = \prod_{i} \tilde{X_i} \quad \text{where} \quad i \in \\{j : W_j = 1\\}$$
 
-To offer an example, given input $X = [1,0,1]$ and weights $W = [1,1,0,0,0,1]$, the expanded input is
+To offer an example, let's say that we have input $X = [1,0,1]$ and weights $W = [1,1,0,0,0,1]$. The expanded input is
 
 $$ \tilde{X} = [1,0,1] \frown [0,1,0] = [1,0,1,0,1,0] $$
 
-then, the selected indices are $i \in \\{1,2,6\\}$, so the output is
+then, the selected indices are $i \in \\{1,2,6\\}$, so the neuron output is
 
 $$h = \tilde{X_1} \times \tilde{X_2} \times \tilde{X_6} = 1 \times 0 \times 0 = 0$$
 
@@ -48,7 +48,7 @@ $$ O = \neg (\neg x_1 \wedge \neg x_2) \wedge \neg (x_1 \wedge x_2)  $$
 which precisely captures the XOR relationship using just conjuction and negation.
 
 ### Back prop
-The backprop algorithm essentially consists of a variant of the boolean satisfiability (BSAT) problem. In the canonical BSAT, you look for literal values for which a boolean expression consisting of those literals would evaluate to True. In our case, the literals are fixed (they are the inputs), so we look for expressions (i.e. weights) over the input literals that evaluate to the expected value. Unfortunately, BSAT and its variants are more than NP-hard; they are NP-complete. Yet, there are heuristical solutions that can solve it performantly on average. Here, I implemented my own heuristical beam search. Nonetheless, I regret my implementation’s complexity, which precludes me from distilling it into beautiful mathematical expressions.
+The backprop algorithm essentially consists of a variant of the boolean satisfiability (BSAT) problem. In the canonical BSAT, you look for literal values for which a boolean expression consisting of those literals would evaluate to True. In our case, it's the inverse. The literals are fixed (they are the inputs), so we look for expressions (i.e. weights) over the input literals that evaluate to the expected value. Unfortunately, BSAT and its variants are more than NP-hard; they are NP-complete. Yet, there are heuristical solutions that can solve it performantly on average. Here, I implemented my own heuristical beam search. Nonetheless, I regret my implementation’s complexity, which precludes me from distilling it into beautiful mathematical expressions.
 
 ## Evaluation
 Because of the NAND gates, it can model non-linear relationships, provided that those relationships can be expressed in bits. There is an accompanying jupyter notebook that shows it learning to predict non-linear data.
