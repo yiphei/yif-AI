@@ -43,7 +43,7 @@ The XOR operation on two inputs is one of the simplest non-linear relationships.
 
 where $X_1$ and $X_2$ are the inputs to the model. Converting the above model's forward pass into a single boolean expression, we get
 
-$$ \neg (\neg X_1 \wedge \neg X_2) \wedge \neg (X_1 \wedge X_2)  $$
+$$ O = \neg (\neg X_1 \wedge \neg X_2) \wedge \neg (X_1 \wedge X_2)  $$
 
 which precisely captures the XOR relationship using just conjuction and negation.
 
