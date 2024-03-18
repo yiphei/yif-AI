@@ -31,7 +31,7 @@ The operations at the neuron level can be batched and optimized at the layer lev
 $$\mathbf{h} = \left(h_z\right)_{M}, \quad \text{where} \quad h_z = \prod\_{i} \tilde{X}\_{i} \quad \text{for} \quad i \in \\{j: W\_{z,j} = 1\\}$$
 
  
-The idea behind this forwad pass is to simulate propositional logic using boolean algebra. For inputs, the bit value 0 corresponds to False and 1 corresponds to True. Then, the weights essentially select the inputs (1 = select, 0 = unselect/ignore) and then a boolean conjunction is computed on selected inputs. Just by doing this, each hidden layer can express any (first-order) propositional logic, and with many layers, the model can express any arbitrarily nested (first-order) propositional logic. 
+The idea behind this forwad pass is to simulate propositional logic using boolean algebra. For inputs, the bit value 0 corresponds to False and 1 corresponds to True. Then, inputs are expanded to include their negations. Finally, the weights select the inputs (1 = select, 0 = unselect/ignore) and then a boolean conjunction is constructed on selected inputs. Just by doing this, each hidden layer can express any (first-order) propositional logic, and with many layers, the model can express any arbitrarily nested (first-order) propositional logic. 
 
 Another way to understand this expressivity is to view the model as building a circuit of NAND gates (technically, it requires two layers to have a single NAND gate). Remember that the NAND operation is functionally complete, meaning that any Boolean expression can be equivalently re-expressed with only NAND operations.
 
@@ -48,7 +48,7 @@ $$ O = \neg (\neg X_1 \wedge \neg X_2) \wedge \neg (X_1 \wedge X_2)  $$
 which precisely captures the XOR relationship using just conjuction and negation.
 
 ### Back prop
-The backprop algorithm essentially consists of a variant of the boolean satisfiability (BSAT) problem. In the canonical BSAT, you look for literal values for which a boolean expression consisting of those literals would evaluate to True. In our case, the literals are fixed (they are the inputs), so we look for expressions (i.e. weights) over the input literals that evaluate to the expected value. Unfortunately, BSAT and its variants are more than NP-hard; they are NP-complete. However, there are heuristical solutions that can solve it more quickly on average. Here, I implemented my own heuristically beam search for it. Nonetheless, I regret my implementation’s complexity, which precludes me from summarizing it in beautiful mathematical expressions.
+The backprop algorithm essentially consists of a variant of the boolean satisfiability (BSAT) problem. In the canonical BSAT, you look for literal values for which a boolean expression consisting of those literals would evaluate to True. In our case, the literals are fixed (they are the inputs), so we look for expressions (i.e. weights) over the input literals that evaluate to the expected value. Unfortunately, BSAT and its variants are more than NP-hard; they are NP-complete. Yet, there are heuristical solutions that can solve it performantly on average. Here, I implemented my own heuristical beam search. Nonetheless, I regret my implementation’s complexity, which precludes me from distilling it into beautiful mathematical expressions.
 
 ## Evaluation
 Because of the NAND gates, it can model non-linear relationships, provided that those relationships can be expressed in bits. There is an accompanying jupyter notebook that shows it learning to predict non-linear data.
