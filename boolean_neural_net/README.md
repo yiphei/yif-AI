@@ -1,16 +1,16 @@
 # Boolean neural net
 
-The **Boolean Neural Net** (BNN) is a new architecture that consists of a novel forward pass and backward pass. More precisely, the forward pass is a weighted boolean conjuction of the input, and the backward pass uses a discrete optimizer (i.e. no gradient descent). So the 'neural net' suffix is a bit of a misnomer since the only major element BNN retains from canonical neural nets is the net shape. Perhaps Boolean Neural Circuit is more adequate. 
+The **Boolean Neural Net** (BNN) is a new architecture that consists of a novel forward pass and backward pass. More precisely, the forward pass is a weighted boolean conjunction of the input, and the backward pass uses a discrete optimizer (i.e. no gradient descent). So the 'neural net' suffix is a bit of a misnomer since the only major element BNN retains from canonical neural nets is the net shape. Perhaps Boolean Neural Circuit is more adequate. 
 
 ## Motivation
-I wanted to investigate how a model could become a more rigorous reasoner. Part of the reason for human's ability to do so is symbolic reasoning (this is sometimes also referred as System 2 thinking). Now, I will refrain from opining on the actual symbolic representation in human brains (I actually dont think it's discrete), but I think it's fair to say that even in a continuous space, these symbols tend to be relatively stable. Thus, it became obvious that restricting the data domain of the hidden layers' outputs to just discrete values would be an interesting direction to experiment with.
+I wanted to investigate how a model could become a more rigorous reasoner. Part of the reason for human's ability to do so is symbolic reasoning (this is sometimes also referred to as System 2 thinking). Now, I will refrain from opining on the actual symbolic representation in human brains (I actually dont think it's discrete), but I think it's fair to say that even in a continuous space, these symbols tend to be relatively stable. Thus, it became obvious that restricting the data domain of the hidden layers' outputs to just discrete values would be an interesting direction to experiment with.
 
 ## Architecture
-For this implementation, I placed more restrictions beyond those dictated by the original motivation in order to make this a more lightweight and quicker experiment. In addition to the hidden layers, both the input and output layers are also discrete, and the discrete values are bits. The output of the model is a single bit. Each layer consists of a free parameter $W$, which also consists of bits.
+For this implementation, I placed more restrictions beyond those dictated by the original motivation to make this a more lightweight and quicker experiment. In addition to the hidden layers, both the input and output layers are also discrete, and the discrete values are bits. The output of the model is a single bit. Each layer consists of a free parameter $W$, which also consists of bits.
 
 ### Feed forward
 
-Instead of the traditional feedforward algorithm, which is a weighted sum passed through a non-linear activation function, BNN uses a weighted boolean conjuction. Namely, for a single neuron, given an input $X \in \\{1,0\\}^N$ and weights $W \in \\{1,0\\}^{2N}$, we first construct the expanded input
+Instead of the traditional feedforward algorithm, which is a weighted sum passed through a non-linear activation function, BNN uses a weighted boolean conjunction. Namely, for a single neuron, given an input $X \in \\{1,0\\}^N$ and weights $W \in \\{1,0\\}^{2N}$, we first construct the expanded input
 
 $$ \tilde{X} = X \frown \neg{X} \quad \text{where} \frown \text{represents vector concatenation}$$
 
@@ -31,7 +31,7 @@ The operations at the neuron level can be batched and optimized at the layer lev
 $$\mathbf{h} = \left(h_z\right)_{M}, \quad \text{where} \quad h_z = \prod\_{i} \tilde{X}\_{i} \quad \text{for} \quad i \in \\{j: W\_{z,j} = 1\\}$$
 
  
-The idea behind this forwad pass is to simulate propositional logic using boolean algebra. For inputs, the bit value 0 corresponds to False and 1 corresponds to True. Then, inputs are expanded to include their negations. Finally, the weights select the inputs (1 = select, 0 = unselect/ignore) and then a boolean conjunction is constructed on selected inputs. Just by doing this, each hidden layer can express any (first-order) propositional logic, and with many layers, the model can express any arbitrarily nested (first-order) propositional logic. 
+The idea behind this forward pass is to simulate propositional logic using boolean algebra. For inputs, the bit value 0 corresponds to False, and 1 corresponds to True. Then, inputs are expanded to include their negations. Finally, the weights select the inputs (1 = select, 0 = unselect/ignore), and then a boolean conjunction is constructed on selected inputs. Just by doing this, each hidden layer can express any (first-order) propositional logic, and with many layers, the model can express any arbitrarily nested (first-order) propositional logic. 
 
 Another way to understand this expressivity is to view the model as building a circuit of NAND gates (technically, it requires two layers to have a single NAND gate). Remember that the NAND operation is functionally complete, meaning that any Boolean expression can be equivalently re-expressed with only NAND operations.
 
@@ -45,7 +45,7 @@ where $x_1$ and $x_2$ are the inputs to the model. Converting the above model's 
 
 $$ O = \neg (\neg x_1 \wedge \neg x_2) \wedge \neg (x_1 \wedge x_2)  $$
 
-which precisely captures the XOR relationship using just conjuction and negation.
+which precisely captures the XOR relationship using just conjunction and negation.
 
 ### Back prop
 The backprop algorithm essentially consists of a variant of the boolean satisfiability (BSAT) problem. In the canonical BSAT, you look for literal values for which a boolean expression consisting of those literals would evaluate to True. In our case, it's the inverse. The literals are fixed (they are the inputs), so we look for expressions (i.e. weights) over the input literals that evaluate to the expected value. Unfortunately, BSAT and its variants are more than NP-hard; they are NP-complete. Yet, there are heuristical solutions that can solve it performantly on average. Here, I implemented my own heuristical beam search. Nonetheless, I regret my implementation’s complexity, which precludes me from distilling it into beautiful mathematical expressions.
@@ -56,9 +56,9 @@ Because of the NAND gates, it can model non-linear relationships, provided that 
 The big advantage of the architecture is interpretability. Once the model has successfully learned from the dataset, you can always extract the boolean expression algorithm from the weights.
 
 ## Conclusions
-This is a proof of concept, and there are many things that can be improved:
+This is a proof of concept, and many things that can be improved:
 - Have a hybrid neural net that uses both this weighted boolean conjunction layer and the traditional weighted sum layer
 - Extend support for > 1 bit output shape
 - Better backprop beam search
 
-But ultimately, the architecture's achilles heel is also what makes canonical NN so appealing: gradient descent. In my simple experiments, the model simply didn’t scale because of bottleneck caused by the backprop algorithm. There is definitely room for improvements, and indeed, I was able to make incremental gains in algorithmic efficiency, but it is still dwarfed by gradient descent. Therefore, I just decided to end my experiment here.
+But ultimately, the architecture's Achilles heel is also what makes canonical NN so appealing: gradient descent. In my simple experiments, the model simply didn’t scale because of the bottleneck caused by the backprop algorithm. There is definitely room for improvement, and indeed, I was able to make incremental gains in algorithmic efficiency, but it is still dwarfed by gradient descent. Therefore, I just decided to end my experiment here.
