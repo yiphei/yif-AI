@@ -56,7 +56,7 @@ Because of the NAND gates, it can model non-linear relationships, provided that 
 The big advantage of the architecture is interpretability. Once the model has successfully learned from the dataset, you can always extract the boolean expression algorithm from the weights.
 
 ## Conclusions
-This is a proof of concept and there are many things that can be improved:
+This is a proof of concept, and there are many things that can be improved:
 - Have a hybrid neural net that uses both this weighted boolean conjunction layer and the traditional weighted sum layer
 - Extend support for > 1 bit output shape
 - Better backprop beam search
