@@ -181,9 +181,6 @@ class EmbedTransformer(nn.Module):
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
         self.config = config
-        self.training_step = (
-            None  # this is provided by the context manager in the training script
-        )
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(
