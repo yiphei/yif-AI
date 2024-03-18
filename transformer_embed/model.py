@@ -171,7 +171,7 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class DropoutTransformer(nn.Module):
+class EmbedTransformer(nn.Module):
 
     model_config_cls = ModelConfig
 
@@ -266,6 +266,7 @@ class DropoutTransformer(nn.Module):
 
         if targets is None:
             loss = None
+            # TODO: handle new output layer
             logits = self.output_layer(out[:, [-1], :])
         else:
             if (

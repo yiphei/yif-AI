@@ -6,10 +6,10 @@ from utils.train import train
 from utils.train_common import BatchStatsBase
 
 try:
-    from transformer_embed.model import DropoutTransformer
+    from transformer_embed.model import EmbedTransformer
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
-    from model import DropoutTransformer
+    from model import EmbedTransformer
 
 
 def create_autocast_context(device_type, ptdtype):
@@ -41,7 +41,7 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
 if __name__ == "__main__":
     train(
         BatchStatsBase,
-        DropoutTransformer,
+        EmbedTransformer,
         create_training_context,
         "transformer_embed/",
         "transformer_embed_2",
