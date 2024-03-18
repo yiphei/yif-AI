@@ -35,6 +35,17 @@ The idea behind this forwad pass is to simulate propositional logic using boolea
 
 Another way to understand this expressivity is to view the model as building a circuit of NAND gates (technically, it requires two layers to have a single NAND gate). Remember that the NAND operation is functionally complete, meaning that any Boolean expression can be equivalently re-expressed with only NAND operations.
 
+#### Example: XOR
+
+The XOR operation on two inputs is one of the simplest non-linear relationships. The simplest BNN model that captures this relationship is the following
+![XOR example](assets/BNN.svg)
+
+where $X_1$ and $X_2$ are the inputs to the model. Converting the above model's forward pass into a single boolean expression, we get
+
+$$ \neg (\neg X_1 \wedge \neg X_2) \wedge \neg (X_1 \wedge X_2)  $$
+
+which precisely captures the XOR relationship using just conjuction and negation.
+
 ### Back prop
 The backprop algorithm essentially consists of a variant of the boolean satisfiability (BSAT) problem. In the canonical BSAT, you look for literal values for which a boolean expression consisting of those literals would evaluate to True. In our case, the literals are fixed (they are the inputs), so we look for expressions (i.e. weights) over the input literals that evaluate to the expected value. Unfortunately, BSAT and its variants are more than NP-hard; they are NP-complete. However, there are heuristical solutions that can solve it more quickly on average. Here, I implemented my own heuristically beam search for it. Nonetheless, I regret my implementation’s complexity, which precludes me from summarizing it in beautiful mathematical expressions.
 
