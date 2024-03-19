@@ -30,6 +30,7 @@ process_address() {
     tmux send-keys -t mySession "cd yif-AI" C-m
     tmux send-keys -t mySession "pip install -r requirements.txt" C-m
     tmux send-keys -t mySession "pip install --upgrade pyOpenSSL cryptography boto3 botocore" C-m
+    tmux send-keys -t mySession "pip install torchdata" C-m
     if [[ "$(echo "$sync_s3" | tr '[:upper:]' '[:lower:]')" == "true" ]]; then
         tmux send-keys -t mySession "mkdir datasets/openweb/" C-m
         tmux send-keys -t mySession "export AWS_ACCESS_KEY_ID=\"${aws_access_key}\"" C-m
