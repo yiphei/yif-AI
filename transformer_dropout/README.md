@@ -31,6 +31,8 @@ $$ X = X * \mathbf{m}$$
 
 The $0.5$ terms in the cosine functions serve to bound the function domain to $[0,1]$, and the parameters $\Alpha$ and $\Beta$ change the angular frequency and phase angle, respectively. 
 
+Also, the X used in computing m is detached, so A and B's gradients dont affect X.
+
 #### Regularizing terms
 There are two penalty terms present in this architecture: dropout mask entropy $\Eta$ and dropout mask L1 norm ${L_1}$.
 
@@ -48,3 +50,15 @@ This penalty term is to encourage more dropout (more zeroes, fewer ones).Intuiti
 The final loss function is
 
 $$ loss = cross\_entropy(\theta, X, Y) + \Eta(\mathbf{m}) + L_1(\mathbf{m})$$
+
+#### Additional LearnedDropout hyperparameters
+
+TODO
+
+## Analysis/experiments
+
+TODO
+
+## Conclusions
+
+TODO
