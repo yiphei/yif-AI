@@ -22,10 +22,10 @@ process_address() {
 
     # Sync files
     echo "Syncing files to $address"
-    git ls-files | rsync -avz --files-from=- -e "ssh -i ~/Downloads/lambda.pem -o StrictHostKeyChecking=no" ./ "$address":~/yif-AI/
+    git ls-files | rsync -avz --files-from=- -e "ssh -i ~/.ssh/id_rsa_paperspace -o StrictHostKeyChecking=no" ./ "$address":~/yif-AI/
 
     # SSH into the server, start a tmux session, and run the commands
-    ssh -i ~/Downloads/lambda.pem -o StrictHostKeyChecking=no "$address" <<EOF
+    ssh -i ~/.ssh/id_rsa_paperspace -o StrictHostKeyChecking=no "$address" <<EOF
     tmux new-session -d -s mySession /bin/bash
     tmux send-keys -t mySession "cd yif-AI" C-m
     tmux send-keys -t mySession "pip install -r requirements.txt" C-m
@@ -38,7 +38,7 @@ process_address() {
         tmux send-keys -t mySession "aws s3 sync s3://dropout-transformer/datasets/openweb/ datasets/openweb/" C-m
     fi
     tmux send-keys -t mySession "export WANDB_API_KEY='${api_key}'" C-m
-    tmux send-keys -t mySession "torchrun --standalone --nproc_per_node=1 -m transformer_dropout.training_script --config_file transformer_dropout/train_configs/harry_potter_baseline.py --train datasets/full_harry_potter/ --platform_type LAMBDA --aws_access_key_id ${aws_access_key} --aws_secret_access_key ${aws_secret_key}" C-m
+    tmux send-keys -t mySession "torchrun --standalone --nproc_per_node=8 -m transformer_embed.training_script --config_file transformer_embed/train_configs/openweb_baseline.py --train datasets/openweb/ --platform_type PAPERSPACE --aws_access_key_id ${aws_access_key} --aws_secret_access_key ${aws_secret_key}" C-m
     exit
 EOF
 
