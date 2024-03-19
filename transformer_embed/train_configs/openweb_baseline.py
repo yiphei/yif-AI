@@ -5,6 +5,7 @@ N_LAYER = 12
 N_HEAD = 12
 BIAS = False
 USE_NEW_OUTPUT_LAYER = False
+USE_FINAL_LN_LAYER = True
 DROPOUT_RATE = 0.1
 
 # Training config
