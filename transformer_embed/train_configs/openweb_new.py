@@ -13,7 +13,7 @@ NEW_OUTPUT_LAYER_CONFIG = {
 }
 
 # Training config
-BATCH_SIZE = 18
+BATCH_SIZE = 39 # 18 is best for sagemaker, 39 is best for paperspace
 TRAIN_STEPS = 22000
 LR = 6e-4
 WARMUP_ITERS = 2000
