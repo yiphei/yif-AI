@@ -1,4 +1,5 @@
 # Boolean neural net
+> NB: LaTeX is optimized for Github's Markdown. 
 
 The **Boolean Neural Net** (BNN) is a new architecture that consists of a novel forward pass and backward pass. More precisely, the forward pass is a weighted boolean conjunction of the input, and the backward pass uses a discrete optimizer (i.e. no gradient descent). So the 'neural net' suffix is a bit of a misnomer since the only major element BNN retains from canonical neural nets is the net shape. Perhaps Boolean Neural Circuit is more adequate. 
 
