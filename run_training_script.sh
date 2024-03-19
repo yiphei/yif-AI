@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$#" -ne 5 ]; then
+if [ "$#" -lt 4 ] || [ "$#" -gt 5 ]; then
     echo "Usage: $0 <ADDRESS_FILE_PATH> <API_KEY> <AWS_ACCESS_KEY> <AWS_SECRET_KEY> <SYNC_S3>"
     exit 1
 fi
@@ -10,7 +10,7 @@ ADDRESS_FILE=$1
 API_KEY=$2
 AWS_ACCESS_KEY=$3
 AWS_SECRET_KEY=$4
-SYNC_S3=$5
+SYNC_S3=${5:-false}
 
 process_address() {
     address=$1
