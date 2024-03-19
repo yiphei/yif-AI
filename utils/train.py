@@ -143,7 +143,7 @@ class TrainConfig:
         self.validate_field_values()
 
 
-DEFAULT_BUCKET = "dropout-transformer"
+DEFAULT_BUCKET = "embed-transformer"
 
 
 def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device):
