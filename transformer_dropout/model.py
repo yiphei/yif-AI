@@ -272,15 +272,15 @@ class LearnedDropout(nn.Module):
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
 
-    def canonical_entropy(self, x):
+    def canonical_entropy(self, dropout_mask):
         # the small constant is for numerical stability
-        return (x * -torch.log2(x + 1e-9)).mean(dim=-1).flatten()
+        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean(dim=-1).flatten()
 
-    def alternate_entropy(self, x):
+    def alternate_entropy(self, dropout_mask):
         # the alternate entropy has the peak above 0.5, while the canonical one has
         # it below 0.5. In theory, this should be better for achieving both low entropy
         # and low l1 norm because there is more curvature towards 0.
-        return ((x - 1) * torch.log2((-x + 1) + 1e-9)).mean(dim=-1).flatten()
+        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean(dim=-1).flatten()
 
     def forward(self, x):
         dropout_mask_x = x.detach() if self.use_detached_x_in_dropout_mask else x
