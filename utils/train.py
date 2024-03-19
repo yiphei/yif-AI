@@ -35,6 +35,7 @@ class PlatformType(str, Enum):
     LOCAL = "LOCAL"
     SAGEMAKER = "SAGEMAKER"
     LAMBDA = "LAMBDA"
+    PAPERSPACE = "PAPERSPACE"
 
     def __str__(self):
         return self.value
