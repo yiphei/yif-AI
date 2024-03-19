@@ -30,5 +30,19 @@ $$ X = X * \mathbf{m}$$
 The $0.5$ terms in the cosine functions serve to bound the function domain to $[0,1]$, and the parameters $\Alpha$ and $\Beta$ change the angular frequency and phase angle, respectively. 
 
 #### Regularizing terms
+There are two penalty terms present in this architecture: dropout mask entropy $\Eta$ and dropout mask L1 norm ${L_1}$.
 
+The dropout mask entropy $\Eta$ just applies Shannon's information entropy to the dropout mask
+$$\Eta(\mathbf{m}) =  \sum_{i}-\mathbf{m}_i\log_2\mathbf{m}_i $$
 
+This ensures that the dropout mask values are pushed as close as possible to $\{0,1\}$ since those represent the function's global minima (remember that $\mathbf{m}$ is bounded by $[0,1]$).
+
+${L_1}$ is just the normal l1 norm function
+
+$$ L_1(\mathbf{m}) = |\mathbf{m}|_1$$
+
+This penalty term is to encourage more dropout (more zeroes, fewer ones).Intuitively, you should desire that fewer experts (i.e. more dropout) are active per token. This intuition stems from the Occam's razor principle. Yet, solely adding learned dropout does not incentivize the model to favor more dropout. In fact, the opposite would happen because the loss function will incentivize the model to use less dropout (more experts, and thus more compute).
+
+The final loss function is
+
+$$ loss = cross\_entropy(\theta, X, Y) + \Eta(\mathbf{m}) + L_1(\mathbf{m})$$
