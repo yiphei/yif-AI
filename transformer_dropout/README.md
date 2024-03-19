@@ -1,4 +1,6 @@
 # Learned Dropout [WIP readme]
+> NB: LaTeX is optimized for Github's Markdown. 
+
 A new architecture that uses a novel dropout module to achieve adaptive MOE.
 
 ## Motivations
