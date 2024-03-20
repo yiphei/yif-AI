@@ -25,7 +25,7 @@ $$ \tilde{X} = [1,0,1] \frown [0,1,0] = [1,0,1,0,1,0] $$
 
 then, the selected indices are $i \in \\{1,2,6\\}$, so the neuron output is
 
-$$h = \tilde{X_1} \times \tilde{X_2} \times \tilde{X_6} = 1 \times 0 \times 0 = 0$$
+$$h = \tilde{X_1} \cdot \tilde{X_2} \cdot \tilde{X_6} = 1 \cdot 0 \cdot 0 = 0$$
 
 The operations at the neuron level can be batched and optimized at the layer level. Given an input $X \in \\{1,0\\}^N$, you now have weights $W \in \\{1,0\\}^{M\times 2N}$, where $M$ is the width of the layer (i.e. # of neurons). Then, with $\tilde{X}$ being calculated the same way, you have the output of the layer as the vector
 
