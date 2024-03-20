@@ -35,7 +35,7 @@ The two $0.5$ scalars in the cosine functions serve to bound the function domain
 
 Two penalty terms are added to the loss function: dropout entropy $\mathrm{H}$ and dropout L1 norm ${L_1}$. The final loss function is
 
-$$ loss = cross\_entropy(\theta, X, Y) + \mathrm{H}(\mathbf{m}) + L_1(\mathbf{m})$$
+$$ loss = cross\\_entropy(\theta, X, Y) + \mathrm{H}(\mathbf{m}) + L_1(\mathbf{m})$$
 
 Reasons for both are described below.
 
@@ -44,7 +44,7 @@ Reasons for both are described below.
 Dropout mask values in-between 0 and 1 just scale down the input, which is undesirable for many reasons, the chief one being it potentially causing vanishing gradients. Therefore, the model should be penalized for dropout mask values far from 0 and 1. The dropout mask entropy $\mathrm{H}$ does exactly that. The dropout mask entropy $\mathrm{H}$ applies Shannon's information entropy to the dropout mask
 $$\mathrm{H}(\mathbf{m}) =  \sum_{i}-\mathbf{m}_i\log_2\mathbf{m}_i $$
 
-This ensures that the dropout mask values are pushed as close as possible to $\{0,1\}$ since the function's global minima occur there (remember that $\mathbf{m}_i \in [0,1]$). 
+This ensures that the dropout mask values are pushed as close as possible to $\\{0,1\\}$ since the function's global minima occur there (remember that $\mathbf{m}_i \in [0,1]$).
 
 #### Dropout L1 norm
 
