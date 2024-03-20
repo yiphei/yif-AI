@@ -31,23 +31,28 @@ $$ X \leftarrow X \odot \mathbf{m}$$
 
 The two $0.5$ scalars in the cosine functions serve to bound the function domain to $[0,1]$, and the parameters $\Alpha$ and $\Beta$ change the angular frequency and phase angle of the cosine function, respectively. 
 
-#### Regularizing terms
-There are two penalty terms present in this architecture: dropout mask entropy $\Eta$ and dropout mask L1 norm ${L_1}$.
+### Penalty terms
 
-The dropout mask entropy $\Eta$ just applies Shannon's information entropy to the dropout mask
+Two penalty terms are added to the loss function: dropout entropy $\Eta$ and dropout L1 norm ${L_1}$. The final loss function is
+
+$$ loss = cross\_entropy(\theta, X, Y) + \Eta(\mathbf{m}) + L_1(\mathbf{m})$$
+
+Reasons for both are described below.
+
+#### Dropout entropy
+
+Dropout mask values in-between 0 and 1 just scale down the input, which is undesirable for many reasons, the chief one being it potentially causing vanishing gradients. Therefore, the model should be penalized for dropout mask values far from 0 and 1. The dropout mask entropy $\Eta$ does exactly that. The dropout mask entropy $\Eta$ applies Shannon's information entropy to the dropout mask
 $$\Eta(\mathbf{m}) =  \sum_{i}-\mathbf{m}_i\log_2\mathbf{m}_i $$
 
-This ensures that the dropout mask values are pushed as close as possible to $\{0,1\}$ since those represent the function's global minima (remember that $\mathbf{m}$ is bounded by $[0,1]$).
+This ensures that the dropout mask values are pushed as close as possible to $\{0,1\}$ since the function's global minima occur there (remember that $\mathbf{m}_i \in [0,1]$). 
 
-${L_1}$ is just the normal l1 norm function
+#### Dropout L1 norm
+
+Intuitively, one should desire for fewer experts (i.e. more dropout) active per token. This intuition stems from the Occam's razor principle. Yet, solely adding learned dropout does not incentivize the model to favor more dropout. In fact, the opposite would happen because the loss function will incentivize the model to use less dropout (more experts, and thus more compute). The Dropout L1 norm serves to counter the otherwise degenerate tendency. The L1 norm ${L_1}$ is just the canonical function
 
 $$ L_1(\mathbf{m}) = |\mathbf{m}|_1$$
 
-This penalty term is to encourage more dropout (more zeroes, fewer ones).Intuitively, you should desire that fewer experts (i.e. more dropout) are active per token. This intuition stems from the Occam's razor principle. Yet, solely adding learned dropout does not incentivize the model to favor more dropout. In fact, the opposite would happen because the loss function will incentivize the model to use less dropout (more experts, and thus more compute).
-
-The final loss function is
-
-$$ loss = cross\_entropy(\theta, X, Y) + \Eta(\mathbf{m}) + L_1(\mathbf{m})$$
+which encourages more dropout (more zeroes, fewer ones).
 
 #### Additional LearnedDropout hyperparameters
 
