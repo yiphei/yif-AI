@@ -279,7 +279,8 @@ class EmbedTransformer(nn.Module):
                 self.config.use_new_output_layer
                 and self.config.new_output_layer_config.use_cross_entropy_loss
             ) or not self.config.use_new_output_layer:
-                logits = -logits
+                if self.config.use_new_output_layer:
+                    logits = -logits
                 B, T, C = logits.shape
                 logits = logits.view(B * T, C)
                 loss = F.cross_entropy(logits, targets.view(-1))
