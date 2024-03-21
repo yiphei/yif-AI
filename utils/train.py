@@ -456,6 +456,8 @@ def _train(
         -1,
         DEVICE,
     )
+    negative_embed_count = 0
+    negative_preserved_count = 0
     while iter_num < TRAIN_CONFIG.train_steps:
         t0 = time.time()
 
@@ -532,9 +534,9 @@ def _train(
                 (
                     _,
                     loss,
-                    mini_batch_stats,
+                    preserved,
                 ) = model(X, Y)
-                current_batch_stats.add_mini_batch_stats(mini_batch_stats)
+                current_batch_stats.add_mini_batch_stats(None)
 
                 loss = (
                     loss / TRAIN_CONFIG.gradient_accumulation_steps
@@ -555,6 +557,33 @@ def _train(
             # backward pass, with gradient scaling if training in fp16
             scaler.scale(loss).backward()
             is_first_mini_batch = False
+
+        torch.set_printoptions(profile="full")  
+        print("*************************************")
+        print("*************************************")
+        print("*************************************")
+        for n,p in model.named_parameters():
+            if n == "token_embedding.weight":
+                print(n)
+                # print(p.grad)
+                print(p.grad)
+                print(f"grad norm: {torch.norm(p.grad, p=1, dim=-1).flatten().mean().item()}")
+                grad_mean = p.grad.flatten().mean().item()
+                if grad_mean < 0:
+                    negative_embed_count += 1   
+                print(f"grad mean: {grad_mean}")
+                print(f"grad std: {p.grad.flatten().std().item()}")
+                print("--------------------------------------")
+
+        print("preserved")
+        print(preserved.grad)
+        print(f"grad norm: {torch.norm(preserved.grad, p=1, dim=-1).flatten().mean().item()}")
+        grad_mean = preserved.grad.flatten().mean().item()
+        if grad_mean < 0:
+            negative_preserved_count += 1
+        print(f"grad mean: {grad_mean}")
+        print(f"grad std: {preserved.grad.flatten().std().item()}")
+        print("--------------------------------------")
 
         scaler.step(optimizer)
         scaler.update()
@@ -593,6 +622,8 @@ def _train(
     if using_DDP:
         destroy_process_group()
 
+    print(f"negative_embed_count: {negative_embed_count / TRAIN_CONFIG.train_steps}")
+    print(f"negative_preserved_count: {negative_preserved_count / TRAIN_CONFIG.train_steps}")
 
 def get_default_args(args, local_dir):
     if args.platform_type == PlatformType.SAGEMAKER:
