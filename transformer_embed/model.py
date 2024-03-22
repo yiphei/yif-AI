@@ -43,6 +43,18 @@ class ModelConfig:
             )
 
 
+def special_multiplication(model, param, x):
+    p_to_np = {p:n for n,p in model.named_parameters()}
+    W_expanded = param.weight.unsqueeze(0).unsqueeze(0)  # Shape (1, 1, out_dim, in_dim)
+    X_expanded = x.unsqueeze(2)  # Shape (batch_dim, time_dim, 1, in_dim)
+    Y = W_expanded * X_expanded  # Shape (batch_dim, time_dim, out_dim, in_dim)
+    # print((Y < 0).float().mean(dim=-1).flatten())
+    print(p_to_np[param.weight])
+    print(f"mean: {param.weight.flatten().mean()}")
+    print(f"std: {param.weight.flatten().std()}")
+    print(((Y < 0).float().mean(dim=-1).flatten() - 0.5).abs().mean())
+    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
 
@@ -72,6 +84,15 @@ class OutputLayer(nn.Module):
         # there are additional things I can do here like making mse smaller
         # to avoid gradient explosion. One way to make it smaller is by passint
         # it into some exponentiation function
+        diff = (x[:, :, None, :] - self.weight)
+        distance = torch.sum(diff, dim=-1)
+        print("NEW   OUTPUT   LAYER")
+        print((diff < 0).float().flatten().mean())
+        print(f"weight mean: {self.weight.flatten().mean()}")
+        print(f"weight std: {self.weight.flatten().std()}")
+        print(f"out mean: {x.flatten().mean()}")
+        print(f"out std: {x.flatten().std()}")
+        print("+++++++++++++++++++++++++++++++++++")
 
         new_mse = (torch.cdist(x, self.weight, p=2) ** 2) / self.weight.shape[1]
         return new_mse
@@ -112,6 +133,7 @@ class OptimizedMultiAttentionHead(nn.Module):
     def forward(self, x):
         B, T, C = x.shape
 
+        special_multiplication(self, self.batch_attn_weights, x)
         q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
         k = k.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
@@ -134,6 +156,8 @@ class OptimizedMultiAttentionHead(nn.Module):
         out = (
             out.transpose(1, 2).contiguous().view(B, T, C)
         )  # B,H,T,S -> B,T,H,S -> B,T,C
+
+        special_multiplication(self, self.residual_proj, x)
         out = self.residual_proj(out)
         out = self.dropout_2(out)
         return out
@@ -150,8 +174,10 @@ class FeedForward(nn.Module):
         self.dropout = nn.Dropout(config.dropout_rate)
 
     def forward(self, x):
+        special_multiplication(self, self.linear, x)
         x = self.linear(x)
         x = self.gelu(x)
+        special_multiplication(self, self.residual_proj, x)
         x = self.residual_proj(x)
         x = self.dropout(x)
         return x
@@ -258,6 +284,10 @@ class EmbedTransformer(nn.Module):
         embed = token_embed + pos_embed
         embed = self.dropout(embed)
         out = self.transformer_blocks(embed)
+        preserved = out
+        if self.training:
+            preserved.retain_grad()
+
         if self.config.use_final_ln_layer:
             out = self.ln(out)
 
@@ -292,7 +322,7 @@ class EmbedTransformer(nn.Module):
         return (
             logits,
             loss,
-            None,
+            preserved,
         )
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
