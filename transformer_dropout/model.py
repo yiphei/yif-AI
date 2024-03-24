@@ -131,7 +131,6 @@ class ModelConfig:
     dropout_rate: Optional[float] = field(default=None)
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
-    use_flash: bool = False
 
     def __post_init__(self):
         if not (self.use_learned_dropout == (self.learned_dropout_config is not None)):
@@ -189,8 +188,8 @@ class OptimizedMultiAttentionHead(nn.Module):
             self.dropout_1 = nn.Dropout(config.dropout_rate)
             self.dropout_2 = nn.Dropout(config.dropout_rate)
 
-        self.flash = False
-        if not hasattr(F, "scaled_dot_product_attention") or not config.use_flash:
+        self.use_flash = False
+        if not hasattr(F, "scaled_dot_product_attention") or isinstance(self.dropout_1, LearnedDropout):
             self.register_buffer(
                 "tril",
                 torch.tril(
@@ -201,7 +200,7 @@ class OptimizedMultiAttentionHead(nn.Module):
             )
         else:
             print("Using flash attention.")
-            self.flash = True
+            self.use_flash = True
 
     def forward(self, x):
         B, T, C = x.shape
@@ -211,11 +210,12 @@ class OptimizedMultiAttentionHead(nn.Module):
         q = q.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
 
-        if self.flash:
+        if self.use_flash:
             out = F.scaled_dot_product_attention(
                 q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
             )
             # TODO: add custom dropout here. Otherwise, avoid using flash attention for now
+            # if dropout_1 is LearnedDropout
         else:
             attn = (q @ k.transpose(-2, -1)) * (
                 self.head_size**-0.5
@@ -252,7 +252,7 @@ class LearnedDropout(nn.Module):
         )
         self.use_sigmoid_on_dropout_mask = config.use_sigmoid_on_dropout_mask
         self.profile_dropout_mask = config.profile_dropout_mask
-        self.module_name = None
+        self.module_name = None # used for logging
 
         self.A = nn.Parameter(
             torch.normal(
@@ -314,8 +314,8 @@ class LearnedDropout(nn.Module):
 
         if self.use_sigmoid_on_dropout_mask:
             # TODO: make the coefficient and constant to be learnable
-            # the final form should be `1 / (1 + torch.exp(-(dropout_mask * a - a/2)))``
-            # where a is a learnable parameter
+            # the final form should be 1 / (1 + torch.exp(-(dropout_mask * z - z/2)))
+            # where z is a learnable parameter
             dropout_mask = 1 / (1 + torch.exp(-(dropout_mask * 60 - 30)))
 
         if self.profile_dropout_mask:
@@ -395,6 +395,7 @@ class DropoutTransformer(nn.Module):
                     p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
                 )
 
+        # maybe there is a better way
         param_to_param_name = {p:n for n,p in self.named_parameters()}
         for module in self.modules():
             if isinstance(module, LearnedDropout):
@@ -411,7 +412,6 @@ class DropoutTransformer(nn.Module):
     @classmethod
     def init_from_checkpoint(cls, checkpoint_dict):
         model_config = ModelConfig(**checkpoint_dict["model_config"])
-        # create the model
         model = cls(model_config)
         state_dict = checkpoint_dict["model"]
 
