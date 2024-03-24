@@ -269,7 +269,7 @@ def _train(
         is_master_process = True
         seed_offset = 0
 
-    if is_master_process:
+    if is_master_process and args.profile:
         wandb.init(
             project=(
                 wandb_project
@@ -436,7 +436,7 @@ def _train(
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
         return TRAIN_CONFIG.min_lr + coeff * (TRAIN_CONFIG.lr - TRAIN_CONFIG.min_lr)
 
-    if is_master_process:
+    if is_master_process and args.profile:
         wandb.config.update(
             {
                 **asdict(TRAIN_CONFIG),
@@ -492,18 +492,19 @@ def _train(
                 best_val_loss = val_loss
                 should_save_best_val_loss_checkpoint = True
 
-            wandb.log(
-                {
-                    "est_train_accuracy": train_accuracy,
-                    "est_train_loss": train_loss,
-                    "est_val_accuracy": val_accuracy,
-                    "est_val_loss": val_loss,
-                    "est_lr": lr,
-                    "est_step": iter_num / TRAIN_CONFIG.est_interval - 1,
-                },
-                step=iter_num,
-                # commit=True,
-            )
+            if args.profile:
+                wandb.log(
+                    {
+                        "est_train_accuracy": train_accuracy,
+                        "est_train_loss": train_loss,
+                        "est_val_accuracy": val_accuracy,
+                        "est_val_loss": val_loss,
+                        "est_lr": lr,
+                        "est_step": iter_num / TRAIN_CONFIG.est_interval - 1,
+                    },
+                    step=iter_num,
+                    # commit=True,
+                )
 
             filenames = (
                 ["ckpt.pt"]
@@ -562,7 +563,7 @@ def _train(
 
         t1 = time.time()
         dt = t1 - t0
-        if is_master_process:
+        if is_master_process and args.profile:
             wandb.log(
                 {
                     "loss": running_loss,
@@ -619,6 +620,7 @@ def get_default_args(args, local_dir):
                 and args.aws_secret_access_key is not None
             )
     if args.sweep_id is not None:
+        assert args.profile
         assert args.sweep_count is not None
         assert not args.resume_from_checkpoint
         if args.sweep_count > 1 and args.platform_type != PlatformType.LOCAL:
@@ -644,6 +646,7 @@ def train(
     parser.add_argument("--sweep_id", type=str, default=None)
     parser.add_argument("--sweep_count", type=int, default=None)
     parser.add_argument("--save_code", type=lambda v: bool(strtobool(v)), default=False)
+    parser.add_argument("--profile", type=lambda v: bool(strtobool(v)), default=True)
     args = parser.parse_args()
 
     get_default_args(args, local_dir)
