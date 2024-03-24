@@ -179,15 +179,17 @@ class OptimizedMultiAttentionHead(nn.Module):
 
         if config.use_learned_dropout:
             self.dropout_1 = LearnedDropout(
-                config.context_size,
-                config.learned_dropout_config)
+                config.context_size, config.learned_dropout_config
+            )
             self.dropout_2 = LearnedDropout(self.dim_in, config.learned_dropout_config)
         else:
             self.dropout_1 = nn.Dropout(config.dropout_rate)
             self.dropout_2 = nn.Dropout(config.dropout_rate)
 
         self.use_flash = False
-        if not hasattr(F, "scaled_dot_product_attention") or isinstance(self.dropout_1, LearnedDropout):
+        if not hasattr(F, "scaled_dot_product_attention") or isinstance(
+            self.dropout_1, LearnedDropout
+        ):
             self.register_buffer(
                 "tril",
                 torch.tril(
@@ -249,7 +251,7 @@ class LearnedDropout(nn.Module):
         )
         self.use_sigmoid_on_dropout_mask = config.use_sigmoid_on_dropout_mask
         self.profile_dropout_mask = config.profile_dropout_mask
-        self.module_name = None # used for logging
+        self.module_name = None  # used for logging
 
         self.A = nn.Parameter(
             torch.normal(
@@ -280,7 +282,11 @@ class LearnedDropout(nn.Module):
         # the alternate entropy has the peak above 0.5, while the canonical one has
         # it below 0.5. In theory, this should be better for achieving both low entropy
         # and low l1 norm because there is more curvature towards 0.
-        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean(dim=-1).flatten()
+        return (
+            ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9))
+            .mean(dim=-1)
+            .flatten()
+        )
 
     def forward(self, x):
         import wandb
@@ -386,10 +392,12 @@ class DropoutTransformer(nn.Module):
                 )
 
         # maybe there is a better way
-        param_to_param_name = {p:n for n,p in self.named_parameters()}
+        param_to_param_name = {p: n for n, p in self.named_parameters()}
         for module in self.modules():
             if isinstance(module, LearnedDropout):
-                module.module_name = ".".join(param_to_param_name[module.A].split(".")[:-1])
+                module.module_name = ".".join(
+                    param_to_param_name[module.A].split(".")[:-1]
+                )
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
