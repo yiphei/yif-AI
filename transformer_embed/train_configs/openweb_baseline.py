@@ -9,7 +9,7 @@ USE_FINAL_LN_LAYER = True
 DROPOUT_RATE = 0.1
 
 # Training config
-BATCH_SIZE = 39 # 18 is best for sagemaker, 39 is best for paperspace
+BATCH_SIZE = 39  # 18 is best for sagemaker, 39 is best for paperspace
 TRAIN_STEPS = 22000
 LR = 6e-4
 WARMUP_ITERS = 2000
