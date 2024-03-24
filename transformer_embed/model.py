@@ -26,7 +26,6 @@ class ModelConfig:
     new_output_layer_config: Optional[NewOutputLayerConfig] = None
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
-    use_flash: bool = True
 
     def __post_init__(self):
         if self.use_new_output_layer and self.new_output_layer_config is None:
@@ -83,8 +82,8 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.dropout_1 = nn.Dropout(config.dropout_rate)
         self.dropout_2 = nn.Dropout(config.dropout_rate)
 
-        self.flash = False
-        if not hasattr(F, "scaled_dot_product_attention") or not config.use_flash:
+        self.use_flash = False
+        if not hasattr(F, "scaled_dot_product_attention"):
             self.register_buffer(
                 "tril",
                 torch.tril(
@@ -95,7 +94,7 @@ class OptimizedMultiAttentionHead(nn.Module):
             )
         else:
             print("Using flash attention.")
-            self.flash = True
+            self.use_flash = True
 
     def forward(self, x):
         B, T, C = x.shape
@@ -105,7 +104,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         q = q.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
 
-        if self.flash:
+        if self.use_flash:
             out = F.scaled_dot_product_attention(
                 q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
             )
