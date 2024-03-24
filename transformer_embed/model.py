@@ -61,18 +61,6 @@ class OutputLayer(nn.Module):
         self.weight = nn.Parameter(torch.randn(in_dim, out_dim) * 0.02)
 
     def forward(self, x):
-        # w_exp = (
-        #     self.weight.unsqueeze(0)
-        #     .expand(x.shape[1], -1, -1)
-        #     .unsqueeze(0)
-        #     .expand(x.shape[0], -1, -1, -1)
-        # )
-        # x_exp = x.unsqueeze(2).expand(-1, -1, self.weight.shape[0], -1)
-        # mse = ((w_exp - x_exp) ** 2).mean(dim=3)
-        # there are additional things I can do here like making mse smaller
-        # to avoid gradient explosion. One way to make it smaller is by passint
-        # it into some exponentiation function
-
         new_mse = (torch.cdist(x, self.weight, p=2) ** 2) / self.weight.shape[1]
         return new_mse
 
