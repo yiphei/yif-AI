@@ -108,7 +108,6 @@ class OptimizedMultiAttentionHead(nn.Module):
             out = F.scaled_dot_product_attention(
                 q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
             )
-            # TODO: add custom dropout here. Otherwise, avoid using flash attention for now
         else:
             attn = (q @ k.transpose(-2, -1)) * (
                 self.head_size**-0.5
