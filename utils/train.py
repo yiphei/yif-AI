@@ -511,14 +511,16 @@ def _train(
                 if not should_save_best_val_loss_checkpoint
                 else ["best_ckpt.pt", "ckpt.pt"]
             )
-            save_model_artifact(
-                filenames,
-                get_torch_save_dict(
-                    raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
-                ),
-                current_checkpoint_path,
-                s3_client,
-            )
+
+            if args.save_checkpoint:
+                save_model_artifact(
+                    filenames,
+                    get_torch_save_dict(
+                        raw_model, optimizer, TRAIN_CONFIG, iter_num, best_val_loss
+                    ),
+                    current_checkpoint_path,
+                    s3_client,
+                )
 
         running_loss = 0
         current_batch_stats = batch_stats_class.initialize(TRAIN_CONFIG, raw_model)
@@ -575,7 +577,7 @@ def _train(
             )
         iter_num += 1
 
-    if is_master_process:
+    if is_master_process and args.save_model:
         save_model_artifact(
             [
                 (
@@ -625,6 +627,15 @@ def get_default_args(args, local_dir):
         assert not args.resume_from_checkpoint
         if args.sweep_count > 1 and args.platform_type != PlatformType.LOCAL:
             assert args.checkpoint_path is None and args.model_path is None
+        if args.save_checkpoint is None:
+            args.save_checkpoint = False
+        if args.save_model is None:
+            args.save_model = False
+    else:
+        if args.save_checkpoint is None:
+            args.save_checkpoint = True
+        if args.save_model is None:
+            args.save_model = True
 
 
 def train(
@@ -647,6 +658,8 @@ def train(
     parser.add_argument("--sweep_count", type=int, default=None)
     parser.add_argument("--save_code", type=lambda v: bool(strtobool(v)), default=False)
     parser.add_argument("--profile", type=lambda v: bool(strtobool(v)), default=True)
+    parser.add_argument("--save_checkpoint", type=lambda v: bool(strtobool(v)))
+    parser.add_argument("--save_model", type=lambda v: bool(strtobool(v)))
     args = parser.parse_args()
 
     get_default_args(args, local_dir)
