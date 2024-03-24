@@ -180,9 +180,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         if config.use_learned_dropout:
             self.dropout_1 = LearnedDropout(
                 config.context_size,
-                config.learned_dropout_config,
-                is_for_attention=True,
-            )
+                config.learned_dropout_config)
             self.dropout_2 = LearnedDropout(self.dim_in, config.learned_dropout_config)
         else:
             self.dropout_1 = nn.Dropout(config.dropout_rate)
@@ -234,9 +232,8 @@ class OptimizedMultiAttentionHead(nn.Module):
 
 
 class LearnedDropout(nn.Module):
-    def __init__(self, dim_in, config, is_for_attention=False):
+    def __init__(self, dim_in, config):
         super().__init__()
-        self.is_for_attention = is_for_attention
         self.dim_in = dim_in
         self.dropout_entropy_context = (
             nullcontext() if config.use_dropout_entropy_in_loss else torch.no_grad()
@@ -289,14 +286,7 @@ class LearnedDropout(nn.Module):
         import wandb
 
         dropout_mask_x = x.detach() if self.use_detached_x_in_dropout_mask else x
-        if self.is_for_attention:
-            _, _, T1, _ = x.shape
-            # TODO: check if self.A[:T1] indexing is really needed
-            dropout_mask = (
-                0.5 * torch.cos(self.A[:T1] * dropout_mask_x + self.B[:T1]) + 0.5
-            )
-        else:
-            dropout_mask = 0.5 * torch.cos(self.A * dropout_mask_x + self.B) + 0.5
+        dropout_mask = 0.5 * torch.cos(self.A * dropout_mask_x + self.B) + 0.5
 
         if self.training:
             with self.dropout_entropy_context:
