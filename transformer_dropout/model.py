@@ -62,6 +62,7 @@ class LearnedDropoutConfig:
     use_detached_x_in_dropout_mask: bool = True
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
+    profile_dropout_mask: bool = False
 
     def __post_init__(self):
         if (
@@ -250,6 +251,8 @@ class LearnedDropout(nn.Module):
             else self.alternate_entropy
         )
         self.use_sigmoid_on_dropout_mask = config.use_sigmoid_on_dropout_mask
+        self.profile_dropout_mask = config.profile_dropout_mask
+        self.module_name = None
 
         self.A = nn.Parameter(
             torch.normal(
@@ -283,6 +286,8 @@ class LearnedDropout(nn.Module):
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean(dim=-1).flatten()
 
     def forward(self, x):
+        import wandb
+
         dropout_mask_x = x.detach() if self.use_detached_x_in_dropout_mask else x
         if self.is_for_attention:
             _, _, T1, _ = x.shape
@@ -313,6 +318,8 @@ class LearnedDropout(nn.Module):
             # where a is a learnable parameter
             dropout_mask = 1 / (1 + torch.exp(-(dropout_mask * 60 - 30)))
 
+        if self.profile_dropout_mask:
+            wandb.log({self.module_name + ".mask": dropout_mask}, commit=False)
         return x * dropout_mask
 
 
@@ -387,6 +394,11 @@ class DropoutTransformer(nn.Module):
                 torch.nn.init.normal_(
                     p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
                 )
+
+        param_to_param_name = {p:n for n,p in self.named_parameters()}
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                module.module_name = ".".join(param_to_param_name[module.A].split(".")[:-1])
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
