@@ -7,7 +7,6 @@ BIAS = False
 USE_LEARNED_DROPOUT = False
 DROPOUT_RATE = 0.1
 BIAS = True
-USE_FLASH = False
 
 # Training config
 BATCH_SIZE = 10
