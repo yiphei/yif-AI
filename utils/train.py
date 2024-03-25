@@ -615,8 +615,8 @@ def get_default_args(args, local_dir):
             args.model_path = local_dir + "model_weights/"
         if args.resume_from_checkpoint is None:
             args.resume_from_checkpoint = False
-    elif args.platform_type == PlatformType.LAMBDA:
-        if args.checkpoint_path is None or args.model_path is None:
+    elif args.platform_type in [PlatformType.LAMBDA, PlatformType.PAPERSPACE]:
+        if (args.checkpoint_path is None or args.model_path is None) and (args.save_checkpoint or args.save_model):
             assert (
                 args.aws_access_key_id is not None
                 and args.aws_secret_access_key is not None
