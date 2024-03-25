@@ -60,7 +60,7 @@ parameters:
                             max_lambda:
                               values: [1,2]
                             coefficient:
-                              values: [0.001, 0.00075, null]
+                              values: [0.001, null]
                     dropout_l1_norm_lambda:
                         parameters:
                             min_lambda:
@@ -68,7 +68,7 @@ parameters:
                             max_lambda:
                               values: [1,2]
                             coefficient:
-                              values: [0.001, 0.00075, null]
+                              values: [0.001, null]
     batch_size: 
         value: 50
     train_steps: 
