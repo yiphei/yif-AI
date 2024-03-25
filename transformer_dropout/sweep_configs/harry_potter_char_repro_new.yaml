@@ -42,7 +42,7 @@ parameters:
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
-                                values: [0.1, 0.01, 1, 10, null]
+                                values: [3e-2, 3e-1, 1, 10, null]
                     B_param_config:
                         parameters:
                             init_mean:
@@ -52,7 +52,7 @@ parameters:
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
-                                values: [6e-4, 6e-3, 6e-2, 6e-5, null]
+                                values: [3e-2, 3e-1, 3e-4, null]
                     dropout_entropy_lambda:
                         parameters:
                             min_lambda:
