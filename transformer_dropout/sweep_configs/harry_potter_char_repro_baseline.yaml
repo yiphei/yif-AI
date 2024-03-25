@@ -1,0 +1,45 @@
+program: transformer_dropout/training_script.py
+name: harry_potter_dropout_new
+project: transformer_dropout_3
+method: random
+run_cap: 500
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: False
+            context_size:
+                value: 200
+            n_embed: 
+                value: 200
+            n_layer: 
+                value: 4
+            n_head: 
+                value: 4
+            use_learned_dropout:
+                value: False
+            dropout_rate:
+                value: 0.1
+    batch_size: 
+        value: 50
+    train_steps: 
+        value: 500
+    lr: 
+        values: [6e-4,3e-4, 6e-5, 3e-5, 6e-3, 3e-3]
+    warmup_iters: 
+        value: 50
+    min_lr: 
+        values: [6e-5,3e-5, 6e-6, 3e-6, 6e-4, 3e-4]
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: 
+        value: 500
+    est_interval: 
+        value: 50
+    est_steps: 
+        value: 50
+        
+    
