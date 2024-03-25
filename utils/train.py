@@ -465,8 +465,7 @@ def _train(
 
         if (
             iter_num % TRAIN_CONFIG.est_interval == 0
-            and iter_num != (TRAIN_CONFIG.train_steps - 1)
-            and iter_num != 0
+            or iter_num == (TRAIN_CONFIG.train_steps - 1)
         ) and is_master_process:
             (
                 (train_accuracy, val_accuracy),
