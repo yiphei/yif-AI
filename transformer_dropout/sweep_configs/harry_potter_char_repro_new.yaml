@@ -38,7 +38,7 @@ parameters:
                             init_mean:
                                 values: [100000, 0, 10000, 1000000,1, 10, 100, 1000,]
                             init_std:
-                                values: [0, 0.02, 1, 10, 100]
+                                values: [0, 1, 10, 100]
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
@@ -48,27 +48,27 @@ parameters:
                             init_mean:
                                 values: [0, 3.1415, 1.5707, 1.3033]
                             init_std:
-                                values: [0, 0.02, 0.2]
+                                values: [0, 0.02]
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
-                                values: [3e-2, 3e-1, 3e-4, null]
+                                values: [3e-2, 3e-1, null]
                     dropout_entropy_lambda:
                         parameters:
                             min_lambda:
-                              values: [0, 0.1, 0.01]
+                              values: [0, 0.1]
                             max_lambda:
-                              values: [0.5, 1,2]
+                              values: [0.5, 1,1.5]
                             coefficient:
-                              values: [0.001, 0.00075, 0.0005, null]
+                              values: [0.001, 0.00075, null]
                     dropout_l1_norm_lambda:
                         parameters:
                             min_lambda:
-                              values: [0, 0.1, 0.01]
+                              values: [0, 0.1]
                             max_lambda:
-                              values: [0.5, 1,2]
+                              values: [0.5, 1,1.5]
                             coefficient:
-                              values: [0.001, 0.00075, 0.0005, null]
+                              values: [0.001, 0.00075, null]
     batch_size: 
         value: 50
     train_steps: 
