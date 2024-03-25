@@ -1,7 +1,7 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_dropout_new
+name: harry_potter_char_dropout_baseline_repro
 project: transformer_dropout_3
-method: random
+method: grid
 run_cap: 500
 metric:
   goal: minimize
@@ -22,17 +22,17 @@ parameters:
             use_learned_dropout:
                 value: False
             dropout_rate:
-                value: 0.1
+                values: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
     batch_size: 
         value: 50
     train_steps: 
         value: 500
     lr: 
-        values: [6e-4,3e-4, 6e-5, 3e-5, 6e-3, 3e-3]
-    warmup_iters: 
+        values: [6e-4,3e-4, 9e-4, 6e-5, 3e-5,9e-5, 6e-3, 3e-3, 9e-3]
+    warmup_iters:
         value: 50
     min_lr: 
-        values: [6e-5,3e-5, 6e-6, 3e-6, 6e-4, 3e-4]
+        values: [6e-5,3e-5, 9e-5, 6e-6, 3e-6, 9e-6, 6e-4, 3e-4, 9e-4]
     gradient_accumulation_steps: 
         value: 16
     lr_decay_iters: 
@@ -41,5 +41,3 @@ parameters:
         value: 50
     est_steps: 
         value: 50
-        
-    
