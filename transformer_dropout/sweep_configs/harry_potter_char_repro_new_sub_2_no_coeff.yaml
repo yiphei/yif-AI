@@ -1,0 +1,81 @@
+program: transformer_dropout/training_script.py
+name: harry_potter_dropout_new
+project: transformer_dropout_3
+method: random
+run_cap: 500
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: False
+            context_size:
+                value: 200
+            n_embed: 
+                value: 200
+            n_layer: 
+                value: 4
+            n_head: 
+                value: 4
+            use_learned_dropout:
+                value: True
+            learned_dropout_config:
+                parameters:
+                    use_dropout_entropy_in_loss:
+                        value: False
+                    use_dropout_l1_norm_in_loss:
+                        value: True
+                    use_sigmoid_on_dropout_mask:
+                        values: [True, False]
+                    use_canonical_entropy:
+                        values: [True, False]
+                    use_detached_x_in_dropout_mask:
+                        values: [True, False]
+                    A_param_config:
+                        parameters:
+                            init_mean:
+                                values: [0, 10, 100]
+                            init_std:
+                                values: [0, 1, 10]
+                            optimizer_type:
+                                values: ["ADAMW", "SGD"]
+                            lr:
+                                values: [3e-2, 1, 10, null]
+                    B_param_config:
+                        parameters:
+                            init_mean:
+                                values: [0, 3.1415, 1.5707, 1.3033]
+                            init_std:
+                                values: [0, 0.02]
+                            optimizer_type:
+                                values: ["ADAMW", "SGD"]
+                            lr:
+                                values: [3e-2, null]
+                    dropout_l1_norm_lambda:
+                        parameters:
+                            min_lambda:
+                              value: 0
+                            max_lambda:
+                              values: [1,2]
+    batch_size: 
+        value: 50
+    train_steps: 
+        value: 500
+    lr: 
+        value: 3e-3
+    warmup_iters: 
+        value: 50
+    min_lr: 
+        value: 3e-4
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: 
+        value: 500
+    est_interval: 
+        value: 50
+    est_steps: 
+        value: 50
+        
+    
