@@ -1,6 +1,6 @@
 program: transformer_dropout/training_script.py
 name: harry_potter_char_dropout_baseline_repro
-project: transformer_dropout_3
+project: transformer_dropout_4
 method: grid
 run_cap: 500
 metric:
