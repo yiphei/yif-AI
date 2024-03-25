@@ -55,14 +55,10 @@ parameters:
                                 values: [3e-2, null]
                     dropout_entropy_lambda:
                         parameters:
-                            min_lambda:
-                              value: 0
                             max_lambda:
                               values: [1,2]
                     dropout_l1_norm_lambda:
                         parameters:
-                            min_lambda:
-                              value: 0
                             max_lambda:
                               values: [1,2]
     batch_size: 
