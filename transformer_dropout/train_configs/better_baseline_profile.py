@@ -9,7 +9,7 @@ DROPOUT_RATE = 0.1
 BIAS = True
 
 # Training config
-BATCH_SIZE = 15
+BATCH_SIZE = 15 # 50 when run on 1x A10
 TRAIN_STEPS = 500
 LR = 3e-4
 WARMUP_ITERS = 50
