@@ -36,7 +36,7 @@ parameters:
                     A_param_config:
                         parameters:
                             init_mean:
-                                values: [100000, 0, 10000,1, 10, 100, 1000]
+                                values: [0, 10000,1, 10, 100, 1000]
                             init_std:
                                 values: [0, 1, 10, 100]
                             optimizer_type:
