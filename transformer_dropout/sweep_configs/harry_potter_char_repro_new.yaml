@@ -36,9 +36,9 @@ parameters:
                     A_param_config:
                         parameters:
                             init_mean:
-                                values: [100000, 0, 10000, 1000000]
+                                values: [100000, 0, 10000, 1000000,1, 10, 100, 1000,]
                             init_std:
-                                values: [0.02, 1, 10, 100]
+                                values: [0, 0.02, 1, 10, 100]
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
@@ -48,7 +48,7 @@ parameters:
                             init_mean:
                                 values: [0, 3.1415, 1.5707, 1.3033]
                             init_std:
-                                values: [0.02, 0.2]
+                                values: [0, 0.02, 0.2]
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
