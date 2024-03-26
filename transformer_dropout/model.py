@@ -177,7 +177,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         )
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=config.bias)
 
-        if config.use_learned_dropout:
+        if config.use_learned_dropout and False:
             self.dropout_1 = LearnedDropout(
                 config.context_size, config.learned_dropout_config
             )
@@ -320,14 +320,14 @@ class LearnedDropout(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, config: ModelConfig):
+    def __init__(self, config: ModelConfig, is_last = False):
         super().__init__()
         self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.bias)
         self.gelu = nn.GELU()
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.bias
         )
-        if config.use_learned_dropout:
+        if config.use_learned_dropout and is_last:
             self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
@@ -341,10 +341,10 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, config: ModelConfig):
+    def __init__(self, config: ModelConfig, is_last = False):
         super().__init__()
         self.multi_attn_head = OptimizedMultiAttentionHead(config)
-        self.feed_forward = FeedForward(config)
+        self.feed_forward = FeedForward(config, is_last)
         self.ln1 = LayerNorm(config.n_embed, config.bias)
         self.ln2 = LayerNorm(config.n_embed, config.bias)
 
@@ -369,12 +369,12 @@ class DropoutTransformer(nn.Module):
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
-        if config.use_learned_dropout:
+        if config.use_learned_dropout and False:
             self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
-            *[TransformerBlock(config) for _ in range(config.n_layer)]
+            *[TransformerBlock(config, i == config.n_layer-1) for i in range(config.n_layer)]
         )
         self.ln = LayerNorm(config.n_embed, config.bias)
         self.output_layer = nn.Linear(
