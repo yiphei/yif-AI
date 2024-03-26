@@ -42,7 +42,7 @@ parameters:
                             optimizer_type:
                                 values: ["ADAMW", "SGD"]
                             lr:
-                                values: [3e-2, 1, 10, null]
+                                values: [3e-2, 1, null]
                     B_param_config:
                         parameters:
                             init_mean:
