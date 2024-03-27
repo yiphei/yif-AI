@@ -1,11 +1,15 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_dropout_new
-project: transformer_dropout_3
-method: random
-run_cap: 500
+name: harry_potter_dropout_char_repro_new_sub_1_no_coeff
+project: transformer_dropout_4
+method: grid
 metric:
   goal: minimize
   name: est_val_loss
+early_terminate:
+    type: hyperband
+    min_iter: 350
+    eta: 2
+    strict: True
 parameters:
     model_config:
         parameters:
