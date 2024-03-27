@@ -464,7 +464,7 @@ def _train(
         optimizer.change_lr(lr)
 
         if (
-            iter_num % TRAIN_CONFIG.est_interval == 0
+            (iter_num+1) % TRAIN_CONFIG.est_interval == 0
             or iter_num == (TRAIN_CONFIG.train_steps - 1)
         ) and is_master_process:
             (
