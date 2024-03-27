@@ -112,7 +112,7 @@ class LearnedDropoutConfig:
         if not self.use_detached_x_in_dropout_mask and (
             self.A_param_config.init_mean > 1000
             or self.A_param_config.init_std > 10000
-            or self.A_param_config.lr > 1000
+            or (self.A_param_config.lr and self.A_param_config.lr > 1000)
         ):
             # TODO: a better way to handle this is to do something like gradient clipping
             raise ValueError(
