@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 
 import wandb
 from utils.data_loading import MapLocalDataset
-
+import subprocess
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
 def required_field_exception():
@@ -277,7 +277,7 @@ def _train(
                 else "local_test"
             ),
             dir=local_dir,  # this must be in the same directory as the training script in order to make auto-resumption work
-            mode="online",
+            mode="online" if args.sync_profile_live else "offline",
             # resume=True, # enables resuming a previous run
         )
         if args.save_code:
@@ -595,6 +595,11 @@ def _train(
     if using_DDP:
         destroy_process_group()
 
+    if is_master_process and not args.sync_profile_live:
+        wandb_run_dir = wandb.run._settings.sync_dir
+        wandb.finish()
+        result = subprocess.run(f'wandb sync {wandb_run_dir}', shell=True, stdout=subprocess.PIPE, text=True)
+        print(result.stdout)
 
 def get_default_args(args, local_dir):
     if args.platform_type == PlatformType.SAGEMAKER:
@@ -632,11 +637,17 @@ def get_default_args(args, local_dir):
             args.save_checkpoint = False
         if args.save_model is None:
             args.save_model = False
+        if args.sync_profile_live is None and args.profile:
+            args.sync_profile_live = False
     else:
         if args.save_checkpoint is None:
             args.save_checkpoint = True
         if args.save_model is None:
             args.save_model = True
+        if args.sync_profile_live is None and args.profile:
+            args.sync_profile_live = True
+    if not args.profile:
+        assert args.sync_profile_live is None
 
 
 def train(
@@ -659,6 +670,7 @@ def train(
     parser.add_argument("--sweep_count", type=int, default=None)
     parser.add_argument("--save_code", type=lambda v: bool(strtobool(v)), default=False)
     parser.add_argument("--profile", type=lambda v: bool(strtobool(v)), default=True)
+    parser.add_argument("--sync_profile_live", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--save_checkpoint", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--save_model", type=lambda v: bool(strtobool(v)))
     args = parser.parse_args()
