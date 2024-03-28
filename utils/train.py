@@ -6,6 +6,7 @@ import math
 import os
 import pickle
 import random
+import subprocess
 import sys
 import time
 from contextlib import ExitStack, contextmanager, nullcontext
@@ -24,7 +25,7 @@ from torch.utils.data import DataLoader
 
 import wandb
 from utils.data_loading import MapLocalDataset
-import subprocess
+
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
 def required_field_exception():
@@ -464,7 +465,7 @@ def _train(
         optimizer.change_lr(lr)
 
         if (
-            (iter_num+1) % TRAIN_CONFIG.est_interval == 0
+            (iter_num + 1) % TRAIN_CONFIG.est_interval == 0
             or iter_num == (TRAIN_CONFIG.train_steps - 1)
         ) and is_master_process:
             (
@@ -598,8 +599,11 @@ def _train(
     if is_master_process and not args.sync_profile_live:
         wandb_run_dir = wandb.run._settings.sync_dir
         wandb.finish()
-        result = subprocess.run(f'wandb sync {wandb_run_dir}', shell=True, stdout=subprocess.PIPE, text=True)
+        result = subprocess.run(
+            f"wandb sync {wandb_run_dir}", shell=True, stdout=subprocess.PIPE, text=True
+        )
         print(result.stdout)
+
 
 def get_default_args(args, local_dir):
     if args.platform_type == PlatformType.SAGEMAKER:
