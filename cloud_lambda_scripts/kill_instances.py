@@ -28,6 +28,9 @@ if __name__ == "__main__":
         print('Success!')
     else:
         print('An error has occurred.')
+        print(response.error)
+        print(response.field_errors)
+        raise Exception()
 
     instances = response.json()['data']
     instance_ids = [instance['id'] for instance in instances]
@@ -43,3 +46,6 @@ if __name__ == "__main__":
         print('Success!')
     else:
         print('An error has occurred.')
+        print(response.error)
+        print(response.field_errors)
+        raise Exception()
