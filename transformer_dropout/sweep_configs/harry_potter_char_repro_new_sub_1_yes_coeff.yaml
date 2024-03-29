@@ -25,6 +25,8 @@ parameters:
                 value: 4
             use_learned_dropout:
                 value: True
+            dropout_rate:
+                value: 0
             learned_dropout_config:
                 parameters:
                     use_dropout_entropy_in_loss:
