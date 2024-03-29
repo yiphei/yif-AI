@@ -23,7 +23,7 @@ if __name__ == "__main__":
         "ssh_key_names": [
             "lambda"
         ],
-        "quantity": 2,
+        "quantity": 1,
         }
 
     headers = {
@@ -43,4 +43,3 @@ if __name__ == "__main__":
             raise Exception()
             
         print(response.text)
-        time.sleep(5)
