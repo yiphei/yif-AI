@@ -4,6 +4,7 @@ from requests.auth import HTTPBasicAuth
 from dotenv import load_dotenv
 import os
 import argparse
+import time
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -22,20 +23,24 @@ if __name__ == "__main__":
         "ssh_key_names": [
             "lambda"
         ],
-        "quantity": args.quantity,
+        "quantity": 1,
         }
 
     headers = {
         'Content-Type': 'application/json'
     }
 
-    response = requests.post(url, json=data, headers=headers, auth=HTTPBasicAuth(api_key, ''))
+    for _ in range(args.quantity):
+        response = requests.post(url, json=data, headers=headers, auth=HTTPBasicAuth(api_key, ''))
 
-    # Check if the request was successful
-    if response.status_code == 200:
-        print('Success!')
-    else:
-        print('An error has occurred.')
-
-    # Print the response text (or JSON)
-    print(response.text)
+        # Check if the request was successful
+        if response.status_code == 200:
+            print('Success!')
+        else:
+            print('An error has occurred.')
+            print(response.error)
+            print(response.field_errors)
+            raise Exception()
+            
+        print(response.text)
+        time.sleep(5)
