@@ -28,8 +28,8 @@ if __name__ == "__main__":
         print('Success!')
     else:
         print('An error has occurred.')
-        print(response.error)
-        print(response.field_errors)
+        print(response.json().get('error', None))
+        print(response.json().get('field_errors', None))
         raise Exception()
 
     instances = response.json()['data']
@@ -46,6 +46,6 @@ if __name__ == "__main__":
         print('Success!')
     else:
         print('An error has occurred.')
-        print(response.error)
-        print(response.field_errors)
+        print(response.json().get('error', None))
+        print(response.json().get('field_errors', None))
         raise Exception()
