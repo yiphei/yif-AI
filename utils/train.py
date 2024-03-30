@@ -298,6 +298,7 @@ def _train(
         is_master_process
         and args.platform_type not in [PlatformType.SAGEMAKER, PlatformType.LOCAL]
         and (current_model_path is None or current_checkpoint_path is None)
+        and (args.save_checkpoint or args.save_model)
     ):
         s3_client = boto3.client(
             "s3",
@@ -305,10 +306,10 @@ def _train(
             aws_secret_access_key=args.aws_secret_access_key,
         )
         training_run_dir = f"training/{args.platform_type.lower()}_training_run_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}/"
-        if current_model_path is None:
+        if current_model_path is None and args.save_model:
             s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir + "model/")
             current_model_path = training_run_dir + "model/"
-        if current_checkpoint_path is None:
+        if current_checkpoint_path is None and args.save_checkpoint:
             s3_client.put_object(
                 Bucket=DEFAULT_BUCKET, Key=training_run_dir + "checkpoints/"
             )
