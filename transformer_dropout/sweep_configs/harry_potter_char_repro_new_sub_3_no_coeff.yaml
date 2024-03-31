@@ -54,7 +54,7 @@ parameters:
                             init_mean:
                                 values: [0, 3.1415, 1.5707]
                             init_std:
-                                values: [0, 0.02]
+                                value: 0
                             optimizer_type:
                                 value: "ADAMW"
                             lr:
