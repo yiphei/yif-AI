@@ -70,7 +70,7 @@ parameters:
                     dropout_l1_norm_lambda:
                         parameters:
                             max_lambda:
-                              values: [1,2]
+                              value: 1
     batch_size: 
         value: 50
     train_steps: 
