@@ -65,7 +65,7 @@ parameters:
                             max_lambda:
                               value: 1
                             coefficient:
-                              values: [0.001, null]
+                              values: [0.001, 0.00045, null]
                     dropout_l1_norm_lambda:
                         parameters:
                             max_lambda:
