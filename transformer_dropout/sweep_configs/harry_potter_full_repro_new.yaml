@@ -5,7 +5,7 @@ method: grid
 run_cap: 2000
 metric:
   goal: minimize
-  name: est_val_accuracy
+  name: est_val_loss
 early_terminate:
     type: hyperband
     min_iter: 1500
