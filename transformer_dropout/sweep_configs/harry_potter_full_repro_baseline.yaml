@@ -10,7 +10,7 @@ parameters:
     model_config:
         parameters:
             bias:
-                value: False
+                values: [True, False]
             context_size:
                 value: 200
             n_embed: 
@@ -22,11 +22,11 @@ parameters:
             use_learned_dropout:
                 value: False
             dropout_rate:
-                values: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+                values: [0.3, 0.4]
     batch_size: 
         value: 50
     train_steps: 
-        value: 3500
+        value: 3000
     lr: 
         value: 3e-4
     warmup_iters:
@@ -36,8 +36,8 @@ parameters:
     gradient_accumulation_steps: 
         value: 16
     lr_decay_iters: 
-        value: 3500
+        value: 3000
     est_interval: 
         value: 200
     est_steps: 
-        value: 20
+        value: 100
