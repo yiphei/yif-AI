@@ -8,7 +8,7 @@ metric:
   name: est_val_loss
 early_terminate:
     type: hyperband
-    min_iter: 1500
+    min_iter: 2000
     eta: 2
     strict: False
 parameters:
@@ -65,7 +65,7 @@ parameters:
                             max_lambda:
                               value: 1
                             coefficient:
-                              values: [0.001, 0.00045, null]
+                              values: [0.001, 0.0006, null]
                     dropout_l1_norm_lambda:
                         parameters:
                             max_lambda:
