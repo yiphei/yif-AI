@@ -27,6 +27,7 @@ LEARNED_DROPOUT_CONFIG = {
     "dropout_l1_norm_lambda": {
         "max_lambda": 1,
     },
+    "profile_dropout_mask": True,
 }
 
 # Training config
