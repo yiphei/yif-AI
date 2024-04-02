@@ -8,7 +8,7 @@ metric:
   name: est_val_loss
 early_terminate:
     type: hyperband
-    min_iter: 2000
+    min_iter: 2400
     eta: 2
     strict: False
 parameters:
