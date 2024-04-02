@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     headers = {"Content-Type": "application/json"}
 
-    for _ in range(args.quantity):
+    for i in range(args.quantity):
         response = requests.post(
             url, json=data, headers=headers, auth=HTTPBasicAuth(api_key, "")
         )
@@ -40,3 +40,6 @@ if __name__ == "__main__":
             raise Exception()
 
         print(response.text)
+
+        if (i+1) % 5 == 0:
+            time.sleep(50)
