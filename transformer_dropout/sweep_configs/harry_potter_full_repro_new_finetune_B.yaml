@@ -2,7 +2,7 @@ program: transformer_dropout/training_script.py
 name: harry_potter_full_dropout_new_repro_finetune_B
 project: transformer_dropout_5
 method: grid
-run_cap: 48
+run_cap: 5
 metric:
   goal: minimize
   name: est_val_loss
