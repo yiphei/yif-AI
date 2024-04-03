@@ -1,0 +1,86 @@
+program: transformer_dropout/training_script.py
+name: harry_potter_full_dropout_new_repro_finetune_A_sub_3
+project: transformer_dropout_5
+method: grid
+run_cap: 9
+metric:
+  goal: minimize
+  name: est_val_loss
+early_terminate:
+    type: hyperband
+    min_iter: 2400
+    eta: 2
+    strict: False
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: False
+            context_size:
+                value: 200
+            n_embed: 
+                value: 200
+            n_layer: 
+                value: 4
+            n_head: 
+                value: 4
+            dropout_rate:
+                value: 0.3
+            use_learned_dropout:
+                value: True
+            learned_dropout_config:
+                parameters:
+                    use_dropout_entropy_in_loss:
+                        value: True
+                    use_dropout_l1_norm_in_loss:
+                        value: False
+                    use_sigmoid_on_dropout_mask:
+                        value: True
+                    use_canonical_entropy:
+                        value: False
+                    use_detached_x_in_dropout_mask:
+                        value: True
+                    A_param_config:
+                        parameters:
+                            init_mean:
+                                values: [1,2, 3, 5, 8, 15, 20, 50, 100]
+                            init_std:
+                                value: 1
+                            optimizer_type:
+                                value: "ADAMW"
+                            lr:
+                                value: 0
+                    B_param_config:
+                        parameters:
+                            init_mean:
+                                value: 1.5707
+                            init_std:
+                                value: 0
+                            optimizer_type:
+                                value: "ADAMW"
+                            lr:
+                                value: 3e-3
+                    dropout_entropy_lambda:
+                        parameters:
+                            max_lambda:
+                              value: 1
+                            coefficient:
+                              value: null
+    batch_size: 
+        value: 50
+    train_steps: 
+        value: 3000
+    lr: 
+        value: 3e-4
+    warmup_iters:
+        value: 100
+    min_lr: 
+        value: 3e-5
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: 
+        value: 3000
+    est_interval: 
+        value: 200
+    est_steps: 
+        value: 100
