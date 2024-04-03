@@ -31,12 +31,10 @@ process_address() {
     tmux send-keys -t mySession "pip install -r requirements.txt" C-m
     tmux send-keys -t mySession "pip install --upgrade pyOpenSSL cryptography boto3 botocore" C-m
     tmux send-keys -t mySession "pip install torchdata" C-m
-    if [[ "$(echo "$sync_s3" | tr '[:upper:]' '[:lower:]')" == "true" ]]; then
-        tmux send-keys -t mySession "mkdir datasets/openweb/" C-m
-        tmux send-keys -t mySession "export AWS_ACCESS_KEY_ID=\"${aws_access_key}\"" C-m
-        tmux send-keys -t mySession "export AWS_SECRET_ACCESS_KEY=\"${aws_secret_key}\"" C-m
-        tmux send-keys -t mySession "aws s3 sync s3://dropout-transformer/datasets/openweb/ datasets/openweb/" C-m
-    fi
+    tmux send-keys -t mySession "mkdir datasets/openweb/" C-m
+    tmux send-keys -t mySession "export AWS_ACCESS_KEY_ID=\"${aws_access_key}\"" C-m
+    tmux send-keys -t mySession "export AWS_SECRET_ACCESS_KEY=\"${aws_secret_key}\"" C-m
+    tmux send-keys -t mySession "aws s3 sync s3://dropout-transformer/datasets/openweb/ datasets/openweb/" C-m
     tmux send-keys -t mySession "export WANDB_API_KEY='${api_key}'" C-m
     tmux send-keys -t mySession "torchrun --standalone --nproc_per_node=1 -m transformer_dropout.training_script --config_file transformer_dropout/train_configs/baseline_profile.py --train datasets/full_harry_potter/ --platform_type LAMBDA --aws_access_key_id ${aws_access_key} --aws_secret_access_key ${aws_secret_key} --sweep_id n4rkvx2x --sweep_count 100000 --save_checkpoint True --save_model True --sync_profile_live True" C-m
     exit
