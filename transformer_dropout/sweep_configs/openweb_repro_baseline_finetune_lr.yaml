@@ -2,7 +2,6 @@ program: transformer_dropout/training_script.py
 name: openweb_dropout_baseline_repro_finetune_lr
 project: transformer_dropout_5
 method: grid
-run_cap: 1000000
 metric:
   goal: minimize
   name: est_val_loss
