@@ -671,7 +671,7 @@ def train(
     DEVICE = get_default_device()
 
     using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1
-
+    ddp_world_size = None
     if using_DDP:
         init_process_group(backend="nccl")
         ddp_rank = torch.distributed.get_rank()
