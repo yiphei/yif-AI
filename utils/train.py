@@ -231,21 +231,71 @@ def save_model_artifact(filenames, model_dict, dir_path, s3_client):
             s3_client.upload_fileobj(buffer, DEFAULT_BUCKET, file_path)
 
 
+def broadcast_object(obj, local_rank, device, src_rank = 0):
+    if local_rank == src_rank:
+        # Only the source process executes this block
+        obj_bytes = pickle.dumps(obj)
+        obj_size = torch.tensor(len(obj_bytes), dtype=torch.long, device=device)
+    else:
+        obj_size = torch.tensor(0, dtype=torch.long, device=device)
+    
+    # Broadcast the size of the byte stream to all processes
+    torch.distributed.broadcast(obj_size, src_rank)
+
+    # Allocate buffer for the object's byte stream
+    obj_bytes = bytearray(obj_size.item())
+    
+    if local_rank == src_rank:
+        # Only the source fills the byte buffer
+        obj_bytes[:] = pickle.dumps(obj)
+    
+    # Create a tensor wrapper for the byte buffer for broadcasting
+    obj_tensor = torch.ByteTensor(obj_bytes).to(device)
+    # Broadcast the byte stream
+    torch.distributed.broadcast(obj_tensor, src_rank)
+    
+    # Deserialize the byte stream back into the Python object
+    obj = pickle.loads(obj_tensor.cpu().numpy().tobytes())
+    return obj
+
 def _train(
     args,
     batch_stats_class,
     model_cls,
     create_training_context_fn,
     local_dir,
-    wandb_project,
-    is_master_process,
-    seed_offset,
-    DEVICE,
-    TRAIN_CONFIG,
-    using_DDP,
-    ddp_world_size,
-    ddp_local_rank,
+    wandb_project
 ):
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
+    )
+    logger = logging.getLogger()
+    logger.info("Starting training script.")
+    TRAIN_CONFIG = TrainConfig.create_from_config_file(
+        args.config_file, model_cls.model_config_cls, args.sweep_id is not None
+    )
+    DEVICE = get_default_device()
+
+    using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1
+    ddp_world_size = None
+    if using_DDP:
+        init_process_group(backend="nccl")
+        ddp_rank = torch.distributed.get_rank()
+        ddp_local_rank = int(os.environ["LOCAL_RANK"])
+        ddp_world_size = torch.distributed.get_world_size()
+        DEVICE = f"cuda:{ddp_local_rank}"
+        torch.cuda.set_device(DEVICE)
+        is_master_process = (
+            ddp_rank == 0
+        )  # this process will do logging, checkpointing etc.
+        seed_offset = ddp_rank  # each process gets a different seed
+        # world_size number of processes will be training simultaneously, so we can scale
+        # down the desired gradient accumulation iterations per process proportionally
+        assert TRAIN_CONFIG.gradient_accumulation_steps % ddp_world_size == 0
+        TRAIN_CONFIG.gradient_accumulation_steps //= ddp_world_size
+    else:
+        is_master_process = True
+        seed_offset = 0
 
     if is_master_process and args.profile:
         wandb.init(
@@ -261,11 +311,14 @@ def _train(
         if args.save_code:
             wandb.run.log_code(".")
 
-    if args.sweep_id is not None:
+    if args.sweep_id is not None and is_master_process:
         TRAIN_CONFIG.model_config = model_cls.model_config_cls(
             **wandb.config.model_config
         )
         TRAIN_CONFIG.update_from_sweep_config(wandb.config)
+
+    if using_DDP:
+        TRAIN_CONFIG = broadcast_object(TRAIN_CONFIG, ddp_local_rank, DEVICE)
 
     s3_client = None
     # need to create locally scoped variables because sweep runs necessitate creating new paths for each run
@@ -660,38 +713,22 @@ def train(
 
     get_default_args(args, local_dir)
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
-    )
-    logger = logging.getLogger()
-    logger.info("Starting training script.")
-    TRAIN_CONFIG = TrainConfig.create_from_config_file(
-        args.config_file, model_cls.model_config_cls, args.sweep_id is not None
-    )
     DEVICE = get_default_device()
-
     using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1
-    ddp_world_size = None
     if using_DDP:
         init_process_group(backend="nccl")
         ddp_rank = torch.distributed.get_rank()
-        ddp_local_rank = int(os.environ["LOCAL_RANK"])
         ddp_world_size = torch.distributed.get_world_size()
-        DEVICE = f"cuda:{ddp_local_rank}"
-        torch.cuda.set_device(DEVICE)
+        if ddp_world_size > 1 and args.sweep_id is not None:
+            assert args.sweep_count == 1, "Multuple sweep runs not supported for multi-GPU nodes, currently."
         is_master_process = (
             ddp_rank == 0
         )  # this process will do logging, checkpointing etc.
-        seed_offset = ddp_rank  # each process gets a different seed
-        # world_size number of processes will be training simultaneously, so we can scale
-        # down the desired gradient accumulation iterations per process proportionally
-        assert TRAIN_CONFIG.gradient_accumulation_steps % ddp_world_size == 0
-        TRAIN_CONFIG.gradient_accumulation_steps //= ddp_world_size
     else:
         is_master_process = True
-        seed_offset = 0
 
-
+    if torch.distributed.is_initialized():
+        destroy_process_group()
 
     if args.sweep_id is not None and is_master_process:
         wandb.agent(
@@ -702,14 +739,7 @@ def train(
                 model_cls,
                 create_training_context_fn,
                 local_dir,
-                wandb_project,
-                is_master_process,
-                seed_offset,
-                DEVICE,
-                TRAIN_CONFIG,
-                using_DDP,
-                ddp_world_size,
-                ddp_local_rank,
+                wandb_project
             ),
             project=wandb_project,
             count=args.sweep_count,
@@ -721,12 +751,5 @@ def train(
             model_cls,
             create_training_context_fn,
             local_dir,
-            wandb_project,
-            is_master_process,
-            seed_offset,
-            DEVICE,
-            TRAIN_CONFIG,
-            using_DDP,
-            ddp_world_size,
-            ddp_local_rank,
+            wandb_project
         )
