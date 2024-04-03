@@ -73,7 +73,7 @@ parameters:
     lr: 
         value: 6e-4
     warmup_iters:
-        value: 1000
+        value: 600
     min_lr: 
         value: 6e-5
     gradient_accumulation_steps: 
