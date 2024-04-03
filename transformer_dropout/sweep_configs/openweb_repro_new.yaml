@@ -1,7 +1,7 @@
 program: transformer_dropout/training_script.py
 name: openweb_dropout_new_repro
 project: transformer_dropout_5
-method: grid
+method: random
 run_cap: 9
 metric:
   goal: minimize
@@ -77,7 +77,7 @@ parameters:
     min_lr: 
         value: 6e-5
     gradient_accumulation_steps: 
-        value: 2
+        value: 40
     lr_decay_iters: 
         value: 100
     est_interval: 
