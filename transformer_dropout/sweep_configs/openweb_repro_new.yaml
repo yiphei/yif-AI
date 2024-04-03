@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_full_dropout_new_repro_finetune_A_sub_3
+name: openweb_dropout_new_repro
 project: transformer_dropout_5
 method: grid
 run_cap: 9
