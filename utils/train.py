@@ -238,37 +238,14 @@ def _train(
     create_training_context_fn,
     local_dir,
     wandb_project,
+    is_master_process,
+    seed_offset,
+    DEVICE,
+    TRAIN_CONFIG,
+    using_DDP,
+    ddp_world_size,
+    ddp_local_rank,
 ):
-    logging.basicConfig(
-        level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
-    )
-    logger = logging.getLogger()
-    logger.info("Starting training script.")
-    TRAIN_CONFIG = TrainConfig.create_from_config_file(
-        args.config_file, model_cls.model_config_cls, args.sweep_id is not None
-    )
-    DEVICE = get_default_device()
-
-    using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1
-
-    if using_DDP:
-        init_process_group(backend="nccl")
-        ddp_rank = torch.distributed.get_rank()
-        ddp_local_rank = int(os.environ["LOCAL_RANK"])
-        ddp_world_size = torch.distributed.get_world_size()
-        DEVICE = f"cuda:{ddp_local_rank}"
-        torch.cuda.set_device(DEVICE)
-        is_master_process = (
-            ddp_rank == 0
-        )  # this process will do logging, checkpointing etc.
-        seed_offset = ddp_rank  # each process gets a different seed
-        # world_size number of processes will be training simultaneously, so we can scale
-        # down the desired gradient accumulation iterations per process proportionally
-        assert TRAIN_CONFIG.gradient_accumulation_steps % ddp_world_size == 0
-        TRAIN_CONFIG.gradient_accumulation_steps //= ddp_world_size
-    else:
-        is_master_process = True
-        seed_offset = 0
 
     if is_master_process and args.profile:
         wandb.init(
@@ -682,7 +659,41 @@ def train(
     args = parser.parse_args()
 
     get_default_args(args, local_dir)
-    if args.sweep_id is not None:
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
+    )
+    logger = logging.getLogger()
+    logger.info("Starting training script.")
+    TRAIN_CONFIG = TrainConfig.create_from_config_file(
+        args.config_file, model_cls.model_config_cls, args.sweep_id is not None
+    )
+    DEVICE = get_default_device()
+
+    using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1
+
+    if using_DDP:
+        init_process_group(backend="nccl")
+        ddp_rank = torch.distributed.get_rank()
+        ddp_local_rank = int(os.environ["LOCAL_RANK"])
+        ddp_world_size = torch.distributed.get_world_size()
+        DEVICE = f"cuda:{ddp_local_rank}"
+        torch.cuda.set_device(DEVICE)
+        is_master_process = (
+            ddp_rank == 0
+        )  # this process will do logging, checkpointing etc.
+        seed_offset = ddp_rank  # each process gets a different seed
+        # world_size number of processes will be training simultaneously, so we can scale
+        # down the desired gradient accumulation iterations per process proportionally
+        assert TRAIN_CONFIG.gradient_accumulation_steps % ddp_world_size == 0
+        TRAIN_CONFIG.gradient_accumulation_steps //= ddp_world_size
+    else:
+        is_master_process = True
+        seed_offset = 0
+
+
+
+    if args.sweep_id is not None and is_master_process:
         wandb.agent(
             args.sweep_id,
             function=lambda: _train(
@@ -692,6 +703,13 @@ def train(
                 create_training_context_fn,
                 local_dir,
                 wandb_project,
+                is_master_process,
+                seed_offset,
+                DEVICE,
+                TRAIN_CONFIG,
+                using_DDP,
+                ddp_world_size,
+                ddp_local_rank,
             ),
             project=wandb_project,
             count=args.sweep_count,
@@ -704,4 +722,11 @@ def train(
             create_training_context_fn,
             local_dir,
             wandb_project,
+            is_master_process,
+            seed_offset,
+            DEVICE,
+            TRAIN_CONFIG,
+            using_DDP,
+            ddp_world_size,
+            ddp_local_rank,
         )
