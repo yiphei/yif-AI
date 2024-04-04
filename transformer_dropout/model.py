@@ -3,7 +3,7 @@ import math
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 import torch
@@ -127,6 +127,7 @@ class ModelConfig:
     n_layer: int
     n_head: int
     use_learned_dropout: bool
+    learned_dropout_layers: int = None
     learned_dropout_config: LearnedDropoutConfig = None
     dropout_rate: Optional[float] = field(default=None)
     alphabet_size: Optional[int] = field(default=None)
@@ -148,6 +149,12 @@ class ModelConfig:
             self.learned_dropout_config = LearnedDropoutConfig(
                 **self.learned_dropout_config
             )
+
+        if self.use_learned_dropout and not self.learned_dropout_layers:
+            raise ValueError("learned_dropout_layers must be set if use_learned_dropout")
+        
+        if self.use_learned_dropout and self.learned_dropout_layers:
+            assert self.learned_dropout_layers >= 1 and self.learned_dropout_layers <= self.n_layer
 
 
 class LayerNorm(nn.Module):
@@ -320,14 +327,14 @@ class LearnedDropout(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, config: ModelConfig, is_last = False):
+    def __init__(self, config: ModelConfig, use_learned_dropout = False):
         super().__init__()
         self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.bias)
         self.gelu = nn.GELU()
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.bias
         )
-        if config.use_learned_dropout and is_last:
+        if config.use_learned_dropout and use_learned_dropout:
             self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
@@ -341,10 +348,10 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, config: ModelConfig, is_last = False):
+    def __init__(self, config: ModelConfig, use_learned_dropout = False):
         super().__init__()
         self.multi_attn_head = OptimizedMultiAttentionHead(config)
-        self.feed_forward = FeedForward(config, is_last)
+        self.feed_forward = FeedForward(config, use_learned_dropout)
         self.ln1 = LayerNorm(config.n_embed, config.bias)
         self.ln2 = LayerNorm(config.n_embed, config.bias)
 
@@ -374,7 +381,7 @@ class DropoutTransformer(nn.Module):
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
-            *[TransformerBlock(config, i == config.n_layer-1) for i in range(config.n_layer)]
+            *[TransformerBlock(config, (i) >= (config.n_layer - config.learned_dropout_layers)) for i in range(config.n_layer)]
         )
         self.ln = LayerNorm(config.n_embed, config.bias)
         self.output_layer = nn.Linear(
