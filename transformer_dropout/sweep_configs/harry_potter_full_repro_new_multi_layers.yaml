@@ -1,8 +1,7 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_full_dropout_new_repro_multi
-project: transformer_dropout_5
+name: harry_potter_full_dropout_new_repro_multi_layers
+project: transformer_dropout_6
 method: grid
-run_cap: 2000
 metric:
   goal: minimize
   name: est_val_loss
@@ -26,6 +25,8 @@ parameters:
                 value: 4
             dropout_rate:
                 value: 0.3
+            learned_dropout_layers:
+                values: [1,2,3,4]
             use_learned_dropout:
                 value: True
             learned_dropout_config:
