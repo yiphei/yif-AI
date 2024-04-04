@@ -7,7 +7,7 @@ metric:
   name: est_val_loss
 early_terminate:
     type: hyperband
-    min_iter: 5000
+    min_iter: 1000
     eta: 2
     strict: False
 parameters:
@@ -28,13 +28,13 @@ parameters:
             use_learned_dropout:
                 value: False
     batch_size: 
-        value: 39 # to match the transformer_embed baseline
+        value: 15 # to match the transformer_embed baseline
     train_steps: 
         value: 22000
     lr: 
-        values: [6e-2, 1e-2, 1e-3, 6e-3, 1e-4, 6e-4, 1e-5, 6e-5]
+        values: [1e-2, 1e-3, 6e-3, 1e-4, 6e-4, 1e-5, 6e-5]
     warmup_iters:
-        value: 600
+        value: 100
     min_lr: 
         value: 0
     gradient_accumulation_steps: 
@@ -42,6 +42,6 @@ parameters:
     lr_decay_iters: 
         value: 22000
     est_interval: 
-        value: 500
-    est_steps: 
         value: 200
+    est_steps: 
+        value: 100
