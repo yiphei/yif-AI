@@ -713,24 +713,24 @@ def train(
 
     get_default_args(args, local_dir)
 
-    DEVICE = get_default_device()
-    using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1
-    if using_DDP:
-        init_process_group(backend="nccl")
-        ddp_rank = torch.distributed.get_rank()
-        ddp_world_size = torch.distributed.get_world_size()
-        if ddp_world_size > 1 and args.sweep_id is not None:
-            assert args.sweep_count == 1, "Multuple sweep runs not supported for multi-GPU nodes, currently."
-        is_master_process = (
-            ddp_rank == 0
-        )  # this process will do logging, checkpointing etc.
-    else:
-        is_master_process = True
+    # DEVICE = get_default_device()
+    # using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1
+    # if using_DDP:
+    #     init_process_group(backend="nccl")
+    #     ddp_rank = torch.distributed.get_rank()
+    #     ddp_world_size = torch.distributed.get_world_size()
+    #     if ddp_world_size > 1 and args.sweep_id is not None:
+    #         assert args.sweep_count == 1, "Multuple sweep runs not supported for multi-GPU nodes, currently."
+    #     is_master_process = (
+    #         ddp_rank == 0
+    #     )  # this process will do logging, checkpointing etc.
+    # else:
+    #     is_master_process = True
 
-    if torch.distributed.is_initialized():
-        destroy_process_group()
+    # if torch.distributed.is_initialized():
+    #     destroy_process_group()
 
-    if args.sweep_id is not None and is_master_process:
+    if args.sweep_id is not None and int(os.getenv('LOCAL_RANK', '0')) == 0:
         wandb.agent(
             args.sweep_id,
             function=lambda: _train(
