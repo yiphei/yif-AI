@@ -380,8 +380,10 @@ class DropoutTransformer(nn.Module):
             self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
+
+        check = config.learned_dropout_layers or 0
         self.transformer_blocks = nn.Sequential(
-            *[TransformerBlock(config, (i) >= (config.n_layer - config.learned_dropout_layers)) for i in range(config.n_layer)]
+            *[TransformerBlock(config, (i) >= (config.n_layer - check)) for i in range(config.n_layer)]
         )
         self.ln = LayerNorm(config.n_embed, config.bias)
         self.output_layer = nn.Linear(
