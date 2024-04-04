@@ -31,9 +31,9 @@ parameters:
             learned_dropout_config:
                 parameters:
                     use_dropout_entropy_in_loss:
-                        values: [True, False]
+                        value: True
                     use_dropout_l1_norm_in_loss:
-                        values: [True, False]
+                        value: False
                     use_sigmoid_on_dropout_mask:
                         value: True
                     use_canonical_entropy:
@@ -43,33 +43,29 @@ parameters:
                     A_param_config:
                         parameters:
                             init_mean:
-                                values: [0, 10]
+                                value: 3
                             init_std:
-                                values: [1, 10]
+                                value: 1
                             optimizer_type:
                                 value: "ADAMW"
                             lr:
-                                values: [null, 1]
+                                value: 0.03
                     B_param_config:
                         parameters:
                             init_mean:
-                                values: [0, 1.5707]
+                                value: 1.5707
                             init_std:
                                 value: 0
                             optimizer_type:
                                 value: "ADAMW"
                             lr:
-                                values: [3e-3, 3e-2, null]
+                                value: 3e-3
                     dropout_entropy_lambda:
                         parameters:
                             max_lambda:
                               value: 1
                             coefficient:
-                              values: [0.001, 0.0006, null]
-                    dropout_l1_norm_lambda:
-                        parameters:
-                            max_lambda:
-                              value: 1 
+                              value: null
     batch_size: 
         value: 50
     train_steps: 
