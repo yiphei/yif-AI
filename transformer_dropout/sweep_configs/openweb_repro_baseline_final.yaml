@@ -27,11 +27,11 @@ parameters:
     train_steps: 
         value: 22000
     lr: 
-        value: 0.001
+        value: 6e-4
     warmup_iters:
         value: 100
     min_lr: 
-        value: 1e-4
+        value: 6e-5
     gradient_accumulation_steps: 
         value: 40
     lr_decay_iters: 
