@@ -37,6 +37,6 @@ parameters:
     lr_decay_iters: 
         value: 22000
     est_interval: 
-        value: 200
+        value: 500
     est_steps: 
-        value: 100
+        value: 200
