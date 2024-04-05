@@ -43,7 +43,7 @@ parameters:
                             optimizer_type:
                                 value: "ADAMW"
                             lr:
-                                value: 0.03
+                                value: 6e-2
                     B_param_config:
                         parameters:
                             init_mean:
@@ -53,7 +53,7 @@ parameters:
                             optimizer_type:
                                 value: "ADAMW"
                             lr:
-                                value: 3e-3
+                                value: 6e-3
                     dropout_entropy_lambda:
                         parameters:
                             max_lambda:
@@ -63,17 +63,17 @@ parameters:
     batch_size: 
         value: 15 # to match the transformer_embed baseline
     train_steps: 
-        value: 22000
+        value: 25000
     lr: 
         value: 6e-4
     warmup_iters:
-        value: 100
+        value: 500
     min_lr: 
         value: 6e-5
     gradient_accumulation_steps: 
         value: 40
     lr_decay_iters: 
-        value: 22000
+        value: 600000 # training code was temporarily modified to allow this
     est_interval: 
         value: 500
     est_steps: 
