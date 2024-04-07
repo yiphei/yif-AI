@@ -41,5 +41,5 @@ if __name__ == "__main__":
 
         print(response.text)
 
-        if (i+1) % 5 == 0:
+        if (i + 1) % 5 == 0:
             time.sleep(50)
