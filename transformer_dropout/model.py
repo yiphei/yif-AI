@@ -246,9 +246,9 @@ class OptimizedMultiAttentionHead(nn.Module):
 
 
 class LearnedDropout(nn.Module):
-    def __init__(self, channel_dim, config):
+    def __init__(self, embed_dim, config):
         super().__init__()
-        self.dim_in = channel_dim
+        self.embed_dim = embed_dim
         self.dropout_entropy_context = (
             nullcontext() if config.use_dropout_entropy_in_loss else torch.no_grad()
         )
@@ -265,9 +265,9 @@ class LearnedDropout(nn.Module):
         self.profile_dropout_mask = config.profile_dropout_mask
         self.module_name = None  # used for logging
 
-        self.query = nn.Linear(channel_dim, channel_dim, bias = False)
-        self.key = nn.Linear(channel_dim, channel_dim, bias = False)
-        self.value = nn.Linear(channel_dim, channel_dim, bias = False)
+        self.query = nn.Linear(embed_dim, embed_dim, bias = False)
+        self.key = nn.Linear(embed_dim, embed_dim, bias = False)
+        self.value = nn.Linear(embed_dim, embed_dim, bias = False)
 
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
@@ -307,7 +307,7 @@ class LearnedDropout(nn.Module):
 
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
-                    torch.norm(dropout_mask, p=1, dim=(-1, -2)) / (self.dim_in * T)
+                    torch.norm(dropout_mask, p=1, dim=(-1, -2)) / (self.embed_dim * T)
                 ).flatten()
 
             self.dropout_near_one_percent = (
