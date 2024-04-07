@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-
 # class OptimizerType(str, Enum):
 #     ADAMW = "ADAMW"
 #     SGD = "SGD"
@@ -94,8 +93,6 @@ class LearnedDropoutConfig:
             else:
                 if getattr(self, flag_attr_name):
                     setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
-
-
 
 
 @dataclass
@@ -243,9 +240,9 @@ class LearnedDropout(nn.Module):
         self.module_name = None  # used for logging
         self.sigmoid_param = config.sigmoid_param
 
-        self.query = nn.Linear(embed_dim, embed_dim, bias = config.bias)
-        self.key = nn.Linear(embed_dim, embed_dim, bias = config.bias)
-        self.value = nn.Linear(embed_dim, embed_dim, bias = config.bias)
+        self.query = nn.Linear(embed_dim, embed_dim, bias=config.bias)
+        self.key = nn.Linear(embed_dim, embed_dim, bias=config.bias)
+        self.value = nn.Linear(embed_dim, embed_dim, bias=config.bias)
 
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
@@ -262,10 +259,7 @@ class LearnedDropout(nn.Module):
         # the alternate entropy has the peak above 0.5, while the canonical one has
         # it below 0.5. In theory, this should be better for achieving both low entropy
         # and low l1 norm because there is more curvature towards 0.
-        return (
-            ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9))
-            .mean()
-        )
+        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x):
         dropout_x = x
@@ -278,11 +272,21 @@ class LearnedDropout(nn.Module):
         v = self.value(dropout_x)
         attn = (q.transpose(-2, -1) @ k) * (1**-0.5)
         dropout_logits = v @ attn
-        dropout_probs = F.softmax(dropout_logits.view(dropout_logits.size(0),-1), dim=-1)
+        dropout_probs = F.softmax(
+            dropout_logits.view(dropout_logits.size(0), -1), dim=-1
+        )
         dropout_probs = dropout_probs.view_as(dropout_logits)
         dropout_probs_mean = dropout_probs.mean(dim=(-1, -2), keepdim=True)
-        dropout_mask = 1 / (1 + torch.exp(-(dropout_probs * self.sigmoid_param - self.sigmoid_param * dropout_probs_mean)))
-        
+        dropout_mask = 1 / (
+            1
+            + torch.exp(
+                -(
+                    dropout_probs * self.sigmoid_param
+                    - self.sigmoid_param * dropout_probs_mean
+                )
+            )
+        )
+
         if self.training:
             with self.dropout_entropy_context:
                 self.dropout_entropy = self.entropy_fn(dropout_mask)
@@ -298,8 +302,9 @@ class LearnedDropout(nn.Module):
             self.dropout_near_zero_percent = (
                 dropout_mask < 0.1
             ).sum().item() / dropout_mask.numel()
-        
+
         return x * dropout_mask
+
 
 class FeedForward(nn.Module):
     def __init__(self, config: ModelConfig, use_learned_dropout=False):
@@ -532,16 +537,8 @@ class DropoutTransformer(nn.Module):
 
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = [
-            p
-            for n, p in param_dict.items()
-            if p.dim() >= 2
-        ]
-        nodecay_params = [
-            p
-            for n, p in param_dict.items()
-            if p.dim() < 2
-        ]
+        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
+        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
 
         adamw_groups = [
             {"params": decay_params, "weight_decay": weight_decay},
