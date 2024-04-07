@@ -3,7 +3,7 @@ import math
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, List
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -151,10 +151,15 @@ class ModelConfig:
             )
 
         if self.use_learned_dropout and not self.learned_dropout_layers:
-            raise ValueError("learned_dropout_layers must be set if use_learned_dropout")
-        
+            raise ValueError(
+                "learned_dropout_layers must be set if use_learned_dropout"
+            )
+
         if self.use_learned_dropout and self.learned_dropout_layers:
-            assert self.learned_dropout_layers >= 1 and self.learned_dropout_layers <= self.n_layer
+            assert (
+                self.learned_dropout_layers >= 1
+                and self.learned_dropout_layers <= self.n_layer
+            )
 
 
 class LayerNorm(nn.Module):
@@ -327,7 +332,7 @@ class LearnedDropout(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, config: ModelConfig, use_learned_dropout = False):
+    def __init__(self, config: ModelConfig, use_learned_dropout=False):
         super().__init__()
         self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.bias)
         self.gelu = nn.GELU()
@@ -348,7 +353,7 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, config: ModelConfig, use_learned_dropout = False):
+    def __init__(self, config: ModelConfig, use_learned_dropout=False):
         super().__init__()
         self.multi_attn_head = OptimizedMultiAttentionHead(config)
         self.feed_forward = FeedForward(config, use_learned_dropout)
@@ -383,7 +388,10 @@ class DropoutTransformer(nn.Module):
 
         check = config.learned_dropout_layers or 0
         self.transformer_blocks = nn.Sequential(
-            *[TransformerBlock(config, (i) >= (config.n_layer - check)) for i in range(config.n_layer)]
+            *[
+                TransformerBlock(config, (i) >= (config.n_layer - check))
+                for i in range(config.n_layer)
+            ]
         )
         self.ln = LayerNorm(config.n_embed, config.bias)
         self.output_layer = nn.Linear(
