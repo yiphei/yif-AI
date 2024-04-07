@@ -320,7 +320,7 @@ class LearnedDropout(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, config: ModelConfig, is_last = False):
+    def __init__(self, config: ModelConfig, is_last=False):
         super().__init__()
         self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.bias)
         self.gelu = nn.GELU()
@@ -341,7 +341,7 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, config: ModelConfig, is_last = False):
+    def __init__(self, config: ModelConfig, is_last=False):
         super().__init__()
         self.multi_attn_head = OptimizedMultiAttentionHead(config)
         self.feed_forward = FeedForward(config, is_last)
@@ -374,7 +374,10 @@ class DropoutTransformer(nn.Module):
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
-            *[TransformerBlock(config, i == config.n_layer-1) for i in range(config.n_layer)]
+            *[
+                TransformerBlock(config, i == config.n_layer - 1)
+                for i in range(config.n_layer)
+            ]
         )
         self.ln = LayerNorm(config.n_embed, config.bias)
         self.output_layer = nn.Linear(
