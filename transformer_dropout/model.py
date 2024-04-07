@@ -290,16 +290,15 @@ class LearnedDropout(nn.Module):
         )
 
     def forward(self, x):
-        B,T,C = x.shape
         q = self.query(x)
         k = self.key(x)
         v = self.value(x)
-        assert q.shape == k.shape == v.shape == x.shape
         attn = (q.transpose(-2, -1) @ k) * (1**-0.5)
-        out = v @ attn
-        logits = nn.Softmax2d(out)
-        logits_mean = logits.mean(dim=(-1, -2))
-        dropout_mask = 1 / (1 + torch.exp(-(logits * 60 - 60 * logits_mean)))
+        dropout_logits = v @ attn
+        dropout_probs = F.softmax(dropout_logits.view(dropout_logits.size(0),-1), dim=-1)
+        dropout_probs = dropout_probs.view_as(dropout_logits)
+        dropout_probs_mean = dropout_probs.mean(dim=(-1, -2), keepdim=True)
+        dropout_mask = 1 / (1 + torch.exp(-(dropout_probs * 60 - 60 * dropout_probs_mean)))
         
         if self.training:
             with self.dropout_entropy_context:
