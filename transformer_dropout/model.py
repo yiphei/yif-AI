@@ -11,12 +11,12 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
-class OptimizerType(str, Enum):
-    ADAMW = "ADAMW"
-    SGD = "SGD"
+# class OptimizerType(str, Enum):
+#     ADAMW = "ADAMW"
+#     SGD = "SGD"
 
-    def __str__(self):
-        return self.value
+#     def __str__(self):
+#         return self.value
 
 
 @dataclass
@@ -39,32 +39,29 @@ class RegularizingLambdaConfig:
             print(f"STEP at which slope is 1: {slope_1_step}")
 
 
-@dataclass
-class DropoutParamConfig:
-    init_mean: float
-    init_std: float
-    optimizer_type: OptimizerType
-    lr: float = None
+# @dataclass
+# class DropoutParamConfig:
+#     init_mean: float
+#     init_std: float
+#     optimizer_type: OptimizerType
+#     lr: float = None
 
 
 @dataclass
 class LearnedDropoutConfig:
-    use_sigmoid_on_dropout_mask: bool
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
-    A_param_config: DropoutParamConfig = field(
-        default_factory=lambda: DropoutParamConfig(100000, 10, OptimizerType.ADAMW, 1)
-    )
-    B_param_config: DropoutParamConfig = field(
-        default_factory=lambda: DropoutParamConfig(0, 0.02, OptimizerType.ADAMW)
-    )
+    use_bias: bool
     use_canonical_entropy: bool = False
-    use_detached_x_in_dropout_mask: bool = True
-    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
+    use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
+    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
+    sigmoid_param: int = 60
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
+        assert self.sigmoid_param > 1
+
         if (
             not self.use_dropout_entropy_in_loss
             and self.dropout_entropy_lambda is not None
@@ -98,26 +95,7 @@ class LearnedDropoutConfig:
                 if getattr(self, flag_attr_name):
                     setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
 
-        for attr_name in ["A_param_config", "B_param_config"]:
-            attr_value = getattr(self, attr_name)
-            if attr_value is not None:
-                if type(attr_value) not in [dict, DropoutParamConfig]:
-                    raise ValueError(
-                        f"{attr_name} must be a dict or EntropyLambdaConfig"
-                    )
 
-                if type(attr_value) == dict:
-                    setattr(self, attr_name, DropoutParamConfig(**attr_value))
-
-        if not self.use_detached_x_in_dropout_mask and (
-            self.A_param_config.init_mean > 1000
-            or self.A_param_config.init_std > 10000
-            or (self.A_param_config.lr and self.A_param_config.lr > 1000)
-        ):
-            # TODO: a better way to handle this is to do something like gradient clipping
-            raise ValueError(
-                "A_param_config values are too high with use_detached_x_in_dropout_mask=False. It will cause NaNs."
-            )
 
 
 @dataclass
@@ -261,13 +239,13 @@ class LearnedDropout(nn.Module):
             if config.use_canonical_entropy
             else self.alternate_entropy
         )
-        self.use_sigmoid_on_dropout_mask = config.use_sigmoid_on_dropout_mask
         self.profile_dropout_mask = config.profile_dropout_mask
         self.module_name = None  # used for logging
+        self.sigmoid_param = config.sigmoid_param
 
-        self.query = nn.Linear(embed_dim, embed_dim, bias = False)
-        self.key = nn.Linear(embed_dim, embed_dim, bias = False)
-        self.value = nn.Linear(embed_dim, embed_dim, bias = False)
+        self.query = nn.Linear(embed_dim, embed_dim, bias = config.bias)
+        self.key = nn.Linear(embed_dim, embed_dim, bias = config.bias)
+        self.value = nn.Linear(embed_dim, embed_dim, bias = config.bias)
 
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
@@ -290,16 +268,20 @@ class LearnedDropout(nn.Module):
         )
 
     def forward(self, x):
-        _, T, _ = x.shape
-        q = self.query(x)
-        k = self.key(x)
-        v = self.value(x)
+        dropout_x = x
+        if self.use_detached_x_in_dropout_mask:
+            dropout_x = x.detach()
+
+        _, T, _ = dropout_x.shape
+        q = self.query(dropout_x)
+        k = self.key(dropout_x)
+        v = self.value(dropout_x)
         attn = (q.transpose(-2, -1) @ k) * (1**-0.5)
         dropout_logits = v @ attn
         dropout_probs = F.softmax(dropout_logits.view(dropout_logits.size(0),-1), dim=-1)
         dropout_probs = dropout_probs.view_as(dropout_logits)
         dropout_probs_mean = dropout_probs.mean(dim=(-1, -2), keepdim=True)
-        dropout_mask = 1 / (1 + torch.exp(-(dropout_probs * 60 - 60 * dropout_probs_mean)))
+        dropout_mask = 1 / (1 + torch.exp(-(dropout_probs * self.sigmoid_param - self.sigmoid_param * dropout_probs_mean)))
         
         if self.training:
             with self.dropout_entropy_context:
@@ -482,24 +464,6 @@ class DropoutTransformer(nn.Module):
             "dropout_l1_norm", lambda x: torch.cat(x, dim=0).mean(), True
         )
 
-    @torch.no_grad()
-    def get_A_stats(self):
-        aggregated_A = self.get_aggregated_learned_dropout_attributes(
-            "A", lambda x: torch.cat(x, dim=0), False
-        )
-        if aggregated_A is None:
-            return None, None
-        return aggregated_A.mean(), aggregated_A.std()
-
-    @torch.no_grad()
-    def get_B_stats(self):
-        aggregated_B = self.get_aggregated_learned_dropout_attributes(
-            "B", lambda x: torch.cat(x, dim=0), False
-        )
-        if aggregated_B is None:
-            return None, None
-        return aggregated_B.mean(), aggregated_B.std()
-
     def forward(self, x, targets=None):
         device = x.device
         token_embed = self.token_embedding(x)
@@ -571,12 +535,12 @@ class DropoutTransformer(nn.Module):
         decay_params = [
             p
             for n, p in param_dict.items()
-            if p.dim() >= 2 and not n.endswith((".B", ".A"))
+            if p.dim() >= 2
         ]
         nodecay_params = [
             p
             for n, p in param_dict.items()
-            if p.dim() < 2 and not n.endswith((".B", ".A"))
+            if p.dim() < 2
         ]
 
         adamw_groups = [
@@ -584,40 +548,6 @@ class DropoutTransformer(nn.Module):
             {"params": nodecay_params, "weight_decay": 0.0},
         ]
         sgd_groups = []
-
-        if self.config.use_learned_dropout:
-            A_params = [p for n, p in param_dict.items() if n.endswith(".A")]
-            B_params = [p for n, p in param_dict.items() if n.endswith(".B")]
-            A_lr = self.config.learned_dropout_config.A_param_config.lr
-            B_lr = self.config.learned_dropout_config.B_param_config.lr
-            A_params_group = {
-                "params": A_params,
-                "weight_decay": 0.0,
-                "lr": A_lr or learning_rate,
-                "is_lr_fixed": A_lr is not None,
-            }
-            B_params_group = {
-                "params": B_params,
-                "weight_decay": 0.0,
-                "lr": B_lr or learning_rate,
-                "is_lr_fixed": B_lr is not None,
-            }
-
-            if (
-                self.config.learned_dropout_config.A_param_config.optimizer_type
-                == OptimizerType.SGD
-            ):
-                sgd_groups.append(A_params_group)
-            else:
-                adamw_groups.append(A_params_group)
-
-            if (
-                self.config.learned_dropout_config.B_param_config.optimizer_type
-                == OptimizerType.SGD
-            ):
-                sgd_groups.append(B_params_group)
-            else:
-                adamw_groups.append(B_params_group)
 
         # Create AdamW optimizer and use the fused version if it is available
         fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters

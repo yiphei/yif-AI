@@ -56,8 +56,6 @@ class BatchStats(BatchStatsBase):
             )
 
     def get_wandb_batch_stats(self):
-        A_mean, A_std = self.model.get_A_stats()
-        B_mean, B_std = self.model.get_B_stats()
         return {
             "dropout_entropy": self.running_entropy,
             "dropout_l1_norm": self.running_l1_norm,
@@ -65,10 +63,6 @@ class BatchStats(BatchStatsBase):
             "mean_dropout_near_zero_percent": self.model.get_mean_dropout_near_zero_percent(),
             "dropout_entropy_coefficient": self.entropy_coefficient,
             "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient,
-            "A_mean": A_mean,
-            "A_std": A_std,
-            "B_mean": B_mean,
-            "B_std": B_std,
         }
 
 
@@ -123,5 +117,5 @@ if __name__ == "__main__":
         DropoutTransformer,
         create_training_context,
         "transformer_dropout/",
-        "transformer_dropout_6",
+        "transformer_dropout_5_attn",
     )
