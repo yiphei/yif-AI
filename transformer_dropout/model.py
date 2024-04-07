@@ -240,9 +240,9 @@ class LearnedDropout(nn.Module):
         self.module_name = None  # used for logging
         self.sigmoid_param = config.sigmoid_param
 
-        self.query = nn.Linear(embed_dim, embed_dim, bias=config.bias)
-        self.key = nn.Linear(embed_dim, embed_dim, bias=config.bias)
-        self.value = nn.Linear(embed_dim, embed_dim, bias=config.bias)
+        self.query = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
+        self.key = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
+        self.value = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
 
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
@@ -262,6 +262,8 @@ class LearnedDropout(nn.Module):
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x):
+        import wandb
+
         dropout_x = x
         if self.use_detached_x_in_dropout_mask:
             dropout_x = x.detach()
@@ -286,6 +288,9 @@ class LearnedDropout(nn.Module):
                 )
             )
         )
+
+        if self.profile_dropout_mask:
+            wandb.log({f"{self.module_name}.dropout_mask": dropout_mask}, commit= False)
 
         if self.training:
             with self.dropout_entropy_context:
@@ -388,7 +393,7 @@ class DropoutTransformer(nn.Module):
         for module in self.modules():
             if isinstance(module, LearnedDropout):
                 module.module_name = ".".join(
-                    param_to_param_name[module.A].split(".")[:-1]
+                    param_to_param_name[module.query.weight].split(".")[:-2]
                 )
 
     def _init_weights(self, module):
@@ -461,7 +466,7 @@ class DropoutTransformer(nn.Module):
 
     def get_mean_dropout_entropy(self):
         return self.get_aggregated_learned_dropout_attributes(
-            "dropout_entropy", lambda x: torch.cat(x, dim=0).mean(), True
+            "dropout_entropy",lambda x: torch.stack(x, dim=0).mean(), True
         )
 
     def get_mean_dropout_l1_norm(self):
