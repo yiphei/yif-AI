@@ -246,9 +246,8 @@ class OptimizedMultiAttentionHead(nn.Module):
 
 
 class LearnedDropout(nn.Module):
-    def __init__(self, dim_in, config):
+    def __init__(self, channel_dim, config):
         super().__init__()
-        self.dim_in = dim_in
         self.dropout_entropy_context = (
             nullcontext() if config.use_dropout_entropy_in_loss else torch.no_grad()
         )
@@ -265,20 +264,10 @@ class LearnedDropout(nn.Module):
         self.profile_dropout_mask = config.profile_dropout_mask
         self.module_name = None  # used for logging
 
-        self.A = nn.Parameter(
-            torch.normal(
-                config.A_param_config.init_mean,
-                config.A_param_config.init_std,
-                size=(dim_in,),
-            )
-        )
-        self.B = nn.Parameter(
-            torch.normal(
-                config.B_param_config.init_mean,
-                config.B_param_config.init_std,
-                size=(dim_in,),
-            )
-        )
+        self.query = nn.Linear(channel_dim, channel_dim)
+        self.key = nn.Linear(channel_dim, channel_dim)
+        self.value = nn.Linear(channel_dim, channel_dim)
+
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
         # unsure if I shold register these two as buffer
@@ -301,35 +290,34 @@ class LearnedDropout(nn.Module):
         )
 
     def forward(self, x):
-        import wandb
-
-        dropout_mask_x = x.detach() if self.use_detached_x_in_dropout_mask else x
-        dropout_mask = 0.5 * torch.cos(self.A * dropout_mask_x + self.B) + 0.5
-
+        B,T,C = x.shape
+        q = self.query(x)
+        k = self.key(x)
+        v = self.value(x)
+        assert q.shape == k.shape == v.shape == x.shape
+        attn = (q.transpose(-2, -1) @ k) * (1**-0.5)
+        out = v @ attn
+        logits = nn.Softmax2d(out)
+        logits_mean = logits.mean(dim=(-1, -2))
+        dropout_mask = 1 / (1 + torch.exp(-(logits * 60 - 60 * logits_mean)))
+        
         if self.training:
             with self.dropout_entropy_context:
                 self.dropout_entropy = self.entropy_fn(dropout_mask)
+
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
                     torch.norm(dropout_mask, p=1, dim=-1) / self.dim_in
                 ).flatten()
+
             self.dropout_near_one_percent = (
                 dropout_mask > 0.9
             ).sum().item() / dropout_mask.numel()
             self.dropout_near_zero_percent = (
                 dropout_mask < 0.1
             ).sum().item() / dropout_mask.numel()
-
-        if self.use_sigmoid_on_dropout_mask:
-            # TODO: make the coefficient and constant to be learnable
-            # the final form should be 1 / (1 + torch.exp(-(dropout_mask * z - z/2)))
-            # where z is a learnable parameter
-            dropout_mask = 1 / (1 + torch.exp(-(dropout_mask * 60 - 30)))
-
-        if self.profile_dropout_mask:
-            wandb.log({self.module_name + ".mask": dropout_mask}, commit=False)
+        
         return x * dropout_mask
-
 
 class FeedForward(nn.Module):
     def __init__(self, config: ModelConfig, use_learned_dropout=False):
