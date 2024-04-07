@@ -231,32 +231,33 @@ def save_model_artifact(filenames, model_dict, dir_path, s3_client):
             s3_client.upload_fileobj(buffer, DEFAULT_BUCKET, file_path)
 
 
-def broadcast_object(obj, local_rank, device, src_rank = 0):
+def broadcast_object(obj, local_rank, device, src_rank=0):
     if local_rank == src_rank:
         # Only the source process executes this block
         obj_bytes = pickle.dumps(obj)
         obj_size = torch.tensor(len(obj_bytes), dtype=torch.long, device=device)
     else:
         obj_size = torch.tensor(0, dtype=torch.long, device=device)
-    
+
     # Broadcast the size of the byte stream to all processes
     torch.distributed.broadcast(obj_size, src_rank)
 
     # Allocate buffer for the object's byte stream
     obj_bytes = bytearray(obj_size.item())
-    
+
     if local_rank == src_rank:
         # Only the source fills the byte buffer
         obj_bytes[:] = pickle.dumps(obj)
-    
+
     # Create a tensor wrapper for the byte buffer for broadcasting
     obj_tensor = torch.ByteTensor(obj_bytes).to(device)
     # Broadcast the byte stream
     torch.distributed.broadcast(obj_tensor, src_rank)
-    
+
     # Deserialize the byte stream back into the Python object
     obj = pickle.loads(obj_tensor.cpu().numpy().tobytes())
     return obj
+
 
 def _train(
     args,
@@ -264,7 +265,7 @@ def _train(
     model_cls,
     create_training_context_fn,
     local_dir,
-    wandb_project
+    wandb_project,
 ):
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
@@ -713,7 +714,7 @@ def train(
 
     get_default_args(args, local_dir)
 
-    if args.sweep_id is not None and int(os.getenv('LOCAL_RANK', '0')) == 0:
+    if args.sweep_id is not None and int(os.getenv("LOCAL_RANK", "0")) == 0:
         wandb.agent(
             args.sweep_id,
             function=lambda: _train(
@@ -722,7 +723,7 @@ def train(
                 model_cls,
                 create_training_context_fn,
                 local_dir,
-                wandb_project
+                wandb_project,
             ),
             project=wandb_project,
             count=args.sweep_count,
@@ -734,5 +735,5 @@ def train(
             model_cls,
             create_training_context_fn,
             local_dir,
-            wandb_project
+            wandb_project,
         )
