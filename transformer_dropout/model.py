@@ -284,9 +284,10 @@ class LearnedDropout(nn.Module):
         )
         dropout_probs = dropout_probs.view_as(dropout_logits)
         dropout_probs_std = dropout_probs.std(dim=(-1, -2), keepdim=True)
+        tau = 1 / (dropout_probs_std.detach() / 5)
         dropout_mask = self.sigmoid(
-            dropout_probs * (1 / (dropout_probs_std.detach() / 5))
-            - (1 / (dropout_probs_std.detach() / 5)) * (1 / (self.embed_dim * T))
+            (dropout_probs
+            - (1 / (self.embed_dim * T))) * tau
         )
 
         if self.profile_dropout_mask:
