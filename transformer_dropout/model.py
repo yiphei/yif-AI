@@ -243,6 +243,7 @@ class LearnedDropout(nn.Module):
         self.query = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
         self.key = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
         self.value = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
+        self.sigmoid = nn.Sigmoid()
 
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
@@ -281,7 +282,7 @@ class LearnedDropout(nn.Module):
         )
         dropout_probs = dropout_probs.view_as(dropout_logits)
         dropout_probs_std = dropout_probs.std(dim=(-1, -2), keepdim=True)
-        dropout_mask = nn.Sigmoid(dropout_probs * (1/(dropout_probs_std.detach()/5))
+        dropout_mask = self.sigmoid(dropout_probs * (1/(dropout_probs_std.detach()/5))
                     -  (1/(dropout_probs_std.detach()/5)) * (1/(self.embed_dim * T)))
 
         if self.profile_dropout_mask:
