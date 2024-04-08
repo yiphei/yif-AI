@@ -251,15 +251,16 @@ class LearnedDropout(nn.Module):
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
 
-    def canonical_entropy(self, dropout_mask):
+    def canonical_entropy(self, dropout_probs):
         # the small constant is for numerical stability
-        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
+        return (dropout_probs * -torch.log2(dropout_probs + 1e-9)).sum(dim=(-1,-2)).mean()
 
-    def alternate_entropy(self, dropout_mask):
-        # the alternate entropy has the peak above 0.5, while the canonical one has
-        # it below 0.5. In theory, this should be better for achieving both low entropy
-        # and low l1 norm because there is more curvature towards 0.
-        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
+    # def alternate_entropy(self, dropout_probs):
+    #     # the alternate entropy has the peak above 0.5, while the canonical one has
+    #     # it below 0.5. In theory, this should be better for achieving both low entropy
+    #     # and low l1 norm because there is more curvature towards 0.
+        
+    #     return ((dropout_probs - 1) * torch.log2((-dropout_probs + 1) + 1e-9)).mean()
 
     def forward(self, x):
         import wandb
@@ -274,27 +275,37 @@ class LearnedDropout(nn.Module):
         v = self.value(dropout_x)
         attn = (q.transpose(-2, -1) @ k) * (1**-0.5)
         dropout_logits = v @ attn
+        # dropout_logits = dropout_logits / 0.00001
         dropout_probs = F.softmax(
             dropout_logits.view(dropout_logits.size(0), -1), dim=-1
         )
         dropout_probs = dropout_probs.view_as(dropout_logits)
-        dropout_probs_mean = dropout_probs.mean(dim=(-1, -2), keepdim=True)
-        dropout_mask = 1 / (
-            1
-            + torch.exp(
-                -(
-                    dropout_probs * self.sigmoid_param
-                    - self.sigmoid_param * dropout_probs_mean
-                )
-            )
-        )
+        dropout_probs_std = dropout_probs.std(dim=(-1, -2), keepdim=True)
+        dropout_mask = nn.Sigmoid(dropout_probs * (1/(dropout_probs_std.detach()/5))
+                    -  (1/(dropout_probs_std.detach()/5)) * (1/(self.embed_dim * T)))
 
         if self.profile_dropout_mask:
-            wandb.log({f"{self.module_name}.dropout_mask": dropout_mask}, commit= False)
+            dropout_probs_max = dropout_probs.view(dropout_probs.size(0), -1).max(dim=-1, keepdim=True)
+            dropout_probs_min = dropout_probs.view(dropout_probs.size(0), -1).min(dim=-1, keepdim=True)
+            dropout_probs_range_mean = (dropout_probs_max.values - dropout_probs_min.values)/2 + dropout_probs_min.values
+            dropout_probs_range_mean = dropout_probs_range_mean.unsqueeze(-1)
+            range_values = dropout_probs_range_mean.detach().flatten().cpu()
+            dropout_probs_above_range_mean = (dropout_probs > dropout_probs_range_mean).float().mean(dim=(-1,-2))
+            wandb.log({f"{self.module_name}.dropout_mask": dropout_mask,
+                       f"{self.module_name}.attn": attn,
+                       f"{self.module_name}.dropout_logits": dropout_logits,
+                       f"{self.module_name}.dropout_probs": dropout_probs,
+                       f"{self.module_name}.dropout_probs_range_mean": wandb.Histogram(range_values),
+                   f"{self.module_name}.dropout_probs_std": wandb.Histogram(dropout_probs_std.detach().flatten().cpu()),
+                   f"{self.module_name}.dropout_probs_above_range_mean": wandb.Histogram(dropout_probs_above_range_mean.detach().cpu()),
+                   "above_range_mean_mean": dropout_probs_above_range_mean.mean(),
+                   f"{self.module_name}.dropout_probs_median": wandb.Histogram(dropout_probs.view(dropout_probs.size(0), -1).median(dim=(-1), keepdim=True).values.detach().cpu()),
+                   f"{self.module_name}.dropout_probs_below_avg": wandb.Histogram((dropout_probs < (1/(self.embed_dim * T))).float().mean(dim=(-1,-2)).detach().cpu()),                       
+                       }, commit= False)
 
         if self.training:
             with self.dropout_entropy_context:
-                self.dropout_entropy = self.entropy_fn(dropout_mask)
+                self.dropout_entropy = self.entropy_fn(dropout_probs)
 
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
