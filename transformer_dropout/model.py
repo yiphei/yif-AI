@@ -252,7 +252,7 @@ class LearnedDropout(nn.Module):
         # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
-        self.entropy_normalizer = -torch.log2(1/(embed_dim * context_size))
+        self.entropy_normalizer = -torch.log2(torch.tensor(1/(embed_dim * context_size)))
 
     def canonical_entropy(self, dropout_probs):
         # the small constant is for numerical stability
