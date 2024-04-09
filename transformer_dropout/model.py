@@ -221,9 +221,10 @@ class OptimizedMultiAttentionHead(nn.Module):
 
 
 class LearnedDropout(nn.Module):
-    def __init__(self, embed_dim, config):
+    def __init__(self, embed_dim, context_size, config):
         super().__init__()
         self.embed_dim = embed_dim
+        self.context_size = context_size
         self.dropout_entropy_context = (
             nullcontext() if config.use_dropout_entropy_in_loss else torch.no_grad()
         )
@@ -251,11 +252,12 @@ class LearnedDropout(nn.Module):
         # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
+        self.entropy_normalizer = -torch.log2(1/(embed_dim * context_size))
 
     def canonical_entropy(self, dropout_probs):
         # the small constant is for numerical stability
         return (
-            (dropout_probs * -torch.log2(dropout_probs + 1e-9)).sum(dim=(-1, -2)).mean()
+            (dropout_probs * -torch.log2(dropout_probs + 1e-9)).sum(dim=(-1, -2)).mean() / self.entropy_normalizer
         )
 
     # def alternate_entropy(self, dropout_probs):
@@ -363,7 +365,7 @@ class FeedForward(nn.Module):
             config.n_embed * 4, config.n_embed, bias=config.bias
         )
         if config.use_learned_dropout and use_learned_dropout:
-            self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
+            self.dropout = LearnedDropout(config.n_embed, config.context_size, config.learned_dropout_config)
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
