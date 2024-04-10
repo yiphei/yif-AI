@@ -11,14 +11,6 @@ import torch.nn as nn
 from torch.cuda.amp import autocast
 from torch.nn import functional as F
 
-# class OptimizerType(str, Enum):
-#     ADAMW = "ADAMW"
-#     SGD = "SGD"
-
-#     def __str__(self):
-#         return self.value
-
-
 @dataclass
 class RegularizingLambdaConfig:
     min_lambda: float = None
@@ -39,14 +31,6 @@ class RegularizingLambdaConfig:
             print(f"STEP at which slope is 1: {slope_1_step}")
 
 
-# @dataclass
-# class DropoutParamConfig:
-#     init_mean: float
-#     init_std: float
-#     optimizer_type: OptimizerType
-#     lr: float = None
-
-
 @dataclass
 class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
@@ -58,11 +42,10 @@ class LearnedDropoutConfig:
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
-    sigmoid_param: int = 60
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
-        assert self.sigmoid_param > 1
+        assert self.sigmoid_scaler > 1
 
         if (
             not self.use_dropout_entropy_in_loss
