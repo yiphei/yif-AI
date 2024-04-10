@@ -302,10 +302,10 @@ class LearnedDropout(nn.Module):
         if self.config.profile_dropout_mask:
             wandb.log(
                 {
-                    f"{self.module_name}.dropout_mask": dropout_mask,
-                    f"{self.module_name}.causal_attn": causal_attn,
-                    f"{self.module_name}.dropout_logits": dropout_logits,
-                    f"{self.module_name}.dropout_probs": dropout_probs,
+                    f"{self.module_name}.dropout_mask": dropout_mask.detach().to(dtype=torch.float16),
+                    f"{self.module_name}.causal_attn": causal_attn.detach().to(dtype=torch.float16),
+                    f"{self.module_name}.dropout_logits": dropout_logits.detach().to(dtype=torch.float16),
+                    f"{self.module_name}.dropout_probs": dropout_probs.detach().to(dtype=torch.float16),
                 },
                 commit=False,
             )
