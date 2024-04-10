@@ -235,6 +235,7 @@ class LearnedDropout(nn.Module):
         )
         self.scaled_dropout_probs_denom = torch.log(self.log_scale)
         self.entropy_normalizer = -torch.log2(torch.tensor(1 / (embed_dim)))
+        self.sigmoid_entropy_normalizer = - (np.e ** -1) * torch.log2(torch.tensor(np.e ** -1)) * embed_dim
         self.register_buffer(
             "tril",
             torch.tril(
@@ -251,12 +252,19 @@ class LearnedDropout(nn.Module):
         # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
+        self.dropout_sigmoid_entropy = None
 
     def canonical_entropy(self, dropout_probs):
         # the small constant is for numerical stability
         return (dropout_probs * -torch.log2(dropout_probs + 1e-9)).sum(
             dim=-1
         ).mean() / self.entropy_normalizer
+    
+    def canonical_sigmoid_entropy(self, dropout_mask):
+        # the small constant is for numerical stability
+        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).sum(
+            dim=-1
+        ).mean() / self.sigmoid_entropy_normalizer
 
     def forward(self, x):
         import wandb
@@ -302,6 +310,9 @@ class LearnedDropout(nn.Module):
         if self.training:
             with self.dropout_entropy_context:
                 self.dropout_entropy = self.entropy_fn(dropout_probs)
+
+            with torch.no_grad():
+                self.dropout_sigmoid_entropy = self.canonical_sigmoid_entropy(dropout_mask)
 
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
@@ -479,6 +490,11 @@ class DropoutTransformer(nn.Module):
         return self.get_aggregated_learned_dropout_attributes(
             "dropout_entropy", lambda x: torch.stack(x, dim=0).mean(), True
         )
+    
+    def get_mean_dropout_sigmoid_entropy(self):
+        return self.get_aggregated_learned_dropout_attributes(
+            "dropout_sigmoid_entropy", lambda x: torch.stack(x, dim=0).mean(), True
+        )
 
     def get_mean_dropout_l1_norm(self):
         return self.get_aggregated_learned_dropout_attributes(
@@ -498,10 +514,11 @@ class DropoutTransformer(nn.Module):
 
         (
             mean_dropout_entropy,
+            mean_dropout_sigmoid_entropy,
             mean_dropout_l1_norm,
             mean_dropout_entropy_coefficient,
             mean_dropout_l1_norm_coefficient,
-        ) = [None] * 4
+        ) = [None] * 5
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
@@ -514,6 +531,7 @@ class DropoutTransformer(nn.Module):
             if self.training and self.config.use_learned_dropout:
                 mean_dropout_entropy = self.get_mean_dropout_entropy()
                 mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
+                mean_dropout_sigmoid_entropy = self.get_mean_dropout_sigmoid_entropy()
                 mean_dropout_entropy_coefficient = (
                     self.get_annealed_dropout_coefficient(
                         self.config.learned_dropout_config.dropout_entropy_lambda
@@ -542,6 +560,7 @@ class DropoutTransformer(nn.Module):
                 mean_dropout_l1_norm,
                 mean_dropout_entropy_coefficient,
                 mean_dropout_l1_norm_coefficient,
+                mean_dropout_sigmoid_entropy,
             ),
         )
 

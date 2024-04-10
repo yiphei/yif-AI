@@ -16,8 +16,10 @@ except ImportError:
 
 @dataclass
 class BatchStats(BatchStatsBase):
+    running_sigmoid_entropy: Optional[float]
     running_entropy: Optional[float]
     running_l1_norm: Optional[float]
+    sigmoid_entropy: Optional[float] = None
     entropy: Optional[float] = None
     dropout_l1_norm: Optional[float] = None
     entropy_coefficient: Optional[float] = None
@@ -26,6 +28,9 @@ class BatchStats(BatchStatsBase):
     @classmethod
     def initialize(cls, train_config, model):
         return cls(
+            running_sigmoid_entropy=(
+                0.0 if train_config.model_config.use_learned_dropout else None
+            ),
             running_entropy=(
                 0.0 if train_config.model_config.use_learned_dropout else None
             ),
@@ -37,9 +42,10 @@ class BatchStats(BatchStatsBase):
         )
 
     def add_mini_batch_stats(self, mini_batch_stats):
-        entropy, dropout_l1_norm, entropy_coefficient, dropout_l1_norm_coefficient = (
+        entropy, dropout_l1_norm, entropy_coefficient, dropout_l1_norm_coefficient, sigmoid_entropy = (
             mini_batch_stats
         )
+        self.sigmoid_entropy = sigmoid_entropy
         self.entropy = entropy
         self.dropout_l1_norm = dropout_l1_norm
         self.entropy_coefficient = entropy_coefficient
@@ -50,6 +56,9 @@ class BatchStats(BatchStatsBase):
             self.running_entropy += (
                 self.entropy.item() / self.train_config.gradient_accumulation_steps
             )
+            self.running_sigmoid_entropy += (
+                self.sigmoid_entropy.item() / self.train_config.gradient_accumulation_steps
+            )
             self.running_l1_norm += (
                 self.dropout_l1_norm.item()
                 / self.train_config.gradient_accumulation_steps
@@ -57,6 +66,7 @@ class BatchStats(BatchStatsBase):
 
     def get_wandb_batch_stats(self):
         return {
+            "dropout_sigmoid_entropy": self.running_sigmoid_entropy,
             "dropout_entropy": self.running_entropy,
             "dropout_l1_norm": self.running_l1_norm,
             "mean_dropout_near_one_percent": self.model.get_mean_dropout_near_one_percent(),
