@@ -52,6 +52,7 @@ class LearnedDropoutConfig:
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
     n_head: int = 1
+    sigmoid_scaler: float = 6
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
@@ -240,7 +241,7 @@ class LearnedDropout(nn.Module):
         )
         self.profile_dropout_mask = config.profile_dropout_mask
         self.module_name = None  # used for logging
-        self.sigmoid_param = config.sigmoid_param
+        self.sigmoid_scaler = config.sigmoid_scaler
 
         self.head_size = embed_dim // config.n_head
         self.n_heads = config.n_head
@@ -314,7 +315,7 @@ class LearnedDropout(nn.Module):
         )
         dropout_mask = scaled_dropout_probs.to(dtype=dropout_probs.dtype)
         stds = dropout_mask.std(dim=-1, keepdim=True)
-        dropout_mask = self.sigmoid((dropout_mask - 0.5) * (1 * 6 / (stds + 1e-10)))
+        dropout_mask = self.sigmoid((dropout_mask - 0.5) * (1 * self.sigmoid_scaler / (stds + 1e-10)))
 
         if self.profile_dropout_mask:
             wandb.log(
