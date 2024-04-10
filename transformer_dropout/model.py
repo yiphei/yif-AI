@@ -53,7 +53,6 @@ class LearnedDropoutConfig:
     use_bias: bool
     n_head: int = 1
     sigmoid_scaler: float = 6
-    use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
@@ -234,11 +233,7 @@ class LearnedDropout(nn.Module):
             nullcontext() if config.use_dropout_l1_norm_in_loss else torch.no_grad()
         )
         self.use_detached_x_in_dropout_mask = config.use_detached_x_in_dropout_mask
-        self.entropy_fn = (
-            self.canonical_entropy
-            if config.use_canonical_entropy
-            else self.alternate_entropy
-        )
+        self.entropy_fn = self.canonical_entropy
         self.profile_dropout_mask = config.profile_dropout_mask
         self.module_name = None  # used for logging
         self.sigmoid_scaler = config.sigmoid_scaler
@@ -280,13 +275,6 @@ class LearnedDropout(nn.Module):
         return (dropout_probs * -torch.log2(dropout_probs + 1e-9)).sum(
             dim=-1
         ).mean() / self.entropy_normalizer
-
-    # def alternate_entropy(self, dropout_probs):
-    #     # the alternate entropy has the peak above 0.5, while the canonical one has
-    #     # it below 0.5. In theory, this should be better for achieving both low entropy
-    #     # and low l1 norm because there is more curvature towards 0.
-
-    #     return ((dropout_probs - 1) * torch.log2((-dropout_probs + 1) + 1e-9)).mean()
 
     def forward(self, x):
         import wandb
