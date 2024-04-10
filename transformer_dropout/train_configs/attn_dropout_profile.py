@@ -16,7 +16,7 @@ LEARNED_DROPOUT_CONFIG = {
     "profile_dropout_mask": True,
     "dropout_entropy_lambda": {
         "coefficient": 0.01,
-    }
+    },
 }
 
 # Training config

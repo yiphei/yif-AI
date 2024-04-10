@@ -251,9 +251,12 @@ class LearnedDropout(nn.Module):
 
         # Precomputed constants
         embed_dim_factor = 1 / embed_dim
-        self.log_scale = torch.tensor((1 + np.sqrt(1 - 4 * embed_dim_factor) -2 * embed_dim_factor)/(2 * (embed_dim_factor ** 2)))
+        self.log_scale = torch.tensor(
+            (1 + np.sqrt(1 - 4 * embed_dim_factor) - 2 * embed_dim_factor)
+            / (2 * (embed_dim_factor**2))
+        )
         self.scaled_dropout_probs_denom = torch.log(self.log_scale)
-        self.entropy_normalizer = -torch.log2(torch.tensor(1/(embed_dim)))
+        self.entropy_normalizer = -torch.log2(torch.tensor(1 / (embed_dim)))
         self.register_buffer(
             "tril",
             torch.tril(
@@ -273,9 +276,9 @@ class LearnedDropout(nn.Module):
 
     def canonical_entropy(self, dropout_probs):
         # the small constant is for numerical stability
-        return (
-            (dropout_probs * -torch.log2(dropout_probs + 1e-9)).sum(dim=-1).mean() / self.entropy_normalizer
-        )
+        return (dropout_probs * -torch.log2(dropout_probs + 1e-9)).sum(
+            dim=-1
+        ).mean() / self.entropy_normalizer
 
     # def alternate_entropy(self, dropout_probs):
     #     # the alternate entropy has the peak above 0.5, while the canonical one has
@@ -297,24 +300,21 @@ class LearnedDropout(nn.Module):
         q = q.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
 
-        attn = (q @ k.transpose(-2, -1))  * (
-                self.head_size**-0.5
-            ) 
+        attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
         # attn = 0.5 * torch.cos(1000000* np.pi * 0.7 * attn + np.pi/2) + 0.5
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
-        dropout_logits = (
-            dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
-        )
-        dropout_probs = F.softmax(
-            dropout_logits, dim=-1
-        )
+        dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
+        dropout_probs = F.softmax(dropout_logits, dim=-1)
 
         dropout_probs_high_precision = dropout_probs.to(dtype=torch.float32)
-        scaled_dropout_probs = torch.log(self.log_scale * dropout_probs_high_precision+1) / self.scaled_dropout_probs_denom
+        scaled_dropout_probs = (
+            torch.log(self.log_scale * dropout_probs_high_precision + 1)
+            / self.scaled_dropout_probs_denom
+        )
         dropout_mask = scaled_dropout_probs.to(dtype=dropout_probs.dtype)
         stds = dropout_mask.std(dim=-1, keepdim=True)
-        dropout_mask = self.sigmoid((dropout_mask -  0.5) * (1 * 6/(stds + 1e-10)))
+        dropout_mask = self.sigmoid((dropout_mask - 0.5) * (1 * 6 / (stds + 1e-10)))
 
         if self.profile_dropout_mask:
             wandb.log(
@@ -355,7 +355,9 @@ class FeedForward(nn.Module):
             config.n_embed * 4, config.n_embed, bias=config.bias
         )
         if config.use_learned_dropout and use_learned_dropout:
-            self.dropout = LearnedDropout(config.n_embed, config.context_size, config.learned_dropout_config)
+            self.dropout = LearnedDropout(
+                config.n_embed, config.context_size, config.learned_dropout_config
+            )
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
@@ -428,7 +430,9 @@ class DropoutTransformer(nn.Module):
         for module in self.modules():
             if isinstance(module, LearnedDropout):
                 module.module_name = ".".join(
-                    param_to_param_name[module.batch_attn_weights.weight].split(".")[:-2]
+                    param_to_param_name[module.batch_attn_weights.weight].split(".")[
+                        :-2
+                    ]
                 )
 
     def _init_weights(self, module):
