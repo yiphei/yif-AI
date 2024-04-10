@@ -41,7 +41,7 @@ parameters:
                     n_heads:
                         values: [1, 2]
                     sigmoid_scaler:
-                        value: 6
+                        values: [2,4,6,10]
                     use_detached_x_in_dropout_mask:
                         values: [True, False]
                     dropout_entropy_lambda:
@@ -49,13 +49,13 @@ parameters:
                             max_lambda:
                               value: 1
                             coefficient:
-                              values: [0.001, 0.0006, null]
+                              values: [0.005, 0.001, 0.0006, null]
                     dropout_l1_norm_lambda:
                         parameters:
                             max_lambda:
                               value: 1
                             coefficient:
-                              values: [0.001, 0.0006, null]
+                              values: [0.005, 0.001, 0.0006, null]
     batch_size: 
         value: 50
     train_steps: 
