@@ -315,7 +315,9 @@ class LearnedDropout(nn.Module):
         )
         dropout_mask = scaled_dropout_probs.to(dtype=dropout_probs.dtype)
         stds = dropout_mask.std(dim=-1, keepdim=True)
-        dropout_mask = self.sigmoid((dropout_mask - 0.5) * (1 * self.sigmoid_scaler / (stds + 1e-10)))
+        dropout_mask = self.sigmoid(
+            (dropout_mask - 0.5) * (1 * self.sigmoid_scaler / (stds + 1e-10))
+        )
 
         if self.profile_dropout_mask:
             wandb.log(
