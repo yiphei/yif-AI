@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from torch.cuda.amp import autocast
 
 # class OptimizerType(str, Enum):
 #     ADAMW = "ADAMW"
@@ -51,6 +52,7 @@ class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
+    use_higher_precision_for_mask: bool
     n_heads: int = 1
     sigmoid_scaler: float = 6
     use_detached_x_in_dropout_mask: bool = False
@@ -232,6 +234,8 @@ class LearnedDropout(nn.Module):
         self.dropout_l1_norm_context = (
             nullcontext() if config.use_dropout_l1_norm_in_loss else torch.no_grad()
         )
+        self.precision_context = autocast(dtype = torch.float32) if config.use_higher_precision_for_mask and torch.cuda.is_available() else nullcontext()
+
         self.config = config
         self.entropy_fn = self.canonical_entropy
         self.module_name = None  # used for logging
@@ -293,15 +297,14 @@ class LearnedDropout(nn.Module):
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
         dropout_probs = F.softmax(dropout_logits, dim=-1)
 
-        dropout_probs_high_precision = dropout_probs.to(dtype=torch.float32)
-        scaled_dropout_probs = (
-            torch.log(self.log_scale * dropout_probs_high_precision + 1)
-            / self.scaled_dropout_probs_denom
-        )
-        dropout_mask = scaled_dropout_probs.to(dtype=dropout_probs.dtype)
-        stds = dropout_mask.std(dim=-1, keepdim=True)
+        with self.precision_context:
+            scaled_dropout_probs = (
+                torch.log(self.log_scale * dropout_probs + 1)
+                / self.scaled_dropout_probs_denom
+            )
+        stds = scaled_dropout_probs.std(dim=-1, keepdim=True)
         dropout_mask = self.sigmoid(
-            (dropout_mask - 0.5) * (1 * self.config.sigmoid_scaler / (stds + 1e-10))
+            (scaled_dropout_probs - 0.5) * (1 * self.config.sigmoid_scaler / (stds + 1e-10))
         )
 
         if self.config.profile_dropout_mask:

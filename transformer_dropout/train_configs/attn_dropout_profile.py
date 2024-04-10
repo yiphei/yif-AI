@@ -12,6 +12,7 @@ LEARNED_DROPOUT_CONFIG = {
     "use_dropout_l1_norm_in_loss": False,
     "use_bias": False,
     "use_detached_x_in_dropout_mask": False,
+    "use_higher_precision_for_mask": False,
     "profile_dropout_mask": True,
     "dropout_entropy_lambda": {
         "coefficient": 0.01,
