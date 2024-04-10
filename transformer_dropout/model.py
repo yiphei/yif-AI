@@ -51,7 +51,7 @@ class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
-    n_head: int = 1
+    n_heads: int = 1
     sigmoid_scaler: float = 6
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
@@ -232,14 +232,11 @@ class LearnedDropout(nn.Module):
         self.dropout_l1_norm_context = (
             nullcontext() if config.use_dropout_l1_norm_in_loss else torch.no_grad()
         )
-        self.use_detached_x_in_dropout_mask = config.use_detached_x_in_dropout_mask
+        self.config = config
         self.entropy_fn = self.canonical_entropy
-        self.profile_dropout_mask = config.profile_dropout_mask
         self.module_name = None  # used for logging
-        self.sigmoid_scaler = config.sigmoid_scaler
 
-        self.head_size = embed_dim // config.n_head
-        self.n_heads = config.n_head
+        self.head_size = embed_dim // config.n_heads
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
@@ -280,14 +277,14 @@ class LearnedDropout(nn.Module):
         import wandb
 
         dropout_x = x
-        if self.use_detached_x_in_dropout_mask:
+        if self.config.use_detached_x_in_dropout_mask:
             dropout_x = x.detach()
 
         B, T, C = dropout_x.shape
         q, k, v = self.batch_attn_weights(dropout_x).split(self.embed_dim, dim=2)
-        k = k.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
-        q = q.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
-        v = v.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
+        k = k.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
+        q = q.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
+        v = v.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
 
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
         # attn = 0.5 * torch.cos(1000000* np.pi * 0.7 * attn + np.pi/2) + 0.5
@@ -304,10 +301,10 @@ class LearnedDropout(nn.Module):
         dropout_mask = scaled_dropout_probs.to(dtype=dropout_probs.dtype)
         stds = dropout_mask.std(dim=-1, keepdim=True)
         dropout_mask = self.sigmoid(
-            (dropout_mask - 0.5) * (1 * self.sigmoid_scaler / (stds + 1e-10))
+            (dropout_mask - 0.5) * (1 * self.config.sigmoid_scaler / (stds + 1e-10))
         )
 
-        if self.profile_dropout_mask:
+        if self.config.profile_dropout_mask:
             wandb.log(
                 {
                     f"{self.module_name}.dropout_mask": dropout_mask,
