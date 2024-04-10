@@ -248,10 +248,12 @@ class LearnedDropout(nn.Module):
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
         self.sigmoid = nn.Sigmoid()
-        embed_dim_factor = 1 / embed_dim
-        self.log_scale = (1 + np.sqrt(1 - 4 * embed_dim_factor) -2 * embed_dim_factor)/(2 * (embed_dim_factor ** 2))
-        self.scaled_dropout_probs_denom = torch.log(torch.tensor(self.log_scale))
 
+        # Precomputed constants
+        embed_dim_factor = 1 / embed_dim
+        self.log_scale = torch.tensor((1 + np.sqrt(1 - 4 * embed_dim_factor) -2 * embed_dim_factor)/(2 * (embed_dim_factor ** 2)))
+        self.scaled_dropout_probs_denom = torch.log(self.log_scale)
+        self.entropy_normalizer = -torch.log2(torch.tensor(1/(embed_dim)))
         self.register_buffer(
             "tril",
             torch.tril(
@@ -261,13 +263,13 @@ class LearnedDropout(nn.Module):
             ),
         )
 
+        # Stats
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
         # unsure if I shold register these two as buffer
         # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
-        self.entropy_normalizer = -torch.log2(torch.tensor(1/(embed_dim)))
 
     def canonical_entropy(self, dropout_probs):
         # the small constant is for numerical stability
@@ -289,8 +291,8 @@ class LearnedDropout(nn.Module):
         if self.use_detached_x_in_dropout_mask:
             dropout_x = x.detach()
 
-        B, T, _ = dropout_x.shape
-        q, k, v = self.batch_attn_weights(dropout_x).split(self.dim_in, dim=2)
+        B, T, C = dropout_x.shape
+        q, k, v = self.batch_attn_weights(dropout_x).split(self.embed_dim, dim=2)
         k = k.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
@@ -301,6 +303,9 @@ class LearnedDropout(nn.Module):
         # attn = 0.5 * torch.cos(1000000* np.pi * 0.7 * attn + np.pi/2) + 0.5
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
+        dropout_logits = (
+            dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
+        )
         dropout_probs = F.softmax(
             dropout_logits, dim=-1
         )
@@ -423,7 +428,7 @@ class DropoutTransformer(nn.Module):
         for module in self.modules():
             if isinstance(module, LearnedDropout):
                 module.module_name = ".".join(
-                    param_to_param_name[module.query.weight].split(".")[:-2]
+                    param_to_param_name[module.batch_attn_weights.weight].split(".")[:-2]
                 )
 
     def _init_weights(self, module):
