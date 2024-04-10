@@ -42,9 +42,13 @@ class BatchStats(BatchStatsBase):
         )
 
     def add_mini_batch_stats(self, mini_batch_stats):
-        entropy, dropout_l1_norm, entropy_coefficient, dropout_l1_norm_coefficient, sigmoid_entropy = (
-            mini_batch_stats
-        )
+        (
+            entropy,
+            dropout_l1_norm,
+            entropy_coefficient,
+            dropout_l1_norm_coefficient,
+            sigmoid_entropy,
+        ) = mini_batch_stats
         self.sigmoid_entropy = sigmoid_entropy
         self.entropy = entropy
         self.dropout_l1_norm = dropout_l1_norm
@@ -57,7 +61,8 @@ class BatchStats(BatchStatsBase):
                 self.entropy.item() / self.train_config.gradient_accumulation_steps
             )
             self.running_sigmoid_entropy += (
-                self.sigmoid_entropy.item() / self.train_config.gradient_accumulation_steps
+                self.sigmoid_entropy.item()
+                / self.train_config.gradient_accumulation_steps
             )
             self.running_l1_norm += (
                 self.dropout_l1_norm.item()
