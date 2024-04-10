@@ -629,7 +629,7 @@ def _train(
     if using_DDP:
         destroy_process_group()
 
-    if is_master_process and not args.sync_profile_live:
+    if is_master_process and args.profile and not args.sync_profile_live:
         wandb_run_dir = wandb.run._settings.sync_dir
         wandb.finish()
         result = subprocess.run(
