@@ -2,7 +2,6 @@ program: transformer_dropout/training_script.py
 name: harry_potter_full_dropout_new_repro
 project: transformer_dropout_5_attn
 method: grid
-run_cap: 2000
 metric:
   goal: minimize
   name: est_val_loss
@@ -41,7 +40,7 @@ parameters:
                     n_heads:
                         values: [1, 2]
                     sigmoid_scaler:
-                        values: [2,4,6,10]
+                        values: [2,6,10]
                     use_detached_x_in_dropout_mask:
                         values: [True, False]
                     dropout_entropy_lambda:
