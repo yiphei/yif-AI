@@ -51,6 +51,7 @@ class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
+    n_head: int = 1
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
@@ -241,10 +242,24 @@ class LearnedDropout(nn.Module):
         self.module_name = None  # used for logging
         self.sigmoid_param = config.sigmoid_param
 
-        self.query = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
-        self.key = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
-        self.value = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
+        self.head_size = embed_dim // config.n_head
+        self.n_heads = config.n_head
+        self.batch_attn_weights = nn.Linear(
+            embed_dim, embed_dim * 3, bias=config.use_bias
+        )
         self.sigmoid = nn.Sigmoid()
+        embed_dim_factor = 1 / embed_dim
+        self.log_scale = (1 + np.sqrt(1 - 4 * embed_dim_factor) -2 * embed_dim_factor)/(2 * (embed_dim_factor ** 2))
+        self.scaled_dropout_probs_denom = torch.log(torch.tensor(self.log_scale))
+
+        self.register_buffer(
+            "tril",
+            torch.tril(
+                torch.ones(context_size, context_size).view(
+                    1, 1, context_size, context_size
+                )
+            ),
+        )
 
         self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
         self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
@@ -252,12 +267,12 @@ class LearnedDropout(nn.Module):
         # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
-        self.entropy_normalizer = -torch.log2(torch.tensor(1/(embed_dim * context_size)))
+        self.entropy_normalizer = -torch.log2(torch.tensor(1/(embed_dim)))
 
     def canonical_entropy(self, dropout_probs):
         # the small constant is for numerical stability
         return (
-            (dropout_probs * -torch.log2(dropout_probs + 1e-9)).sum(dim=(-1, -2)).mean() / self.entropy_normalizer
+            (dropout_probs * -torch.log2(dropout_probs + 1e-9)).sum(dim=-1).mean() / self.entropy_normalizer
         )
 
     # def alternate_entropy(self, dropout_probs):
@@ -274,65 +289,35 @@ class LearnedDropout(nn.Module):
         if self.use_detached_x_in_dropout_mask:
             dropout_x = x.detach()
 
-        _, T, _ = dropout_x.shape
-        q = self.query(dropout_x)
-        k = self.key(dropout_x)
-        v = self.value(dropout_x)
-        attn = (q.transpose(-2, -1) @ k) * (1**-0.5)
-        dropout_logits = v @ attn
-        # dropout_logits = dropout_logits / 0.00001
+        B, T, _ = dropout_x.shape
+        q, k, v = self.batch_attn_weights(dropout_x).split(self.dim_in, dim=2)
+        k = k.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
+        q = q.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
+        v = v.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
+
+        attn = (q @ k.transpose(-2, -1))  * (
+                self.head_size**-0.5
+            ) 
+        # attn = 0.5 * torch.cos(1000000* np.pi * 0.7 * attn + np.pi/2) + 0.5
+        causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
+        dropout_logits = causal_attn @ v
         dropout_probs = F.softmax(
-            dropout_logits.view(dropout_logits.size(0), -1), dim=-1
+            dropout_logits, dim=-1
         )
-        dropout_probs = dropout_probs.view_as(dropout_logits)
-        dropout_probs_std = dropout_probs.std(dim=(-1, -2), keepdim=True)
-        tau = 1 / (dropout_probs_std.detach() / 5)
-        dropout_mask = self.sigmoid((dropout_probs - (1 / (self.embed_dim * T))) * tau)
+
+        dropout_probs_high_precision = dropout_probs.to(dtype=torch.float32)
+        scaled_dropout_probs = torch.log(self.log_scale * dropout_probs_high_precision+1) / self.scaled_dropout_probs_denom
+        dropout_mask = scaled_dropout_probs.to(dtype=dropout_probs.dtype)
+        stds = dropout_mask.std(dim=-1, keepdim=True)
+        dropout_mask = self.sigmoid((dropout_mask -  0.5) * (1 * 6/(stds + 1e-10)))
 
         if self.profile_dropout_mask:
-            dropout_probs_max = dropout_probs.view(dropout_probs.size(0), -1).max(
-                dim=-1, keepdim=True
-            )
-            dropout_probs_min = dropout_probs.view(dropout_probs.size(0), -1).min(
-                dim=-1, keepdim=True
-            )
-            dropout_probs_range_mean = (
-                dropout_probs_max.values - dropout_probs_min.values
-            ) / 2 + dropout_probs_min.values
-            dropout_probs_range_mean = dropout_probs_range_mean.unsqueeze(-1)
-            range_values = dropout_probs_range_mean.detach().flatten().cpu()
-            dropout_probs_above_range_mean = (
-                (dropout_probs > dropout_probs_range_mean).float().mean(dim=(-1, -2))
-            )
             wandb.log(
                 {
                     f"{self.module_name}.dropout_mask": dropout_mask,
-                    f"{self.module_name}.attn": attn,
+                    f"{self.module_name}.causal_attn": causal_attn,
                     f"{self.module_name}.dropout_logits": dropout_logits,
                     f"{self.module_name}.dropout_probs": dropout_probs,
-                    f"{self.module_name}.dropout_probs_range_mean": wandb.Histogram(
-                        range_values
-                    ),
-                    f"{self.module_name}.dropout_probs_std": wandb.Histogram(
-                        dropout_probs_std.detach().flatten().cpu()
-                    ),
-                    f"{self.module_name}.dropout_probs_above_range_mean": wandb.Histogram(
-                        dropout_probs_above_range_mean.detach().cpu()
-                    ),
-                    "above_range_mean_mean": dropout_probs_above_range_mean.mean(),
-                    f"{self.module_name}.dropout_probs_median": wandb.Histogram(
-                        dropout_probs.view(dropout_probs.size(0), -1)
-                        .median(dim=(-1), keepdim=True)
-                        .values.detach()
-                        .cpu()
-                    ),
-                    f"{self.module_name}.dropout_probs_below_avg": wandb.Histogram(
-                        (dropout_probs < (1 / (self.embed_dim * T)))
-                        .float()
-                        .mean(dim=(-1, -2))
-                        .detach()
-                        .cpu()
-                    ),
                 },
                 commit=False,
             )
@@ -343,7 +328,7 @@ class LearnedDropout(nn.Module):
 
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
-                    torch.norm(dropout_mask, p=1, dim=(-1, -2)) / (self.embed_dim * T)
+                    torch.norm(dropout_mask, p=1, dim=-1) / (self.embed_dim)
                 ).flatten()
 
             self.dropout_near_one_percent = (

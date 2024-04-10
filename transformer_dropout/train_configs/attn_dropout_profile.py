@@ -10,10 +10,13 @@ LEARNED_DROPOUT_LAYERS = 1
 LEARNED_DROPOUT_CONFIG = {
     "use_dropout_entropy_in_loss": True,
     "use_dropout_l1_norm_in_loss": False,
-    "use_bias": True,
+    "use_bias": False,
     "use_canonical_entropy": True,
     "use_detached_x_in_dropout_mask": False,
     "profile_dropout_mask": True,
+    "dropout_entropy_lambda": {
+        "coefficient": 0.01,
+    }
 }
 
 # Training config
