@@ -38,7 +38,7 @@ class LearnedDropoutConfig:
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
     n_heads: int = 1
-    sigmoid_scaler: float = 6
+    # sigmoid_scaler: float = 6
     sin_freq: float = 10
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
@@ -46,7 +46,7 @@ class LearnedDropoutConfig:
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
-        assert self.sigmoid_scaler > 1
+        # assert self.sigmoid_scaler > 1
 
         if (
             not self.use_dropout_entropy_in_loss
