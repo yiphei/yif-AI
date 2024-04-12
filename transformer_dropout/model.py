@@ -321,10 +321,9 @@ class LearnedDropout(nn.Module):
                 self.dropout_entropy = self.entropy_fn(dropout_probs)
 
             with torch.no_grad():
-                # self.dropout_sigmoid_entropy = self.canonical_sigmoid_entropy(
-                #     dropout_mask
-                # )
-                self.dropout_sigmoid_entropy = torch.tensor(0.0, dtype = x.dtype)
+                self.dropout_sigmoid_entropy = self.canonical_sigmoid_entropy(
+                    dropout_mask
+                )
 
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
