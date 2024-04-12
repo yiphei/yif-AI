@@ -39,6 +39,7 @@ class LearnedDropoutConfig:
     use_bias: bool
     n_heads: int = 1
     sigmoid_scaler: float = 6
+    sin_freq: float = 10
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
@@ -227,6 +228,7 @@ class LearnedDropout(nn.Module):
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
         self.sigmoid = nn.Sigmoid()
+        self.ln = LayerNorm(embed_dim, False)
 
         # Precomputed constants
         embed_dim_factor = 1 / embed_dim
@@ -283,21 +285,23 @@ class LearnedDropout(nn.Module):
         v = v.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
 
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
-        # attn = 0.5 * torch.cos(1000000* np.pi * 0.7 * attn + np.pi/2) + 0.5
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
-        dropout_probs = F.softmax(dropout_logits, dim=-1)
+        periodic_dropout_logits = torch.sin(self.config.sin_freq * dropout_logits)
+        normed_dropout_logits = self.ln(periodic_dropout_logits)
+        dropout_probs = F.softmax(normed_dropout_logits, dim=-1)
 
         scaled_dropout_probs = (
             torch.log(self.log_scale * dropout_probs + 1)
             / self.scaled_dropout_probs_denom
         )
-        stds = scaled_dropout_probs.std(dim=-1, keepdim=True)
-        dropout_mask = self.sigmoid(
-            (scaled_dropout_probs - 0.5)
-            * (1 * self.config.sigmoid_scaler / (stds + 1e-10))
-        )
+        dropout_mask = scaled_dropout_probs
+        # stds = scaled_dropout_probs.std(dim=-1, keepdim=True)
+        # dropout_mask = self.sigmoid(
+        #     (scaled_dropout_probs - 0.5)
+        #     * 6
+        # )
 
         if self.config.profile_dropout_mask:
             wandb.log(
@@ -306,6 +310,8 @@ class LearnedDropout(nn.Module):
                     f"{self.module_name}.causal_attn": causal_attn.detach().to(dtype=torch.float16),
                     f"{self.module_name}.dropout_logits": dropout_logits.detach().to(dtype=torch.float16),
                     f"{self.module_name}.dropout_probs": dropout_probs.detach().to(dtype=torch.float16),
+                    f"{self.module_name}.periodic_dropout_logits": periodic_dropout_logits.detach().to(dtype=torch.float16),
+                    f"{self.module_name}.normed_dropout_logits": normed_dropout_logits.detach().to(dtype=torch.float16),
                 },
                 commit=False,
             )
@@ -315,9 +321,10 @@ class LearnedDropout(nn.Module):
                 self.dropout_entropy = self.entropy_fn(dropout_probs)
 
             with torch.no_grad():
-                self.dropout_sigmoid_entropy = self.canonical_sigmoid_entropy(
-                    dropout_mask
-                )
+                # self.dropout_sigmoid_entropy = self.canonical_sigmoid_entropy(
+                #     dropout_mask
+                # )
+                self.dropout_sigmoid_entropy = torch.tensor(0.0, dtype = x.dtype)
 
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
