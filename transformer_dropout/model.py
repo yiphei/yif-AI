@@ -293,19 +293,35 @@ class LearnedDropout(nn.Module):
             / self.scaled_dropout_probs_denom
         )
         complement_probs = 1 - scaled_dropout_probs.detach()
-        noise = self.uniform.sample(scaled_dropout_probs.shape).to(scaled_dropout_probs.device)
-        scaling = torch.where(noise >= complement_probs, complement_probs, complement_probs - 1)
+        noise = self.uniform.sample(scaled_dropout_probs.shape).to(
+            scaled_dropout_probs.device
+        )
+        scaling = torch.where(
+            noise >= complement_probs, complement_probs, complement_probs - 1
+        )
         dropout_mask = scaling + scaled_dropout_probs
 
         if self.config.profile_dropout_mask:
             wandb.log(
                 {
-                    f"{self.module_name}.dropout_mask": dropout_mask.detach().to(dtype=torch.float16),
-                    f"{self.module_name}.causal_attn": causal_attn.detach().to(dtype=torch.float16),
-                    f"{self.module_name}.dropout_logits": dropout_logits.detach().to(dtype=torch.float16),
-                    f"{self.module_name}.normed_dropout_logits": normed_logits.detach().to(dtype=torch.float16),
-                    f"{self.module_name}.dropout_probs": dropout_probs.detach().to(dtype=torch.float32),
-                    f"{self.module_name}.scaled_dropout_probs": scaled_dropout_probs.detach().to(dtype=torch.float16),
+                    f"{self.module_name}.dropout_mask": dropout_mask.detach().to(
+                        dtype=torch.float16
+                    ),
+                    f"{self.module_name}.causal_attn": causal_attn.detach().to(
+                        dtype=torch.float16
+                    ),
+                    f"{self.module_name}.dropout_logits": dropout_logits.detach().to(
+                        dtype=torch.float16
+                    ),
+                    f"{self.module_name}.normed_dropout_logits": normed_logits.detach().to(
+                        dtype=torch.float16
+                    ),
+                    f"{self.module_name}.dropout_probs": dropout_probs.detach().to(
+                        dtype=torch.float32
+                    ),
+                    f"{self.module_name}.scaled_dropout_probs": scaled_dropout_probs.detach().to(
+                        dtype=torch.float16
+                    ),
                 },
                 commit=False,
             )
@@ -461,7 +477,7 @@ class DropoutTransformer(nn.Module):
         return self.get_aggregated_learned_dropout_attributes(
             "dropout_near_one_percent", np.mean, True
         )
-    
+
     def get_mean_zero_mask_vectors_count(self):
         return self.get_aggregated_learned_dropout_attributes(
             "zero_mask_vectors_count", np.mean, True
