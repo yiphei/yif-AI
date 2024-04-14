@@ -38,15 +38,12 @@ class LearnedDropoutConfig:
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
     n_heads: int = 1
-    # sigmoid_scaler: float = 6
-    sin_freq: float = 10
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
-        # assert self.sigmoid_scaler > 1
 
         if (
             not self.use_dropout_entropy_in_loss
@@ -521,7 +518,7 @@ class DropoutTransformer(nn.Module):
             mean_dropout_l1_norm,
             mean_dropout_entropy_coefficient,
             mean_dropout_l1_norm_coefficient,
-        ) = [None] * 5
+        ) = [None] * 4
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
