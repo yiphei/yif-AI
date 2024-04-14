@@ -227,7 +227,7 @@ class LearnedDropout(nn.Module):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
-        self.sigmoid = nn.Sigmoid()
+        self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
         self.ln = LayerNorm(embed_dim, False)
 
         # Precomputed constants
@@ -238,9 +238,9 @@ class LearnedDropout(nn.Module):
         )
         self.scaled_dropout_probs_denom = torch.log(self.log_scale)
         self.entropy_normalizer = -torch.log2(torch.tensor(1 / (embed_dim)))
-        self.sigmoid_entropy_normalizer = (
-            -(np.e**-1) * torch.log2(torch.tensor(np.e**-1)) * embed_dim
-        )
+        # self.sigmoid_entropy_normalizer = (
+        #     -(np.e**-1) * torch.log2(torch.tensor(np.e**-1)) * embed_dim
+        # )
         self.register_buffer(
             "tril",
             torch.tril(
@@ -257,7 +257,6 @@ class LearnedDropout(nn.Module):
         # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
-        self.dropout_sigmoid_entropy = None
 
     def canonical_entropy(self, dropout_probs):
         # the small constant is for numerical stability
@@ -265,11 +264,11 @@ class LearnedDropout(nn.Module):
             dim=-1
         ).mean() / self.entropy_normalizer
 
-    def canonical_sigmoid_entropy(self, dropout_mask):
-        # the small constant is for numerical stability
-        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).sum(
-            dim=-1
-        ).mean() / self.sigmoid_entropy_normalizer
+    # def canonical_sigmoid_entropy(self, dropout_mask):
+    #     # the small constant is for numerical stability
+    #     return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).sum(
+    #         dim=-1
+    #     ).mean() / self.sigmoid_entropy_normalizer
 
     def forward(self, x):
         import wandb
@@ -288,20 +287,17 @@ class LearnedDropout(nn.Module):
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
-        periodic_dropout_logits = torch.sin(self.config.sin_freq * dropout_logits)
-        normed_dropout_logits = self.ln(periodic_dropout_logits)
-        dropout_probs = F.softmax(normed_dropout_logits, dim=-1)
+        normed_logits = self.ln(dropout_logits)
+        dropout_probs = F.softmax(normed_logits, dim=-1)
 
         scaled_dropout_probs = (
             torch.log(self.log_scale * dropout_probs + 1)
             / self.scaled_dropout_probs_denom
         )
-        dropout_mask = scaled_dropout_probs
-        # stds = scaled_dropout_probs.std(dim=-1, keepdim=True)
-        # dropout_mask = self.sigmoid(
-        #     (scaled_dropout_probs - 0.5)
-        #     * 6
-        # )
+        complement_probs = 1 - scaled_dropout_probs.detach()
+        noise = self.uniform.sample(scaled_dropout_probs.shape).to(scaled_dropout_probs.device)
+        scaling = torch.where(noise >= complement_probs, complement_probs, complement_probs - 1)
+        dropout_mask = scaling + scaled_dropout_probs
 
         if self.config.profile_dropout_mask:
             wandb.log(
@@ -309,9 +305,9 @@ class LearnedDropout(nn.Module):
                     f"{self.module_name}.dropout_mask": dropout_mask.detach().to(dtype=torch.float16),
                     f"{self.module_name}.causal_attn": causal_attn.detach().to(dtype=torch.float16),
                     f"{self.module_name}.dropout_logits": dropout_logits.detach().to(dtype=torch.float16),
-                    f"{self.module_name}.dropout_probs": dropout_probs.detach().to(dtype=torch.float16),
-                    f"{self.module_name}.periodic_dropout_logits": periodic_dropout_logits.detach().to(dtype=torch.float16),
-                    f"{self.module_name}.normed_dropout_logits": normed_dropout_logits.detach().to(dtype=torch.float16),
+                    f"{self.module_name}.normed_dropout_logits": normed_logits.detach().to(dtype=torch.float16),
+                    f"{self.module_name}.dropout_probs": dropout_probs.detach().to(dtype=torch.float32),
+                    f"{self.module_name}.scaled_dropout_probs": scaled_dropout_probs.detach().to(dtype=torch.float16),
                 },
                 commit=False,
             )
@@ -319,11 +315,6 @@ class LearnedDropout(nn.Module):
         if self.training:
             with self.dropout_entropy_context:
                 self.dropout_entropy = self.entropy_fn(dropout_probs)
-
-            with torch.no_grad():
-                self.dropout_sigmoid_entropy = self.canonical_sigmoid_entropy(
-                    dropout_mask
-                )
 
             with self.dropout_l1_norm_context:
                 self.dropout_l1_norm = (
@@ -502,11 +493,6 @@ class DropoutTransformer(nn.Module):
             "dropout_entropy", lambda x: torch.stack(x, dim=0).mean(), True
         )
 
-    def get_mean_dropout_sigmoid_entropy(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_sigmoid_entropy", lambda x: torch.stack(x, dim=0).mean(), True
-        )
-
     def get_mean_dropout_l1_norm(self):
         return self.get_aggregated_learned_dropout_attributes(
             "dropout_l1_norm", lambda x: torch.cat(x, dim=0).mean(), True
@@ -525,7 +511,6 @@ class DropoutTransformer(nn.Module):
 
         (
             mean_dropout_entropy,
-            mean_dropout_sigmoid_entropy,
             mean_dropout_l1_norm,
             mean_dropout_entropy_coefficient,
             mean_dropout_l1_norm_coefficient,
@@ -542,7 +527,6 @@ class DropoutTransformer(nn.Module):
             if self.training and self.config.use_learned_dropout:
                 mean_dropout_entropy = self.get_mean_dropout_entropy()
                 mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
-                mean_dropout_sigmoid_entropy = self.get_mean_dropout_sigmoid_entropy()
                 mean_dropout_entropy_coefficient = (
                     self.get_annealed_dropout_coefficient(
                         self.config.learned_dropout_config.dropout_entropy_lambda
@@ -571,7 +555,6 @@ class DropoutTransformer(nn.Module):
                 mean_dropout_l1_norm,
                 mean_dropout_entropy_coefficient,
                 mean_dropout_l1_norm_coefficient,
-                mean_dropout_sigmoid_entropy,
             ),
         )
 
