@@ -257,6 +257,7 @@ class LearnedDropout(nn.Module):
         # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
+        self.zero_mask_vectors_percent = None
 
     def canonical_entropy(self, dropout_probs):
         # the small constant is for numerical stability
@@ -328,6 +329,7 @@ class LearnedDropout(nn.Module):
                 dropout_mask < 0.1
             ).sum().item() / dropout_mask.numel()
 
+            self.zero_mask_vectors_percent = (dropout_mask.sum(dim=-1) == 0).sum().item() / (B * T)
         return x * dropout_mask
 
 
@@ -461,6 +463,11 @@ class DropoutTransformer(nn.Module):
     def get_mean_dropout_near_one_percent(self):
         return self.get_aggregated_learned_dropout_attributes(
             "dropout_near_one_percent", np.mean, True
+        )
+    
+    def get_mean_zero_mask_vectors_percent(self):
+        return self.get_aggregated_learned_dropout_attributes(
+            "zero_mask_vectors_percent", np.mean, True
         )
 
     def get_mean_dropout_near_zero_percent(self):

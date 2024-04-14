@@ -64,6 +64,7 @@ class BatchStats(BatchStatsBase):
             "dropout_l1_norm": self.running_l1_norm,
             "mean_dropout_near_one_percent": self.model.get_mean_dropout_near_one_percent(),
             "mean_dropout_near_zero_percent": self.model.get_mean_dropout_near_zero_percent(),
+            "zero_mask_vectors_percent": self.model.get_mean_zero_mask_vectors_percent(),
             "dropout_entropy_coefficient": self.entropy_coefficient,
             "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient,
         }
