@@ -411,7 +411,7 @@ class DropoutTransformer(nn.Module):
         check = config.learned_dropout_layers or 0
         self.transformer_blocks = nn.Sequential(
             *[
-                TransformerBlock(config, (i) >= (config.n_layer - check))
+                TransformerBlock(config, (i+1) == check)
                 for i in range(config.n_layer)
             ]
         )
