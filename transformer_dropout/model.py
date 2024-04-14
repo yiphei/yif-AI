@@ -37,6 +37,7 @@ class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
+    l1_norm_pos: int
     n_heads: int = 1
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
@@ -44,7 +45,7 @@ class LearnedDropoutConfig:
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
-
+        assert self.l1_norm_pos in [1,2]
         if (
             not self.use_dropout_entropy_in_loss
             and self.dropout_entropy_lambda is not None
@@ -276,6 +277,9 @@ class LearnedDropout(nn.Module):
             dropout_x = x.detach()
 
         B, T, C = dropout_x.shape
+        if self.config.l1_norm_pos == 1:
+            dropout_x = self.ln(dropout_x)
+
         q, k, v = self.batch_attn_weights(dropout_x).split(self.embed_dim, dim=2)
         k = k.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
@@ -285,8 +289,9 @@ class LearnedDropout(nn.Module):
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
-        normed_logits = self.ln(dropout_logits)
-        dropout_probs = F.softmax(normed_logits, dim=-1)
+        if self.config.l1_norm_pos == 2:
+            dropout_logits = self.ln(dropout_logits)
+        dropout_probs = F.softmax(dropout_logits, dim=-1)
 
         scaled_dropout_probs = (
             torch.log(self.log_scale * dropout_probs + 1)
@@ -313,9 +318,9 @@ class LearnedDropout(nn.Module):
                     f"{self.module_name}.dropout_logits": dropout_logits.detach().to(
                         dtype=torch.float16
                     ),
-                    f"{self.module_name}.normed_dropout_logits": normed_logits.detach().to(
-                        dtype=torch.float16
-                    ),
+                    # f"{self.module_name}.normed_dropout_logits": normed_logits.detach().to(
+                    #     dtype=torch.float16
+                    # ),
                     f"{self.module_name}.dropout_probs": dropout_probs.detach().to(
                         dtype=torch.float32
                     ),
