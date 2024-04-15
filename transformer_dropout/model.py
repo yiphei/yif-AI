@@ -292,18 +292,27 @@ class LearnedDropout(nn.Module):
             dropout_logits = self.ln(dropout_logits)
         dropout_probs = F.softmax(dropout_logits, dim=-1)
 
-        scaled_dropout_probs = (
-            torch.log((self.log_scale-1) * dropout_probs + 1)
-            / self.scaled_dropout_probs_denom
+        # scaled_dropout_probs = (
+        #     torch.log((self.log_scale-1) * dropout_probs + 1)
+        #     / self.scaled_dropout_probs_denom
+        # )
+        # complement_probs = 1 - scaled_dropout_probs.detach()
+        # noise = self.uniform.sample(scaled_dropout_probs.shape).to(
+        #     scaled_dropout_probs.device
+        # )
+        # scaling = torch.where(
+        #     noise >= complement_probs, complement_probs, complement_probs - 1
+        # )
+        # dropout_mask = scaling.to(dtype=torch.float16) + scaled_dropout_probs.to(dtype=torch.float16)
+        noise = self.uniform.sample(dropout_probs.shape).to(
+            dropout_probs.device
         )
-        complement_probs = 1 - scaled_dropout_probs.detach()
-        noise = self.uniform.sample(scaled_dropout_probs.shape).to(
-            scaled_dropout_probs.device
-        )
+        downscale_noise = (self.log_scale - self.log_scale ** (1-noise)) / (self.log_scale - 1)
+        complement_probs = 1 - dropout_probs
         scaling = torch.where(
-            noise >= complement_probs, complement_probs, complement_probs - 1
+            downscale_noise >= complement_probs, complement_probs, complement_probs - 1
         )
-        dropout_mask = scaling + scaled_dropout_probs
+        dropout_mask = scaling.to(dtype=torch.float16) + dropout_probs.to(dtype=torch.float16)
 
         if self.config.profile_dropout_mask:
             wandb.log(
@@ -323,9 +332,9 @@ class LearnedDropout(nn.Module):
                     f"{self.module_name}.dropout_probs": dropout_probs.detach().to(
                         dtype=torch.float32
                     ),
-                    f"{self.module_name}.scaled_dropout_probs": scaled_dropout_probs.detach().to(
-                        dtype=torch.float16
-                    ),
+                    # f"{self.module_name}.scaled_dropout_probs": scaled_dropout_probs.detach().to(
+                    #     dtype=torch.float16
+                    # ),
                 },
                 commit=False,
             )
