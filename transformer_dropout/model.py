@@ -231,8 +231,7 @@ class LearnedDropout(nn.Module):
         # Precomputed constants
         embed_dim_factor = 1 / embed_dim
         self.log_scale = torch.tensor(
-            (1 + np.sqrt(1 - 4 * embed_dim_factor) - 2 * embed_dim_factor)
-            / (2 * (embed_dim_factor**2))
+            ((embed_dim_factor ** 2) - 2 * embed_dim_factor + 1) / (embed_dim_factor ** 2)
         )
         self.scaled_dropout_probs_denom = torch.log(self.log_scale)
         self.entropy_normalizer = -torch.log2(torch.tensor(1 / (embed_dim)))
@@ -294,7 +293,7 @@ class LearnedDropout(nn.Module):
         dropout_probs = F.softmax(dropout_logits, dim=-1)
 
         scaled_dropout_probs = (
-            torch.log(self.log_scale * dropout_probs + 1)
+            torch.log((self.log_scale-1) * dropout_probs + 1)
             / self.scaled_dropout_probs_denom
         )
         complement_probs = 1 - scaled_dropout_probs.detach()
