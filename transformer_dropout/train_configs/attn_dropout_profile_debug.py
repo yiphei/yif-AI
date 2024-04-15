@@ -6,10 +6,11 @@ N_HEAD = 4
 BIAS = False
 USE_LEARNED_DROPOUT = True
 DROPOUT_RATE = 0.3
-LEARNED_DROPOUT_LAYERS = 1
+LEARNED_DROPOUT_LAYERS = 4
 LEARNED_DROPOUT_CONFIG = {
     "use_dropout_entropy_in_loss": True,
     "use_dropout_l1_norm_in_loss": False,
+    "l1_norm_pos": 2,
     "use_bias": False,
     "use_detached_x_in_dropout_mask": False,
     "profile_dropout_mask": True,
