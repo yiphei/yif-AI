@@ -217,6 +217,7 @@ class LearnedDropout(nn.Module):
         self.dropout_l1_norm_context = (
             nullcontext() if config.use_dropout_l1_norm_in_loss else torch.no_grad()
         )
+        self.state = None
 
         self.config = config
         self.entropy_fn = self.canonical_entropy
@@ -288,10 +289,19 @@ class LearnedDropout(nn.Module):
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
+        if self.training:
+            causal_attn.retain_grad()
+            self.state["causal_attn_grad"] = causal_attn
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
         if self.config.l1_norm_pos == 2:
             dropout_logits = self.ln(dropout_logits)
+        if self.training:
+            dropout_logits.retain_grad()
+            self.state["dropout_logits_grad"] = dropout_logits
         dropout_probs = F.softmax(dropout_logits, dim=-1)
+        if self.training:
+            dropout_probs.retain_grad()
+            self.state["dropout_probs_grad"] = dropout_probs
 
         scaled_dropout_probs = (
             torch.log((self.log_scale-1) * dropout_probs + 1)
@@ -311,6 +321,9 @@ class LearnedDropout(nn.Module):
                 scaled_dropout_probs >= 0.5, complement_probs, complement_probs - 1
             )
         dropout_mask = scaling.to(dtype=torch.float16) + scaled_dropout_probs.to(dtype=torch.float16)
+        if self.training:
+            dropout_mask.retain_grad()
+            self.state["dropout_mask_grad"] = dropout_mask
 
         # noise = self.uniform.sample(dropout_probs.shape).to(
         #     dropout_probs.device
@@ -449,6 +462,7 @@ class DropoutTransformer(nn.Module):
                     p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
                 )
 
+        self.state = {}
         # maybe there is a better way
         param_to_param_name = {p: n for n, p in self.named_parameters()}
         for module in self.modules():
@@ -458,6 +472,7 @@ class DropoutTransformer(nn.Module):
                         :-2
                     ]
                 )
+                module.state = self.state
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
