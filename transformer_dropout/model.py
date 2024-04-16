@@ -308,7 +308,7 @@ class LearnedDropout(nn.Module):
             dropout_probs.device
         )
         downscale_noise = (self.log_scale - self.log_scale ** (1-noise)) / (self.log_scale - 1)
-        complement_probs = 1 - dropout_probs
+        complement_probs = 1 - dropout_probs.detach()
         scaling = torch.where(
             downscale_noise >= complement_probs, complement_probs, complement_probs - 1
         )
