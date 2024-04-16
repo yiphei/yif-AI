@@ -312,6 +312,8 @@ class LearnedDropout(nn.Module):
         scaling = torch.where(
             downscale_noise >= complement_probs, complement_probs, complement_probs - 1
         )
+        # high-precision does not nicely round to 0 or 1, so lower precision here.
+        # TODO: match the lower precision float set in the training script (i.e. bfloat16 vs float16)
         dropout_mask = scaling.to(dtype=torch.float16) + dropout_probs.to(dtype=torch.float16)
 
         if self.config.profile_dropout_mask:
@@ -320,6 +322,7 @@ class LearnedDropout(nn.Module):
                     f"{self.module_name}.dropout_mask": dropout_mask.detach().to(
                         dtype=torch.float16
                     ),
+                    f"{self.module_name}.dropout_mask_precision": (dropout_mask > 0.5).sum().item() - dropout_mask.float().sum().item(),
                     f"{self.module_name}.causal_attn": causal_attn.detach().to(
                         dtype=torch.float16
                     ),
