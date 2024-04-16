@@ -38,7 +38,7 @@ class LearnedDropoutConfig:
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
     l1_norm_pos: int
-    use_noise: bool = False
+    use_noise: bool = True
     n_heads: int = 1
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
