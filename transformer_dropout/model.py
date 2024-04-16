@@ -38,6 +38,7 @@ class LearnedDropoutConfig:
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
     l1_norm_pos: int
+    use_noise: bool = False
     n_heads: int = 1
     use_detached_x_in_dropout_mask: bool = False
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
@@ -292,29 +293,36 @@ class LearnedDropout(nn.Module):
             dropout_logits = self.ln(dropout_logits)
         dropout_probs = F.softmax(dropout_logits, dim=-1)
 
-        # scaled_dropout_probs = (
-        #     torch.log((self.log_scale-1) * dropout_probs + 1)
-        #     / self.scaled_dropout_probs_denom
+        scaled_dropout_probs = (
+            torch.log((self.log_scale-1) * dropout_probs + 1)
+            / self.scaled_dropout_probs_denom
+        )
+        complement_probs = 1 - scaled_dropout_probs.detach()
+
+        if self.config.use_noise:
+            noise = self.uniform.sample(scaled_dropout_probs.shape).to(
+                scaled_dropout_probs.device
+            )
+            scaling = torch.where(
+                noise >= complement_probs, complement_probs, complement_probs - 1
+            )
+        else:
+            scaling = torch.where(
+                scaled_dropout_probs >= 0.5, complement_probs, complement_probs - 1
+            )
+        dropout_mask = scaling.to(dtype=torch.float16) + scaled_dropout_probs.to(dtype=torch.float16)
+
+        # noise = self.uniform.sample(dropout_probs.shape).to(
+        #     dropout_probs.device
         # )
-        # complement_probs = 1 - scaled_dropout_probs.detach()
-        # noise = self.uniform.sample(scaled_dropout_probs.shape).to(
-        #     scaled_dropout_probs.device
-        # )
+        # downscale_noise = (self.log_scale - self.log_scale ** (1-noise)) / (self.log_scale - 1)
+        # complement_probs = 1 - dropout_probs.detach()
         # scaling = torch.where(
-        #     noise >= complement_probs, complement_probs, complement_probs - 1
+        #     downscale_noise >= complement_probs, complement_probs, complement_probs - 1
         # )
-        # dropout_mask = scaling.to(dtype=torch.float16) + scaled_dropout_probs.to(dtype=torch.float16)
-        noise = self.uniform.sample(dropout_probs.shape).to(
-            dropout_probs.device
-        )
-        downscale_noise = (self.log_scale - self.log_scale ** (1-noise)) / (self.log_scale - 1)
-        complement_probs = 1 - dropout_probs.detach()
-        scaling = torch.where(
-            downscale_noise >= complement_probs, complement_probs, complement_probs - 1
-        )
-        # high-precision does not nicely round to 0 or 1, so lower precision here.
-        # TODO: match the lower precision float set in the training script (i.e. bfloat16 vs float16)
-        dropout_mask = scaling.to(dtype=torch.float16) + dropout_probs.to(dtype=torch.float16)
+        # # high-precision does not nicely round to 0 or 1, so lower precision here.
+        # # TODO: match the lower precision float set in the training script (i.e. bfloat16 vs float16)
+        # dropout_mask = scaling.to(dtype=torch.float16) + dropout_probs.to(dtype=torch.float16)
 
         if self.config.profile_dropout_mask:
             wandb.log(
