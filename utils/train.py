@@ -602,6 +602,9 @@ def _train(
         dropout_probs_grad = raw_model.state["dropout_probs_grad"].grad.clone().to(dtype=torch.float16)
         total_magnitude = dropout_probs_grad.abs().sum().item()
 
+        one_dropout_mask = raw_model.state["dropout_mask_grad"] == 1
+        zero_dropout_mask = raw_model.state["dropout_mask_grad"] == 0
+
         wandb.log({"dropout_logits_grad_zero_count": (dropout_logits_grad.std(dim=-1) == 0).sum().item(),
                    "dropout_logits_grad_zero_count_double_prec": (double_dropout_logits_grad.std(dim=-1) == 0).sum().item(),
                    "dropout_logits_grad_zero_count_double_std": double_dropout_logits_grad[(dropout_logits_grad.std(dim=-1) == 0)].std(dim=-1).float(),
@@ -609,7 +612,9 @@ def _train(
                    "causal_attn_grad_zero_count_double_prec": (double_causal_attn_grad.std(dim=-1) == 0).sum().item(),
                    "causal_attn_grad_zero_count_double_std": double_causal_attn_grad[causal_attn_grad.std(dim=-1) == 0].std(dim=-1).mean().item(),
                    "dropout_probs_before_zero": dropout_probs_grad[dropout_probs_grad.std(dim=-1) == 0].float(),
+                   "dropout_probs_before_zero_count": dropout_probs_grad[dropout_probs_grad.std(dim=-1) == 0].numel(),
                    "dropout_probs_before_zero_matching_zero_logits": dropout_probs_grad[(dropout_logits_grad.std(dim=-1) == 0)].float(),
+                   "dropout_probs_before_zero_matching_zero_logits_count": dropout_probs_grad[(dropout_logits_grad.std(dim=-1) == 0)].numel(),
                    "dropout_probs_before_zero_std": dropout_probs_grad[dropout_probs_grad.std(dim=-1) == 0].std(dim=-1).float(),
                    "dropout_probs_negative_%": (dropout_probs_grad < 0).float().mean().item(),
                    "dropout_probs_zero_%":  (dropout_probs_grad == 0).float().mean().item(),
@@ -617,7 +622,13 @@ def _train(
                     "dropout_probs_negative_magn_%": dropout_probs_grad[dropout_probs_grad < 0].sum().abs().item() / total_magnitude,
                    "dropout_probs_positive_magn_%":  dropout_probs_grad[dropout_probs_grad > 0].sum().abs().item() / total_magnitude, 
                    "avg_magnitude": total_magnitude / dropout_probs_grad.numel(), 
-                   "dropout_mask_grad": raw_model.state["dropout_mask_grad"].float(), 
+                   "dropout_mask_grad": raw_model.state["dropout_mask_grad"].grad.float(),
+                   "negative_dropout_probs_grad_matching_one_mask_%": (dropout_probs_grad[one_dropout_mask] < 0).sum().item() / dropout_probs_grad[one_dropout_mask].numel(),
+                   "zero_dropout_probs_grad_matching_one_mask_%": (dropout_probs_grad[one_dropout_mask] == 0).sum().item() / dropout_probs_grad[one_dropout_mask].numel(),
+                   "positive_dropout_probs_grad_matching_one_mask_%": (dropout_probs_grad[one_dropout_mask] > 0).sum().item() / dropout_probs_grad[one_dropout_mask].numel(),
+                   "negative_dropout_probs_grad_matching_zero_mask_%": (dropout_probs_grad[zero_dropout_mask] < 0).sum().item() / dropout_probs_grad[zero_dropout_mask].numel(),
+                   "zero_dropout_probs_grad_matching_zero_mask_%": (dropout_probs_grad[zero_dropout_mask] == 0).sum().item() / dropout_probs_grad[zero_dropout_mask].numel(),
+                   "positive_dropout_probs_grad_matching_zero_mask_%": (dropout_probs_grad[zero_dropout_mask] > 0).sum().item() / dropout_probs_grad[zero_dropout_mask].numel(),
                    }, commit=False)
         
         scaler.update()
