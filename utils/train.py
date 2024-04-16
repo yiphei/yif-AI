@@ -609,6 +609,7 @@ def _train(
                    "causal_attn_grad_zero_count_double_prec": (double_causal_attn_grad.std(dim=-1) == 0).sum().item(),
                    "causal_attn_grad_zero_count_double_std": double_causal_attn_grad[causal_attn_grad.std(dim=-1) == 0].std(dim=-1).mean().item(),
                    "dropout_probs_before_zero": dropout_probs_grad[dropout_probs_grad.std(dim=-1) == 0].float(),
+                   "dropout_probs_before_zero_matching_zero_logits": dropout_probs_grad[(dropout_logits_grad.std(dim=-1) == 0)].float(),
                    "dropout_probs_before_zero_std": dropout_probs_grad[dropout_probs_grad.std(dim=-1) == 0].std(dim=-1).float(),
                    "dropout_probs_negative_%": (dropout_probs_grad < 0).float().mean().item(),
                    "dropout_probs_zero_%":  (dropout_probs_grad == 0).float().mean().item(),
