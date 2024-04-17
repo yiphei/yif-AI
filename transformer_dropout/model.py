@@ -35,6 +35,7 @@ class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
+    shift_init: float = 0.0
     n_heads: int = 1
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = True
@@ -43,6 +44,8 @@ class LearnedDropoutConfig:
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
+        assert 0 <= self.shift_init <= torch.pi
+
         if (
             not self.use_dropout_entropy_in_loss
             and self.dropout_entropy_lambda is not None
@@ -225,7 +228,7 @@ class LearnedDropout(nn.Module):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
-        self.shift = nn.Parameter(torch.full((embed_dim,) 0.0))
+        self.shift = nn.Parameter(torch.full((embed_dim,), config.shift_init))
 
         self.register_buffer(
             "tril",
@@ -246,7 +249,7 @@ class LearnedDropout(nn.Module):
 
     def canonical_entropy(self, dropout_mask):
         # the small constant is for numerical stability
-        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean(dim=-1).flatten()
+        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
 
     def alternate_entropy(self, dropout_mask):
         # the alternate entropy has the peak above 0.5, while the canonical one has
@@ -254,8 +257,7 @@ class LearnedDropout(nn.Module):
         # and low l1 norm because there is more curvature towards 0.
         return (
             ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9))
-            .mean(dim=-1)
-            .flatten()
+            .mean()
         )
 
     def forward(self, x):
