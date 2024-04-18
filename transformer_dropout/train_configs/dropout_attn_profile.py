@@ -1,4 +1,5 @@
 import torch
+
 # ModelConfig
 CONTEXT_SIZE = 100
 N_EMBED = 90
@@ -12,7 +13,7 @@ LEARNED_DROPOUT_CONFIG = {
     "use_dropout_entropy_in_loss": False,
     "use_dropout_l1_norm_in_loss": True,
     "use_bias": False,
-    "shift_init": torch.pi/2,
+    "shift_init": torch.pi / 2,
     "use_detached_x_in_dropout_mask": False,
     "profile_dropout_mask": True,
     # "dropout_entropy_lambda": {
