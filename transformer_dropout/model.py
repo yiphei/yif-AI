@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+
 @dataclass
 class RegularizingLambdaConfig:
     min_lambda: float = None
@@ -37,7 +38,7 @@ class RoundingType(str, Enum):
 
     def __str__(self):
         return self.value
-    
+
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
@@ -48,6 +49,7 @@ class RoundingType(str, Enum):
             return RoundingType.LINEAR
         else:
             raise ValueError("Invalid rounding type number")
+
 
 @dataclass
 class LearnedDropoutConfig:
@@ -69,7 +71,7 @@ class LearnedDropoutConfig:
         assert self.softmax_dim in [0, 1, 2]
 
         if type(self.rounding_type) == int:
-            assert self.rounding_type in [1,2,3]
+            assert self.rounding_type in [1, 2, 3]
             self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
 
         if (
@@ -282,10 +284,7 @@ class LearnedDropout(nn.Module):
         # the alternate entropy has the peak above 0.5, while the canonical one has
         # it below 0.5. In theory, this should be better for achieving both low entropy
         # and low l1 norm because there is more curvature towards 0.
-        return (
-            ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9))
-            .mean()
-        )
+        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x):
         import wandb
@@ -310,23 +309,25 @@ class LearnedDropout(nn.Module):
 
         if self.config.rounding_type:
             if self.config.profile_dropout_mask:
-                wandb.log({self.module_name + ".pre-rounding_mask": dropout_mask}, commit=False)
+                wandb.log(
+                    {self.module_name + ".pre-rounding_mask": dropout_mask},
+                    commit=False,
+                )
 
             if self.config.rounding_type == RoundingType.SIGMOID:
                 dropout_mask = torch.sigmoid(60 * (dropout_mask - 0.5))
             elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
-                noise = self.uniform.sample(dropout_mask.shape).to(
-                dropout_mask.device)
+                noise = self.uniform.sample(dropout_mask.shape).to(dropout_mask.device)
                 scaling = torch.where(
-                noise >= complement_mask, complement_mask, complement_mask - 1
+                    noise >= complement_mask, complement_mask, complement_mask - 1
                 )
                 dropout_mask = dropout_mask + scaling
 
             elif self.config.rounding_type == RoundingType.LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
                 scaling = torch.where(
-                dropout_mask >= 0.5, complement_mask, complement_mask - 1
+                    dropout_mask >= 0.5, complement_mask, complement_mask - 1
                 )
                 dropout_mask = dropout_mask + scaling
 
@@ -357,7 +358,9 @@ class FeedForward(nn.Module):
             config.n_embed * 4, config.n_embed, bias=config.bias
         )
         if config.use_learned_dropout and use_learned_dropout:
-            self.dropout = LearnedDropout(config.n_embed, config.context_size, config.learned_dropout_config)
+            self.dropout = LearnedDropout(
+                config.n_embed, config.context_size, config.learned_dropout_config
+            )
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
