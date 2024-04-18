@@ -25,6 +25,8 @@ parameters:
                 value: 4
             dropout_rate:
                 value: 0.3
+            learned_dropout_layers:
+                value: 1
             use_learned_dropout:
                 value: True
             learned_dropout_config:
