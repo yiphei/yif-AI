@@ -7,7 +7,7 @@ metric:
   name: est_val_loss
 early_terminate:
     type: hyperband
-    min_iter: 13
+    min_iter: 14
     eta: 2
     strict: False
 parameters:
@@ -32,7 +32,7 @@ parameters:
             learned_dropout_config:
                 parameters:
                     use_dropout_entropy_in_loss:
-                        value: True
+                        values: [True, False]
                     use_dropout_l1_norm_in_loss:
                         value: False
                     use_bias:
@@ -40,7 +40,7 @@ parameters:
                     softmax_dim:
                         values: [0, 1, 2]
                     rounding_type:
-                        values: [null, 1, 2, 3]
+                        values: [null, 1]
                     shift_init:
                         values: [0,1.57079632,3.14159265]
                     n_heads:
