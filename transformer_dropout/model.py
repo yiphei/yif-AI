@@ -281,9 +281,8 @@ class LearnedDropout(nn.Module):
             with self.dropout_entropy_context:
                 self.dropout_entropy = self.entropy_fn(dropout_mask)
             with self.dropout_l1_norm_context:
-                self.dropout_l1_norm = (
-                    torch.norm(dropout_mask, p=1, dim=-1) / self.embed_dim
-                ).flatten()
+                self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / (B * T * C)
+
             self.dropout_near_one_percent = (
                 dropout_mask > 0.9
             ).sum().item() / dropout_mask.numel()
@@ -453,12 +452,12 @@ class DropoutTransformer(nn.Module):
 
     def get_mean_dropout_entropy(self):
         return self.get_aggregated_learned_dropout_attributes(
-            "dropout_entropy", lambda x: torch.cat(x, dim=0).mean(), True
+            "dropout_entropy", lambda x: torch.stack(x, dim=0).mean(), True
         )
 
     def get_mean_dropout_l1_norm(self):
         return self.get_aggregated_learned_dropout_attributes(
-            "dropout_l1_norm", lambda x: torch.cat(x, dim=0).mean(), True
+            "dropout_l1_norm", lambda x: torch.stack(x, dim=0).mean(), True
         )
 
     def forward(self, x, targets=None):
