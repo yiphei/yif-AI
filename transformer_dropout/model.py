@@ -308,7 +308,7 @@ class LearnedDropout(nn.Module):
         dropout_mask = 0.5 * torch.cos(dropout_logits + self.shift) + 0.5
 
         if self.config.rounding_type:
-            if self.config.profile_dropout_mask:
+            if self.training and self.config.profile_dropout_mask:
                 wandb.log(
                     {self.module_name + ".pre-rounding_mask": dropout_mask},
                     commit=False,
@@ -344,7 +344,7 @@ class LearnedDropout(nn.Module):
                 dropout_mask < 0.1
             ).sum().item() / dropout_mask.numel()
 
-        if self.config.profile_dropout_mask:
+        if self.training and self.config.profile_dropout_mask:
             wandb.log({self.module_name + ".mask": dropout_mask}, commit=False)
         return x * dropout_mask
 
