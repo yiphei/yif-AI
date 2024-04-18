@@ -1,0 +1,73 @@
+program: transformer_dropout/training_script.py
+name: harry_potter_full_dropout_new_repro
+project: transformer_dropout_5_attn_cosine
+method: grid
+metric:
+  goal: minimize
+  name: est_val_loss
+early_terminate:
+    type: hyperband
+    min_iter: 13
+    eta: 2
+    strict: False
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: False
+            context_size:
+                value: 200
+            n_embed: 
+                value: 200
+            n_layer: 
+                value: 4
+            n_head: 
+                value: 4
+            dropout_rate:
+                value: 0.3
+            use_learned_dropout:
+                value: True
+            learned_dropout_config:
+                parameters:
+                    use_dropout_entropy_in_loss:
+                        value: True
+                    use_dropout_l1_norm_in_loss:
+                        value: False
+                    use_bias:
+                        value: False
+                    softmax_dim:
+                        values: [0, 1, 2]
+                    rounding_type:
+                        values: [null, 1, 2, 3]
+                    shift_init:
+                        values: [0,1.57079632,3.14159265]
+                    n_heads:
+                        value: 1
+                    use_canonical_entropy:
+                        values: [False, True]
+                    use_detached_x_in_dropout_mask:
+                        values: [True, False]
+                    profile_dropout_mask:
+                        value: True
+                    dropout_entropy_lambda:
+                        parameters:
+                            max_lambda:
+                              values: [1, 0.5, 0.1]
+    batch_size: 
+        value: 50
+    train_steps: 
+        value: 3000
+    lr: 
+        value: 3e-4
+    warmup_iters:
+        value: 100
+    min_lr: 
+        value: 3e-5
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: 
+        value: 3000
+    est_interval: 
+        value: 200
+    est_steps: 
+        value: 100
