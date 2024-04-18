@@ -54,7 +54,7 @@ class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
-    use_softmax: bool
+    softmax_dim: int = 0
     rounding_type: Optional[Union[RoundingType, int]] = None
     shift_init: float = 0.0
     n_heads: int = 1
@@ -66,6 +66,7 @@ class LearnedDropoutConfig:
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
+        assert self.softmax_dim in [0, 1, 2]
 
         if type(self.rounding_type) == int:
             assert self.rounding_type in [1,2,3]
@@ -298,9 +299,9 @@ class LearnedDropout(nn.Module):
         v = v.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
 
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
-        if self.config.use_softmax:
+        if self.config.softmax_dim != 0:
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, float("-inf"))
-            causal_attn = F.softmax(causal_attn, dim=-1)
+            causal_attn = F.softmax(causal_attn, dim=-self.config.softmax_dim)
         else:
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
