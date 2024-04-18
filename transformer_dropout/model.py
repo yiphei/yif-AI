@@ -256,7 +256,7 @@ class LearnedDropout(nn.Module):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
-        self.shift = nn.Parameter(torch.full((embed_dim,), config.shift_init))
+        self.shift = nn.Parameter(torch.full((embed_dim,), config.shift_init, dtype=torch.float32))
         self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
 
         self.register_buffer(
