@@ -3,7 +3,7 @@ import math
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
 import torch
@@ -30,12 +30,32 @@ class RegularizingLambdaConfig:
             print(f"STEP at which slope is 1: {slope_1_step}")
 
 
+class RoundingType(str, Enum):
+    SIGMOID = "SIGMOID"
+    NOISE_AND_LINEAR = "NOISE_AND_LINEAR"
+    LINEAR = "LINEAR"
+
+    def __str__(self):
+        return self.value
+    
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return RoundingType.SIGMOID
+        elif num == 2:
+            return RoundingType.NOISE_AND_LINEAR
+        elif num == 3:
+            return RoundingType.LINEAR
+        else:
+            raise ValueError("Invalid rounding type number")
+
 @dataclass
 class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
     use_softmax: bool
+    rounding_type: Optional[Union[RoundingType, int]] = None
     shift_init: float = 0.0
     n_heads: int = 1
     use_canonical_entropy: bool = False
@@ -46,6 +66,10 @@ class LearnedDropoutConfig:
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
+
+        if type(self.rounding_type) == int:
+            assert self.rounding_type in [1,2,3]
+            self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
 
         if (
             not self.use_dropout_entropy_in_loss
@@ -230,6 +254,7 @@ class LearnedDropout(nn.Module):
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
         self.shift = nn.Parameter(torch.full((embed_dim,), config.shift_init))
+        self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
 
         self.register_buffer(
             "tril",
@@ -281,6 +306,28 @@ class LearnedDropout(nn.Module):
         dropout_logits = causal_attn @ v
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
         dropout_mask = 0.5 * torch.cos(dropout_logits + self.shift) + 0.5
+
+        if self.config.rounding_type:
+            if self.config.profile_dropout_mask:
+                wandb.log({self.module_name + ".pre-rounding_mask": dropout_mask}, commit=False)
+
+            if self.config.rounding_type == RoundingType.SIGMOID:
+                dropout_mask = torch.sigmoid(60 * (dropout_mask - 0.5))
+            elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
+                complement_mask = 1 - dropout_mask.detach()
+                noise = self.uniform.sample(dropout_mask.shape).to(
+                dropout_mask.device)
+                scaling = torch.where(
+                noise >= complement_mask, complement_mask, complement_mask - 1
+                )
+                dropout_mask = dropout_mask + scaling
+
+            elif self.config.rounding_type == RoundingType.LINEAR:
+                complement_mask = 1 - dropout_mask.detach()
+                scaling = torch.where(
+                dropout_mask >= 0.5, complement_mask, complement_mask - 1
+                )
+                dropout_mask = dropout_mask + scaling
 
         if self.training:
             with self.dropout_entropy_context:
