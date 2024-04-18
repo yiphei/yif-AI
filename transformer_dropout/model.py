@@ -70,6 +70,9 @@ class LearnedDropoutConfig:
         assert 0 <= self.shift_init <= torch.pi
         assert self.softmax_dim in [0, 1, 2]
 
+        if self.use_dropout_entropy_in_loss and self.rounding_type and self.rounding_type in [2, 3]:
+            raise ValueError("rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss")
+
         if type(self.rounding_type) == int:
             assert self.rounding_type in [1, 2, 3]
             self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
@@ -322,19 +325,20 @@ class LearnedDropout(nn.Module):
                 scaling = torch.where(
                     noise >= complement_mask, complement_mask, complement_mask - 1
                 )
-                dropout_mask = dropout_mask + scaling
+                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(dtype=torch.float16)
 
             elif self.config.rounding_type == RoundingType.LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
                 scaling = torch.where(
                     dropout_mask >= 0.5, complement_mask, complement_mask - 1
                 )
-                dropout_mask = dropout_mask + scaling
+                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(dtype=torch.float16)
 
         if self.training:
             with self.dropout_entropy_context:
                 self.dropout_entropy = self.entropy_fn(dropout_mask)
             with self.dropout_l1_norm_context:
+                # TODO: change this to a simple sum
                 self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / (B * T * C)
 
             self.dropout_near_one_percent = (
