@@ -34,7 +34,7 @@ parameters:
                     use_dropout_entropy_in_loss:
                         value: False
                     use_dropout_l1_norm_in_loss:
-                        values: [True, False]
+                        value: True
                     use_bias:
                         value: False
                     softmax_dim:
@@ -54,7 +54,7 @@ parameters:
                     dropout_l1_norm_lambda:
                         parameters:
                             max_lambda:
-                              values: [1, 0.5, 0.1]
+                              values: [1, 0.5, 0.1, 0.05]
     batch_size: 
         value: 50
     train_steps: 
