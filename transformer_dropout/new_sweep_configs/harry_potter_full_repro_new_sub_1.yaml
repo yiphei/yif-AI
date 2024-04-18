@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_full_dropout_new_repro
+name: harry_potter_full_dropout_new_repro_sub_1
 project: transformer_dropout_5_attn_cosine
 method: grid
 metric:
