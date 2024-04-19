@@ -41,6 +41,8 @@ parameters:
                         value: 2
                     rounding_type:
                         value: 1
+                    sigmoid_slope:
+                        values: [60, 120, 240, 30, 45]
                     shift_init:
                         values: [1.57079632,3.14159265]
                     n_heads:
