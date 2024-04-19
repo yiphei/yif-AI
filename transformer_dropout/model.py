@@ -59,7 +59,7 @@ class LearnedDropoutConfig:
     softmax_dim: int = 2
     rounding_type: Optional[Union[RoundingType, int]] = None
     sigmoid_slope: Optional[float] = None
-    shift_init: float = torch.pi/2
+    shift_init: float = torch.pi / 2
     n_heads: int = 1
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
@@ -71,16 +71,24 @@ class LearnedDropoutConfig:
         assert 0 <= self.shift_init <= torch.pi
         assert self.softmax_dim in [0, 1, 2]
 
-        if self.use_dropout_entropy_in_loss and self.rounding_type and self.rounding_type in [2, 3]:
-            raise ValueError("rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss")
+        if (
+            self.use_dropout_entropy_in_loss
+            and self.rounding_type
+            and self.rounding_type in [2, 3]
+        ):
+            raise ValueError(
+                "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
+            )
 
         if type(self.rounding_type) == int:
             assert self.rounding_type in [1, 2, 3]
             self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
 
         if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_slope:
-            raise ValueError("sigmoid_slope can only be set if rounding_type is SIGMOID")
-        
+            raise ValueError(
+                "sigmoid_slope can only be set if rounding_type is SIGMOID"
+            )
+
         if self.rounding_type == RoundingType.SIGMOID and not self.sigmoid_slope:
             self.sigmoid_slope = 60
 
@@ -266,7 +274,9 @@ class LearnedDropout(nn.Module):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
-        self.shift = nn.Parameter(torch.full((embed_dim,), config.shift_init, dtype=torch.float32))
+        self.shift = nn.Parameter(
+            torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
+        )
         self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
 
         self.register_buffer(
@@ -328,21 +338,27 @@ class LearnedDropout(nn.Module):
                 )
 
             if self.config.rounding_type == RoundingType.SIGMOID:
-                dropout_mask = torch.sigmoid(self.config.sigmoid_slope * (dropout_mask - 0.5))
+                dropout_mask = torch.sigmoid(
+                    self.config.sigmoid_slope * (dropout_mask - 0.5)
+                )
             elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
                 noise = self.uniform.sample(dropout_mask.shape).to(dropout_mask.device)
                 scaling = torch.where(
                     noise >= complement_mask, complement_mask, complement_mask - 1
                 )
-                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(dtype=torch.float16)
+                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
+                    dtype=torch.float16
+                )
 
             elif self.config.rounding_type == RoundingType.LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
                 scaling = torch.where(
                     dropout_mask >= 0.5, complement_mask, complement_mask - 1
                 )
-                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(dtype=torch.float16)
+                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
+                    dtype=torch.float16
+                )
 
         if self.training:
             with self.dropout_entropy_context:
@@ -358,12 +374,18 @@ class LearnedDropout(nn.Module):
                 dropout_mask < 0.1
             ).sum().item() / dropout_mask.numel()
 
-            self.active_dropout_mask_percent = (dropout_mask > 0.05).sum().item()/ dropout_mask.numel()
+            self.active_dropout_mask_percent = (
+                dropout_mask > 0.05
+            ).sum().item() / dropout_mask.numel()
 
             if self.prev_dropout_mask is not None:
                 matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
                 matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
-                self.dropout_mask_change_rate_from_prev = 1 - (matching_0s.sum()+ matching_1s.sum()).item() / dropout_mask.numel()
+                self.dropout_mask_change_rate_from_prev = (
+                    1
+                    - (matching_0s.sum() + matching_1s.sum()).item()
+                    / dropout_mask.numel()
+                )
             self.prev_dropout_mask = dropout_mask.clone()
 
         if self.training and self.config.profile_dropout_mask:
@@ -508,12 +530,12 @@ class DropoutTransformer(nn.Module):
         return self.get_aggregated_learned_dropout_attributes(
             "dropout_near_zero_percent", np.mean, True
         )
-    
+
     def get_mean_active_dropout_mask_percent(self):
         return self.get_aggregated_learned_dropout_attributes(
             "active_dropout_mask_percent", np.mean, True
         )
-    
+
     def get_mean_dropout_mask_change_rate_from_prev(self):
         return self.get_aggregated_learned_dropout_attributes(
             "dropout_mask_change_rate_from_prev", np.mean, True
@@ -590,8 +612,12 @@ class DropoutTransformer(nn.Module):
                         self.config.learned_dropout_config.dropout_l1_norm_lambda
                     )
                 )
-                mean_active_dropout_mask_percent = self.get_mean_active_dropout_mask_percent()
-                mean_dropout_mask_change_rate_from_prev = self.get_mean_dropout_mask_change_rate_from_prev()
+                mean_active_dropout_mask_percent = (
+                    self.get_mean_active_dropout_mask_percent()
+                )
+                mean_dropout_mask_change_rate_from_prev = (
+                    self.get_mean_dropout_mask_change_rate_from_prev()
+                )
 
                 if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
                     additional_loss += (
@@ -648,7 +674,7 @@ class DropoutTransformer(nn.Module):
         )
         return OptimizerWrapper(adam_optimizer, sgd_optimizer)
 
-    def get_num_params(self, exclude_positional_embedding = True):
+    def get_num_params(self, exclude_positional_embedding=True):
         n_params = sum(p.numel() for p in self.parameters())
         if exclude_positional_embedding:
             n_params -= self.positional_embedding.weight.numel()
@@ -657,23 +683,32 @@ class DropoutTransformer(nn.Module):
     def get_accuracy(self, logits, targets):
         probs = F.softmax(logits, dim=-1)
         return (probs.max(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
-    
-    def estimate_mfu(self, fwdbwd_per_iter, dt, active_dropout_mask_percent):
 
-        """ 
-        estimate model flops utilization (MFU) in units of A100 bfloat16 peak FLOPS 
+    def estimate_mfu(self, fwdbwd_per_iter, dt, active_dropout_mask_percent):
+        """
+        estimate model flops utilization (MFU) in units of A100 bfloat16 peak FLOPS
         From https://github.com/karpathy/nanoGPT/blob/master/model.py#L289
         """
         # first estimate the number of flops we do per iteration.
         # see PaLM paper Appendix B as ref: https://arxiv.org/abs/2204.02311
         N = self.get_num_params(True)
-        L, H, Q, T = self.config.n_layer, self.config.n_head, self.config.n_embed//self.config.n_head, self.config.context_size
-        flops_per_token = 6*N + 12*L*H*Q*T
-        flops_per_token += (active_dropout_mask_percent) * 12 * self.config.n_embed * self.config.context_size
+        L, H, Q, T = (
+            self.config.n_layer,
+            self.config.n_head,
+            self.config.n_embed // self.config.n_head,
+            self.config.context_size,
+        )
+        flops_per_token = 6 * N + 12 * L * H * Q * T
+        flops_per_token += (
+            (active_dropout_mask_percent)
+            * 12
+            * self.config.n_embed
+            * self.config.context_size
+        )
 
         flops_per_fwdbwd = flops_per_token * T
         flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
-        flops_achieved = flops_per_iter * (1.0/dt) # per second
+        flops_achieved = flops_per_iter * (1.0 / dt)  # per second
         return flops_achieved
 
     @torch.no_grad()

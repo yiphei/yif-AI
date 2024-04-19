@@ -47,15 +47,22 @@ class BatchStats(BatchStatsBase):
         )
 
     def add_mini_batch_stats(self, mini_batch_stats):
-        entropy, dropout_l1_norm, entropy_coefficient, dropout_l1_norm_coefficient, mean_active_dropout_mask_percent,mean_dropout_mask_change_rate_from_prev  = (
-            mini_batch_stats
-        )
+        (
+            entropy,
+            dropout_l1_norm,
+            entropy_coefficient,
+            dropout_l1_norm_coefficient,
+            mean_active_dropout_mask_percent,
+            mean_dropout_mask_change_rate_from_prev,
+        ) = mini_batch_stats
         self.entropy = entropy
         self.dropout_l1_norm = dropout_l1_norm
         self.entropy_coefficient = entropy_coefficient
         self.dropout_l1_norm_coefficient = dropout_l1_norm_coefficient
         self.active_dropout_mask_percent = mean_active_dropout_mask_percent
-        self.dropout_mask_change_rate_from_prev = mean_dropout_mask_change_rate_from_prev
+        self.dropout_mask_change_rate_from_prev = (
+            mean_dropout_mask_change_rate_from_prev
+        )
 
     def scale(self):
         if self.train_config.model_config.use_learned_dropout:

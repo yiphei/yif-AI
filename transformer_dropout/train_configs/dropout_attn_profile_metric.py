@@ -13,7 +13,7 @@ LEARNED_DROPOUT_CONFIG = {
     "use_dropout_entropy_in_loss": True,
     "use_dropout_l1_norm_in_loss": False,
     "use_bias": False,
-    "shift_init": torch.pi/2,
+    "shift_init": torch.pi / 2,
     "softmax_dim": 2,
     "n_heads": 3,
     "use_canonical_entropy": False,
