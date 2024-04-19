@@ -42,7 +42,7 @@ parameters:
                     rounding_type:
                         value: 1
                     sigmoid_slope:
-                        values: [37, 20, 30, 45, 60]
+                        values: [37, 20]
                     shift_init:
                         value: 1.57079632
                     n_heads:
@@ -56,7 +56,7 @@ parameters:
                     dropout_entropy_lambda:
                         parameters:
                             max_lambda:
-                              values: [0.2, 0.1, 0.3, 0.4]
+                              values: [0.1, 0.3, 0.4]
     batch_size: 
         value: 50
     train_steps: 
