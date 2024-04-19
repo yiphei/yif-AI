@@ -491,8 +491,6 @@ def _train(
         DEVICE,
     )
     while iter_num < TRAIN_CONFIG.train_steps:
-        t0 = time.time()
-
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         lr = get_lr(iter_num) if TRAIN_CONFIG.decay_lr else TRAIN_CONFIG.lr
         optimizer.change_lr(lr)
@@ -555,6 +553,7 @@ def _train(
                     s3_client,
                 )
 
+        t0 = time.time()
         running_loss = 0
         current_batch_stats = batch_stats_class.initialize(TRAIN_CONFIG, raw_model)
         is_first_mini_batch = True
