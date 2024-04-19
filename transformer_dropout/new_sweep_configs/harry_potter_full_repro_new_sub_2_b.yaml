@@ -42,11 +42,11 @@ parameters:
                     rounding_type:
                         value: 1
                     sigmoid_slope:
-                        values: [60, 120, 240, 30, 45]
+                        value: 45
                     shift_init:
                         value: 1.57079632
                     n_heads:
-                        value: 1
+                        values: [1, 2, 4, 5]
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
