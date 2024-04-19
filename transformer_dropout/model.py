@@ -58,6 +58,7 @@ class LearnedDropoutConfig:
     use_bias: bool
     softmax_dim: int = 0
     rounding_type: Optional[Union[RoundingType, int]] = None
+    sigmoid_slope: Optional[float] = None
     shift_init: float = 0.0
     n_heads: int = 1
     use_canonical_entropy: bool = False
@@ -76,6 +77,12 @@ class LearnedDropoutConfig:
         if type(self.rounding_type) == int:
             assert self.rounding_type in [1, 2, 3]
             self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
+
+        if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_slope:
+            raise ValueError("sigmoid_slope can only be set if rounding_type is SIGMOID")
+        
+        if self.rounding_type == RoundingType.SIGMOID and not self.sigmoid_slope:
+            self.sigmoid_slope = 60
 
         if (
             not self.use_dropout_entropy_in_loss
@@ -320,7 +327,7 @@ class LearnedDropout(nn.Module):
                 )
 
             if self.config.rounding_type == RoundingType.SIGMOID:
-                dropout_mask = torch.sigmoid(60 * (dropout_mask - 0.5))
+                dropout_mask = torch.sigmoid(self.config.sigmoid_slope * (dropout_mask - 0.5))
             elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
                 noise = self.uniform.sample(dropout_mask.shape).to(dropout_mask.device)
