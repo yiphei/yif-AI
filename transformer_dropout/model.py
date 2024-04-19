@@ -250,24 +250,74 @@ class OptimizedMultiAttentionHead(nn.Module):
         out = self.dropout_2(out)
         return out
 
-
-class LearnedDropout(nn.Module):
-    def __init__(self, embed_dim, context_size, config):
+class LearnedDropoutStats(nn.Module):
+    def __init__(self, config):
         super().__init__()
-        self.embed_dim = embed_dim
-        self.context_size = context_size
         self.dropout_entropy_context = (
             nullcontext() if config.use_dropout_entropy_in_loss else torch.no_grad()
         )
         self.dropout_l1_norm_context = (
             nullcontext() if config.use_dropout_l1_norm_in_loss else torch.no_grad()
         )
-        self.config = config
         self.entropy_fn = (
             self.canonical_entropy
             if config.use_canonical_entropy
             else self.alternate_entropy
         )
+
+        self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
+        self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
+        self.register_buffer("dropout_near_one_percent", torch.zeros(1), persistent=False)
+        self.register_buffer("dropout_near_zero_percent", torch.zeros(1), persistent=False)
+        self.register_buffer("dropout_mask_change_rate_from_prev", torch.zeros(1), persistent=False)
+        self.register_buffer("prev_dropout_mask", None, persistent=False)
+        self.register_buffer("active_dropout_mask_percent", torch.zeros(1), persistent=False)
+
+    def canonical_entropy(self, dropout_mask):
+        # the small constant is for numerical stability
+        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
+
+    def alternate_entropy(self, dropout_mask):
+        # the alternate entropy has the peak above 0.5, while the canonical one has
+        # it below 0.5. In theory, this should be better for achieving both low entropy
+        # and low l1 norm because there is more curvature towards 0.
+        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
+
+    def update_stats(self, dropout_mask, B, T, C):
+        with self.dropout_entropy_context:
+            self.dropout_entropy = self.entropy_fn(dropout_mask)
+        with self.dropout_l1_norm_context:
+            # TODO: change this to a simple sum
+            self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / (B * T * C)
+
+        with torch.no_grad():
+            self.dropout_near_one_percent = (
+                dropout_mask > 0.9
+            ).sum() / dropout_mask.numel()
+            self.dropout_near_zero_percent = (
+                dropout_mask < 0.1
+            ).sum() / dropout_mask.numel()
+            self.active_dropout_mask_percent = (
+                dropout_mask > 0.05
+            ).sum() / dropout_mask.numel()
+
+            if self.prev_dropout_mask is not None:
+                matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
+                matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
+                self.dropout_mask_change_rate_from_prev = (
+                    1
+                    - (matching_0s.sum() + matching_1s.sum())
+                    / dropout_mask.numel()
+                )
+            self.prev_dropout_mask = dropout_mask.clone()
+
+class LearnedDropout(LearnedDropoutStats):
+    def __init__(self, embed_dim, context_size, config):
+        super().__init__(config)
+        self.embed_dim = embed_dim
+        self.context_size = context_size
+
+        self.config = config
         self.module_name = None  # used for logging
 
         self.head_size = embed_dim // config.n_heads
@@ -287,27 +337,6 @@ class LearnedDropout(nn.Module):
                 )
             ),
         )
-
-        # Stats
-        self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
-        self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
-        # unsure if I shold register these two as buffer
-        # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
-        self.dropout_near_one_percent = None
-        self.dropout_near_zero_percent = None
-        self.dropout_mask_change_rate_from_prev = 0
-        self.prev_dropout_mask = None
-        self.active_dropout_mask_percent = None
-
-    def canonical_entropy(self, dropout_mask):
-        # the small constant is for numerical stability
-        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
-
-    def alternate_entropy(self, dropout_mask):
-        # the alternate entropy has the peak above 0.5, while the canonical one has
-        # it below 0.5. In theory, this should be better for achieving both low entropy
-        # and low l1 norm because there is more curvature towards 0.
-        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x):
         import wandb
@@ -361,32 +390,7 @@ class LearnedDropout(nn.Module):
                 )
 
         if self.training:
-            with self.dropout_entropy_context:
-                self.dropout_entropy = self.entropy_fn(dropout_mask)
-            with self.dropout_l1_norm_context:
-                # TODO: change this to a simple sum
-                self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / (B * T * C)
-
-            self.dropout_near_one_percent = (
-                dropout_mask > 0.9
-            ).sum().item() / dropout_mask.numel()
-            self.dropout_near_zero_percent = (
-                dropout_mask < 0.1
-            ).sum().item() / dropout_mask.numel()
-
-            self.active_dropout_mask_percent = (
-                dropout_mask > 0.05
-            ).sum().item() / dropout_mask.numel()
-
-            if self.prev_dropout_mask is not None:
-                matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
-                matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
-                self.dropout_mask_change_rate_from_prev = (
-                    1
-                    - (matching_0s.sum() + matching_1s.sum()).item()
-                    / dropout_mask.numel()
-                )
-            self.prev_dropout_mask = dropout_mask.clone()
+            self.update_stats(dropout_mask, B, T, C)
 
         if self.training and self.config.profile_dropout_mask:
             # NB: because of gradient accumulation, this will only log the last batch
