@@ -40,7 +40,7 @@ parameters:
                     softmax_dim:
                         value: 2
                     rounding_type:
-                        values: [0,2,3]
+                        values: [null,2,3]
                     shift_init:
                         value: 1.57079632
                     n_heads:
