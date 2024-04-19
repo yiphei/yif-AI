@@ -641,6 +641,11 @@ class DropoutTransformer(nn.Module):
         N = self.get_num_params(True)
         L, H, Q, T = self.config.n_layer, self.config.n_head, self.config.n_embed//self.config.n_head, self.config.context_size
         flops_per_token = 6*N + 12*L*H*Q*T
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                active_dropout_mask_percent = (module.prev_dropout_mask > 0.05).sum().item()/ module.prev_dropout_mask.numel()
+                flops_per_token += (active_dropout_mask_percent) * 12 * self.config.n_embed * self.config.context_size
+
         flops_per_fwdbwd = flops_per_token * T
         flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
         flops_achieved = flops_per_iter * (1.0/dt) # per second
