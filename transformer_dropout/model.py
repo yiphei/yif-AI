@@ -527,22 +527,22 @@ class DropoutTransformer(nn.Module):
 
     def get_mean_dropout_near_one_percent(self):
         return self.get_aggregated_learned_dropout_attributes(
-            "dropout_near_one_percent", np.mean, True
+            "dropout_near_one_percent", lambda x: torch.stack(x, dim=0).mean(), True
         )
 
     def get_mean_dropout_near_zero_percent(self):
         return self.get_aggregated_learned_dropout_attributes(
-            "dropout_near_zero_percent", np.mean, True
+            "dropout_near_zero_percent", lambda x: torch.stack(x, dim=0).mean(), True
         )
 
     def get_mean_active_dropout_mask_percent(self):
         return self.get_aggregated_learned_dropout_attributes(
-            "active_dropout_mask_percent", np.mean, True
+            "active_dropout_mask_percent", lambda x: torch.stack(x, dim=0).mean(), True
         )
 
     def get_mean_dropout_mask_change_rate_from_prev(self):
         return self.get_aggregated_learned_dropout_attributes(
-            "dropout_mask_change_rate_from_prev", np.mean, True
+            "dropout_mask_change_rate_from_prev", lambda x: torch.stack(x, dim=0).mean(), True
         )
 
     def get_annealed_dropout_coefficient(self, lambda_config):
@@ -637,8 +637,8 @@ class DropoutTransformer(nn.Module):
             logits,
             loss,
             (
-                mean_dropout_entropy,
-                mean_dropout_l1_norm,
+                mean_dropout_entropy.detach() if mean_dropout_entropy is not None else None,
+                mean_dropout_l1_norm.detach() if mean_dropout_l1_norm is not None else None,
                 mean_dropout_entropy_coefficient,
                 mean_dropout_l1_norm_coefficient,
                 mean_active_dropout_mask_percent,

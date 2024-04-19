@@ -67,10 +67,10 @@ class BatchStats(BatchStatsBase):
     def scale(self):
         if self.train_config.model_config.use_learned_dropout:
             self.running_entropy += (
-                self.entropy.item() / self.train_config.gradient_accumulation_steps
+                self.entropy / self.train_config.gradient_accumulation_steps
             )
             self.running_l1_norm += (
-                self.dropout_l1_norm.item()
+                self.dropout_l1_norm
                 / self.train_config.gradient_accumulation_steps
             )
             self.running_active_dropout_mask_percent += (
