@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_full_dropout_new_repro_sub_2_e
+name: harry_potter_full_dropout_new_repro_no_penalty_a
 project: transformer_dropout_5_attn_cosine
 method: grid
 metric:
@@ -32,7 +32,7 @@ parameters:
             learned_dropout_config:
                 parameters:
                     use_dropout_entropy_in_loss:
-                        value: True
+                        value: False
                     use_dropout_l1_norm_in_loss:
                         value: False
                     use_bias:
@@ -46,17 +46,13 @@ parameters:
                     shift_init:
                         value: 1.57079632
                     n_heads:
-                        values: [20, 25, 40, 50, 100]
+                        value: 20
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
                         value: False
                     profile_dropout_mask:
                         value: False
-                    dropout_entropy_lambda:
-                        parameters:
-                            max_lambda:
-                              values: [0.1, 0.3, 0.4]
     batch_size: 
         value: 50
     train_steps: 
