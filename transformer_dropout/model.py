@@ -56,13 +56,13 @@ class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
-    softmax_dim: int = 0
+    softmax_dim: int = 2
     rounding_type: Optional[Union[RoundingType, int]] = None
     sigmoid_slope: Optional[float] = None
-    shift_init: float = 0.0
+    shift_init: float = torch.pi/2
     n_heads: int = 1
     use_canonical_entropy: bool = False
-    use_detached_x_in_dropout_mask: bool = True
+    use_detached_x_in_dropout_mask: bool = False
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     profile_dropout_mask: bool = False
