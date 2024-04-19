@@ -599,10 +599,15 @@ def _train(
         t1 = time.time()
         dt = t1 - t0
         if is_master_process and args.profile:
+            mfu = 0
+            if iter_num >=5:
+                mfu = raw_model.estimate_mfu(TRAIN_CONFIG.batch_size * TRAIN_CONFIG.gradient_accumulation_steps, dt)
+
             wandb.log(
                 {
                     "loss": running_loss,
                     "time": float(f"{dt*1000:.2f}"),
+                    "mfu": mfu,
                     **current_batch_stats.get_wandb_batch_stats(),
                 },
                 step=iter_num,
