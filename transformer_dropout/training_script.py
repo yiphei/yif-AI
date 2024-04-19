@@ -18,9 +18,13 @@ except ImportError:
 class BatchStats(BatchStatsBase):
     running_entropy: Optional[float]
     running_l1_norm: Optional[float]
+    running_active_dropout_mask_percent: Optional[float]
+    running_dropout_mask_change_rate_from_prev: Optional[float]
     entropy: Optional[float] = None
     dropout_l1_norm: Optional[float] = None
     entropy_coefficient: Optional[float] = None
+    active_dropout_mask_percent: Optional[float] = None
+    dropout_mask_change_rate_from_prev: Optional[float] = None
     dropout_l1_norm_coefficient: Optional[float] = None
 
     @classmethod
@@ -32,18 +36,26 @@ class BatchStats(BatchStatsBase):
             running_l1_norm=(
                 0.0 if train_config.model_config.use_learned_dropout else None
             ),
+            running_active_dropout_mask_percent=(
+                0.0 if train_config.model_config.use_learned_dropout else None
+            ),
+            running_dropout_mask_change_rate_from_prev=(
+                0.0 if train_config.model_config.use_learned_dropout else None
+            ),
             model=model,
             train_config=train_config,
         )
 
     def add_mini_batch_stats(self, mini_batch_stats):
-        entropy, dropout_l1_norm, entropy_coefficient, dropout_l1_norm_coefficient = (
+        entropy, dropout_l1_norm, entropy_coefficient, dropout_l1_norm_coefficient, mean_active_dropout_mask_percent,mean_dropout_mask_change_rate_from_prev  = (
             mini_batch_stats
         )
         self.entropy = entropy
         self.dropout_l1_norm = dropout_l1_norm
         self.entropy_coefficient = entropy_coefficient
         self.dropout_l1_norm_coefficient = dropout_l1_norm_coefficient
+        self.active_dropout_mask_percent = mean_active_dropout_mask_percent
+        self.dropout_mask_change_rate_from_prev = mean_dropout_mask_change_rate_from_prev
 
     def scale(self):
         if self.train_config.model_config.use_learned_dropout:
@@ -54,11 +66,21 @@ class BatchStats(BatchStatsBase):
                 self.dropout_l1_norm.item()
                 / self.train_config.gradient_accumulation_steps
             )
+            self.running_active_dropout_mask_percent += (
+                self.active_dropout_mask_percent
+                / self.train_config.gradient_accumulation_steps
+            )
+            self.running_dropout_mask_change_rate_from_prev += (
+                self.dropout_mask_change_rate_from_prev
+                / self.train_config.gradient_accumulation_steps
+            )
 
     def get_wandb_batch_stats(self):
         return {
             "dropout_entropy": self.running_entropy,
             "dropout_l1_norm": self.running_l1_norm,
+            "active_dropout_mask_percent": self.running_active_dropout_mask_percent,
+            "dropout_mask_change_rate_from_prev": self.running_dropout_mask_change_rate_from_prev,
             "mean_dropout_near_one_percent": self.model.get_mean_dropout_near_one_percent(),
             "mean_dropout_near_zero_percent": self.model.get_mean_dropout_near_zero_percent(),
             "dropout_entropy_coefficient": self.entropy_coefficient,

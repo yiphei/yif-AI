@@ -285,8 +285,9 @@ class LearnedDropout(nn.Module):
         # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
-        self.dropout_mask_change_rate_from_prev = None
+        self.dropout_mask_change_rate_from_prev = 0
         self.prev_dropout_mask = None
+        self.active_dropout_mask_percent = None
 
     def canonical_entropy(self, dropout_mask):
         # the small constant is for numerical stability
@@ -357,14 +358,17 @@ class LearnedDropout(nn.Module):
                 dropout_mask < 0.1
             ).sum().item() / dropout_mask.numel()
 
-        if self.training and self.config.profile_dropout_mask:
+            self.active_dropout_mask_percent = (dropout_mask > 0.05).sum().item()/ dropout_mask.numel()
+
             if self.prev_dropout_mask is not None:
                 matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
                 matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
-                self.dropout_mask_change_rate_from_prev = 1 - (matching_0s.sum()+ matching_1s.sum()) / dropout_mask.numel()
+                self.dropout_mask_change_rate_from_prev = 1 - (matching_0s.sum()+ matching_1s.sum()).item() / dropout_mask.numel()
             self.prev_dropout_mask = dropout_mask.clone()
 
-            wandb.log({self.module_name + ".mask": dropout_mask, "dropout_mask_change_rate": self.dropout_mask_change_rate_from_prev}, commit=False)
+        if self.training and self.config.profile_dropout_mask:
+            # NB: because of gradient accumulation, this will only log the last batch
+            wandb.log({self.module_name + ".mask": dropout_mask}, commit=False)
         return x * dropout_mask
 
 
@@ -504,6 +508,16 @@ class DropoutTransformer(nn.Module):
         return self.get_aggregated_learned_dropout_attributes(
             "dropout_near_zero_percent", np.mean, True
         )
+    
+    def get_mean_active_dropout_mask_percent(self):
+        return self.get_aggregated_learned_dropout_attributes(
+            "active_dropout_mask_percent", np.mean, True
+        )
+    
+    def get_mean_dropout_mask_change_rate_from_prev(self):
+        return self.get_aggregated_learned_dropout_attributes(
+            "dropout_mask_change_rate_from_prev", np.mean, True
+        )
 
     def get_annealed_dropout_coefficient(self, lambda_config):
         if (
@@ -551,7 +565,9 @@ class DropoutTransformer(nn.Module):
             mean_dropout_l1_norm,
             mean_dropout_entropy_coefficient,
             mean_dropout_l1_norm_coefficient,
-        ) = [None] * 4
+            mean_active_dropout_mask_percent,
+            mean_dropout_mask_change_rate_from_prev,
+        ) = [None] * 6
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
@@ -574,6 +590,9 @@ class DropoutTransformer(nn.Module):
                         self.config.learned_dropout_config.dropout_l1_norm_lambda
                     )
                 )
+                mean_active_dropout_mask_percent = self.get_mean_active_dropout_mask_percent()
+                mean_dropout_mask_change_rate_from_prev = self.get_mean_dropout_mask_change_rate_from_prev()
+
                 if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
                     additional_loss += (
                         mean_dropout_entropy * mean_dropout_entropy_coefficient
@@ -592,6 +611,8 @@ class DropoutTransformer(nn.Module):
                 mean_dropout_l1_norm,
                 mean_dropout_entropy_coefficient,
                 mean_dropout_l1_norm_coefficient,
+                mean_active_dropout_mask_percent,
+                mean_dropout_mask_change_rate_from_prev,
             ),
         )
 
@@ -637,7 +658,7 @@ class DropoutTransformer(nn.Module):
         probs = F.softmax(logits, dim=-1)
         return (probs.max(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
     
-    def estimate_mfu(self, fwdbwd_per_iter, dt):
+    def estimate_mfu(self, fwdbwd_per_iter, dt, active_dropout_mask_percent):
 
         """ 
         estimate model flops utilization (MFU) in units of A100 bfloat16 peak FLOPS 
@@ -648,10 +669,7 @@ class DropoutTransformer(nn.Module):
         N = self.get_num_params(True)
         L, H, Q, T = self.config.n_layer, self.config.n_head, self.config.n_embed//self.config.n_head, self.config.context_size
         flops_per_token = 6*N + 12*L*H*Q*T
-        for module in self.modules():
-            if isinstance(module, LearnedDropout):
-                active_dropout_mask_percent = (module.prev_dropout_mask > 0.05).sum().item()/ module.prev_dropout_mask.numel()
-                flops_per_token += (active_dropout_mask_percent) * 12 * self.config.n_embed * self.config.context_size
+        flops_per_token += (active_dropout_mask_percent) * 12 * self.config.n_embed * self.config.context_size
 
         flops_per_fwdbwd = flops_per_token * T
         flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
