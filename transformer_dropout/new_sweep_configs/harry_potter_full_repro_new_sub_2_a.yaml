@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_full_dropout_new_repro_sub_1_a
+name: harry_potter_full_dropout_new_repro_sub_2_a
 project: transformer_dropout_5_attn_cosine
 method: grid
 metric:
@@ -40,7 +40,7 @@ parameters:
                     softmax_dim:
                         value: 2
                     rounding_type:
-                        values: [null, 1]
+                        value: 1
                     shift_init:
                         values: [1.57079632,3.14159265]
                     n_heads:
