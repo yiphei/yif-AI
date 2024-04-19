@@ -38,23 +38,23 @@ parameters:
                     use_bias:
                         value: False
                     softmax_dim:
-                        values: [0, 1, 2]
+                        value: 2
                     rounding_type:
                         values: [null, 1]
                     shift_init:
-                        values: [0,1.57079632,3.14159265]
+                        values: [1.57079632,3.14159265]
                     n_heads:
                         value: 1
                     use_canonical_entropy:
-                        values: [False, True]
+                        value: False
                     use_detached_x_in_dropout_mask:
-                        values: [True, False]
+                        value: False
                     profile_dropout_mask:
-                        value: True
+                        value: False
                     dropout_entropy_lambda:
                         parameters:
                             max_lambda:
-                              values: [1, 0.5, 0.1, 0.05]
+                              values: [1, 0.5, 0.2, 0.1]
     batch_size: 
         value: 50
     train_steps: 
