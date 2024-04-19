@@ -278,6 +278,8 @@ class LearnedDropout(nn.Module):
         # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
         self.dropout_near_one_percent = None
         self.dropout_near_zero_percent = None
+        self.dropout_mask_change_rate_from_prev = None
+        self.prev_dropout_mask = None
 
     def canonical_entropy(self, dropout_mask):
         # the small constant is for numerical stability
@@ -349,7 +351,13 @@ class LearnedDropout(nn.Module):
             ).sum().item() / dropout_mask.numel()
 
         if self.training and self.config.profile_dropout_mask:
-            wandb.log({self.module_name + ".mask": dropout_mask}, commit=False)
+            if self.prev_dropout_mask is not None:
+                matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
+                matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
+                self.dropout_mask_change_rate_from_prev = 1 - (matching_0s.sum()+ matching_1s.sum()) / dropout_mask.numel()
+            self.prev_dropout_mask = dropout_mask.clone()
+
+            wandb.log({self.module_name + ".mask": dropout_mask, "dropout_mask_change_rate": self.dropout_mask_change_rate_from_prev}, commit=False)
         return x * dropout_mask
 
 
