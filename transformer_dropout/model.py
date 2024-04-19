@@ -620,14 +620,31 @@ class DropoutTransformer(nn.Module):
         )
         return OptimizerWrapper(adam_optimizer, sgd_optimizer)
 
-    def get_num_params(self):
+    def get_num_params(self, exclude_positional_embedding = True):
         n_params = sum(p.numel() for p in self.parameters())
-        n_params -= self.positional_embedding.weight.numel()
+        if exclude_positional_embedding:
+            n_params -= self.positional_embedding.weight.numel()
         return n_params
 
     def get_accuracy(self, logits, targets):
         probs = F.softmax(logits, dim=-1)
         return (probs.max(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
+    
+    def estimate_mfu(self, fwdbwd_per_iter, dt):
+
+        """ 
+        estimate model flops utilization (MFU) in units of A100 bfloat16 peak FLOPS 
+        From https://github.com/karpathy/nanoGPT/blob/master/model.py#L289
+        """
+        # first estimate the number of flops we do per iteration.
+        # see PaLM paper Appendix B as ref: https://arxiv.org/abs/2204.02311
+        N = self.get_num_params(True)
+        L, H, Q, T = self.config.n_layer, self.config.n_head, self.config.n_embed//self.config.n_head, self.config.context_size
+        flops_per_token = 6*N + 12*L*H*Q*T
+        flops_per_fwdbwd = flops_per_token * T
+        flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
+        flops_achieved = flops_per_iter * (1.0/dt) # per second
+        return flops_achieved
 
     @torch.no_grad()
     def generate(self, x, max_tokens):
