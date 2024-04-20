@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_full_dropout_new_repro_sub_3_a
+name: harry_potter_full_dropout_new_repro_sub_2_f
 project: transformer_dropout_5_attn_cosine
 method: grid
 metric:
@@ -42,11 +42,11 @@ parameters:
                     rounding_type:
                         value: 1
                     sigmoid_slope:
-                        values: [37, 20]
+                        value: 20
                     shift_init:
                         value: 1.57079632
                     n_heads:
-                        values: [20, 25, 40, 50, 100]
+                        value: 200
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
@@ -56,7 +56,7 @@ parameters:
                     dropout_entropy_lambda:
                         parameters:
                             max_lambda:
-                              values: [0.1, 0.3, 0.4]
+                              values: [0.1, 0.4]
     batch_size: 
         value: 50
     train_steps: 
