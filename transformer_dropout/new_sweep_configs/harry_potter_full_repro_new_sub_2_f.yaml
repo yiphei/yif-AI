@@ -42,7 +42,7 @@ parameters:
                     rounding_type:
                         value: 1
                     sigmoid_slope:
-                        value: 20
+                        values: [20, 37]
                     shift_init:
                         value: 1.57079632
                     n_heads:
