@@ -266,16 +266,45 @@ class RunningDropoutStats(BaseDropoutStats):
     def __init__(self):
         super().__init__()
         to_add = []
-        for name, buffer in self.named_buffers():
+        for name, buffer in self._buffers.items():
             if name not in self.blacklist:
                 to_add.append((f"running_{name}", buffer.clone()))
 
         for name, buffer in to_add:
             self.register_buffer(name, buffer, persistent=False)
+
+    def reset_running(self):
+        for name, buffer in self._buffers.items():
+            if name.startswith("running_") and name not in self.blacklist:
+                buffer.zero_()
+
+    def dump_running(self):
+        return {
+            "dropout_entropy": self.running_dropout_entropy,
+            "dropout_l1_norm": self.running_dropout_l1_norm,
+            "active_dropout_mask_percent": self.running_active_dropout_mask_percent,
+            "dropout_mask_change_rate_from_prev": self.running_dropout_mask_change_rate_from_prev,
+        }
+
+    def update_running(self):
+        local_buffers = []
+
+        for name, _ in self._buffers.items():
+            if not name.startswith("running_") and name not in self.blacklist:
+                local_buffers.append(name)
+
+        for name in local_buffers:
+            local_value = getattr(self, name)
+            if name in ["dropout_entropy", "dropout_entropy"]:
+                local_value = local_value.detach()
+
+            running_update = local_value / self.gradient_accumulation_steps
+            curr_running_value = getattr(self, f"running_{name}")
+            setattr(self, f"running_{name}", curr_running_value + running_update)
     
     def update_stats(self):
         values_dict = {}
-        for name, buffer in self.named_buffers():
+        for name, buffer in self._buffers.items():
             if not name.startswith("running_") and name not in self.blacklist:
                 values_dict[name] = torch.empty(1, device=buffer.device)
 
@@ -289,6 +318,8 @@ class RunningDropoutStats(BaseDropoutStats):
 
         for name, values in values_dict.items():
             setattr(self, name, values.mean())
+
+        self.update_running()
 
 class LearnedDropoutStats(BaseDropoutStats):
     def __init__(self, config):
@@ -470,12 +501,13 @@ class TransformerBlock(nn.Module):
 class DropoutTransformer(RunningDropoutStats):
     model_config_cls = ModelConfig
 
-    def __init__(self, config: ModelConfig):
+    def __init__(self, config: ModelConfig, gradient_accumulation_steps):
         super().__init__()
         assert (
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
         self.config = config
+        self.gradient_accumulation_steps = gradient_accumulation_steps
         self.training_step = (
             None  # this is provided by the context manager in the training script
         )
@@ -528,9 +560,9 @@ class DropoutTransformer(RunningDropoutStats):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     @classmethod
-    def init_from_checkpoint(cls, checkpoint_dict):
+    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps):
         model_config = ModelConfig(**checkpoint_dict["model_config"])
-        model = cls(model_config)
+        model = cls(model_config, gradient_accumulation_steps)
         state_dict = checkpoint_dict["model"]
 
         # This is caused by compiling the model. From https://github.com/karpathy/nanoGPT/blob/master/train.py
