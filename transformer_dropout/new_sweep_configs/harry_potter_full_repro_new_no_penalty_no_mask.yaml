@@ -40,7 +40,9 @@ parameters:
                     softmax_dim:
                         value: 2
                     rounding_type:
-                        values: [null,2,3]
+                        value: 1
+                    sigmoid_slope:
+                        value: 20
                     shift_init:
                         value: 1.57079632
                     n_heads:
