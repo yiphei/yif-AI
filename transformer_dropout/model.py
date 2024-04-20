@@ -574,41 +574,6 @@ class DropoutTransformer(RunningDropoutStats):
         model.load_state_dict(state_dict)
         return model
 
-    def get_aggregated_learned_dropout_attributes(
-        self, attr_name, aggregation_fn, is_training_attr
-    ):
-        if not self.config.use_learned_dropout or (
-            is_training_attr and not self.training
-        ):
-            return None
-
-        values = []
-        for module in self.modules():
-            if isinstance(module, LearnedDropout):
-                values.append(getattr(module, attr_name))
-
-        return aggregation_fn(values)
-
-    def get_mean_dropout_near_one_percent(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_near_one_percent", lambda x: torch.stack(x, dim=0).mean(), True
-        )
-
-    def get_mean_dropout_near_zero_percent(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_near_zero_percent", lambda x: torch.stack(x, dim=0).mean(), True
-        )
-
-    def get_mean_active_dropout_mask_percent(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "active_dropout_mask_percent", lambda x: torch.stack(x, dim=0).mean(), True
-        )
-
-    def get_mean_dropout_mask_change_rate_from_prev(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_mask_change_rate_from_prev", lambda x: torch.stack(x, dim=0).mean(), True
-        )
-
     def get_annealed_dropout_coefficient(self, lambda_config):
         if (
             not self.config.use_learned_dropout
@@ -629,16 +594,6 @@ class DropoutTransformer(RunningDropoutStats):
             lambda_config.max_lambda,
         )
 
-    def get_mean_dropout_entropy(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_entropy", lambda x: torch.stack(x, dim=0).mean(), True
-        )
-
-    def get_mean_dropout_l1_norm(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_l1_norm", lambda x: torch.stack(x, dim=0).mean(), True
-        )
-
     def forward(self, x, targets=None):
         device = x.device
         token_embed = self.token_embedding(x)
@@ -651,13 +606,9 @@ class DropoutTransformer(RunningDropoutStats):
         out = self.ln(out)
 
         (
-            mean_dropout_entropy,
-            mean_dropout_l1_norm,
             mean_dropout_entropy_coefficient,
             mean_dropout_l1_norm_coefficient,
-            mean_active_dropout_mask_percent,
-            mean_dropout_mask_change_rate_from_prev,
-        ) = [None] * 6
+        ) = [None] * 2
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
@@ -682,8 +633,6 @@ class DropoutTransformer(RunningDropoutStats):
                         self.config.learned_dropout_config.dropout_l1_norm_lambda
                     )
                 )
-                mean_active_dropout_mask_percent = self.active_dropout_mask_percent
-                mean_dropout_mask_change_rate_from_prev = self.dropout_mask_change_rate_from_prev
 
                 if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
                     additional_loss += (
@@ -699,12 +648,8 @@ class DropoutTransformer(RunningDropoutStats):
             logits,
             loss,
             (
-                mean_dropout_entropy.detach() if mean_dropout_entropy is not None else None,
-                mean_dropout_l1_norm.detach() if mean_dropout_l1_norm is not None else None,
                 mean_dropout_entropy_coefficient,
                 mean_dropout_l1_norm_coefficient,
-                mean_active_dropout_mask_percent,
-                mean_dropout_mask_change_rate_from_prev,
             ),
         )
 
