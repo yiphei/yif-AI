@@ -39,11 +39,11 @@ parameters:
                         value: False
                     softmax_dim:
                         value: 2
-                    rounding_type:
+                    rounding_type: # this is ignored
                         value: 1
-                    sigmoid_slope:
+                    sigmoid_slope: # this is ignored
                         value: 20
-                    shift_init:
+                    shift_init: # this is ignored
                         value: 1.57079632
                     n_heads:
                         value: 100
