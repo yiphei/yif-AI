@@ -84,10 +84,6 @@ class BatchStats(BatchStatsBase):
 
     def get_wandb_batch_stats(self):
         return {
-            "dropout_entropy": self.running_entropy,
-            "dropout_l1_norm": self.running_l1_norm,
-            "active_dropout_mask_percent": self.running_active_dropout_mask_percent,
-            "dropout_mask_change_rate_from_prev": self.running_dropout_mask_change_rate_from_prev,
             "mean_dropout_near_one_percent": self.model.get_mean_dropout_near_one_percent(),
             "mean_dropout_near_zero_percent": self.model.get_mean_dropout_near_zero_percent(),
             "dropout_entropy_coefficient": self.entropy_coefficient,

@@ -416,11 +416,11 @@ def _train(
             meta = pickle.load(f)
 
         TRAIN_CONFIG.model_config.alphabet_size = meta["alphabet_size"]
-        model = model_cls(TRAIN_CONFIG.model_config)
+        model = model_cls(TRAIN_CONFIG.model_config, gradient_accumulation_steps = TRAIN_CONFIG.gradient_accumulation_steps)
     else:
         print("Loading checkpoint...")
         checkpoint = torch.load(ckpt_file_path, map_location=DEVICE)
-        model = model_cls.init_from_checkpoint(checkpoint)
+        model = model_cls.init_from_checkpoint(checkpoint,  gradient_accumulation_steps = TRAIN_CONFIG.gradient_accumulation_steps)
         TRAIN_CONFIG.model_config = model.config
         iter_num = checkpoint["iter_num"] + 1
         best_val_loss = checkpoint["best_val_loss"]
@@ -557,6 +557,7 @@ def _train(
         running_loss = 0
         current_batch_stats = batch_stats_class.initialize(TRAIN_CONFIG, raw_model)
         is_first_mini_batch = True
+        raw_model.reset_running()
         for micro_step in range(TRAIN_CONFIG.gradient_accumulation_steps):
             if using_DDP:
                 # this defers gradient sync until the last micro_step
@@ -612,6 +613,7 @@ def _train(
                     "time": float(f"{dt*1000:.2f}"),
                     "mfu": mfu,
                     **current_batch_stats.get_wandb_batch_stats(),
+                    **raw_model.dump_running(),
                 },
                 step=iter_num,
                 # commit=False,
