@@ -27,7 +27,7 @@ parameters:
             learned_dropout_config:
                 parameters:
                     use_dropout_entropy_in_loss:
-                        value: True
+                        value: False
                     use_dropout_l1_norm_in_loss:
                         value: False
                     use_bias:
@@ -35,10 +35,8 @@ parameters:
                     softmax_dim:
                         value: 2
                     rounding_type:
-                        value: 1
-                    sigmoid_slope:
-                        value: 37
-                    shift_init:
+                        value: null
+                    shift_init: # this is ignored
                         value: 1.57079632
                     n_heads:
                         value: 48
@@ -48,10 +46,6 @@ parameters:
                         value: False
                     profile_dropout_mask:
                         value: False
-                    dropout_entropy_lambda:
-                        parameters:
-                            max_lambda:
-                              value: 0.1
     batch_size: 
         value: 15 # to match the transformer_embed baseline
     train_steps: 
