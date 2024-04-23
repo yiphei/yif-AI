@@ -298,9 +298,7 @@ class RunningDropoutStats(BaseDropoutStats):
         }
     
     def get_annealed_dropout_coefficient(self, lambda_config):
-        if (not self.training
-            or lambda_config is None
-        ):
+        if lambda_config is None:
             return torch.empty(0)
 
         if lambda_config.coefficient is None:
@@ -315,19 +313,13 @@ class RunningDropoutStats(BaseDropoutStats):
             lambda_config.max_lambda,
         ))
 
-    def update_running_stats(self):
-        local_buffers = []
-
-        for name, _ in self._buffers.items():
-            if not name.startswith("running_") and name not in self.blacklist:
-                local_buffers.append(name)
-
-        for name in local_buffers:
-            local_value = getattr(self, name)
+    def update_running_stats(self, buffer_names_to_update):
+        for name in buffer_names_to_update:
+            value = getattr(self, name)
             if name in ["dropout_entropy", "dropout_l1_norm"]:
-                local_value = local_value.detach()
+                value = value.detach()
 
-            running_update = local_value / self.gradient_accumulation_steps
+            running_update = value / self.gradient_accumulation_steps
             curr_running_value = getattr(self, f"running_{name}")
             if curr_running_value.nelement() == 0:
                 setattr(self, f"running_{name}", running_update)
@@ -335,22 +327,22 @@ class RunningDropoutStats(BaseDropoutStats):
                 setattr(self, f"running_{name}", curr_running_value + running_update)
     
     def update_stats(self):
-        values_dict = {}
+        buffer_to_local_values = {}
         for name, buffer in self._buffers.items():
             if not name.startswith("running_") and name not in self.blacklist:
-                values_dict[name] = torch.empty(1, device=buffer.device)
+                buffer_to_local_values[name] = torch.empty(1, device=buffer.device)
 
         module_idx = 0
         for module in self.modules():
             if isinstance(module, LearnedDropout):
                 for name, buffer in module._buffers.items():
-                    if name in values_dict and buffer.nelement() != 0:
-                        values_dict[name][module_idx] = buffer
+                    if name in buffer_to_local_values and buffer.nelement() != 0:
+                        buffer_to_local_values[name][module_idx] = buffer
                 module_idx += 1
 
         assert module_idx == 1
 
-        for name, values in values_dict.items():
+        for name, values in buffer_to_local_values.items():
             setattr(self, name, values.mean())
 
         if self.need_new_coefficients:
@@ -358,7 +350,7 @@ class RunningDropoutStats(BaseDropoutStats):
             self.dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(self.learned_dropout_config.dropout_l1_norm_lambda)
             self.need_new_coefficients = False
 
-        self.update_running_stats()
+        self.update_running_stats(buffer_to_local_values.keys())
 
 class LearnedDropoutStats(BaseDropoutStats):
     def __init__(self, config):
