@@ -280,7 +280,7 @@ class RunningDropoutStats(BaseDropoutStats):
         self.blacklist += ["dropout_entropy_coefficient", "dropout_l1_norm_coefficient"]
 
     def reset_running_stats(self):
-        for name, buffer in self._buffers.items():
+        for name, _ in self._buffers.items():
             if name.startswith("running_") and name not in self.blacklist:
                 setattr(self, name, torch.empty(0))
         self.need_new_coefficients = True
