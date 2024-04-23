@@ -328,7 +328,7 @@ class RunningDropoutStats(BaseDropoutStats):
         buffer_to_local_values = {}
         for name, buffer in self._buffers.items():
             if not name.startswith("running_") and name not in self.blacklist:
-                buffer_to_local_values[name] = torch.empty(1, device=buffer.device)
+                buffer_to_local_values[name] = torch.empty(self.n_learned_dropout, device=buffer.device)
 
         module_idx = 0
         for module in self.modules():
@@ -571,6 +571,7 @@ class DropoutTransformer(RunningDropoutStats):
                 )
 
         # maybe there is a better way
+        n_learned_dropout = 0
         param_to_param_name = {p: n for n, p in self.named_parameters()}
         for module in self.modules():
             if isinstance(module, LearnedDropout):
@@ -579,6 +580,8 @@ class DropoutTransformer(RunningDropoutStats):
                         :-2
                     ]
                 )
+                n_learned_dropout += 1
+        self.n_learned_dropout = n_learned_dropout
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
@@ -702,6 +705,7 @@ class DropoutTransformer(RunningDropoutStats):
             * 12
             * self.config.n_embed
             * self.config.context_size
+            * self.n_learned_dropout
         )
 
         flops_per_fwdbwd = flops_per_token * T
