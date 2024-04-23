@@ -452,8 +452,11 @@ def _train(
         model = torch.compile(model)  # requires PyTorch 2.0
 
     if using_DDP:
+        # NB: broadcast_buffers = False is fine here because there is no buffer 
+        # that currently needs to be synced. But if the model uses BatchNorm
+        # and the likes, the buffers will need to be synced.
         model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[ddp_local_rank]
+            model, device_ids=[ddp_local_rank], broadcast_buffers=False
         )
 
     # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
