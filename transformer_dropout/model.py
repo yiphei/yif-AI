@@ -263,8 +263,9 @@ class BaseDropoutStats(nn.Module):
         self.blacklist = ["prev_dropout_mask"]
 
 class RunningDropoutStats(BaseDropoutStats):
-    def __init__(self):
+    def __init__(self, learned_dropout_config):
         super().__init__()
+        self.learned_dropout_config = learned_dropout_config
         running_stats = []
         for name, _ in self._buffers.items():
             if name not in self.blacklist:
@@ -275,12 +276,14 @@ class RunningDropoutStats(BaseDropoutStats):
 
         self.register_buffer("dropout_entropy_coefficient", torch.tensor(float('nan')), persistent=False)
         self.register_buffer("dropout_l1_norm_coefficient", torch.tensor(float('nan')), persistent=False)
+        self.need_new_coefficients = True
         self.blacklist += ["dropout_entropy_coefficient", "dropout_l1_norm_coefficient"]
 
     def reset_running_stats(self):
         for name, buffer in self._buffers.items():
             if name.startswith("running_") and name not in self.blacklist:
                 buffer.fill_(torch.nan)
+        self.need_new_coefficients = True
 
     def dump_running(self):
         return {
@@ -293,6 +296,24 @@ class RunningDropoutStats(BaseDropoutStats):
             "dropout_entropy_coefficient": self.dropout_entropy_coefficient,
             "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient,
         }
+    
+    def get_annealed_dropout_coefficient(self, lambda_config):
+        if (not self.training
+            or lambda_config is None
+        ):
+            return torch.tensor(float('nan'))
+
+        if lambda_config.coefficient is None:
+            return torch.tensor(lambda_config.max_lambda)
+
+        assert self.training_step is not None
+        intersect = (
+            lambda_config.min_lambda - 1 if lambda_config.min_lambda is not None else -1
+        )
+        return torch.tensor(min(
+            np.exp(lambda_config.coefficient * self.training_step) + intersect,
+            lambda_config.max_lambda,
+        ))
 
     def update_running_stats(self):
         local_buffers = []
@@ -331,6 +352,11 @@ class RunningDropoutStats(BaseDropoutStats):
 
         for name, values in values_dict.items():
             setattr(self, name, values.mean())
+
+        if self.need_new_coefficients:
+            self.dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(self.learned_dropout_config.dropout_entropy_lambda)
+            self.dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(self.learned_dropout_config.dropout_l1_norm_lambda)
+            self.need_new_coefficients = False
 
         self.update_running_stats()
 
@@ -515,7 +541,7 @@ class DropoutTransformer(RunningDropoutStats):
     model_config_cls = ModelConfig
 
     def __init__(self, config: ModelConfig, gradient_accumulation_steps):
-        super().__init__()
+        super().__init__(config.learned_dropout_config)
         assert (
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
@@ -587,26 +613,6 @@ class DropoutTransformer(RunningDropoutStats):
         model.load_state_dict(state_dict)
         return model
 
-    def get_annealed_dropout_coefficient(self, lambda_config):
-        if (
-            not self.config.use_learned_dropout
-            or not self.training
-            or lambda_config is None
-        ):
-            return None
-
-        if lambda_config.coefficient is None:
-            return lambda_config.max_lambda
-
-        assert self.training_step is not None
-        intersect = (
-            lambda_config.min_lambda - 1 if lambda_config.min_lambda is not None else -1
-        )
-        return min(
-            np.exp(lambda_config.coefficient * self.training_step) + intersect,
-            lambda_config.max_lambda,
-        )
-
     def forward(self, x, targets=None):
         device = x.device
         token_embed = self.token_embedding(x)
@@ -629,31 +635,13 @@ class DropoutTransformer(RunningDropoutStats):
             additional_loss = 0
             if self.training and self.config.use_learned_dropout:
                 self.update_stats()
-
-                mean_dropout_entropy = self.dropout_entropy
-                mean_dropout_l1_norm = self.dropout_l1_norm
-                mean_dropout_entropy_coefficient = (
-                    self.get_annealed_dropout_coefficient(
-                        self.config.learned_dropout_config.dropout_entropy_lambda
-                    )
-                )
-                mean_dropout_l1_norm_coefficient = (
-                    self.get_annealed_dropout_coefficient(
-                        self.config.learned_dropout_config.dropout_l1_norm_lambda
-                    )
-                )
-                if mean_dropout_entropy_coefficient is not None:
-                    self.dropout_entropy_coefficient = torch.tensor(mean_dropout_entropy_coefficient)
-                if mean_dropout_l1_norm_coefficient is not None:
-                    self.dropout_l1_norm_coefficient = torch.tensor(mean_dropout_l1_norm_coefficient)
-
                 if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
                     additional_loss += (
-                        mean_dropout_entropy * mean_dropout_entropy_coefficient
+                        self.dropout_entropy * self.dropout_entropy_coefficient
                     )
                 if self.config.learned_dropout_config.use_dropout_l1_norm_in_loss:
                     additional_loss += (
-                        mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient
+                        self.dropout_l1_norm * self.dropout_l1_norm_coefficient
                     )
 
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
