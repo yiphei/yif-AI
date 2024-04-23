@@ -1,50 +1,14 @@
 from contextlib import ExitStack, contextmanager, nullcontext
-from dataclasses import dataclass
-from typing import Optional
 
 import torch
 
 from utils.train import train
-from utils.train_common import BatchStatsBase
 
 try:
     from transformer_dropout.model import DropoutTransformer
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
     from model import DropoutTransformer
-
-
-@dataclass
-class BatchStats(BatchStatsBase):
-    entropy_coefficient: Optional[float] = None
-    dropout_l1_norm_coefficient: Optional[float] = None
-
-    @classmethod
-    def initialize(cls, train_config, model):
-        return cls(
-            model=model,
-            train_config=train_config,
-        )
-
-    def add_mini_batch_stats(self, mini_batch_stats):
-        (
-            entropy_coefficient,
-            dropout_l1_norm_coefficient,
-        ) = mini_batch_stats
-        self.entropy_coefficient = entropy_coefficient
-        self.dropout_l1_norm_coefficient = dropout_l1_norm_coefficient
-
-    def scale(self):
-        return
-
-    def get_wandb_batch_stats(self):
-        return {
-            "mean_dropout_near_one_percent": self.model.dropout_near_one_percent,
-            "mean_dropout_near_zero_percent": self.model.dropout_near_zero_percent,
-            "dropout_entropy_coefficient": self.entropy_coefficient,
-            "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient,
-        }
-
 
 def create_autocast_context(device_type, ptdtype):
     @contextmanager
@@ -93,7 +57,6 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
 
 if __name__ == "__main__":
     train(
-        BatchStats,
         DropoutTransformer,
         create_training_context,
         "transformer_dropout/",

@@ -661,11 +661,7 @@ class DropoutTransformer(RunningDropoutStats):
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
         return (
             logits,
-            loss,
-            (
-                mean_dropout_entropy_coefficient,
-                mean_dropout_l1_norm_coefficient,
-            ),
+            loss
         )
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):

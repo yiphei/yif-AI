@@ -206,7 +206,7 @@ def estimate_loss(
                 data_iter = new_data_iter
 
             with ctx(i, False):
-                logits, loss, _ = model(xb, yb)
+                logits, loss = model(xb, yb)
 
             losses[i] = loss
 
@@ -261,7 +261,6 @@ def broadcast_object(obj, local_rank, device, src_rank=0):
 
 def _train(
     args,
-    batch_stats_class,
     model_cls,
     create_training_context_fn,
     local_dir,
@@ -566,8 +565,7 @@ def _train(
             with ctx(iter_num, is_first_mini_batch):
                 (
                     _,
-                    loss,
-                    mini_batch_stats,
+                    loss
                 ) = model(X, Y)
 
                 loss = (
@@ -694,7 +692,7 @@ def get_default_args(args, local_dir):
 
 
 def train(
-    batch_stats_class, model_cls, create_training_context_fn, local_dir, wandb_project
+    model_cls, create_training_context_fn, local_dir, wandb_project
 ):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
@@ -725,7 +723,6 @@ def train(
             args.sweep_id,
             function=lambda: _train(
                 args,
-                batch_stats_class,
                 model_cls,
                 create_training_context_fn,
                 local_dir,
@@ -737,7 +734,6 @@ def train(
     else:
         _train(
             args,
-            batch_stats_class,
             model_cls,
             create_training_context_fn,
             local_dir,
