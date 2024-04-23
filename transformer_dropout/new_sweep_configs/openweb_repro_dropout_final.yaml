@@ -1,6 +1,6 @@
 program: transformer_dropout/training_script.py
 name: openweb_dropout_dropout_repro_final
-project: transformer_dropout_5_attn
+project: transformer_dropout_5_attn_cosine
 method: random
 metric:
   goal: minimize
