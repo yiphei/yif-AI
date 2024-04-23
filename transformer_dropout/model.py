@@ -265,19 +265,19 @@ class BaseDropoutStats(nn.Module):
 class RunningDropoutStats(BaseDropoutStats):
     def __init__(self):
         super().__init__()
-        to_add = []
-        for name, buffer in self._buffers.items():
+        running_stats = []
+        for name, _ in self._buffers.items():
             if name not in self.blacklist:
-                to_add.append((f"running_{name}", buffer.clone()))
+                running_stats.append(f"running_{name}")
 
-        for name, buffer in to_add:
+        for name in running_stats:
             self.register_buffer(name, torch.tensor(float('nan')), persistent=False)
 
         self.register_buffer("dropout_entropy_coefficient", torch.tensor(float('nan')), persistent=False)
         self.register_buffer("dropout_l1_norm_coefficient", torch.tensor(float('nan')), persistent=False)
         self.blacklist += ["dropout_entropy_coefficient", "dropout_l1_norm_coefficient"]
 
-    def reset_running(self):
+    def reset_running_stats(self):
         for name, buffer in self._buffers.items():
             if name.startswith("running_") and name not in self.blacklist:
                 buffer.fill_(torch.nan)
@@ -294,7 +294,7 @@ class RunningDropoutStats(BaseDropoutStats):
             "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient,
         }
 
-    def update_running(self):
+    def update_running_stats(self):
         local_buffers = []
 
         for name, _ in self._buffers.items():
@@ -303,7 +303,7 @@ class RunningDropoutStats(BaseDropoutStats):
 
         for name in local_buffers:
             local_value = getattr(self, name)
-            if name in ["dropout_entropy", "dropout_entropy"]:
+            if name in ["dropout_entropy", "dropout_l1_norm"]:
                 local_value = local_value.detach()
 
             running_update = local_value / self.gradient_accumulation_steps
@@ -332,7 +332,7 @@ class RunningDropoutStats(BaseDropoutStats):
         for name, values in values_dict.items():
             setattr(self, name, values.mean())
 
-        self.update_running()
+        self.update_running_stats()
 
 class LearnedDropoutStats(BaseDropoutStats):
     def __init__(self, config):
@@ -359,12 +359,12 @@ class LearnedDropoutStats(BaseDropoutStats):
         # and low l1 norm because there is more curvature towards 0.
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
-    def update_stats(self, dropout_mask, B, T, C):
+    def update_stats(self, dropout_mask):
         with self.dropout_entropy_context:
             self.dropout_entropy = self.entropy_fn(dropout_mask)
         with self.dropout_l1_norm_context:
             # TODO: change this to a simple sum
-            self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / (B * T * C)
+            self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / dropout_mask.numel()
 
         with torch.no_grad():
             self.dropout_near_one_percent = (
@@ -466,7 +466,7 @@ class LearnedDropout(LearnedDropoutStats):
                 )
 
         if self.training:
-            self.update_stats(dropout_mask, B, T, C)
+            self.update_stats(dropout_mask)
 
         if self.training and self.config.profile_dropout_mask:
             # NB: because of gradient accumulation, this will only log the last batch

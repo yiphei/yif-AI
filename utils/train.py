@@ -555,7 +555,7 @@ def _train(
         t0 = time.time()
         running_loss = 0
         is_first_mini_batch = True
-        raw_model.reset_running()
+        raw_model.reset_running_stats()
         for micro_step in range(TRAIN_CONFIG.gradient_accumulation_steps):
             if using_DDP:
                 # this defers gradient sync until the last micro_step
