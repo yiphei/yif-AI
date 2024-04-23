@@ -273,6 +273,10 @@ class RunningDropoutStats(BaseDropoutStats):
         for name, buffer in to_add:
             self.register_buffer(name, torch.tensor(float('nan')), persistent=False)
 
+        self.register_buffer("dropout_entropy_coefficient", torch.tensor(float('nan')), persistent=False)
+        self.register_buffer("dropout_l1_norm_coefficient", torch.tensor(float('nan')), persistent=False)
+        self.blacklist += ["dropout_entropy_coefficient", "dropout_l1_norm_coefficient"]
+
     def reset_running(self):
         for name, buffer in self._buffers.items():
             if name.startswith("running_") and name not in self.blacklist:
@@ -284,6 +288,10 @@ class RunningDropoutStats(BaseDropoutStats):
             "dropout_l1_norm": self.running_dropout_l1_norm,
             "active_dropout_mask_percent": self.running_active_dropout_mask_percent,
             "dropout_mask_change_rate_from_prev": self.running_dropout_mask_change_rate_from_prev,
+            "mean_dropout_near_one_percent": self.dropout_near_one_percent,
+            "mean_dropout_near_zero_percent": self.dropout_near_zero_percent,
+            "dropout_entropy_coefficient": self.dropout_entropy_coefficient,
+            "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient,
         }
 
     def update_running(self):
@@ -636,6 +644,10 @@ class DropoutTransformer(RunningDropoutStats):
                         self.config.learned_dropout_config.dropout_l1_norm_lambda
                     )
                 )
+                if mean_dropout_entropy_coefficient is not None:
+                    self.dropout_entropy_coefficient = torch.tensor(mean_dropout_entropy_coefficient)
+                if mean_dropout_l1_norm_coefficient is not None:
+                    self.dropout_l1_norm_coefficient = torch.tensor(mean_dropout_l1_norm_coefficient)
 
                 if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
                     additional_loss += (
