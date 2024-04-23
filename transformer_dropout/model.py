@@ -343,7 +343,7 @@ class RunningDropoutStats(BaseDropoutStats):
         module_idx = 0
         for module in self.modules():
             if isinstance(module, LearnedDropout):
-                for name, buffer in module.named_buffers():
+                for name, buffer in module._buffers.items():
                     if name in values_dict:
                         values_dict[name][module_idx] = buffer
                 module_idx += 1
