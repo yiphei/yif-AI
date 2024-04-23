@@ -20,6 +20,8 @@ parameters:
                 value: 12
             dropout_rate:
                 value: 0
+            learned_dropout_layers:
+                value: 1
             use_learned_dropout:
                 value: True
             learned_dropout_config:
@@ -39,7 +41,7 @@ parameters:
                     shift_init:
                         value: 1.57079632
                     n_heads:
-                        value: 200
+                        value: 48
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
