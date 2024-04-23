@@ -253,13 +253,13 @@ class OptimizedMultiAttentionHead(nn.Module):
 class BaseDropoutStats(nn.Module):
     def __init__(self):
         super().__init__()
-        self.register_buffer("dropout_entropy", torch.tensor(float('nan')), persistent=False)
-        self.register_buffer("dropout_l1_norm", torch.tensor(float('nan')), persistent=False)
-        self.register_buffer("dropout_near_one_percent", torch.tensor(float('nan')), persistent=False)
-        self.register_buffer("dropout_near_zero_percent", torch.tensor(float('nan')), persistent=False)
-        self.register_buffer("dropout_mask_change_rate_from_prev", torch.tensor(float('nan')), persistent=False)
-        self.register_buffer("prev_dropout_mask", None, persistent=False)
-        self.register_buffer("active_dropout_mask_percent", torch.tensor(float('nan')), persistent=False)
+        self.register_buffer("dropout_entropy", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_l1_norm", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_near_one_percent", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_near_zero_percent",torch.empty(0), persistent=False)
+        self.register_buffer("dropout_mask_change_rate_from_prev", torch.empty(0), persistent=False)
+        self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
+        self.register_buffer("active_dropout_mask_percent", torch.empty(0), persistent=False)
         self.blacklist = ["prev_dropout_mask"]
 
 class RunningDropoutStats(BaseDropoutStats):
@@ -272,17 +272,17 @@ class RunningDropoutStats(BaseDropoutStats):
                 running_stats.append(f"running_{name}")
 
         for name in running_stats:
-            self.register_buffer(name, torch.tensor(float('nan')), persistent=False)
+            self.register_buffer(name, torch.empty(0), persistent=False)
 
-        self.register_buffer("dropout_entropy_coefficient", torch.tensor(float('nan')), persistent=False)
-        self.register_buffer("dropout_l1_norm_coefficient", torch.tensor(float('nan')), persistent=False)
+        self.register_buffer("dropout_entropy_coefficient", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_l1_norm_coefficient", torch.empty(0), persistent=False)
         self.need_new_coefficients = True
         self.blacklist += ["dropout_entropy_coefficient", "dropout_l1_norm_coefficient"]
 
     def reset_running_stats(self):
         for name, buffer in self._buffers.items():
             if name.startswith("running_") and name not in self.blacklist:
-                buffer.fill_(torch.nan)
+                setattr(self, name, torch.empty(0))
         self.need_new_coefficients = True
 
     def dump_running(self):
@@ -294,14 +294,14 @@ class RunningDropoutStats(BaseDropoutStats):
             "mean_dropout_near_one_percent": self.dropout_near_one_percent,
             "mean_dropout_near_zero_percent": self.dropout_near_zero_percent,
             "dropout_entropy_coefficient": self.dropout_entropy_coefficient,
-            "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient,
+            "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient if self.dropout_l1_norm_coefficient.nelement() != 0 else None,
         }
     
     def get_annealed_dropout_coefficient(self, lambda_config):
         if (not self.training
             or lambda_config is None
         ):
-            return torch.tensor(float('nan'))
+            return torch.empty(0)
 
         if lambda_config.coefficient is None:
             return torch.tensor(lambda_config.max_lambda)
@@ -329,7 +329,7 @@ class RunningDropoutStats(BaseDropoutStats):
 
             running_update = local_value / self.gradient_accumulation_steps
             curr_running_value = getattr(self, f"running_{name}")
-            if curr_running_value.isnan().any():
+            if curr_running_value.nelement() == 0:
                 setattr(self, f"running_{name}", running_update)
             else:
                 setattr(self, f"running_{name}", curr_running_value + running_update)
@@ -344,7 +344,7 @@ class RunningDropoutStats(BaseDropoutStats):
         for module in self.modules():
             if isinstance(module, LearnedDropout):
                 for name, buffer in module._buffers.items():
-                    if name in values_dict:
+                    if name in values_dict and buffer.nelement() != 0:
                         values_dict[name][module_idx] = buffer
                 module_idx += 1
 
@@ -403,7 +403,7 @@ class LearnedDropoutStats(BaseDropoutStats):
                 dropout_mask > 0.05
             ).sum() / dropout_mask.numel()
 
-            if self.prev_dropout_mask is not None:
+            if self.prev_dropout_mask.nelement() != 0:
                 matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
                 matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
                 self.dropout_mask_change_rate_from_prev = (
