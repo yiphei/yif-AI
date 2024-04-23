@@ -327,6 +327,8 @@ class RunningDropoutStats(BaseDropoutStats):
                         values_dict[name][module_idx] = buffer
                 module_idx += 1
 
+        assert module_idx == 1
+
         for name, values in values_dict.items():
             setattr(self, name, values.mean())
 
@@ -616,10 +618,6 @@ class DropoutTransformer(RunningDropoutStats):
         out = self.transformer_blocks(embed)
         out = self.ln(out)
 
-        (
-            mean_dropout_entropy_coefficient,
-            mean_dropout_l1_norm_coefficient,
-        ) = [None] * 2
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
