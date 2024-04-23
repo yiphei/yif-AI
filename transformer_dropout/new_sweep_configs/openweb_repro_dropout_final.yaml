@@ -1,0 +1,72 @@
+program: transformer_dropout/training_script.py
+name: openweb_dropout_dropout_repro_final
+project: transformer_dropout_5_attn_cosine
+method: random
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: True
+            context_size:
+                value: 1024
+            n_embed: 
+                value: 768
+            n_layer: 
+                value: 11
+            n_head: 
+                value: 12
+            dropout_rate:
+                value: 0
+            learned_dropout_layers:
+                value: 1
+            use_learned_dropout:
+                value: True
+            learned_dropout_config:
+                parameters:
+                    use_dropout_entropy_in_loss:
+                        value: True
+                    use_dropout_l1_norm_in_loss:
+                        value: False
+                    use_bias:
+                        value: False
+                    softmax_dim:
+                        value: 2
+                    rounding_type:
+                        value: 1
+                    sigmoid_slope:
+                        value: 37
+                    shift_init:
+                        value: 1.57079632
+                    n_heads:
+                        value: 48
+                    use_canonical_entropy:
+                        value: False
+                    use_detached_x_in_dropout_mask:
+                        value: False
+                    profile_dropout_mask:
+                        value: False
+                    dropout_entropy_lambda:
+                        parameters:
+                            max_lambda:
+                              value: 0.1
+    batch_size: 
+        value: 15 # to match the transformer_embed baseline
+    train_steps: 
+        value: 25000
+    lr: 
+        value: 6e-4
+    warmup_iters:
+        value: 500
+    min_lr: 
+        value: 6e-5
+    gradient_accumulation_steps: 
+        value: 40
+    lr_decay_iters: 
+        value: 600000 # training code was temporarily modified to allow this
+    est_interval: 
+        value: 500
+    est_steps: 
+        value: 200
