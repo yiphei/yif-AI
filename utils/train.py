@@ -598,8 +598,7 @@ def _train(
             if iter_num >= 5:
                 mfu = raw_model.estimate_mfu(
                     TRAIN_CONFIG.batch_size * TRAIN_CONFIG.gradient_accumulation_steps,
-                    dt,
-                    raw_model.active_dropout_mask_percent,
+                    dt
                 )
 
             wandb.log(
