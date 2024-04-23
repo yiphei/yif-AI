@@ -338,8 +338,6 @@ class RunningDropoutStats(BaseDropoutStats):
                         buffer_to_local_values[name][module_idx] = buffer
                 module_idx += 1
 
-        assert module_idx == 1
-
         for name, values in buffer_to_local_values.items():
             setattr(self, name, values.mean())
 
