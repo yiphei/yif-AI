@@ -253,13 +253,13 @@ class OptimizedMultiAttentionHead(nn.Module):
 class BaseDropoutStats(nn.Module):
     def __init__(self):
         super().__init__()
-        self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
-        self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
-        self.register_buffer("dropout_near_one_percent", torch.zeros(1), persistent=False)
-        self.register_buffer("dropout_near_zero_percent", torch.zeros(1), persistent=False)
-        self.register_buffer("dropout_mask_change_rate_from_prev", torch.zeros(1), persistent=False)
+        self.register_buffer("dropout_entropy", torch.tensor(float('nan')), persistent=False)
+        self.register_buffer("dropout_l1_norm", torch.tensor(float('nan')), persistent=False)
+        self.register_buffer("dropout_near_one_percent", torch.tensor(float('nan')), persistent=False)
+        self.register_buffer("dropout_near_zero_percent", torch.tensor(float('nan')), persistent=False)
+        self.register_buffer("dropout_mask_change_rate_from_prev", torch.tensor(float('nan')), persistent=False)
         self.register_buffer("prev_dropout_mask", None, persistent=False)
-        self.register_buffer("active_dropout_mask_percent", torch.zeros(1), persistent=False)
+        self.register_buffer("active_dropout_mask_percent", torch.tensor(float('nan')), persistent=False)
         self.blacklist = ["prev_dropout_mask"]
 
 class RunningDropoutStats(BaseDropoutStats):
@@ -271,12 +271,12 @@ class RunningDropoutStats(BaseDropoutStats):
                 to_add.append((f"running_{name}", buffer.clone()))
 
         for name, buffer in to_add:
-            self.register_buffer(name, buffer, persistent=False)
+            self.register_buffer(name, torch.tensor(float('nan')), persistent=False)
 
     def reset_running(self):
         for name, buffer in self._buffers.items():
             if name.startswith("running_") and name not in self.blacklist:
-                buffer.zero_()
+                buffer.fill_(torch.nan)
 
     def dump_running(self):
         return {
@@ -300,7 +300,10 @@ class RunningDropoutStats(BaseDropoutStats):
 
             running_update = local_value / self.gradient_accumulation_steps
             curr_running_value = getattr(self, f"running_{name}")
-            setattr(self, f"running_{name}", curr_running_value + running_update)
+            if curr_running_value.isnan().any():
+                setattr(self, f"running_{name}", running_update)
+            else:
+                setattr(self, f"running_{name}", curr_running_value + running_update)
     
     def update_stats(self):
         values_dict = {}
