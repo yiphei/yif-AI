@@ -285,7 +285,7 @@ class RunningDropoutStats(BaseDropoutStats):
                 setattr(self, name, torch.empty(0))
         self.need_new_coefficients = True
 
-    def dump_running(self):
+    def dump_stats(self):
         return {
             "dropout_entropy": self.running_dropout_entropy,
             "dropout_l1_norm": self.running_dropout_l1_norm,
