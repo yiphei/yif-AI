@@ -607,7 +607,7 @@ def _train(
                     "loss": running_loss,
                     "time": float(f"{dt*1000:.2f}"),
                     "mfu": mfu,
-                    **raw_model.dump_running(),
+                    **raw_model.dump_stats(),
                 },
                 step=iter_num,
                 # commit=False,
