@@ -206,7 +206,7 @@ def estimate_loss(
                 data_iter = new_data_iter
 
             with ctx(i, False):
-                logits, loss, _ = model(xb, yb)
+                logits, loss = model(xb, yb)
 
             losses[i] = loss
 
@@ -261,7 +261,6 @@ def broadcast_object(obj, local_rank, device, src_rank=0):
 
 def _train(
     args,
-    batch_stats_class,
     model_cls,
     create_training_context_fn,
     local_dir,
@@ -416,11 +415,11 @@ def _train(
             meta = pickle.load(f)
 
         TRAIN_CONFIG.model_config.alphabet_size = meta["alphabet_size"]
-        model = model_cls(TRAIN_CONFIG.model_config)
+        model = model_cls(TRAIN_CONFIG.model_config, gradient_accumulation_steps = TRAIN_CONFIG.gradient_accumulation_steps)
     else:
         print("Loading checkpoint...")
         checkpoint = torch.load(ckpt_file_path, map_location=DEVICE)
-        model = model_cls.init_from_checkpoint(checkpoint)
+        model = model_cls.init_from_checkpoint(checkpoint,  gradient_accumulation_steps = TRAIN_CONFIG.gradient_accumulation_steps)
         TRAIN_CONFIG.model_config = model.config
         iter_num = checkpoint["iter_num"] + 1
         best_val_loss = checkpoint["best_val_loss"]
@@ -555,8 +554,8 @@ def _train(
 
         t0 = time.time()
         running_loss = 0
-        current_batch_stats = batch_stats_class.initialize(TRAIN_CONFIG, raw_model)
         is_first_mini_batch = True
+        raw_model.reset_running_stats()
         for micro_step in range(TRAIN_CONFIG.gradient_accumulation_steps):
             if using_DDP:
                 # this defers gradient sync until the last micro_step
@@ -566,16 +565,13 @@ def _train(
             with ctx(iter_num, is_first_mini_batch):
                 (
                     _,
-                    loss,
-                    mini_batch_stats,
+                    loss
                 ) = model(X, Y)
-                current_batch_stats.add_mini_batch_stats(mini_batch_stats)
 
                 loss = (
                     loss / TRAIN_CONFIG.gradient_accumulation_steps
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
-                current_batch_stats.scale()
 
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y, new_train_iter = get_data_batch_loader(
@@ -602,8 +598,7 @@ def _train(
             if iter_num >= 5:
                 mfu = raw_model.estimate_mfu(
                     TRAIN_CONFIG.batch_size * TRAIN_CONFIG.gradient_accumulation_steps,
-                    dt,
-                    current_batch_stats.active_dropout_mask_percent,
+                    dt
                 )
 
             wandb.log(
@@ -611,7 +606,7 @@ def _train(
                     "loss": running_loss,
                     "time": float(f"{dt*1000:.2f}"),
                     "mfu": mfu,
-                    **current_batch_stats.get_wandb_batch_stats(),
+                    **raw_model.dump_stats(),
                 },
                 step=iter_num,
                 # commit=False,
@@ -696,7 +691,7 @@ def get_default_args(args, local_dir):
 
 
 def train(
-    batch_stats_class, model_cls, create_training_context_fn, local_dir, wandb_project
+    model_cls, create_training_context_fn, local_dir, wandb_project
 ):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
@@ -727,7 +722,6 @@ def train(
             args.sweep_id,
             function=lambda: _train(
                 args,
-                batch_stats_class,
                 model_cls,
                 create_training_context_fn,
                 local_dir,
@@ -739,7 +733,6 @@ def train(
     else:
         _train(
             args,
-            batch_stats_class,
             model_cls,
             create_training_context_fn,
             local_dir,

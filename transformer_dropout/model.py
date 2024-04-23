@@ -249,25 +249,165 @@ class OptimizedMultiAttentionHead(nn.Module):
         out = self.residual_proj(out)
         out = self.dropout_2(out)
         return out
-
-
-class LearnedDropout(nn.Module):
-    def __init__(self, embed_dim, context_size, config):
+    
+class BaseDropoutStats(nn.Module):
+    def __init__(self):
         super().__init__()
-        self.embed_dim = embed_dim
-        self.context_size = context_size
+        self.register_buffer("dropout_entropy", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_l1_norm", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_near_one_percent", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_near_zero_percent",torch.empty(0), persistent=False)
+        self.register_buffer("dropout_change_rate_from_prev", torch.empty(0), persistent=False)
+        self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
+        self.register_buffer("active_dropout_percent", torch.empty(0), persistent=False)
+        self.blacklist = ["prev_dropout_mask"]
+
+class RunningDropoutStats(BaseDropoutStats):
+    def __init__(self, learned_dropout_config):
+        super().__init__()
+        self.learned_dropout_config = learned_dropout_config
+        running_stats = []
+        for name, _ in self._buffers.items():
+            if name not in self.blacklist:
+                running_stats.append(f"running_{name}")
+
+        for name in running_stats:
+            self.register_buffer(name, torch.empty(0), persistent=False)
+
+        self.register_buffer("dropout_entropy_coefficient", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_l1_norm_coefficient", torch.empty(0), persistent=False)
+        self.need_new_coefficients = True
+        self.blacklist += ["dropout_entropy_coefficient", "dropout_l1_norm_coefficient"]
+
+    def reset_running_stats(self):
+        for name, _ in self._buffers.items():
+            if name.startswith("running_") and name not in self.blacklist:
+                setattr(self, name, torch.empty(0))
+        self.need_new_coefficients = True
+
+    def dump_stats(self):
+        stats_dict = {}
+        for name, buffer in self._buffers.items():
+            if name.startswith("running_") and name not in self.blacklist:
+                stats_dict[name[8:]] = buffer if buffer.nelement() != 0 else None
+            elif name in ["dropout_entropy_coefficient", "dropout_l1_norm_coefficient"]:
+                stats_dict[name] = buffer if buffer.nelement() != 0 else None
+
+        return stats_dict
+    
+    def get_annealed_dropout_coefficient(self, lambda_config):
+        if lambda_config is None:
+            return torch.empty(0)
+
+        if lambda_config.coefficient is None:
+            return torch.tensor(lambda_config.max_lambda)
+
+        assert self.training_step is not None
+        intersect = (
+            lambda_config.min_lambda - 1 if lambda_config.min_lambda is not None else -1
+        )
+        return torch.tensor(min(
+            np.exp(lambda_config.coefficient * self.training_step) + intersect,
+            lambda_config.max_lambda,
+        ))
+
+    def update_running_stats(self, buffer_names_to_update):
+        for name in buffer_names_to_update:
+            value = getattr(self, name)
+            if name in ["dropout_entropy", "dropout_l1_norm"]:
+                value = value.detach()
+
+            running_update = value / self.gradient_accumulation_steps
+            curr_running_value = getattr(self, f"running_{name}")
+            if curr_running_value.nelement() == 0:
+                setattr(self, f"running_{name}", running_update)
+            else:
+                setattr(self, f"running_{name}", curr_running_value + running_update)
+    
+    def update_stats(self):
+        buffer_to_local_values = {}
+        for name, buffer in self._buffers.items():
+            if not name.startswith("running_") and name not in self.blacklist:
+                buffer_to_local_values[name] = torch.empty(self.n_learned_dropout, device=buffer.device)
+
+        module_idx = 0
+        for module in self.modules():
+            if isinstance(module, LearnedDropout):
+                for name, buffer in module._buffers.items():
+                    if name in buffer_to_local_values and buffer.nelement() != 0:
+                        buffer_to_local_values[name][module_idx] = buffer
+                module_idx += 1
+
+        for name, values in buffer_to_local_values.items():
+            setattr(self, name, values.mean())
+
+        if self.need_new_coefficients:
+            self.dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(self.learned_dropout_config.dropout_entropy_lambda)
+            self.dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(self.learned_dropout_config.dropout_l1_norm_lambda)
+            self.need_new_coefficients = False
+
+        self.update_running_stats(buffer_to_local_values.keys())
+
+class LearnedDropoutStats(BaseDropoutStats):
+    def __init__(self, config):
+        super().__init__()
         self.dropout_entropy_context = (
             nullcontext() if config.use_dropout_entropy_in_loss else torch.no_grad()
         )
         self.dropout_l1_norm_context = (
             nullcontext() if config.use_dropout_l1_norm_in_loss else torch.no_grad()
         )
-        self.config = config
         self.entropy_fn = (
             self.canonical_entropy
             if config.use_canonical_entropy
             else self.alternate_entropy
         )
+
+    def canonical_entropy(self, dropout_mask):
+        # the small constant is for numerical stability
+        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
+
+    def alternate_entropy(self, dropout_mask):
+        # the alternate entropy has the peak above 0.5, while the canonical one has
+        # it below 0.5. In theory, this should be better for achieving both low entropy
+        # and low l1 norm because there is more curvature towards 0.
+        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
+
+    def update_stats(self, dropout_mask):
+        with self.dropout_entropy_context:
+            self.dropout_entropy = self.entropy_fn(dropout_mask)
+        with self.dropout_l1_norm_context:
+            # TODO: change this to a simple sum
+            self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / dropout_mask.numel()
+
+        with torch.no_grad():
+            self.dropout_near_one_percent = (
+                dropout_mask > 0.9
+            ).sum() / dropout_mask.numel()
+            self.dropout_near_zero_percent = (
+                dropout_mask < 0.1
+            ).sum() / dropout_mask.numel()
+            self.active_dropout_percent = (
+                dropout_mask > 0.05
+            ).sum() / dropout_mask.numel()
+
+            if self.prev_dropout_mask.nelement() != 0:
+                matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
+                matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
+                self.dropout_change_rate_from_prev = (
+                    1
+                    - (matching_0s.sum() + matching_1s.sum())
+                    / dropout_mask.numel()
+                )
+            self.prev_dropout_mask = dropout_mask.clone()
+
+class LearnedDropout(LearnedDropoutStats):
+    def __init__(self, embed_dim, context_size, config):
+        super().__init__(config)
+        self.embed_dim = embed_dim
+        self.context_size = context_size
+
+        self.config = config
         self.module_name = None  # used for logging
 
         self.head_size = embed_dim // config.n_heads
@@ -287,27 +427,6 @@ class LearnedDropout(nn.Module):
                 )
             ),
         )
-
-        # Stats
-        self.register_buffer("dropout_entropy", torch.zeros(1), persistent=False)
-        self.register_buffer("dropout_l1_norm", torch.zeros(1), persistent=False)
-        # unsure if I shold register these two as buffer
-        # also, dropout_l1_norm essentially ecanpsulates these two, but I want to see them separately
-        self.dropout_near_one_percent = None
-        self.dropout_near_zero_percent = None
-        self.dropout_mask_change_rate_from_prev = 0
-        self.prev_dropout_mask = None
-        self.active_dropout_mask_percent = None
-
-    def canonical_entropy(self, dropout_mask):
-        # the small constant is for numerical stability
-        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
-
-    def alternate_entropy(self, dropout_mask):
-        # the alternate entropy has the peak above 0.5, while the canonical one has
-        # it below 0.5. In theory, this should be better for achieving both low entropy
-        # and low l1 norm because there is more curvature towards 0.
-        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x):
         import wandb
@@ -361,32 +480,7 @@ class LearnedDropout(nn.Module):
                 )
 
         if self.training:
-            with self.dropout_entropy_context:
-                self.dropout_entropy = self.entropy_fn(dropout_mask)
-            with self.dropout_l1_norm_context:
-                # TODO: change this to a simple sum
-                self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / (B * T * C)
-
-            self.dropout_near_one_percent = (
-                dropout_mask > 0.9
-            ).sum().item() / dropout_mask.numel()
-            self.dropout_near_zero_percent = (
-                dropout_mask < 0.1
-            ).sum().item() / dropout_mask.numel()
-
-            self.active_dropout_mask_percent = (
-                dropout_mask > 0.05
-            ).sum().item() / dropout_mask.numel()
-
-            if self.prev_dropout_mask is not None:
-                matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
-                matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
-                self.dropout_mask_change_rate_from_prev = (
-                    1
-                    - (matching_0s.sum() + matching_1s.sum()).item()
-                    / dropout_mask.numel()
-                )
-            self.prev_dropout_mask = dropout_mask.clone()
+            self.update_stats(dropout_mask)
 
         if self.training and self.config.profile_dropout_mask:
             # NB: because of gradient accumulation, this will only log the last batch
@@ -431,15 +525,16 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class DropoutTransformer(nn.Module):
+class DropoutTransformer(RunningDropoutStats):
     model_config_cls = ModelConfig
 
-    def __init__(self, config: ModelConfig):
-        super().__init__()
+    def __init__(self, config: ModelConfig, gradient_accumulation_steps):
+        super().__init__(config.learned_dropout_config)
         assert (
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
         self.config = config
+        self.gradient_accumulation_steps = gradient_accumulation_steps
         self.training_step = (
             None  # this is provided by the context manager in the training script
         )
@@ -474,6 +569,7 @@ class DropoutTransformer(nn.Module):
                 )
 
         # maybe there is a better way
+        n_learned_dropout = 0
         param_to_param_name = {p: n for n, p in self.named_parameters()}
         for module in self.modules():
             if isinstance(module, LearnedDropout):
@@ -482,6 +578,8 @@ class DropoutTransformer(nn.Module):
                         :-2
                     ]
                 )
+                n_learned_dropout += 1
+        self.n_learned_dropout = n_learned_dropout
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
@@ -492,9 +590,9 @@ class DropoutTransformer(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     @classmethod
-    def init_from_checkpoint(cls, checkpoint_dict):
+    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps):
         model_config = ModelConfig(**checkpoint_dict["model_config"])
-        model = cls(model_config)
+        model = cls(model_config, gradient_accumulation_steps)
         state_dict = checkpoint_dict["model"]
 
         # This is caused by compiling the model. From https://github.com/karpathy/nanoGPT/blob/master/train.py
@@ -505,71 +603,6 @@ class DropoutTransformer(nn.Module):
 
         model.load_state_dict(state_dict)
         return model
-
-    def get_aggregated_learned_dropout_attributes(
-        self, attr_name, aggregation_fn, is_training_attr
-    ):
-        if not self.config.use_learned_dropout or (
-            is_training_attr and not self.training
-        ):
-            return None
-
-        values = []
-        for module in self.modules():
-            if isinstance(module, LearnedDropout):
-                values.append(getattr(module, attr_name))
-
-        return aggregation_fn(values)
-
-    def get_mean_dropout_near_one_percent(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_near_one_percent", np.mean, True
-        )
-
-    def get_mean_dropout_near_zero_percent(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_near_zero_percent", np.mean, True
-        )
-
-    def get_mean_active_dropout_mask_percent(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "active_dropout_mask_percent", np.mean, True
-        )
-
-    def get_mean_dropout_mask_change_rate_from_prev(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_mask_change_rate_from_prev", np.mean, True
-        )
-
-    def get_annealed_dropout_coefficient(self, lambda_config):
-        if (
-            not self.config.use_learned_dropout
-            or not self.training
-            or lambda_config is None
-        ):
-            return None
-
-        if lambda_config.coefficient is None:
-            return lambda_config.max_lambda
-
-        assert self.training_step is not None
-        intersect = (
-            lambda_config.min_lambda - 1 if lambda_config.min_lambda is not None else -1
-        )
-        return min(
-            np.exp(lambda_config.coefficient * self.training_step) + intersect,
-            lambda_config.max_lambda,
-        )
-
-    def get_mean_dropout_entropy(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_entropy", lambda x: torch.stack(x, dim=0).mean(), True
-        )
-
-    def get_mean_dropout_l1_norm(self):
-        return self.get_aggregated_learned_dropout_attributes(
-            "dropout_l1_norm", lambda x: torch.stack(x, dim=0).mean(), True
-        )
 
     def forward(self, x, targets=None):
         device = x.device
@@ -582,14 +615,6 @@ class DropoutTransformer(nn.Module):
         out = self.transformer_blocks(embed)
         out = self.ln(out)
 
-        (
-            mean_dropout_entropy,
-            mean_dropout_l1_norm,
-            mean_dropout_entropy_coefficient,
-            mean_dropout_l1_norm_coefficient,
-            mean_active_dropout_mask_percent,
-            mean_dropout_mask_change_rate_from_prev,
-        ) = [None] * 6
         if targets is None:
             loss = None
             logits = self.output_layer(out[:, [-1], :])
@@ -600,46 +625,20 @@ class DropoutTransformer(nn.Module):
 
             additional_loss = 0
             if self.training and self.config.use_learned_dropout:
-                mean_dropout_entropy = self.get_mean_dropout_entropy()
-                mean_dropout_l1_norm = self.get_mean_dropout_l1_norm()
-                mean_dropout_entropy_coefficient = (
-                    self.get_annealed_dropout_coefficient(
-                        self.config.learned_dropout_config.dropout_entropy_lambda
-                    )
-                )
-                mean_dropout_l1_norm_coefficient = (
-                    self.get_annealed_dropout_coefficient(
-                        self.config.learned_dropout_config.dropout_l1_norm_lambda
-                    )
-                )
-                mean_active_dropout_mask_percent = (
-                    self.get_mean_active_dropout_mask_percent()
-                )
-                mean_dropout_mask_change_rate_from_prev = (
-                    self.get_mean_dropout_mask_change_rate_from_prev()
-                )
-
+                self.update_stats()
                 if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
                     additional_loss += (
-                        mean_dropout_entropy * mean_dropout_entropy_coefficient
+                        self.dropout_entropy * self.dropout_entropy_coefficient
                     )
                 if self.config.learned_dropout_config.use_dropout_l1_norm_in_loss:
                     additional_loss += (
-                        mean_dropout_l1_norm * mean_dropout_l1_norm_coefficient
+                        self.dropout_l1_norm * self.dropout_l1_norm_coefficient
                     )
 
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
         return (
             logits,
-            loss,
-            (
-                mean_dropout_entropy,
-                mean_dropout_l1_norm,
-                mean_dropout_entropy_coefficient,
-                mean_dropout_l1_norm_coefficient,
-                mean_active_dropout_mask_percent,
-                mean_dropout_mask_change_rate_from_prev,
-            ),
+            loss
         )
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
@@ -684,7 +683,7 @@ class DropoutTransformer(nn.Module):
         probs = F.softmax(logits, dim=-1)
         return (probs.max(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
 
-    def estimate_mfu(self, fwdbwd_per_iter, dt, active_dropout_mask_percent):
+    def estimate_mfu(self, fwdbwd_per_iter, dt):
         """
         estimate model flops utilization (MFU) in units of A100 bfloat16 peak FLOPS
         From https://github.com/karpathy/nanoGPT/blob/master/model.py#L289
@@ -700,10 +699,11 @@ class DropoutTransformer(nn.Module):
         )
         flops_per_token = 6 * N + 12 * L * H * Q * T
         flops_per_token += (
-            (active_dropout_mask_percent)
+            (self.running_active_dropout_percent)
             * 12
             * self.config.n_embed
             * self.config.context_size
+            * self.n_learned_dropout
         )
 
         flops_per_fwdbwd = flops_per_token * T
