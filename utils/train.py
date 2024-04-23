@@ -555,7 +555,6 @@ def _train(
 
         t0 = time.time()
         running_loss = 0
-        current_batch_stats = batch_stats_class.initialize(TRAIN_CONFIG, raw_model)
         is_first_mini_batch = True
         raw_model.reset_running()
         for micro_step in range(TRAIN_CONFIG.gradient_accumulation_steps):
@@ -570,13 +569,11 @@ def _train(
                     loss,
                     mini_batch_stats,
                 ) = model(X, Y)
-                current_batch_stats.add_mini_batch_stats(mini_batch_stats)
 
                 loss = (
                     loss / TRAIN_CONFIG.gradient_accumulation_steps
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
-                current_batch_stats.scale()
 
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y, new_train_iter = get_data_batch_loader(
@@ -612,7 +609,6 @@ def _train(
                     "loss": running_loss,
                     "time": float(f"{dt*1000:.2f}"),
                     "mfu": mfu,
-                    **current_batch_stats.get_wandb_batch_stats(),
                     **raw_model.dump_running(),
                 },
                 step=iter_num,
