@@ -286,16 +286,14 @@ class RunningDropoutStats(BaseDropoutStats):
         self.need_new_coefficients = True
 
     def dump_stats(self):
-        return {
-            "dropout_entropy": self.running_dropout_entropy,
-            "dropout_l1_norm": self.running_dropout_l1_norm,
-            "active_dropout_percent": self.running_active_dropout_percent,
-            "dropout_change_rate_from_prev": self.running_dropout_change_rate_from_prev,
-            "mean_dropout_near_one_percent": self.dropout_near_one_percent,
-            "mean_dropout_near_zero_percent": self.dropout_near_zero_percent,
-            "dropout_entropy_coefficient": self.dropout_entropy_coefficient,
-            "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient if self.dropout_l1_norm_coefficient.nelement() != 0 else None,
-        }
+        stats_dict = {}
+        for name, buffer in self._buffers.items():
+            if name.startswith("running_") and name not in self.blacklist:
+                stats_dict[name[8:]] = buffer if buffer.nelement() != 0 else None
+            elif name in ["dropout_entropy_coefficient", "dropout_l1_norm_coefficient"]:
+                stats_dict[name] = buffer if buffer.nelement() != 0 else None
+
+        return stats_dict
     
     def get_annealed_dropout_coefficient(self, lambda_config):
         if lambda_config is None:
@@ -684,7 +682,7 @@ class DropoutTransformer(RunningDropoutStats):
         probs = F.softmax(logits, dim=-1)
         return (probs.max(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
 
-    def estimate_mfu(self, fwdbwd_per_iter, dt, active_dropout_percent):
+    def estimate_mfu(self, fwdbwd_per_iter, dt):
         """
         estimate model flops utilization (MFU) in units of A100 bfloat16 peak FLOPS
         From https://github.com/karpathy/nanoGPT/blob/master/model.py#L289
@@ -700,7 +698,7 @@ class DropoutTransformer(RunningDropoutStats):
         )
         flops_per_token = 6 * N + 12 * L * H * Q * T
         flops_per_token += (
-            (active_dropout_percent)
+            (self.running_active_dropout_percent)
             * 12
             * self.config.n_embed
             * self.config.context_size
