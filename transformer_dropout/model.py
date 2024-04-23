@@ -257,9 +257,9 @@ class BaseDropoutStats(nn.Module):
         self.register_buffer("dropout_l1_norm", torch.empty(0), persistent=False)
         self.register_buffer("dropout_near_one_percent", torch.empty(0), persistent=False)
         self.register_buffer("dropout_near_zero_percent",torch.empty(0), persistent=False)
-        self.register_buffer("dropout_mask_change_rate_from_prev", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_change_rate_from_prev", torch.empty(0), persistent=False)
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
-        self.register_buffer("active_dropout_mask_percent", torch.empty(0), persistent=False)
+        self.register_buffer("active_dropout_percent", torch.empty(0), persistent=False)
         self.blacklist = ["prev_dropout_mask"]
 
 class RunningDropoutStats(BaseDropoutStats):
@@ -289,8 +289,8 @@ class RunningDropoutStats(BaseDropoutStats):
         return {
             "dropout_entropy": self.running_dropout_entropy,
             "dropout_l1_norm": self.running_dropout_l1_norm,
-            "active_dropout_mask_percent": self.running_active_dropout_mask_percent,
-            "dropout_mask_change_rate_from_prev": self.running_dropout_mask_change_rate_from_prev,
+            "active_dropout_percent": self.running_active_dropout_percent,
+            "dropout_change_rate_from_prev": self.running_dropout_change_rate_from_prev,
             "mean_dropout_near_one_percent": self.dropout_near_one_percent,
             "mean_dropout_near_zero_percent": self.dropout_near_zero_percent,
             "dropout_entropy_coefficient": self.dropout_entropy_coefficient,
@@ -399,14 +399,14 @@ class LearnedDropoutStats(BaseDropoutStats):
             self.dropout_near_zero_percent = (
                 dropout_mask < 0.1
             ).sum() / dropout_mask.numel()
-            self.active_dropout_mask_percent = (
+            self.active_dropout_percent = (
                 dropout_mask > 0.05
             ).sum() / dropout_mask.numel()
 
             if self.prev_dropout_mask.nelement() != 0:
                 matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
                 matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
-                self.dropout_mask_change_rate_from_prev = (
+                self.dropout_change_rate_from_prev = (
                     1
                     - (matching_0s.sum() + matching_1s.sum())
                     / dropout_mask.numel()
@@ -692,7 +692,7 @@ class DropoutTransformer(RunningDropoutStats):
         probs = F.softmax(logits, dim=-1)
         return (probs.max(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
 
-    def estimate_mfu(self, fwdbwd_per_iter, dt, active_dropout_mask_percent):
+    def estimate_mfu(self, fwdbwd_per_iter, dt, active_dropout_percent):
         """
         estimate model flops utilization (MFU) in units of A100 bfloat16 peak FLOPS
         From https://github.com/karpathy/nanoGPT/blob/master/model.py#L289
@@ -708,7 +708,7 @@ class DropoutTransformer(RunningDropoutStats):
         )
         flops_per_token = 6 * N + 12 * L * H * Q * T
         flops_per_token += (
-            (active_dropout_mask_percent)
+            (active_dropout_percent)
             * 12
             * self.config.n_embed
             * self.config.context_size
