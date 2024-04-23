@@ -415,11 +415,17 @@ def _train(
             meta = pickle.load(f)
 
         TRAIN_CONFIG.model_config.alphabet_size = meta["alphabet_size"]
-        model = model_cls(TRAIN_CONFIG.model_config, gradient_accumulation_steps = TRAIN_CONFIG.gradient_accumulation_steps)
+        model = model_cls(
+            TRAIN_CONFIG.model_config,
+            gradient_accumulation_steps=TRAIN_CONFIG.gradient_accumulation_steps,
+        )
     else:
         print("Loading checkpoint...")
         checkpoint = torch.load(ckpt_file_path, map_location=DEVICE)
-        model = model_cls.init_from_checkpoint(checkpoint,  gradient_accumulation_steps = TRAIN_CONFIG.gradient_accumulation_steps)
+        model = model_cls.init_from_checkpoint(
+            checkpoint,
+            gradient_accumulation_steps=TRAIN_CONFIG.gradient_accumulation_steps,
+        )
         TRAIN_CONFIG.model_config = model.config
         iter_num = checkpoint["iter_num"] + 1
         best_val_loss = checkpoint["best_val_loss"]
@@ -563,10 +569,7 @@ def _train(
                     micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1
                 )
             with ctx(iter_num, is_first_mini_batch):
-                (
-                    _,
-                    loss
-                ) = model(X, Y)
+                (_, loss) = model(X, Y)
 
                 loss = (
                     loss / TRAIN_CONFIG.gradient_accumulation_steps
@@ -598,7 +601,7 @@ def _train(
             if iter_num >= 5:
                 mfu = raw_model.estimate_mfu(
                     TRAIN_CONFIG.batch_size * TRAIN_CONFIG.gradient_accumulation_steps,
-                    dt
+                    dt,
                 )
 
             wandb.log(
@@ -690,9 +693,7 @@ def get_default_args(args, local_dir):
         assert args.sync_profile_live is None
 
 
-def train(
-    model_cls, create_training_context_fn, local_dir, wandb_project
-):
+def train(model_cls, create_training_context_fn, local_dir, wandb_project):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
