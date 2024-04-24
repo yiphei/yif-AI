@@ -504,7 +504,17 @@ class LearnedDropout(LearnedDropoutStats):
 
         if self.training and self.config.profile_dropout_mask:
             # NB: because of gradient accumulation, this will only log the last batch
-            wandb.log({self.module_name + ".mask": dropout_mask}, commit=False)
+
+            if dropout_mask.dtype == torch.bfloat16 or causal_attn.dtype == torch.bfloat16 or dropout_logits.dtype == torch.bfloat16:
+                wandb.log({self.module_name + ".mask": dropout_mask.detach().half(),
+                        self.module_name + ".causal_attn": causal_attn.detach().half(),
+                        self.module_name + ".dropout_logits": dropout_logits.detach().half(),
+                        }, commit=False)
+            else:
+                wandb.log({self.module_name + ".mask": dropout_mask,
+                        self.module_name + ".causal_attn": causal_attn,
+                        self.module_name + ".dropout_logits": dropout_logits,
+                        }, commit=False)
         return x * dropout_mask
 
 
@@ -715,13 +725,14 @@ class DropoutTransformer(RunningDropoutStats):
             self.config.context_size,
         )
         flops_per_token = 6 * N + 12 * L * H * Q * T
-        flops_per_token += (
-            (self.running_active_dropout_percent)
-            * 12
-            * self.config.n_embed
-            * self.config.context_size
-            * self.n_learned_dropout
-        )
+        if self.config.use_learned_dropout:
+            flops_per_token += (
+                (self.running_active_dropout_percent)
+                * 12
+                * self.config.n_embed
+                * self.config.context_size
+                * self.n_learned_dropout
+            )
 
         flops_per_fwdbwd = flops_per_token * T
         flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
