@@ -39,7 +39,7 @@ parameters:
                     shift_init: # this is ignored
                         value: 1.57079632
                     n_heads:
-                        value: 200
+                        values: [1,2, 10, 20, 40, 80, 100,  200]
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
