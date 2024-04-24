@@ -56,6 +56,8 @@ class LearnedDropoutConfig:
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     use_bias: bool
+    start_layer: int
+    end_layer: Optional[int] = None
     softmax_dim: int = 2
     rounding_type: Optional[Union[RoundingType, int]] = None
     sigmoid_slope: Optional[float] = None
@@ -70,6 +72,11 @@ class LearnedDropoutConfig:
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
         assert self.softmax_dim in [0, 1, 2]
+        if self.end_layer is None:
+            self.end_layer = self.start_layer
+
+        if self.start_layer > self.end_layer:
+            raise ValueError("start_layer must be <= end_layer")
 
         if (
             self.use_dropout_entropy_in_loss
@@ -133,7 +140,6 @@ class ModelConfig:
     n_layer: int
     n_head: int
     use_learned_dropout: bool
-    learned_dropout_layers: int = None
     learned_dropout_config: LearnedDropoutConfig = None
     dropout_rate: Optional[float] = field(default=None)
     alphabet_size: Optional[int] = field(default=None)
@@ -156,17 +162,15 @@ class ModelConfig:
                 **self.learned_dropout_config
             )
 
-        if self.use_learned_dropout and not self.learned_dropout_layers:
-            raise ValueError(
-                "learned_dropout_layers must be set if use_learned_dropout"
-            )
-
-        if self.use_learned_dropout and self.learned_dropout_layers:
-            assert (
-                self.learned_dropout_layers >= 1
-                and self.learned_dropout_layers <= self.n_layer
-            )
-
+        if self.learned_dropout_config:
+            if self.learned_dropout_config.start_layer > self.n_layer or self.learned_dropout_config.start_layer < 1:
+                raise ValueError(
+                    "start_layer <= n_layer and >= 1"
+                )
+            if self.learned_dropout_config.end_layer > self.n_layer or self.learned_dropout_config.end_layer < 1:
+                raise ValueError(
+                    "end_layer <= n_layer and >= 1"
+                )
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -589,10 +593,9 @@ class DropoutTransformer(RunningDropoutStats):
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
-        check = config.learned_dropout_layers or 0
         self.transformer_blocks = nn.Sequential(
             *[
-                TransformerBlock(config, (i) >= (config.n_layer - check))
+                TransformerBlock(config, (i+1) >= (config.learned_dropout_config.start_layer) and (i+1) <= (config.learned_dropout_config.end_layer))
                 for i in range(config.n_layer)
             ]
         )
