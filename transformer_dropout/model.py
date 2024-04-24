@@ -469,35 +469,35 @@ class LearnedDropout(LearnedDropoutStats):
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
         dropout_mask = dropout_logits + self.shift
 
-        if self.config.rounding_type:
-            if self.training and self.config.profile_dropout_mask:
-                wandb.log(
-                    {self.module_name + ".pre-rounding_mask": dropout_mask},
-                    commit=False,
-                )
+        # if self.config.rounding_type:
+        #     if self.training and self.config.profile_dropout_mask:
+        #         wandb.log(
+        #             {self.module_name + ".pre-rounding_mask": dropout_mask},
+        #             commit=False,
+        #         )
 
-            if self.config.rounding_type == RoundingType.SIGMOID:
-                dropout_mask = torch.sigmoid(
-                    self.config.sigmoid_slope * (dropout_mask - 0.5)
-                )
-            elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
-                complement_mask = 1 - dropout_mask.detach()
-                noise = self.uniform.sample(dropout_mask.shape).to(dropout_mask.device)
-                scaling = torch.where(
-                    noise >= complement_mask, complement_mask, complement_mask - 1
-                )
-                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
-                    dtype=torch.float16
-                )
+        #     if self.config.rounding_type == RoundingType.SIGMOID:
+        #         dropout_mask = torch.sigmoid(
+        #             self.config.sigmoid_slope * (dropout_mask - 0.5)
+        #         )
+        #     elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
+        #         complement_mask = 1 - dropout_mask.detach()
+        #         noise = self.uniform.sample(dropout_mask.shape).to(dropout_mask.device)
+        #         scaling = torch.where(
+        #             noise >= complement_mask, complement_mask, complement_mask - 1
+        #         )
+        #         dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
+        #             dtype=torch.float16
+        #         )
 
-            elif self.config.rounding_type == RoundingType.LINEAR:
-                complement_mask = 1 - dropout_mask.detach()
-                scaling = torch.where(
-                    dropout_mask >= 0.5, complement_mask, complement_mask - 1
-                )
-                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
-                    dtype=torch.float16
-                )
+        #     elif self.config.rounding_type == RoundingType.LINEAR:
+        #         complement_mask = 1 - dropout_mask.detach()
+        #         scaling = torch.where(
+        #             dropout_mask >= 0.5, complement_mask, complement_mask - 1
+        #         )
+        #         dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
+        #             dtype=torch.float16
+        #         )
 
         if self.training:
             self.update_stats(dropout_mask)
