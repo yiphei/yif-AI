@@ -13,11 +13,11 @@ parameters:
             context_size:
                 value: 600
             n_embed: 
-                value: 600
+                value: 400
             n_layer: 
                 value: 6
             n_head: 
-                value: 6
+                value: 5
             dropout_rate:
                 value: 0
             learned_dropout_layers:
@@ -39,7 +39,7 @@ parameters:
                     shift_init: # this is ignored
                         value: 1.57079632
                     n_heads:
-                        value: 600
+                        value: 200
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
@@ -47,7 +47,7 @@ parameters:
                     profile_dropout_mask:
                         value: False
     batch_size: 
-        value: 30 # to match the transformer_embed baseline
+        value: 13 # to match the transformer_embed baseline
     train_steps: 
         value: 25000
     lr: 
