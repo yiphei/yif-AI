@@ -11,13 +11,13 @@ parameters:
             bias:
                 value: True
             context_size:
-                value: 700
+                value: 600
             n_embed: 
-                value: 700
+                value: 600
             n_layer: 
-                value: 7
+                value: 6
             n_head: 
-                value: 7
+                value: 6
             dropout_rate:
                 value: 0
             learned_dropout_layers:
@@ -39,7 +39,7 @@ parameters:
                     shift_init: # this is ignored
                         value: 1.57079632
                     n_heads:
-                        values: [350, 700]
+                        value: 600
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
