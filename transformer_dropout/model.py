@@ -163,14 +163,17 @@ class ModelConfig:
             )
 
         if self.learned_dropout_config:
-            if self.learned_dropout_config.start_layer > self.n_layer or self.learned_dropout_config.start_layer < 1:
-                raise ValueError(
-                    "start_layer <= n_layer and >= 1"
-                )
-            if self.learned_dropout_config.end_layer > self.n_layer or self.learned_dropout_config.end_layer < 1:
-                raise ValueError(
-                    "end_layer <= n_layer and >= 1"
-                )
+            if (
+                self.learned_dropout_config.start_layer > self.n_layer
+                or self.learned_dropout_config.start_layer < 1
+            ):
+                raise ValueError("start_layer <= n_layer and >= 1")
+            if (
+                self.learned_dropout_config.end_layer > self.n_layer
+                or self.learned_dropout_config.end_layer < 1
+            ):
+                raise ValueError("end_layer <= n_layer and >= 1")
+
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -595,7 +598,11 @@ class DropoutTransformer(RunningDropoutStats):
 
         self.transformer_blocks = nn.Sequential(
             *[
-                TransformerBlock(config, (i+1) >= (config.learned_dropout_config.start_layer) and (i+1) <= (config.learned_dropout_config.end_layer))
+                TransformerBlock(
+                    config,
+                    (i + 1) >= (config.learned_dropout_config.start_layer)
+                    and (i + 1) <= (config.learned_dropout_config.end_layer),
+                )
                 for i in range(config.n_layer)
             ]
         )
