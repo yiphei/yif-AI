@@ -21,7 +21,7 @@ parameters:
             dropout_rate:
                 value: 0
             learned_dropout_layers:
-                values: 0
+                value: 0
             use_learned_dropout:
                 value: False
     batch_size: 
