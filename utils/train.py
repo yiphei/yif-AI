@@ -499,7 +499,9 @@ def _train(
         DEVICE,
     )
     if is_master_process and args.profile and args.profile_model:
-        wandb.watch(raw_model, log="all", log_freq=TRAIN_CONFIG.gradient_accumulation_steps*2)
+        wandb.watch(
+            raw_model, log="all", log_freq=TRAIN_CONFIG.gradient_accumulation_steps * 2
+        )
     while iter_num < TRAIN_CONFIG.train_steps:
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         lr = get_lr(iter_num) if TRAIN_CONFIG.decay_lr else TRAIN_CONFIG.lr

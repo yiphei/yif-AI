@@ -505,16 +505,29 @@ class LearnedDropout(LearnedDropoutStats):
         if self.training and self.config.profile_dropout_mask:
             # NB: because of gradient accumulation, this will only log the last batch
 
-            if dropout_mask.dtype == torch.bfloat16 or causal_attn.dtype == torch.bfloat16 or dropout_logits.dtype == torch.bfloat16:
-                wandb.log({self.module_name + ".mask": dropout_mask.detach().half(),
+            if (
+                dropout_mask.dtype == torch.bfloat16
+                or causal_attn.dtype == torch.bfloat16
+                or dropout_logits.dtype == torch.bfloat16
+            ):
+                wandb.log(
+                    {
+                        self.module_name + ".mask": dropout_mask.detach().half(),
                         self.module_name + ".causal_attn": causal_attn.detach().half(),
-                        self.module_name + ".dropout_logits": dropout_logits.detach().half(),
-                        }, commit=False)
+                        self.module_name
+                        + ".dropout_logits": dropout_logits.detach().half(),
+                    },
+                    commit=False,
+                )
             else:
-                wandb.log({self.module_name + ".mask": dropout_mask,
+                wandb.log(
+                    {
+                        self.module_name + ".mask": dropout_mask,
                         self.module_name + ".causal_attn": causal_attn,
                         self.module_name + ".dropout_logits": dropout_logits,
-                        }, commit=False)
+                    },
+                    commit=False,
+                )
         return x * dropout_mask
 
 
