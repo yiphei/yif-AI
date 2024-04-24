@@ -498,6 +498,10 @@ def _train(
         -1,
         DEVICE,
     )
+    if is_master_process and args.profile and args.profile_model:
+        wandb.watch(
+            raw_model, log="all", log_freq=TRAIN_CONFIG.gradient_accumulation_steps * 2
+        )
     while iter_num < TRAIN_CONFIG.train_steps:
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         lr = get_lr(iter_num) if TRAIN_CONFIG.decay_lr else TRAIN_CONFIG.lr
@@ -694,6 +698,8 @@ def get_default_args(args, local_dir):
             args.sync_profile_live = True
     if not args.profile:
         assert args.sync_profile_live is None
+        assert args.profile_model is None
+        assert args.save_code is False
 
 
 def train(model_cls, create_training_context_fn, local_dir, wandb_project):
@@ -714,6 +720,7 @@ def train(model_cls, create_training_context_fn, local_dir, wandb_project):
     parser.add_argument("--sweep_count", type=int, default=None)
     parser.add_argument("--save_code", type=lambda v: bool(strtobool(v)), default=False)
     parser.add_argument("--profile", type=lambda v: bool(strtobool(v)), default=True)
+    parser.add_argument("--profile_model", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--sync_profile_live", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--save_checkpoint", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--save_model", type=lambda v: bool(strtobool(v)))
