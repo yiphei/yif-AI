@@ -396,29 +396,22 @@ class LearnedDropoutStats(BaseDropoutStats):
 
     def update_stats(self, dropout_mask):
         with self.dropout_entropy_context:
-            self.dropout_entropy = self.entropy_fn(dropout_mask)
+            self.dropout_entropy = torch.tensor(0.0)
         with self.dropout_l1_norm_context:
             # TODO: change this to a simple sum
-            self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / dropout_mask.numel()
+            self.dropout_l1_norm = torch.tensor(0.0)
 
         with torch.no_grad():
-            self.dropout_near_one_percent = (
-                dropout_mask > 0.9
-            ).sum() / dropout_mask.numel()
-            self.dropout_near_zero_percent = (
-                dropout_mask < 0.1
-            ).sum() / dropout_mask.numel()
-            self.active_dropout_percent = (
-                dropout_mask > 0.05
-            ).sum() / dropout_mask.numel()
+            self.dropout_near_one_percent = torch.tensor(0.0)
+            self.dropout_near_zero_percent = torch.tensor(0.0)
+            self.active_dropout_percent = torch.tensor(0.0)
 
             if self.prev_dropout_mask.nelement() != 0:
                 matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
                 matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
-                self.dropout_change_rate_from_prev = (
-                    1 - (matching_0s.sum() + matching_1s.sum()) / dropout_mask.numel()
-                )
-            self.prev_dropout_mask = dropout_mask.clone()
+                self.dropout_change_rate_from_prev = torch.tensor(0.0)
+
+            # self.prev_dropout_mask = dropout_mask.clone()
 
 
 class LearnedDropout(LearnedDropoutStats):
@@ -435,7 +428,7 @@ class LearnedDropout(LearnedDropoutStats):
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
         self.shift = nn.Parameter(
-            torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
+            torch.randn(embed_dim) * 0.02
         )
         self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
 
@@ -467,7 +460,7 @@ class LearnedDropout(LearnedDropoutStats):
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
-        dropout_mask = 0.5 * torch.cos(dropout_logits + self.shift) + 0.5
+        dropout_mask = dropout_logits + self.shift
 
         if self.config.rounding_type:
             if self.training and self.config.profile_dropout_mask:
