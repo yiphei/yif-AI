@@ -1,0 +1,44 @@
+program: transformer_dropout/training_script.py
+name: openweb_dropout_dropout_repro_a_10_final_baseline_profile
+project: transformer_dropout_5_attn_cosine
+method: grid
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: True
+            context_size:
+                value: 600
+            n_embed: 
+                value: 400
+            n_layer: 
+                value: 6
+            n_head: 
+                value: 5
+            dropout_rate:
+                value: 0
+            learned_dropout_layers:
+                values: 0
+            use_learned_dropout:
+                value: False
+    batch_size: 
+        value: 13 # to match the transformer_embed baseline
+    train_steps: 
+        value: 25000
+    lr: 
+        value: 6e-4
+    warmup_iters:
+        value: 500
+    min_lr: 
+        value: 6e-5
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: 
+        value: 600000 # training code was temporarily modified to allow this
+    est_interval: 
+        value: 500
+    est_steps: 
+        value: 200
