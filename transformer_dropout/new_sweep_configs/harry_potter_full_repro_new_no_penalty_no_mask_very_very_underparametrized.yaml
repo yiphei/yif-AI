@@ -49,7 +49,7 @@ parameters:
     batch_size: 
         value: 50
     train_steps: 
-        value: 8500
+        value: 13000
     lr: 
         value: 3e-4
     warmup_iters:
@@ -59,7 +59,7 @@ parameters:
     gradient_accumulation_steps: 
         value: 16
     lr_decay_iters: # code needs to be modified 
-        value: 480000
+        value: 700000
     est_interval: 
         value: 500
     est_steps:
