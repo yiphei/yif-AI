@@ -71,7 +71,7 @@ class LearnedDropoutConfig:
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
-        assert self.softmax_dim in [0, 1, 2]
+        assert self.softmax_dim in [0, 1, 2,3]
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
@@ -462,7 +462,14 @@ class LearnedDropout(LearnedDropoutStats):
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
         if self.config.softmax_dim != 0:
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, float("-inf"))
-            causal_attn = F.softmax(causal_attn, dim=-self.config.softmax_dim)
+            if self.config.softmax_dim != 3:
+                causal_attn = F.softmax(causal_attn, dim=-self.config.softmax_dim)
+            else:
+                assert self.config.softmax_dim == 3
+                adjusted_causal_attn = F.softmax(
+                    causal_attn.view(causal_attn.size(0), -1), dim=-1
+                )
+                causal_attn = adjusted_causal_attn.view_as(causal_attn)
         else:
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
