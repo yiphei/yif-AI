@@ -617,7 +617,7 @@ class DropoutTransformer(RunningDropoutStats):
         )
         self.ln = LayerNorm(config.n_embed, config.bias)
         self.output_layer = nn.Linear(
-            config.n_embed, config.alphabet_size, bias=config.bias
+            config.n_embed, config.alphabet_size, bias=False
         )
 
         self.token_embedding.weight = self.output_layer.weight  # weight tying
