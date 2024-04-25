@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_full_dropout_new_repro_no_penalty_underparametrized_very_deep
+name: harry_potter_full_dropout_new_repro_no_penalty_underparametrized_very_deep_profile
 project: transformer_dropout_5_attn_cosine
 method: grid
 metric:
@@ -45,7 +45,7 @@ parameters:
                     use_detached_x_in_dropout_mask:
                         value: False
                     profile_dropout_mask:
-                        value: False
+                        value: True
     batch_size: 
         value: 50
     train_steps: 
