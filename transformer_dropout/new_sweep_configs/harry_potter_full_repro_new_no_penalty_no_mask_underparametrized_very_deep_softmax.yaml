@@ -9,7 +9,7 @@ parameters:
     model_config:
         parameters:
             bias:
-                value: False
+                values: [True, False]
             context_size:
                 value: 100
             n_embed: 
