@@ -8,8 +8,8 @@ N_HEAD = 3
 BIAS = False
 USE_LEARNED_DROPOUT = True
 DROPOUT_RATE = 0.1
-LEARNED_DROPOUT_LAYERS = 1
 LEARNED_DROPOUT_CONFIG = {
+    "start_layer": 3,
     "use_dropout_entropy_in_loss": True,
     "use_dropout_l1_norm_in_loss": False,
     "use_bias": False,
