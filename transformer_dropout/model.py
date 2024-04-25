@@ -589,12 +589,21 @@ class DropoutTransformer(RunningDropoutStats):
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
+        learned_config_start_layer = (
+            config.learned_dropout_config.start_layer
+            if config.use_learned_dropout
+            else config.n_layer + 1
+        )
+        learned_config_end_layer = (
+            config.learned_dropout_config.end_layer if config.use_learned_dropout else 0
+        )
+
         self.transformer_blocks = nn.Sequential(
             *[
                 TransformerBlock(
                     config,
-                    (i + 1) >= (config.learned_dropout_config.start_layer)
-                    and (i + 1) <= (config.learned_dropout_config.end_layer),
+                    (i + 1) >= (learned_config_start_layer)
+                    and (i + 1) <= (learned_config_end_layer),
                 )
                 for i in range(config.n_layer)
             ]
