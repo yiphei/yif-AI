@@ -205,7 +205,7 @@ def estimate_loss(
             if new_data_iter is not None:
                 data_iter = new_data_iter
 
-            with ctx(i, False):
+            with ctx(i, False, False):
                 logits, loss = model(xb, yb)
 
             losses[i] = loss
@@ -575,7 +575,11 @@ def _train(
                 model.require_backward_grad_sync = (
                     micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1
                 )
-            with ctx(iter_num, is_first_mini_batch):
+            with ctx(
+                iter_num,
+                is_first_mini_batch,
+                micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1,
+            ):
                 (_, loss) = model(X, Y)
 
                 loss = (
