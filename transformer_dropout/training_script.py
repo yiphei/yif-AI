@@ -51,7 +51,9 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
         with ExitStack() as stack:
             stack.enter_context(autocast_context())
             stack.enter_context(
-                entropy_lambda_context(training_step, is_first_minibatch, is_last_minibatch)
+                entropy_lambda_context(
+                    training_step, is_first_minibatch, is_last_minibatch
+                )
             )
             yield
 
