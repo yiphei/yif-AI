@@ -555,6 +555,7 @@ class LearnedDropout(LearnedDropoutStats):
                         self.module_name + ".causal_attn": causal_attn.detach().half(),
                         self.module_name
                         + ".dropout_logits": dropout_logits.detach().half(),
+                        self.module_name + ".dropout_logits_dim_2_std": dropout_logits.std(dim=-2).detach().half(),
                         self.module_name + ".causal_attn_dim_1_mean": causal_attn_dim_1_mean.detach().half(),
                         self.module_name + ".causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean.detach().half(),
                         self.module_name + ".causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std.detach().half(),
