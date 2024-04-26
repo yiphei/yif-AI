@@ -481,7 +481,7 @@ class LearnedDropout(LearnedDropoutStats):
         dropout_mask = 0.5 * torch.cos(dropout_logits + self.shift) + 0.5
 
         if self.config.rounding_type:
-            if self.training and self.config.profile_dropout_mask:
+            if self.training and self.config.profile_dropout_mask and self.is_last_minibatch:
                 wandb.log(
                     {self.module_name + ".pre-rounding_mask": dropout_mask},
                     commit=False,
@@ -514,7 +514,7 @@ class LearnedDropout(LearnedDropoutStats):
             self.update_stats(dropout_mask)
 
         new_x = x * dropout_mask
-        if self.training and self.config.profile_dropout_mask:
+        if self.training and self.config.profile_dropout_mask and self.is_last_minibatch:
             # NB: because of gradient accumulation, this will only log the last batch
 
             if (
@@ -568,7 +568,7 @@ class FeedForward(nn.Module):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        if self.training and self.should_profile_layer_x or (self.use_learned_dropout and self.config.learned_dropout_config.profile_dropout_mask):
+        if self.training and (self.should_profile_layer_x or (self.use_learned_dropout and self.config.learned_dropout_config.profile_dropout_mask)) and self.is_last_minibatch:
             import wandb
             if x.dtype == torch.bfloat16:
                 wandb.log({self.module_name + ".dropout_input_x": x.detach().half()}, commit=False)
@@ -606,6 +606,7 @@ class DropoutTransformer(RunningDropoutStats):
         self.training_step = (
             None  # this is provided by the context manager in the training script
         )
+        self.is_last_minibatch = False
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
@@ -668,6 +669,8 @@ class DropoutTransformer(RunningDropoutStats):
                         :-2
                     ]
                 )
+
+            module.is_last_minibatch = False
         self.n_learned_dropout = n_learned_dropout
 
     def _init_weights(self, module):
@@ -677,6 +680,12 @@ class DropoutTransformer(RunningDropoutStats):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def update_is_last_minibatch(self, val):
+        if val != self.is_last_minibatch:
+            self.is_last_minibatch = val
+            for module in self.modules():
+                module.is_last_minibatch = val
 
     @classmethod
     def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps):
