@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: shakespear_no_penalty_underparametrized_very_deep_softmax
+name: shakespear_no_penalty_underparametrized_very_deep_baseline
 project: transformer_dropout_5_attn_cosine
 method: grid
 metric:
@@ -15,37 +15,13 @@ parameters:
             n_embed: 
                 value: 150
             n_layer: 
-                value: 11
+                value: 12
             n_head: 
                 value: 10
             dropout_rate:
                 value: 0.3
             use_learned_dropout:
-                value: True
-            learned_dropout_config:
-                parameters:
-                    start_layer:
-                        value: 11
-                    use_dropout_entropy_in_loss:
-                        value: False
-                    use_dropout_l1_norm_in_loss:
-                        value: False
-                    use_bias:
-                        value: False
-                    softmax_dim:
-                        values: [0,1,2,3]
-                    rounding_type: # this is ignored
-                        value: null
-                    shift_init: # this is ignored
-                        value: 1.57079632
-                    n_heads:
-                        value: 10
-                    use_canonical_entropy:
-                        value: False
-                    use_detached_x_in_dropout_mask:
-                        value: False
-                    profile_dropout_mask:
-                        value: False
+                value: False
     batch_size: 
         value: 50
     train_steps: 
