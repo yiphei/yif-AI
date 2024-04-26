@@ -144,6 +144,7 @@ class ModelConfig:
     dropout_rate: Optional[float] = field(default=None)
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
+    profile_layer_x: int = None
 
     def __post_init__(self):
         if not (self.use_learned_dropout == (self.learned_dropout_config is not None)):
@@ -520,7 +521,6 @@ class LearnedDropout(LearnedDropoutStats):
             ):
                 wandb.log(
                     {
-                        self.module_name + ".x": x.detach().half(),
                         self.module_name + ".new_x": new_x.detach().half(),
                         self.module_name + ".mask": dropout_mask.detach().half(),
                         self.module_name + ".causal_attn": causal_attn.detach().half(),
@@ -532,7 +532,6 @@ class LearnedDropout(LearnedDropoutStats):
             else:
                 wandb.log(
                     {
-                        self.module_name + ".x": x,
                         self.module_name + ".new_x": new_x,
                         self.module_name + ".mask": dropout_mask,
                         self.module_name + ".causal_attn": causal_attn,
@@ -544,8 +543,12 @@ class LearnedDropout(LearnedDropoutStats):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, config: ModelConfig, use_learned_dropout=False):
+    def __init__(self, config: ModelConfig, use_learned_dropout=False, should_profile_layer_x = False):
         super().__init__()
+        self.module_name = None
+        self.should_profile_layer_x = should_profile_layer_x
+        self.use_learned_dropout = use_learned_dropout
+        self.config = config
         self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.bias)
         self.gelu = nn.GELU()
         self.residual_proj = nn.Linear(
@@ -562,15 +565,22 @@ class FeedForward(nn.Module):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
+        if self.should_profile_layer_x or (self.use_learned_dropout and self.config.learned_dropout_config.profile_dropout_mask):
+            import wandb
+            if x.dtype == torch.bfloat16:
+                wandb.log({self.module_name + ".dropout_input_x": x.detach().half()}, commit=False)
+            else:
+                wandb.log({self.module_name + ".dropout_input_x": x}, commit=False)
+
         x = self.dropout(x)
         return x
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, config: ModelConfig, use_learned_dropout=False):
+    def __init__(self, config: ModelConfig, use_learned_dropout=False, should_profile_layer_x = False):
         super().__init__()
         self.multi_attn_head = OptimizedMultiAttentionHead(config)
-        self.feed_forward = FeedForward(config, use_learned_dropout)
+        self.feed_forward = FeedForward(config, use_learned_dropout, should_profile_layer_x)
         self.ln1 = LayerNorm(config.n_embed, config.bias)
         self.ln2 = LayerNorm(config.n_embed, config.bias)
 
@@ -610,12 +620,15 @@ class DropoutTransformer(RunningDropoutStats):
             config.learned_dropout_config.end_layer if config.use_learned_dropout else 0
         )
 
+        profile_layer_x = config.profile_layer_x or 0
+
         self.transformer_blocks = nn.Sequential(
             *[
                 TransformerBlock(
                     config,
                     (i + 1) >= (learned_config_start_layer)
                     and (i + 1) <= (learned_config_end_layer),
+                    i + 1 == profile_layer_x,
                 )
                 for i in range(config.n_layer)
             ]
@@ -646,6 +659,12 @@ class DropoutTransformer(RunningDropoutStats):
                     ]
                 )
                 n_learned_dropout += 1
+            elif isinstance(module, FeedForward):
+                module.module_name = ".".join(
+                    param_to_param_name[module.linear.weight].split(".")[
+                        :-2
+                    ]
+                )
         self.n_learned_dropout = n_learned_dropout
 
     def _init_weights(self, module):
