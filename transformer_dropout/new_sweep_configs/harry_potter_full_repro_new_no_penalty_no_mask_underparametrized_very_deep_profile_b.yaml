@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: harry_potter_full_dropout_new_repro_no_penalty_underparametrized_very_deep_profile
+name: harry_potter_full_dropout_new_repro_no_penalty_underparametrized_very_deep_profile_b
 project: transformer_dropout_5_attn_cosine
 method: grid
 metric:
@@ -39,7 +39,7 @@ parameters:
                     shift_init: # this is ignored
                         value: 1.57079632
                     n_heads:
-                        values: [1, 5, 10, 30, 50, 75, 150]
+                        value: 15
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
