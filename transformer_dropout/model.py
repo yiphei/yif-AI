@@ -174,6 +174,9 @@ class ModelConfig:
                 or self.learned_dropout_config.end_layer < 1
             ):
                 raise ValueError("end_layer <= n_layer and >= 1")
+            
+        if self.use_learned_dropout and self.learned_dropout_config.profile_dropout_mask and self.profile_layer_x is not None:
+            raise ValueError("profile_layer_x cannot be set if profile_dropout_mask is True")
 
 
 class LayerNorm(nn.Module):
