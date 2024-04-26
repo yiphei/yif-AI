@@ -533,12 +533,16 @@ class LearnedDropout(LearnedDropoutStats):
 
             with torch.no_grad():
                 causal_attn_dim_1_mean = causal_attn.mean(dim=-1)
+                causal_attn_dim_1_mean[:, :, :T//2] *= -1
                 causal_attn_dim_1_mean_head_mean = causal_attn_dim_1_mean.mean(dim=-2)
                 causal_attn_dim_1_mean_head_std = causal_attn_dim_1_mean.std(dim=-2)
+                causal_attn_dim_1_mean_head_std[:, :T//2] *= -1
 
                 causal_attn_dim_2_mean = causal_attn.mean(dim=-2)
+                causal_attn_dim_2_mean[:, :, :T//2] *= -1
                 causal_attn_dim_2_mean_head_mean = causal_attn_dim_2_mean.mean(dim=-2)
-                causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean.std(dim=-2)            
+                causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean.std(dim=-2)
+                causal_attn_dim_2_mean_head_std[:, :T//2] *= -1
             if (
                 dropout_mask.dtype == torch.bfloat16
                 or causal_attn.dtype == torch.bfloat16
@@ -567,6 +571,7 @@ class LearnedDropout(LearnedDropoutStats):
                         self.module_name + ".mask": dropout_mask,
                         self.module_name + ".causal_attn": causal_attn,
                         self.module_name + ".dropout_logits": dropout_logits,
+                        self.module_name + ".dropout_logits_dim_2_std": dropout_logits.std(dim=-2),
                         self.module_name + ".causal_attn_dim_1_mean": causal_attn_dim_1_mean,
                         self.module_name + ".causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean,
                         self.module_name + ".causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std,
