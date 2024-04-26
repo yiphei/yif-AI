@@ -531,6 +531,14 @@ class LearnedDropout(LearnedDropoutStats):
         ):
             # NB: because of gradient accumulation, this will only log the last batch
 
+            with torch.no_grad():
+                causal_attn_dim_1_mean = causal_attn.mean(dim=-1)
+                causal_attn_dim_1_mean_head_mean = causal_attn_dim_1_mean.mean(dim=-2)
+                causal_attn_dim_1_mean_head_std = causal_attn_dim_1_mean.std(dim=-2)
+
+                causal_attn_dim_2_mean = causal_attn.mean(dim=-2)
+                causal_attn_dim_2_mean_head_mean = causal_attn_dim_2_mean.mean(dim=-2)
+                causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean.std(dim=-2)            
             if (
                 dropout_mask.dtype == torch.bfloat16
                 or causal_attn.dtype == torch.bfloat16
@@ -543,6 +551,12 @@ class LearnedDropout(LearnedDropoutStats):
                         self.module_name + ".causal_attn": causal_attn.detach().half(),
                         self.module_name
                         + ".dropout_logits": dropout_logits.detach().half(),
+                        self.module_name + ".causal_attn_dim_1_mean": causal_attn_dim_1_mean.detach().half(),
+                        self.module_name + ".causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean.detach().half(),
+                        self.module_name + ".causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std.detach().half(),
+                        self.module_name + ".causal_attn_dim_2_mean": causal_attn_dim_2_mean.detach().half(),
+                        self.module_name + ".causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean.detach().half(),
+                        self.module_name + ".causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std.detach().half(),
                     },
                     commit=False,
                 )
@@ -553,6 +567,12 @@ class LearnedDropout(LearnedDropoutStats):
                         self.module_name + ".mask": dropout_mask,
                         self.module_name + ".causal_attn": causal_attn,
                         self.module_name + ".dropout_logits": dropout_logits,
+                        self.module_name + ".causal_attn_dim_1_mean": causal_attn_dim_1_mean,
+                        self.module_name + ".causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean,
+                        self.module_name + ".causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std,
+                        self.module_name + ".causal_attn_dim_2_mean": causal_attn_dim_2_mean,
+                        self.module_name + ".causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean,
+                        self.module_name + ".causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std,
                     },
                     commit=False,
                 )
