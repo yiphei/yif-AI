@@ -174,9 +174,15 @@ class ModelConfig:
                 or self.learned_dropout_config.end_layer < 1
             ):
                 raise ValueError("end_layer <= n_layer and >= 1")
-            
-        if self.use_learned_dropout and self.learned_dropout_config.profile_dropout_mask and self.profile_layer_x is not None:
-            raise ValueError("profile_layer_x cannot be set if profile_dropout_mask is True")
+
+        if (
+            self.use_learned_dropout
+            and self.learned_dropout_config.profile_dropout_mask
+            and self.profile_layer_x is not None
+        ):
+            raise ValueError(
+                "profile_layer_x cannot be set if profile_dropout_mask is True"
+            )
 
 
 class LayerNorm(nn.Module):
@@ -481,7 +487,11 @@ class LearnedDropout(LearnedDropoutStats):
         dropout_mask = 0.5 * torch.cos(dropout_logits + self.shift) + 0.5
 
         if self.config.rounding_type:
-            if self.training and self.config.profile_dropout_mask and self.is_last_minibatch:
+            if (
+                self.training
+                and self.config.profile_dropout_mask
+                and self.is_last_minibatch
+            ):
                 wandb.log(
                     {self.module_name + ".pre-rounding_mask": dropout_mask},
                     commit=False,
@@ -514,7 +524,11 @@ class LearnedDropout(LearnedDropoutStats):
             self.update_stats(dropout_mask)
 
         new_x = x * dropout_mask
-        if self.training and self.config.profile_dropout_mask and self.is_last_minibatch:
+        if (
+            self.training
+            and self.config.profile_dropout_mask
+            and self.is_last_minibatch
+        ):
             # NB: because of gradient accumulation, this will only log the last batch
 
             if (
@@ -546,7 +560,12 @@ class LearnedDropout(LearnedDropoutStats):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, config: ModelConfig, use_learned_dropout=False, should_profile_layer_x = False):
+    def __init__(
+        self,
+        config: ModelConfig,
+        use_learned_dropout=False,
+        should_profile_layer_x=False,
+    ):
         super().__init__()
         self.module_name = None
         self.should_profile_layer_x = should_profile_layer_x
@@ -568,10 +587,24 @@ class FeedForward(nn.Module):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        if self.training and (self.should_profile_layer_x or (self.use_learned_dropout and self.config.learned_dropout_config.profile_dropout_mask)) and self.is_last_minibatch:
+        if (
+            self.training
+            and (
+                self.should_profile_layer_x
+                or (
+                    self.use_learned_dropout
+                    and self.config.learned_dropout_config.profile_dropout_mask
+                )
+            )
+            and self.is_last_minibatch
+        ):
             import wandb
+
             if x.dtype == torch.bfloat16:
-                wandb.log({self.module_name + ".dropout_input_x": x.detach().half()}, commit=False)
+                wandb.log(
+                    {self.module_name + ".dropout_input_x": x.detach().half()},
+                    commit=False,
+                )
             else:
                 wandb.log({self.module_name + ".dropout_input_x": x}, commit=False)
 
@@ -580,10 +613,17 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, config: ModelConfig, use_learned_dropout=False, should_profile_layer_x = False):
+    def __init__(
+        self,
+        config: ModelConfig,
+        use_learned_dropout=False,
+        should_profile_layer_x=False,
+    ):
         super().__init__()
         self.multi_attn_head = OptimizedMultiAttentionHead(config)
-        self.feed_forward = FeedForward(config, use_learned_dropout, should_profile_layer_x)
+        self.feed_forward = FeedForward(
+            config, use_learned_dropout, should_profile_layer_x
+        )
         self.ln1 = LayerNorm(config.n_embed, config.bias)
         self.ln2 = LayerNorm(config.n_embed, config.bias)
 
@@ -638,9 +678,7 @@ class DropoutTransformer(RunningDropoutStats):
             ]
         )
         self.ln = LayerNorm(config.n_embed, config.bias)
-        self.output_layer = nn.Linear(
-            config.n_embed, config.alphabet_size, bias=False
-        )
+        self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
 
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
@@ -665,9 +703,7 @@ class DropoutTransformer(RunningDropoutStats):
                 n_learned_dropout += 1
             elif isinstance(module, FeedForward):
                 module.module_name = ".".join(
-                    param_to_param_name[module.linear.weight].split(".")[
-                        :-2
-                    ]
+                    param_to_param_name[module.linear.weight].split(".")[:-2]
                 )
 
             module.is_last_minibatch = False

@@ -575,7 +575,11 @@ def _train(
                 model.require_backward_grad_sync = (
                     micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1
                 )
-            with ctx(iter_num, is_first_mini_batch, micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1):
+            with ctx(
+                iter_num,
+                is_first_mini_batch,
+                micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1,
+            ):
                 (_, loss) = model(X, Y)
 
                 loss = (
