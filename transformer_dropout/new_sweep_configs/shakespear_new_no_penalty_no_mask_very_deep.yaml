@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: shakespear_no_penalty_underparametrized_very_deep_softmax
+name: shakespear_no_penalty_underparametrized_very_deep
 project: transformer_dropout_5_attn_cosine
 method: grid
 metric:
