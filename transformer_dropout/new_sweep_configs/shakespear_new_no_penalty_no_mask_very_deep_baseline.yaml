@@ -15,7 +15,7 @@ parameters:
             n_embed: 
                 value: 150
             n_layer: 
-                value: 12
+                value: 13
             n_head: 
                 value: 10
             dropout_rate:
