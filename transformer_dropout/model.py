@@ -509,6 +509,7 @@ class LearnedDropout(LearnedDropoutStats):
         if self.training:
             self.update_stats(dropout_mask)
 
+        new_x = x * dropout_mask
         if self.training and self.config.profile_dropout_mask:
             # NB: because of gradient accumulation, this will only log the last batch
 
@@ -519,6 +520,8 @@ class LearnedDropout(LearnedDropoutStats):
             ):
                 wandb.log(
                     {
+                        self.module_name + ".x": x.detach().half(),
+                        self.module_name + ".new_x": new_x.detach().half(),
                         self.module_name + ".mask": dropout_mask.detach().half(),
                         self.module_name + ".causal_attn": causal_attn.detach().half(),
                         self.module_name
@@ -529,13 +532,15 @@ class LearnedDropout(LearnedDropoutStats):
             else:
                 wandb.log(
                     {
+                        self.module_name + ".x": x,
+                        self.module_name + ".new_x": new_x,
                         self.module_name + ".mask": dropout_mask,
                         self.module_name + ".causal_attn": causal_attn,
                         self.module_name + ".dropout_logits": dropout_logits,
                     },
                     commit=False,
                 )
-        return x * dropout_mask
+        return new_x
 
 
 class FeedForward(nn.Module):
