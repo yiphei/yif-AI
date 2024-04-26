@@ -540,7 +540,6 @@ class LearnedDropout(LearnedDropoutStats):
                     },
                     commit=False,
                 )
-
         return new_x
 
 
