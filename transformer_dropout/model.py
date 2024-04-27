@@ -425,15 +425,13 @@ class LearnedDropoutStats(BaseDropoutStats):
     def __init__(self, config):
         super().__init__()
         self.dropout_entropy_context = (
-            nullcontext() if config.use_dropout_entropy_in_loss else torch.no_grad()
+             torch.no_grad()
         )
         self.dropout_l1_norm_context = (
-            nullcontext() if config.use_dropout_l1_norm_in_loss else torch.no_grad()
+            torch.no_grad()
         )
         self.entropy_fn = (
             self.canonical_entropy
-            if config.use_canonical_entropy
-            else self.alternate_entropy
         )
 
     def canonical_entropy(self, dropout_mask):
@@ -562,8 +560,8 @@ class LearnedDropout(LearnedDropoutStats):
         #             dtype=torch.float16
         #         )
 
-        if self.training:
-            self.update_stats(dropout_mask)
+        # if self.training:
+        #     self.update_stats(dropout_mask)
 
         if self.config.return_type == ReturnType.NO_RES_PROJ_MASK:
             new_x = dropout_mask
@@ -889,7 +887,7 @@ class DropoutTransformer(RunningDropoutStats):
             logits = logits.view(B * T, C)
 
             additional_loss = 0
-            if self.training and self.config.use_learned_dropout:
+            if self.training and self.config.use_learned_dropout and False:
                 self.update_stats()
                 if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
                     additional_loss += (
@@ -960,7 +958,7 @@ class DropoutTransformer(RunningDropoutStats):
             self.config.context_size,
         )
         flops_per_token = 6 * N + 12 * L * H * Q * T
-        if self.config.use_learned_dropout:
+        if self.config.use_learned_dropout and False:
             flops_per_token += (
                 (self.running_active_dropout_percent)
                 * 12
