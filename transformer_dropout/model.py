@@ -639,7 +639,7 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.bias
         )
-        if config.use_learned_dropout and use_learned_dropout:
+        if config.use_learned_dropout and use_learned_dropout and False:
             self.dropout = LearnedDropout(
                 config.n_embed, config.context_size, config.learned_dropout_config
             )
@@ -683,7 +683,10 @@ class TransformerBlock(nn.Module):
         should_profile_layer_x=False,
     ):
         super().__init__()
-        self.multi_attn_head = OptimizedMultiAttentionHead(config)
+        if use_learned_dropout:
+            self.multi_attn_head = LearnedDropout(config.n_embed, config.context_size, config.learned_dropout_config)
+        else:
+            self.multi_attn_head = OptimizedMultiAttentionHead(config)
         self.feed_forward = FeedForward(
             config, use_learned_dropout, should_profile_layer_x
         )
