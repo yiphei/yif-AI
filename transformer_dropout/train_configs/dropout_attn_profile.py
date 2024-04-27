@@ -10,20 +10,13 @@ USE_LEARNED_DROPOUT = True
 DROPOUT_RATE = 0.1
 LEARNED_DROPOUT_CONFIG = {
     "start_layer": 3,
-    "use_dropout_entropy_in_loss": True,
-    "use_dropout_l1_norm_in_loss": False,
     "use_bias": False,
-    "shift_init": torch.pi / 2,
     "softmax_dim": 2,
     "n_heads": 3,
-    "use_canonical_entropy": False,
-    "rounding_type": 1,
-    "sigmoid_slope": 100,
-    "use_detached_x_in_dropout_mask": False,
+    "return_type": 1,
+    "use_res_add": True,
+    "normalize_by_context_size": True,
     "profile_dropout_mask": False,
-    "dropout_entropy_lambda": {
-        "max_lambda": 1,
-    },
 }
 
 # Training config
