@@ -476,7 +476,7 @@ class LearnedDropout(LearnedDropoutStats):
             ReturnType.RES_PROJ_MASK_THEN_NEW_X,
             ReturnType.RES_PROJ_NEW_X_THEN_NEW_X,
         ]:
-            self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.bias)
+            self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
         else:
             self.residual_proj = None
 
