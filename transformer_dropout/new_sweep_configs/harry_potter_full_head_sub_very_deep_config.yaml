@@ -24,26 +24,20 @@ parameters:
                 value: True
             learned_dropout_config:
                 parameters:
-                    start_layer:
-                        value: 11
-                    use_dropout_entropy_in_loss:
-                        value: False
-                    use_dropout_l1_norm_in_loss:
-                        value: False
                     use_bias:
-                        value: False
+                        values: [True, False]
+                    start_layer:
+                        values: [1, 3, 6, 9, 11]
+                    normalize_by_context_size:
+                        values: [True, False]
+                    return_type:
+                        values: [1,2,3,4,5]
+                    use_res_add:
+                        values: [True, False]
                     softmax_dim:
                         value: 2
-                    rounding_type: # this is ignored
-                        value: null
-                    shift_init: # this is ignored
-                        value: 1.57079632
                     n_heads:
                         value: 15
-                    use_canonical_entropy:
-                        value: False
-                    use_detached_x_in_dropout_mask:
-                        value: False
                     profile_dropout_mask:
                         value: False
     batch_size: 
