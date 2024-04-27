@@ -51,6 +51,31 @@ class RoundingType(str, Enum):
             raise ValueError("Invalid rounding type number")
 
 
+class ReturnType(str, Enum):
+    NO_RES_PROJ_MASK = "NO_RES_PROJ_MASK"
+    NO_RES_PROJ_NEW_X = "NO_RES_PROJ_NEW_X"
+    RES_PROJ_MASK_THEN_MASK = "RES_PROJ_MASK_THEN_MASK"
+    RES_PROJ_MASK_THEN_NEW_X = "RES_PROJ_MASK_THEN_NEW_X"
+    RES_PROJ_NEW_X_THEN_NEW_X = "RES_PROJ_NEW_X_THEN_NEW_X"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return ReturnType.NO_RES_PROJ_MASK
+        elif num == 2:
+            return ReturnType.NO_RES_PROJ_NEW_X
+        elif num == 3:
+            return ReturnType.RES_PROJ_MASK_THEN_MASK
+        elif num == 4:
+            return ReturnType.RES_PROJ_MASK_THEN_NEW_X
+        elif num == 5:
+            return ReturnType.RES_PROJ_NEW_X_THEN_NEW_X
+        else:
+            raise ValueError("Invalid return type number")
+
 @dataclass
 class LearnedDropoutConfig:
     # use_dropout_entropy_in_loss: bool
@@ -58,7 +83,7 @@ class LearnedDropoutConfig:
     use_bias: bool
     start_layer: int
     normalize_by_context_size: bool
-    use_res_proj: bool
+    return_type: Optional[Union[ReturnType, int]]
     use_res_add: bool
     end_layer: Optional[int] = None
     softmax_dim: int = 2
@@ -82,6 +107,10 @@ class LearnedDropoutConfig:
             raise ValueError("start_layer must be <= end_layer")
         
         assert self.n_heads >= 1
+
+        if type(self.return_type) == int:
+            assert self.return_type in [1, 2, 3, 4, 5]
+            self.return_type = ReturnType.get_type_from_int(self.return_type)
 
         # if (
         #     self.use_dropout_entropy_in_loss
@@ -451,7 +480,7 @@ class LearnedDropout(LearnedDropoutStats):
         )
         self.shift = nn.Parameter(torch.randn(embed_dim) * 0.02)
         self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
-        if self.config.use_res_proj:
+        if self.config.return_type in [ReturnType.RES_PROJ_MASK_THEN_MASK, ReturnType.RES_PROJ_MASK_THEN_NEW_X, ReturnType.RES_PROJ_NEW_X_THEN_NEW_X]:
             self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.bias)
         else:
             self.residual_proj = None
@@ -532,7 +561,22 @@ class LearnedDropout(LearnedDropoutStats):
         if self.training:
             self.update_stats(dropout_mask)
 
-        new_x = x * dropout_mask
+        if self.config.return_type == ReturnType.NO_RES_PROJ_MASK:
+            new_x = dropout_mask
+        elif self.config.return_type == ReturnType.NO_RES_PROJ_NEW_X:
+            new_x = x * dropout_mask
+        elif self.config.return_type == ReturnType.RES_PROJ_MASK_THEN_MASK:
+            proj_mask = self.residual_proj(dropout_mask)
+            new_x = proj_mask
+        elif self.config.return_type == ReturnType.RES_PROJ_MASK_THEN_NEW_X:
+            proj_mask = self.residual_proj(dropout_mask)
+            new_x = x * proj_mask
+        elif self.config.return_type == ReturnType.RES_PROJ_NEW_X_THEN_NEW_X:
+            new_x = self.residual_proj(x * dropout_mask)
+        else:
+            raise ValueError("Invalid return type")
+
+
         if (
             self.training
             and self.config.profile_dropout_mask
@@ -630,8 +674,6 @@ class LearnedDropout(LearnedDropoutStats):
                     metrics,
                     commit=False,
                 )
-        if self.config.use_res_proj:
-            new_x = self.residual_proj(new_x)
         return new_x
 
 
