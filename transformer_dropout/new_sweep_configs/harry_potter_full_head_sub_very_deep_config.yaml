@@ -37,13 +37,13 @@ parameters:
                     softmax_dim:
                         value: 2
                     n_heads:
-                        values: [10, 25]
+                        value: 10
                     profile_dropout_mask:
                         value: False
     batch_size: 
         value: 50
     train_steps: 
-        value: 12000
+        value: 10000
     lr: 
         value: 3e-4
     warmup_iters:
