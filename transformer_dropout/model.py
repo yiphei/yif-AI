@@ -479,8 +479,6 @@ class LearnedDropout(LearnedDropoutStats):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
-        self.shift = nn.Parameter(torch.randn(embed_dim) * 0.02)
-        self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
         if self.config.return_type in [
             ReturnType.RES_PROJ_MASK_THEN_MASK,
             ReturnType.RES_PROJ_MASK_THEN_NEW_X,
@@ -527,7 +525,7 @@ class LearnedDropout(LearnedDropoutStats):
         if self.config.normalize_by_context_size:
             dropout_logits = dropout_logits * (T**-0.5)
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
-        dropout_mask = dropout_logits + self.shift
+        dropout_mask = dropout_logits
 
         # if self.config.rounding_type:
         #     if (
