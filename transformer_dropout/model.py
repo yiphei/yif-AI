@@ -76,6 +76,7 @@ class ReturnType(str, Enum):
         else:
             raise ValueError("Invalid return type number")
 
+
 @dataclass
 class LearnedDropoutConfig:
     # use_dropout_entropy_in_loss: bool
@@ -105,7 +106,7 @@ class LearnedDropoutConfig:
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
-        
+
         assert self.n_heads >= 1
 
         if type(self.return_type) == int:
@@ -480,7 +481,11 @@ class LearnedDropout(LearnedDropoutStats):
         )
         self.shift = nn.Parameter(torch.randn(embed_dim) * 0.02)
         self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
-        if self.config.return_type in [ReturnType.RES_PROJ_MASK_THEN_MASK, ReturnType.RES_PROJ_MASK_THEN_NEW_X, ReturnType.RES_PROJ_NEW_X_THEN_NEW_X]:
+        if self.config.return_type in [
+            ReturnType.RES_PROJ_MASK_THEN_MASK,
+            ReturnType.RES_PROJ_MASK_THEN_NEW_X,
+            ReturnType.RES_PROJ_NEW_X_THEN_NEW_X,
+        ]:
             self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.bias)
         else:
             self.residual_proj = None
@@ -575,7 +580,6 @@ class LearnedDropout(LearnedDropoutStats):
             new_x = self.residual_proj(x * dropout_mask)
         else:
             raise ValueError("Invalid return type")
-
 
         if (
             self.training
@@ -741,7 +745,9 @@ class TransformerBlock(nn.Module):
         self.use_learned_dropout = use_learned_dropout
         self.learned_dropout_config = config.learned_dropout_config
         if use_learned_dropout:
-            self.multi_attn_head = LearnedDropout(config.n_embed, config.context_size, config.learned_dropout_config)
+            self.multi_attn_head = LearnedDropout(
+                config.n_embed, config.context_size, config.learned_dropout_config
+            )
         else:
             self.multi_attn_head = OptimizedMultiAttentionHead(config)
         self.feed_forward = FeedForward(
