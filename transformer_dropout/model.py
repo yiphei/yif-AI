@@ -84,7 +84,7 @@ class LearnedDropoutConfig:
     use_bias: bool
     start_layer: int
     normalize_by_context_size: bool
-    return_type: Optional[Union[ReturnType, int]]
+    return_type: Union[ReturnType, int]
     use_res_add: bool
     end_layer: Optional[int] = None
     softmax_dim: int = 2
