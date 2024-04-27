@@ -1,6 +1,6 @@
 program: transformer_dropout/training_script.py
 name: harry_potter_full_head_sub_very_deep_config
-project: transformer_dropout_5_attn_cosine
+project: transformer_dropout_5_head_sub
 method: grid
 metric:
   goal: minimize
