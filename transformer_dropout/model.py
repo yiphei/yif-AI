@@ -53,84 +53,86 @@ class RoundingType(str, Enum):
 
 @dataclass
 class LearnedDropoutConfig:
-    use_dropout_entropy_in_loss: bool
-    use_dropout_l1_norm_in_loss: bool
+    # use_dropout_entropy_in_loss: bool
+    # use_dropout_l1_norm_in_loss: bool
     use_bias: bool
     start_layer: int
     end_layer: Optional[int] = None
     softmax_dim: int = 2
-    rounding_type: Optional[Union[RoundingType, int]] = None
-    sigmoid_slope: Optional[float] = None
-    shift_init: float = torch.pi / 2
+    # rounding_type: Optional[Union[RoundingType, int]] = None
+    # sigmoid_slope: Optional[float] = None
+    # shift_init: float = torch.pi / 2
     n_heads: int = 1
-    use_canonical_entropy: bool = False
+    # use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
-    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
-    dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
+    # dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
+    # dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
-        assert 0 <= self.shift_init <= torch.pi
+        # assert 0 <= self.shift_init <= torch.pi
         assert self.softmax_dim in [0, 1, 2, 3]
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
+        
+        assert self.n_heads >= 1
 
-        if (
-            self.use_dropout_entropy_in_loss
-            and self.rounding_type
-            and self.rounding_type in [2, 3]
-        ):
-            raise ValueError(
-                "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
-            )
+        # if (
+        #     self.use_dropout_entropy_in_loss
+        #     and self.rounding_type
+        #     and self.rounding_type in [2, 3]
+        # ):
+        #     raise ValueError(
+        #         "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
+        #     )
 
-        if type(self.rounding_type) == int:
-            assert self.rounding_type in [1, 2, 3]
-            self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
+        # if type(self.rounding_type) == int:
+        #     assert self.rounding_type in [1, 2, 3]
+        #     self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
 
-        if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_slope:
-            raise ValueError(
-                "sigmoid_slope can only be set if rounding_type is SIGMOID"
-            )
+        # if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_slope:
+        #     raise ValueError(
+        #         "sigmoid_slope can only be set if rounding_type is SIGMOID"
+        #     )
 
-        if self.rounding_type == RoundingType.SIGMOID and not self.sigmoid_slope:
-            self.sigmoid_slope = 60
+        # if self.rounding_type == RoundingType.SIGMOID and not self.sigmoid_slope:
+        #     self.sigmoid_slope = 60
 
-        if (
-            not self.use_dropout_entropy_in_loss
-            and self.dropout_entropy_lambda is not None
-        ):
-            raise ValueError(
-                "dropout_entropy_lambda is set but use_dropout_entropy_in_loss is False"
-            )
+        # if (
+        #     not self.use_dropout_entropy_in_loss
+        #     and self.dropout_entropy_lambda is not None
+        # ):
+        #     raise ValueError(
+        #         "dropout_entropy_lambda is set but use_dropout_entropy_in_loss is False"
+        #     )
 
-        if (
-            not self.use_dropout_l1_norm_in_loss
-            and self.dropout_l1_norm_lambda is not None
-        ):
-            raise ValueError(
-                "dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False"
-            )
+        # if (
+        #     not self.use_dropout_l1_norm_in_loss
+        #     and self.dropout_l1_norm_lambda is not None
+        # ):
+        #     raise ValueError(
+        #         "dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False"
+        #     )
 
-        for attr_name, flag_attr_name in [
-            ("dropout_entropy_lambda", "use_dropout_entropy_in_loss"),
-            ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss"),
-        ]:
-            attr_value = getattr(self, attr_name)
-            if attr_value is not None:
-                if type(attr_value) not in [dict, RegularizingLambdaConfig]:
-                    raise ValueError(
-                        f"{attr_name} must be a dict or RegularizingLambdaConfig"
-                    )
+        # for attr_name, flag_attr_name in [
+        #     ("dropout_entropy_lambda", "use_dropout_entropy_in_loss"),
+        #     ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss"),
+        # ]:
+        #     attr_value = getattr(self, attr_name)
+        #     if attr_value is not None:
+        #         if type(attr_value) not in [dict, RegularizingLambdaConfig]:
+        #             raise ValueError(
+        #                 f"{attr_name} must be a dict or RegularizingLambdaConfig"
+        #             )
 
-                if type(attr_value) == dict:
-                    setattr(self, attr_name, RegularizingLambdaConfig(**attr_value))
-            else:
-                if getattr(self, flag_attr_name):
-                    setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
+        #         if type(attr_value) == dict:
+        #             setattr(self, attr_name, RegularizingLambdaConfig(**attr_value))
+        #     else:
+        #         if getattr(self, flag_attr_name):
+        #             setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
 
 
 @dataclass
