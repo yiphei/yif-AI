@@ -57,6 +57,9 @@ class LearnedDropoutConfig:
     # use_dropout_l1_norm_in_loss: bool
     use_bias: bool
     start_layer: int
+    normalize_by_context_size: bool
+    use_res_proj: bool
+    use_res_add: bool
     end_layer: Optional[int] = None
     softmax_dim: int = 2
     # rounding_type: Optional[Union[RoundingType, int]] = None
@@ -448,6 +451,10 @@ class LearnedDropout(LearnedDropoutStats):
         )
         self.shift = nn.Parameter(torch.randn(embed_dim) * 0.02)
         self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
+        if self.config.use_res_proj:
+            self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.bias)
+        else:
+            self.residual_proj = None
 
         self.register_buffer(
             "tril",
@@ -483,6 +490,8 @@ class LearnedDropout(LearnedDropoutStats):
         else:
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
         dropout_logits = causal_attn @ v
+        if self.config.normalize_by_context_size:
+            dropout_logits = dropout_logits * (T**-0.5)
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
         dropout_mask = dropout_logits + self.shift
 
@@ -621,6 +630,8 @@ class LearnedDropout(LearnedDropoutStats):
                     metrics,
                     commit=False,
                 )
+        if self.config.use_res_proj:
+            new_x = self.residual_proj(new_x)
         return new_x
 
 
@@ -685,6 +696,8 @@ class TransformerBlock(nn.Module):
         should_profile_layer_x=False,
     ):
         super().__init__()
+        self.use_learned_dropout = use_learned_dropout
+        self.learned_dropout_config = config.learned_dropout_config
         if use_learned_dropout:
             self.multi_attn_head = LearnedDropout(config.n_embed, config.context_size, config.learned_dropout_config)
         else:
@@ -696,7 +709,10 @@ class TransformerBlock(nn.Module):
         self.ln2 = LayerNorm(config.n_embed, config.bias)
 
     def forward(self, x):
-        x = x + self.multi_attn_head(self.ln1(x))
+        if self.use_learned_dropout and self.learned_dropout_config.use_res_add:
+            x = x + self.multi_attn_head(self.ln1(x))
+        else:
+            x = self.multi_attn_head(self.ln1(x))
         x = x + self.feed_forward(self.ln2(x))
         return x
 
