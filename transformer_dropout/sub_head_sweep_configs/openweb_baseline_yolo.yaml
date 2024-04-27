@@ -33,7 +33,7 @@ parameters:
                     normalize_by_context_size:
                         values: [True, False]
                     return_type:
-                        values: [1,2,3,4,5]
+                        value: 5
                     use_res_add:
                         value: True
                     softmax_dim:
