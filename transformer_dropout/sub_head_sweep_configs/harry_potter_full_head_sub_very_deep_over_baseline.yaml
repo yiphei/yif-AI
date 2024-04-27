@@ -17,9 +17,9 @@ parameters:
             n_layer: 
                 value: 12
             n_head: 
-                value: 10
+                values: [10, 15]
             dropout_rate:
-                values: [0, 0.1, 0.2, 0.3, 0.4]
+                values: [0, 0.1, 0.2, 0.3, 0.4, 0.5]
             use_learned_dropout:
                 value: False
     batch_size: 
