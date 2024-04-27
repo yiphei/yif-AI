@@ -95,8 +95,8 @@ class TrainConfig:
             raise ValueError("WARMUP_ITERS must be less than TRAIN_STEPS")
         if self.est_steps >= self.train_steps:
             raise ValueError("EST_STEPS must be less than TRAIN_STEPS")
-        if self.lr_decay_iters > self.train_steps:
-            raise ValueError("LR_DECAY_ITERS must be less than TRAIN_STEPS")
+        # if self.lr_decay_iters > self.train_steps:
+        #     raise ValueError("LR_DECAY_ITERS must be less than TRAIN_STEPS")
         if self.warmup_iters > self.lr_decay_iters:
             raise ValueError("WARMUP_ITERS must be less than LR_DECAY_ITERS")
 
