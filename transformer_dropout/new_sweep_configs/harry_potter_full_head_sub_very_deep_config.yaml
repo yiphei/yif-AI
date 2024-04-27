@@ -27,7 +27,7 @@ parameters:
                     use_bias:
                         values: [True, False]
                     start_layer:
-                        values: [1, 3, 6, 9, 11]
+                        value: 11
                     normalize_by_context_size:
                         values: [True, False]
                     return_type:
