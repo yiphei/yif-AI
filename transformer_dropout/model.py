@@ -93,7 +93,7 @@ class LearnedDropoutConfig:
     # shift_init: float = torch.pi / 2
     n_heads: int = 1
     # use_canonical_entropy: bool = False
-    use_detached_x_in_dropout_mask: bool = False
+    # use_detached_x_in_dropout_mask: bool = False
     # dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     # dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     profile_dropout_mask: bool = False
@@ -500,7 +500,8 @@ class LearnedDropout(LearnedDropoutStats):
     def forward(self, x):
         import wandb
 
-        dropout_x = x.detach() if self.config.use_detached_x_in_dropout_mask else x
+        # dropout_x = x.detach() if self.config.use_detached_x_in_dropout_mask else x
+        dropout_x = x
 
         B, T, C = dropout_x.shape
         q, k, v = self.batch_attn_weights(dropout_x).split(self.embed_dim, dim=2)
