@@ -87,6 +87,7 @@ class LearnedDropoutConfig:
     return_type: Union[ReturnType, int]
     use_res_add: bool
     end_layer: Optional[int] = None
+    dropout_rate: float = 0.0
     softmax_dim: int = 2
     # rounding_type: Optional[Union[RoundingType, int]] = None
     # sigmoid_slope: Optional[float] = None
@@ -101,6 +102,7 @@ class LearnedDropoutConfig:
     def __post_init__(self):
         # assert 0 <= self.shift_init <= torch.pi
         assert self.softmax_dim in [0, 1, 2, 3]
+        assert 0.0 <= self.dropout_rate < 1.0
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
@@ -480,6 +482,13 @@ class LearnedDropout(LearnedDropoutStats):
         else:
             self.residual_proj = None
 
+        if config.dropout_rate > 0:
+            self.dropout_1 = nn.Dropout(config.dropout_rate)
+            self.dropout_2 = nn.Dropout(config.dropout_rate)
+        else:
+            self.dropout_1 = None
+            self.dropout_2 = None
+
         self.register_buffer(
             "tril",
             torch.tril(
@@ -514,6 +523,10 @@ class LearnedDropout(LearnedDropoutStats):
                 causal_attn = adjusted_causal_attn.view_as(causal_attn)
         else:
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
+        
+        if self.config.dropout_rate > 0:
+            causal_attn = self.dropout_1(causal_attn)
+
         dropout_logits = causal_attn @ v
         if self.config.normalize_by_context_size:
             dropout_logits = dropout_logits * (T**-0.5)
@@ -571,6 +584,9 @@ class LearnedDropout(LearnedDropoutStats):
             new_x = self.residual_proj(x * dropout_mask)
         else:
             raise ValueError("Invalid return type")
+        
+        if self.config.dropout_rate > 0:
+            new_x = self.dropout_2(new_x)
 
         if (
             self.training
