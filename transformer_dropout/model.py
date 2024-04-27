@@ -424,15 +424,9 @@ class RunningDropoutStats(BaseDropoutStats):
 class LearnedDropoutStats(BaseDropoutStats):
     def __init__(self, config):
         super().__init__()
-        self.dropout_entropy_context = (
-             torch.no_grad()
-        )
-        self.dropout_l1_norm_context = (
-            torch.no_grad()
-        )
-        self.entropy_fn = (
-            self.canonical_entropy
-        )
+        self.dropout_entropy_context = torch.no_grad()
+        self.dropout_l1_norm_context = torch.no_grad()
+        self.entropy_fn = self.canonical_entropy
 
     def canonical_entropy(self, dropout_mask):
         # the small constant is for numerical stability
