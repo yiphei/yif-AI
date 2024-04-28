@@ -25,7 +25,7 @@ parameters:
             learned_dropout_config:
                 parameters:
                     use_bias:
-                        values: [True, False]
+                        value: False
                     start_layer:
                         value: 1
                     end_layer:
@@ -35,7 +35,7 @@ parameters:
                     return_type:
                         values: [1,2,3,4,5]
                     use_res_add:
-                        values: [True, False]
+                        value: True
                     softmax_dim:
                         value: 2
                     n_heads:
