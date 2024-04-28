@@ -37,7 +37,7 @@ parameters:
                     use_res_add:
                         value: True
                     softmax_dim:
-                        value: 2
+                        values: [0,1,2,3]
                     n_heads:
                         value: 10
                     profile_dropout_mask:
