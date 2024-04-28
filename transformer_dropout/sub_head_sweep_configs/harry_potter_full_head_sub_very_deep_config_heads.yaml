@@ -37,7 +37,7 @@ parameters:
                     softmax_dim:
                         value: 2
                     n_heads:
-                        values: [1, 5, 10, 25, 50, 150]
+                        values: [1, 5, 10, 25, 50]
                     profile_dropout_mask:
                         value: False
     batch_size: 
