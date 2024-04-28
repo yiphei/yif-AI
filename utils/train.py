@@ -445,11 +445,6 @@ def _train(
         optimizer.load_state_dict(checkpoint["optimizer"])
     checkpoint = None
 
-    # Empirically, this usually produces slightly worse results than not compiling, but it's usually worth it
-    if TRAIN_CONFIG.compile and torch.cuda.is_available():
-        print("compiling the model... (takes a ~minute)")
-        model = torch.compile(model)  # requires PyTorch 2.0
-
     if using_DDP:
         # NB: broadcast_buffers = False is fine here because there is no buffer
         # that currently needs to be synced. But if the model uses BatchNorm
@@ -457,6 +452,14 @@ def _train(
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[ddp_local_rank], broadcast_buffers=False
         )
+
+    # Empirically, this usually produces slightly worse results than not compiling, but it's usually worth it
+    if TRAIN_CONFIG.compile and torch.cuda.is_available():
+        print("compiling the model... (takes a ~minute)")
+        if using_DDP:
+            model.module = torch.compile(model.module)  # requires PyTorch 2.0
+        else:
+            model = torch.compile(model)
 
     # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
     def get_lr(training_step):
