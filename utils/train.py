@@ -446,9 +446,8 @@ def _train(
     checkpoint = None
 
     # when using DDP and LearnedDropout, compiling the model causes a bug in sagemaker, so disabling for now
-    if TRAIN_CONFIG.compile and using_DDP and False:
+    if TRAIN_CONFIG.compile and torch.cuda.is_available():
         print("compiling the model... (takes a ~minute)")
-        unoptimized_model = model
         model = torch.compile(model)  # requires PyTorch 2.0
 
     if using_DDP:
