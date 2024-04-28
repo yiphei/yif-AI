@@ -30,6 +30,8 @@ parameters:
                         values: [11, 6]
                     normalize_by_context_size:
                         value: False
+                    dropout_rate:
+                        values: [0.1, 0.2, 0.3, 0.4]
                     return_type:
                         values: [1,2,3,4,5]
                     use_res_add:
