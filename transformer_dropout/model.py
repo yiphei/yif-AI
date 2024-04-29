@@ -538,27 +538,6 @@ class FeedForward(nn.Module):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        if (
-            self.training
-            and (
-                self.should_profile_layer_x
-                or (
-                    self.use_learned_dropout
-                    and self.config.learned_dropout_config.profile_dropout_mask
-                )
-            )
-            and self.is_last_minibatch
-        ):
-            import wandb
-
-            if x.dtype == torch.bfloat16:
-                wandb.log(
-                    {self.module_name + ".dropout_input_x": x.detach().half()},
-                    commit=False,
-                )
-            else:
-                wandb.log({self.module_name + ".dropout_input_x": x}, commit=False)
-
         x = self.dropout(x)
         return x
 
