@@ -371,11 +371,10 @@ class LearnedDropout(nn.Module):
         if self.config.dropout_rate > 0:
             causal_attn = self.dropout_1(causal_attn)
 
-        dropout_logits = causal_attn @ v
+        dropout_mask = causal_attn @ v
         if self.config.normalize_by_context_size:
-            dropout_logits = dropout_logits * (T**-0.5)
-        dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
-        dropout_mask = dropout_logits
+            dropout_mask = dropout_mask * (T**-0.5)
+        dropout_mask = dropout_mask.transpose(1, 2).contiguous().view(B, T, C)
 
         if self.config.return_type == ReturnType.NO_RES_PROJ_MASK:
             new_x = dropout_mask
@@ -422,7 +421,7 @@ class LearnedDropout(nn.Module):
             if (
                 dropout_mask.dtype == torch.bfloat16
                 or causal_attn.dtype == torch.bfloat16
-                or dropout_logits.dtype == torch.bfloat16
+                or dropout_mask.dtype == torch.bfloat16
             ):
                 metrics = {
                     self.module_name + ".new_x": new_x.detach().half(),
@@ -430,7 +429,7 @@ class LearnedDropout(nn.Module):
                     self.module_name + ".causal_attn": causal_attn.detach().half(),
                     self.module_name + ".attn": attn.detach().half(),
                     self.module_name
-                    + ".dropout_logits_dim_2_std": dropout_logits.std(dim=-2)
+                    + ".mask_dim_2_std": dropout_mask.std(dim=-2)
                     .detach()
                     .half(),
                 }
@@ -465,7 +464,7 @@ class LearnedDropout(nn.Module):
                     self.module_name + ".causal_attn": causal_attn,
                     self.module_name + ".attn": attn,
                     self.module_name
-                    + ".dropout_logits_dim_2_std": dropout_logits.std(dim=-2),
+                    + ".mask_dim_2_std": dropout_mask.std(dim=-2),
                 }
                 if self.config.softmax_dim == 2:
                     metrics = {
