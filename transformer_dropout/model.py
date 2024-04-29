@@ -182,6 +182,7 @@ class ModelConfig:
     alphabet_size: Optional[int] = field(default=None)
     bias: bool = False
     profile_layer_x: int = None
+    profile_attn: bool = False
 
     def __post_init__(self):
         if not (self.use_learned_dropout == (self.learned_dropout_config is not None)):
@@ -243,6 +244,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.head_size = config.n_embed // config.n_head
         self.n_heads = config.n_head
         self.dropout_rate = config.dropout_rate
+        self.profile_attn = config.profile_attn
 
         self.batch_attn_weights = nn.Linear(
             self.dim_in, self.dim_in * 3, bias=config.bias
@@ -261,7 +263,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         self.use_flash = False
         if not hasattr(F, "scaled_dot_product_attention") or isinstance(
             self.dropout_1, LearnedDropout
-        ):
+        ) or config.profile_attn:
             self.register_buffer(
                 "tril",
                 torch.tril(
@@ -275,6 +277,8 @@ class OptimizedMultiAttentionHead(nn.Module):
             self.use_flash = True
 
     def forward(self, x):
+        import wandb
+
         B, T, C = x.shape
 
         q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
@@ -297,12 +301,60 @@ class OptimizedMultiAttentionHead(nn.Module):
             causal_attn = self.dropout_1(causal_attn)
             out = causal_attn @ v  # B,H,T,T @ B,H,T,S -> B,H,T,S
 
-        out = (
+        mask = (
             out.transpose(1, 2).contiguous().view(B, T, C)
         )  # B,H,T,S -> B,T,H,S -> B,T,C
-        out = self.residual_proj(out)
-        out = self.dropout_2(out)
-        return out
+        new_x = self.residual_proj(mask)
+        new_x = self.dropout_2(new_x)
+
+        if self.training and self.is_last_minibatch and self.profile_attn:
+            log_x = x.detach()
+            log_new_x = new_x.detach()
+            log_dropout_mask = mask.detach()
+            log_causal_attn = causal_attn.detach()
+            log_attn = attn.detach()
+            causal_attn_dim_2_mean = causal_attn.mean(dim=-2)
+            causal_attn_dim_2_mean[:, :, : T // 2] *= -1
+            causal_attn_dim_2_mean_head_mean = causal_attn_dim_2_mean.mean(
+                dim=-2
+            )
+            causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean.std(dim=-2)
+            causal_attn_dim_2_mean_head_std[:, : T // 2] *= -1
+            if (
+                mask.dtype == torch.bfloat16
+                or causal_attn.dtype == torch.bfloat16
+            ):
+                log_x = log_x.half()
+                log_new_x = log_new_x.half()
+                log_dropout_mask = log_dropout_mask.half()
+                log_causal_attn = log_causal_attn.half()
+                log_attn = log_attn.half()
+                causal_attn_dim_2_mean = causal_attn_dim_2_mean.detach().half()
+                causal_attn_dim_2_mean_head_mean = (
+                    causal_attn_dim_2_mean_head_mean.detach().half()
+                )
+                causal_attn_dim_2_mean_head_std = (
+                    causal_attn_dim_2_mean_head_std.detach().half()
+                )
+            wandb.log(
+                {
+                self.module_name + ".a__input_x": log_x,
+                self.module_name + ".l__new_x": log_new_x,
+                self.module_name + ".g__mask": log_dropout_mask,
+                self.module_name + ".c__causal_attn": log_causal_attn,
+                self.module_name + ".b__attn": log_attn,
+                self.module_name + ".h__mask_dim_2_std": log_dropout_mask.std(dim=-2),
+                self.module_name
+                + ".d__causal_attn_dim_2_mean": causal_attn_dim_2_mean,
+                self.module_name
+                + ".e__causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean,
+                self.module_name
+                + ".f__causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std,
+            },
+                commit=False,
+            )
+
+        return new_x
 
 
 class LearnedDropout(nn.Module):
@@ -641,6 +693,10 @@ class DropoutTransformer(nn.Module):
             elif isinstance(module, FeedForward):
                 module.module_name = ".".join(
                     param_to_param_name[module.linear.weight].split(".")[:-2]
+                )
+            elif isinstance(module, OptimizedMultiAttentionHead):
+                module.module_name = ".".join(
+                    param_to_param_name[module.batch_attn_weights.weight].split(".")[:-2]
                 )
 
             module.is_last_minibatch = False
