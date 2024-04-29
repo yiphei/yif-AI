@@ -717,7 +717,7 @@ class DropoutTransformer(nn.Module):
                 module.is_last_minibatch = val
 
     @classmethod
-    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps):
+    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps=None):
         model_config = ModelConfig(**checkpoint_dict["model_config"])
         model = cls(model_config, gradient_accumulation_steps)
         state_dict = checkpoint_dict["model"]
