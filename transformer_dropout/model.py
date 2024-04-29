@@ -427,6 +427,7 @@ class LearnedDropout(nn.Module):
                 or dropout_mask.dtype == torch.bfloat16
             ):
                 metrics = {
+                    self.module_name + ".input_x": x.detach().half(),
                     self.module_name + ".new_x": new_x.detach().half(),
                     self.module_name + ".mask": dropout_mask.detach().half(),
                     self.module_name + ".causal_attn": causal_attn.detach().half(),
@@ -468,6 +469,7 @@ class LearnedDropout(nn.Module):
                 )
             else:
                 metrics = {
+                    self.module_name + ".input_x": x,
                     self.module_name + ".new_x": new_x,
                     self.module_name + ".mask": dropout_mask,
                     self.module_name + ".causal_attn": causal_attn,
