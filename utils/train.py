@@ -450,7 +450,7 @@ def _train(
         # that currently needs to be synced. But if the model uses BatchNorm
         # and the likes, the buffers will need to be synced.
         model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[ddp_local_rank], broadcast_buffers=False
+            model, device_ids=[ddp_local_rank], broadcast_buffers=True
         )
 
     # Empirically, this usually produces slightly worse results than not compiling, but it's usually worth it
