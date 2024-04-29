@@ -377,7 +377,7 @@ class LearnedDropout(nn.Module):
         dropout_mask = dropout_mask.transpose(1, 2).contiguous().view(B, T, C)
 
         proj_mask = None
-        intermediate_x = None
+        pre_new_x = None
         if self.config.return_type == ReturnType.NO_RES_PROJ_MASK:
             new_x = dropout_mask
         elif self.config.return_type == ReturnType.NO_RES_PROJ_NEW_X:
@@ -389,8 +389,8 @@ class LearnedDropout(nn.Module):
             proj_mask = self.residual_proj(dropout_mask)
             new_x = x * proj_mask
         elif self.config.return_type == ReturnType.RES_PROJ_NEW_X_THEN_NEW_X:
-            intermediate_x = x * dropout_mask
-            new_x = self.residual_proj(intermediate_x)
+            pre_new_x = x * dropout_mask
+            new_x = self.residual_proj(pre_new_x)
         else:
             raise ValueError("Invalid return type")
         
@@ -438,10 +438,10 @@ class LearnedDropout(nn.Module):
                 }
                 if proj_mask is not None:
                     metrics[self.module_name + ".proj_mask"] = proj_mask.detach().half()
-                if intermediate_x is not None:
+                if pre_new_x is not None:
                     metrics[
-                        self.module_name + ".intermediate_x"
-                    ] = intermediate_x.detach().half()
+                        self.module_name + ".pre_new_x"
+                    ] = pre_new_x.detach().half()
                 if self.config.softmax_dim == 2:
                     metrics = {
                         **metrics,
@@ -477,10 +477,10 @@ class LearnedDropout(nn.Module):
                 }
                 if proj_mask is not None:
                     metrics[self.module_name + ".proj_mask"] = proj_mask
-                if intermediate_x is not None:
+                if pre_new_x is not None:
                     metrics[
-                        self.module_name + ".intermediate_x"
-                    ] = intermediate_x
+                        self.module_name + ".pre_new_x"
+                    ] = pre_new_x
                 if self.config.softmax_dim == 2:
                     metrics = {
                         **metrics,
