@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import tiktoken
 import torch
-from model import DropoutTransformer
+from transformer_dropout.model import DropoutTransformer
 
 
 def get_default_device():
@@ -65,6 +65,7 @@ def model_fn(model_dir, file_name=None):
     model.eval()
     model.to(device)
     model_dict = None
+    model = torch.compile(model)
     return model
 
 
