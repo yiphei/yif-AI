@@ -376,6 +376,8 @@ class LearnedDropout(nn.Module):
             dropout_mask = dropout_mask * (T**-0.5)
         dropout_mask = dropout_mask.transpose(1, 2).contiguous().view(B, T, C)
 
+        proj_mask = None
+        intermediate_x = None
         if self.config.return_type == ReturnType.NO_RES_PROJ_MASK:
             new_x = dropout_mask
         elif self.config.return_type == ReturnType.NO_RES_PROJ_NEW_X:
@@ -387,7 +389,8 @@ class LearnedDropout(nn.Module):
             proj_mask = self.residual_proj(dropout_mask)
             new_x = x * proj_mask
         elif self.config.return_type == ReturnType.RES_PROJ_NEW_X_THEN_NEW_X:
-            new_x = self.residual_proj(x * dropout_mask)
+            intermediate_x = x * dropout_mask
+            new_x = self.residual_proj(intermediate_x)
         else:
             raise ValueError("Invalid return type")
         
@@ -433,6 +436,12 @@ class LearnedDropout(nn.Module):
                     .detach()
                     .half(),
                 }
+                if proj_mask is not None:
+                    metrics[self.module_name + ".proj_mask"] = proj_mask.detach().half()
+                if intermediate_x is not None:
+                    metrics[
+                        self.module_name + ".intermediate_x"
+                    ] = intermediate_x.detach().half()
                 if self.config.softmax_dim == 2:
                     metrics = {
                         **metrics,
@@ -466,6 +475,12 @@ class LearnedDropout(nn.Module):
                     self.module_name
                     + ".mask_dim_2_std": dropout_mask.std(dim=-2),
                 }
+                if proj_mask is not None:
+                    metrics[self.module_name + ".proj_mask"] = proj_mask
+                if intermediate_x is not None:
+                    metrics[
+                        self.module_name + ".intermediate_x"
+                    ] = intermediate_x
                 if self.config.softmax_dim == 2:
                     metrics = {
                         **metrics,
