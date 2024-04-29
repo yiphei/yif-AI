@@ -377,43 +377,6 @@ class LearnedDropout(nn.Module):
         dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
         dropout_mask = dropout_logits
 
-        # if self.config.rounding_type:
-        #     if (
-        #         self.training
-        #         and self.config.profile_dropout_mask
-        #         and self.is_last_minibatch
-        #     ):
-        #         wandb.log(
-        #             {self.module_name + ".pre-rounding_mask": dropout_mask},
-        #             commit=False,
-        #         )
-
-        #     if self.config.rounding_type == RoundingType.SIGMOID:
-        #         dropout_mask = torch.sigmoid(
-        #             self.config.sigmoid_slope * (dropout_mask - 0.5)
-        #         )
-        #     elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
-        #         complement_mask = 1 - dropout_mask.detach()
-        #         noise = self.uniform.sample(dropout_mask.shape).to(dropout_mask.device)
-        #         scaling = torch.where(
-        #             noise >= complement_mask, complement_mask, complement_mask - 1
-        #         )
-        #         dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
-        #             dtype=torch.float16
-        #         )
-
-        #     elif self.config.rounding_type == RoundingType.LINEAR:
-        #         complement_mask = 1 - dropout_mask.detach()
-        #         scaling = torch.where(
-        #             dropout_mask >= 0.5, complement_mask, complement_mask - 1
-        #         )
-        #         dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
-        #             dtype=torch.float16
-        #         )
-
-        # if self.training:
-        #     self.update_stats(dropout_mask)
-
         if self.config.return_type == ReturnType.NO_RES_PROJ_MASK:
             new_x = dropout_mask
         elif self.config.return_type == ReturnType.NO_RES_PROJ_NEW_X:
@@ -465,8 +428,7 @@ class LearnedDropout(nn.Module):
                     self.module_name + ".new_x": new_x.detach().half(),
                     self.module_name + ".mask": dropout_mask.detach().half(),
                     self.module_name + ".causal_attn": causal_attn.detach().half(),
-                    self.module_name
-                    + ".dropout_logits": dropout_logits.detach().half(),
+                    self.module_name + ".attn": attn.detach().half(),
                     self.module_name
                     + ".dropout_logits_dim_2_std": dropout_logits.std(dim=-2)
                     .detach()
@@ -501,7 +463,7 @@ class LearnedDropout(nn.Module):
                     self.module_name + ".new_x": new_x,
                     self.module_name + ".mask": dropout_mask,
                     self.module_name + ".causal_attn": causal_attn,
-                    self.module_name + ".dropout_logits": dropout_logits,
+                    self.module_name + ".attn": attn,
                     self.module_name
                     + ".dropout_logits_dim_2_std": dropout_logits.std(dim=-2),
                 }
