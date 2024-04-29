@@ -304,6 +304,7 @@ class OptimizedMultiAttentionHead(nn.Module):
         out = self.dropout_2(out)
         return out
 
+
 class LearnedDropout(nn.Module):
     def __init__(self, embed_dim, context_size, config):
         super().__init__()
@@ -367,7 +368,7 @@ class LearnedDropout(nn.Module):
                 causal_attn = adjusted_causal_attn.view_as(causal_attn)
         else:
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
-        
+
         if self.config.dropout_rate > 0:
             causal_attn = self.dropout_1(causal_attn)
 
@@ -393,7 +394,7 @@ class LearnedDropout(nn.Module):
             new_x = self.residual_proj(pre_new_x)
         else:
             raise ValueError("Invalid return type")
-        
+
         if self.config.dropout_rate > 0:
             new_x = self.dropout_2(new_x)
 
@@ -421,7 +422,7 @@ class LearnedDropout(nn.Module):
                     )
                     causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean.std(dim=-2)
                     causal_attn_dim_2_mean_head_std[:, : T // 2] *= -1
-            
+
             log_x = x.detach()
             log_new_x = new_x.detach()
             log_dropout_mask = dropout_mask.detach()
@@ -440,33 +441,42 @@ class LearnedDropout(nn.Module):
                 log_dropout_mask = log_dropout_mask.half()
                 log_causal_attn = log_causal_attn.half()
                 log_attn = log_attn.half()
-                log_proj_mask = log_proj_mask.half() if log_proj_mask is not None else None
-                log_pre_new_x = log_pre_new_x.half() if log_pre_new_x is not None else None
+                log_proj_mask = (
+                    log_proj_mask.half() if log_proj_mask is not None else None
+                )
+                log_pre_new_x = (
+                    log_pre_new_x.half() if log_pre_new_x is not None else None
+                )
                 if self.config.softmax_dim == 1:
                     causal_attn_dim_2_mean = causal_attn_dim_2_mean.detach().half()
-                    causal_attn_dim_2_mean_head_mean = causal_attn_dim_2_mean_head_mean.detach().half()
-                    causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean_head_std.detach().half()          
+                    causal_attn_dim_2_mean_head_mean = (
+                        causal_attn_dim_2_mean_head_mean.detach().half()
+                    )
+                    causal_attn_dim_2_mean_head_std = (
+                        causal_attn_dim_2_mean_head_std.detach().half()
+                    )
                 elif self.config.softmax_dim == 2:
                     causal_attn_dim_1_mean = causal_attn_dim_1_mean.detach().half()
-                    causal_attn_dim_1_mean_head_mean = causal_attn_dim_1_mean_head_mean.detach().half()
-                    causal_attn_dim_1_mean_head_std = causal_attn_dim_1_mean_head_std.detach().half()      
-            
+                    causal_attn_dim_1_mean_head_mean = (
+                        causal_attn_dim_1_mean_head_mean.detach().half()
+                    )
+                    causal_attn_dim_1_mean_head_std = (
+                        causal_attn_dim_1_mean_head_std.detach().half()
+                    )
+
             metrics = {
                 self.module_name + ".a__input_x": log_x,
                 self.module_name + ".l__new_x": log_new_x,
                 self.module_name + ".g__mask": log_dropout_mask,
                 self.module_name + ".c__causal_attn": log_causal_attn,
                 self.module_name + ".b__attn": log_attn,
-                self.module_name
-                + ".h__mask_dim_2_std": log_dropout_mask.std(dim=-2)
+                self.module_name + ".h__mask_dim_2_std": log_dropout_mask.std(dim=-2),
             }
 
             if log_proj_mask is not None:
                 metrics[self.module_name + ".i__proj_mask"] = log_proj_mask
             if log_pre_new_x is not None:
-                metrics[
-                    self.module_name + ".k__pre_new_x"
-                ] = log_pre_new_x
+                metrics[self.module_name + ".k__pre_new_x"] = log_pre_new_x
 
             if self.config.softmax_dim == 2:
                 metrics = {
@@ -550,7 +560,9 @@ class TransformerBlock(nn.Module):
         self.ln2 = LayerNorm(config.n_embed, config.bias)
 
     def forward(self, x):
-        if (self.use_learned_dropout and self.learned_dropout_config.use_res_add) or not self.use_learned_dropout:
+        if (
+            self.use_learned_dropout and self.learned_dropout_config.use_res_add
+        ) or not self.use_learned_dropout:
             x = x + self.multi_attn_head(self.ln1(x))
         else:
             x = self.multi_attn_head(self.ln1(x))
