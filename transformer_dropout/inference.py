@@ -50,7 +50,7 @@ def model_fn(model_dir, file_name=None):
     device = get_default_device()
     if os.path.isfile(os.path.join(model_dir, file_name or "model.pth")):
         model_dict = torch.load(
-            os.path.join(model_dir, "model.pth"), map_location=device
+            os.path.join(model_dir, file_name or "model.pth"), map_location=device
         )
     else:
         model_dict = torch.load(os.path.join(model_dir,file_name or "ckpt.pt"), map_location=device)
