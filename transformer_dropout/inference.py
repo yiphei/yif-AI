@@ -9,23 +9,29 @@ import torch
 from model import DropoutTransformer
 
 
+def get_default_device():
+    if torch.cuda.is_available():
+        return "cuda"
+    # NB: "mps" introduces non-deterministic behavior, despite explicitly setting random seeds.
+    return "mps" if torch.backends.mps.is_available() else "cpu"
+
 @dataclass
 class SampleConfig:
-    MAX_TOKENS: int  # maximum number of tokens to generate for each sample
-    N_SAMPLES: int = 1  # number of samples to draw
-    SEED: int = 1337
-    DEVICE: str = field(
-        default_factory=lambda: "cuda" if torch.cuda.is_available() else "cpu"
+    max_tokens: int  # maximum number of tokens to generate for each sample
+    n_samples: int = 1  # number of samples to draw
+    seed: int = 1337
+    device: str = field(
+        default_factory=get_default_device
     )
-    DTYPE: str = field(
+    dtype: str = field(
         default_factory=lambda: (
             "bfloat16"
             if torch.cuda.is_available() and torch.cuda.is_bf16_supported()
             else "float16"
         )
     )
-    START_TOKENS: str = "\n"
-    COMPILE: bool = False
+    start_tokens: str = "\n"
+    compile: bool = False
 
     @classmethod
     def create_from_config_file(cls, config_file: str):
@@ -33,21 +39,21 @@ class SampleConfig:
         with open(config_file, "r") as file:
             exec(file.read(), {}, config_dict)
         # Filter out built-in items
-        config_dict = {k: v for k, v in config_dict.items() if not k.startswith("__")}
+        config_dict = {k.lower(): v for k, v in config_dict.items() if not k.startswith("__")}
         return cls(**config_dict)
 
 
-def model_fn(model_dir):
+def model_fn(model_dir, file_name=None):
     """
     Load the PyTorch model from the `model_dir` directory.
     """
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    if os.path.isfile(os.path.join(model_dir, "model.pth")):
+    device = get_default_device()
+    if os.path.isfile(os.path.join(model_dir, file_name or "model.pth")):
         model_dict = torch.load(
             os.path.join(model_dir, "model.pth"), map_location=device
         )
     else:
-        model_dict = torch.load(os.path.join(model_dir, "ckpt.pt"), map_location=device)
+        model_dict = torch.load(os.path.join(model_dir,file_name or "ckpt.pt"), map_location=device)
 
     # Had a bug that saved model_dict as a tuple instead of a dict, so old saved models
     # will run into this issue
@@ -79,18 +85,18 @@ def predict_fn(input_data: SampleConfig, model):
     """
     Generate model predictions.
     """
-    torch.manual_seed(input_data.SEED)
-    torch.cuda.manual_seed(input_data.SEED)
+    torch.manual_seed(input_data.seed)
+    torch.cuda.manual_seed(input_data.seed)
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
     device_type = (
-        "cuda" if "cuda" in input_data.DEVICE else "cpu"
+        "cuda" if "cuda" in input_data.device else "cpu"
     )  # for later use in torch.autocast
     ptdtype = {
         "float32": torch.float32,
         "bfloat16": torch.bfloat16,
         "float16": torch.float16,
-    }[input_data.DTYPE]
+    }[input_data.dtype]
     ctx = (
         nullcontext()
         if device_type == "cpu"
@@ -101,15 +107,15 @@ def predict_fn(input_data: SampleConfig, model):
     encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
     decode = lambda l: enc.decode(l)
 
-    start_ids = encode(input_data.START_TOKENS)
-    x = torch.tensor(start_ids, dtype=torch.long, device=input_data.DEVICE)[None, ...]
+    start_ids = encode(input_data.start_tokens)
+    x = torch.tensor(start_ids, dtype=torch.long, device=input_data.device)[None, ...]
 
     predictions = []
     # run generation
     with torch.no_grad():
         with ctx:
-            for k in range(1):
-                y = model.generate(x, input_data.MAX_TOKENS)
+            for k in range(input_data.n_samples):
+                y = model.generate(x, input_data.max_tokens)
                 predictions.append(decode(y[0].tolist()))
 
     return predictions
