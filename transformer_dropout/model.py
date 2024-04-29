@@ -427,41 +427,41 @@ class LearnedDropout(nn.Module):
                 or dropout_mask.dtype == torch.bfloat16
             ):
                 metrics = {
-                    self.module_name + ".input_x": x.detach().half(),
-                    self.module_name + ".new_x": new_x.detach().half(),
-                    self.module_name + ".mask": dropout_mask.detach().half(),
-                    self.module_name + ".causal_attn": causal_attn.detach().half(),
-                    self.module_name + ".attn": attn.detach().half(),
+                    self.module_name + ".a__input_x": x.detach().half(),
+                    self.module_name + ".l__new_x": new_x.detach().half(),
+                    self.module_name + ".g__mask": dropout_mask.detach().half(),
+                    self.module_name + ".c__causal_attn": causal_attn.detach().half(),
+                    self.module_name + ".b__attn": attn.detach().half(),
                     self.module_name
-                    + ".mask_dim_2_std": dropout_mask.std(dim=-2)
+                    + ".h__mask_dim_2_std": dropout_mask.std(dim=-2)
                     .detach()
                     .half(),
                 }
                 if proj_mask is not None:
-                    metrics[self.module_name + ".proj_mask"] = proj_mask.detach().half()
+                    metrics[self.module_name + ".i__proj_mask"] = proj_mask.detach().half()
                 if pre_new_x is not None:
                     metrics[
-                        self.module_name + ".pre_new_x"
+                        self.module_name + ".k__pre_new_x"
                     ] = pre_new_x.detach().half()
                 if self.config.softmax_dim == 2:
                     metrics = {
                         **metrics,
                         self.module_name
-                        + ".causal_attn_dim_1_mean": causal_attn_dim_1_mean.detach().half(),
+                        + ".d__causal_attn_dim_1_mean": causal_attn_dim_1_mean.detach().half(),
                         self.module_name
-                        + ".causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean.detach().half(),
+                        + ".e__causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean.detach().half(),
                         self.module_name
-                        + ".causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std.detach().half(),
+                        + ".f__causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std.detach().half(),
                     }
                 elif self.config.softmax_dim == 1:
                     metrics = {
                         **metrics,
                         self.module_name
-                        + ".causal_attn_dim_2_mean": causal_attn_dim_2_mean.detach().half(),
+                        + ".d__causal_attn_dim_2_mean": causal_attn_dim_2_mean.detach().half(),
                         self.module_name
-                        + ".causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean.detach().half(),
+                        + ".e__causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean.detach().half(),
                         self.module_name
-                        + ".causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std.detach().half(),
+                        + ".f__causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std.detach().half(),
                     }
                 wandb.log(
                     metrics,
@@ -469,39 +469,39 @@ class LearnedDropout(nn.Module):
                 )
             else:
                 metrics = {
-                    self.module_name + ".input_x": x,
-                    self.module_name + ".new_x": new_x,
-                    self.module_name + ".mask": dropout_mask,
-                    self.module_name + ".causal_attn": causal_attn,
-                    self.module_name + ".attn": attn,
+                    self.module_name + ".a__input_x": x,
+                    self.module_name + ".l__new_x": new_x,
+                    self.module_name + ".g__mask": dropout_mask,
+                    self.module_name + ".c__causal_attn": causal_attn,
+                    self.module_name + ".b__attn": attn,
                     self.module_name
-                    + ".mask_dim_2_std": dropout_mask.std(dim=-2),
+                    + ".h__mask_dim_2_std": dropout_mask.std(dim=-2),
                 }
                 if proj_mask is not None:
-                    metrics[self.module_name + ".proj_mask"] = proj_mask
+                    metrics[self.module_name + ".i__proj_mask"] = proj_mask
                 if pre_new_x is not None:
                     metrics[
-                        self.module_name + ".pre_new_x"
+                        self.module_name + ".k__pre_new_x"
                     ] = pre_new_x
                 if self.config.softmax_dim == 2:
                     metrics = {
                         **metrics,
                         self.module_name
-                        + ".causal_attn_dim_1_mean": causal_attn_dim_1_mean,
+                        + ".d__causal_attn_dim_1_mean": causal_attn_dim_1_mean,
                         self.module_name
-                        + ".causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean,
+                        + ".e__causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean,
                         self.module_name
-                        + ".causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std,
+                        + ".f__causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std,
                     }
                 elif self.config.softmax_dim == 1:
                     metrics = {
                         **metrics,
                         self.module_name
-                        + ".causal_attn_dim_2_mean": causal_attn_dim_2_mean,
+                        + ".d__causal_attn_dim_2_mean": causal_attn_dim_2_mean,
                         self.module_name
-                        + ".causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean,
+                        + ".e__causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean,
                         self.module_name
-                        + ".causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std,
+                        + ".f__causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std,
                     }
                 wandb.log(
                     metrics,
