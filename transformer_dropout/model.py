@@ -261,9 +261,11 @@ class OptimizedMultiAttentionHead(nn.Module):
             self.dropout_2 = nn.Dropout(config.dropout_rate)
 
         self.use_flash = False
-        if not hasattr(F, "scaled_dot_product_attention") or isinstance(
-            self.dropout_1, LearnedDropout
-        ) or config.profile_attn:
+        if (
+            not hasattr(F, "scaled_dot_product_attention")
+            or isinstance(self.dropout_1, LearnedDropout)
+            or config.profile_attn
+        ):
             self.register_buffer(
                 "tril",
                 torch.tril(
@@ -315,15 +317,10 @@ class OptimizedMultiAttentionHead(nn.Module):
             log_attn = attn.detach()
             causal_attn_dim_2_mean = causal_attn.mean(dim=-2)
             causal_attn_dim_2_mean[:, :, : T // 2] *= -1
-            causal_attn_dim_2_mean_head_mean = causal_attn_dim_2_mean.mean(
-                dim=-2
-            )
+            causal_attn_dim_2_mean_head_mean = causal_attn_dim_2_mean.mean(dim=-2)
             causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean.std(dim=-2)
             causal_attn_dim_2_mean_head_std[:, : T // 2] *= -1
-            if (
-                mask.dtype == torch.bfloat16
-                or causal_attn.dtype == torch.bfloat16
-            ):
+            if mask.dtype == torch.bfloat16 or causal_attn.dtype == torch.bfloat16:
                 log_x = log_x.half()
                 log_new_x = log_new_x.half()
                 log_dropout_mask = log_dropout_mask.half()
@@ -338,19 +335,20 @@ class OptimizedMultiAttentionHead(nn.Module):
                 )
             wandb.log(
                 {
-                self.module_name + ".a__input_x": log_x,
-                self.module_name + ".l__new_x": log_new_x,
-                self.module_name + ".g__mask": log_dropout_mask,
-                self.module_name + ".c__causal_attn": log_causal_attn,
-                self.module_name + ".b__attn": log_attn,
-                self.module_name + ".h__mask_dim_2_std": log_dropout_mask.std(dim=-2),
-                self.module_name
-                + ".d__causal_attn_dim_2_mean": causal_attn_dim_2_mean,
-                self.module_name
-                + ".e__causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean,
-                self.module_name
-                + ".f__causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std,
-            },
+                    self.module_name + ".a__input_x": log_x,
+                    self.module_name + ".l__new_x": log_new_x,
+                    self.module_name + ".g__mask": log_dropout_mask,
+                    self.module_name + ".c__causal_attn": log_causal_attn,
+                    self.module_name + ".b__attn": log_attn,
+                    self.module_name
+                    + ".h__mask_dim_2_std": log_dropout_mask.std(dim=-2),
+                    self.module_name
+                    + ".d__causal_attn_dim_2_mean": causal_attn_dim_2_mean,
+                    self.module_name
+                    + ".e__causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean,
+                    self.module_name
+                    + ".f__causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std,
+                },
                 commit=False,
             )
 
@@ -696,7 +694,9 @@ class DropoutTransformer(nn.Module):
                 )
             elif isinstance(module, OptimizedMultiAttentionHead):
                 module.module_name = ".".join(
-                    param_to_param_name[module.batch_attn_weights.weight].split(".")[:-2]
+                    param_to_param_name[module.batch_attn_weights.weight].split(".")[
+                        :-2
+                    ]
                 )
 
             module.is_last_minibatch = False
