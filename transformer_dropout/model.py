@@ -303,12 +303,12 @@ class LearnedDropout(nn.Module):
         self.register_buffer(
             "future_tril",
             (
-                torch.tril(torch.ones(context_size-1, context_size-1), diagonal=-1)
+                torch.tril(torch.ones(context_size - 1, context_size - 1), diagonal=-1)
                 + torch.triu(
-                    torch.ones(context_size-1, context_size-1),
+                    torch.ones(context_size - 1, context_size - 1),
                     diagonal=self.config.future_dim,
                 )
-            ).view(1, 1, context_size-1, context_size-1),
+            ).view(1, 1, context_size - 1, context_size - 1),
         )
         self.register_buffer(
             "full_tril",
@@ -343,7 +343,7 @@ class LearnedDropout(nn.Module):
         future_attn = (
             q
             @ self.future_k_weights[
-                :, :, : min(T + self.config.future_dim-1, self.context_size - 1)
+                :, :, : min(T + self.config.future_dim - 1, self.context_size - 1)
             ]
         ) * (self.head_size**-0.5)
         future_attn = future_attn.masked_fill(
