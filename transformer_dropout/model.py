@@ -346,12 +346,18 @@ class LearnedDropout(nn.Module):
                 true_future_attn = true_attn[:, :, :T, 1:]
                 true_future_attn = true_future_attn.masked_fill(
                     self.future_tril[
-                        :, :, :T, : min(T + self.config.future_dim - 1, self.context_size - 1)
+                        :,
+                        :,
+                        :T,
+                        : min(T + self.config.future_dim - 1, self.context_size - 1),
                     ]
                     != 0,
                     0.0,
                 )
-                self.true_future_mask = true_future_attn @ v[:, :, 1:min(T + self.config.future_dim, self.context_size), :]
+                self.true_future_mask = (
+                    true_future_attn
+                    @ v[:, :, 1 : min(T + self.config.future_dim, self.context_size), :]
+                )
 
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.config.future_dim, self.context_size - T)
