@@ -333,8 +333,25 @@ class LearnedDropout(nn.Module):
         v = v.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
 
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
-        with torch.no_grad():
-            self.true_attn = F.softmax(attn, dim=-1)
+        if self.training:
+            with torch.no_grad():
+                true_attn = attn.masked_fill(
+                    self.full_tril[
+                        :, :, :T, : min(T + self.config.future_dim, self.context_size)
+                    ]
+                    == 0,
+                    float("-inf"),
+                )
+                true_attn = F.softmax(true_attn, dim=-1)
+                true_future_attn = true_attn[:, :, :T, 1:]
+                true_future_attn = true_future_attn.masked_fill(
+                    self.future_tril[
+                        :, :, :T, : min(T + self.config.future_dim - 1, self.context_size - 1)
+                    ]
+                    != 0,
+                    0.0,
+                )
+                self.true_future_mask = true_future_attn @ v[:, :, 1:min(T + self.config.future_dim, self.context_size), :]
 
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.config.future_dim, self.context_size - T)
