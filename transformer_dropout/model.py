@@ -730,7 +730,7 @@ class DropoutTransformer(nn.Module):
 
                 additional_loss = mask_losses.mean()
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
-        return (logits, loss)
+        return (logits, loss, additional_loss)
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters

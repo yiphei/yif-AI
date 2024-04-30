@@ -206,7 +206,7 @@ def estimate_loss(
                 data_iter = new_data_iter
 
             with ctx(i, False, False):
-                logits, loss = model(xb, yb)
+                logits, loss, _ = model(xb, yb)
 
             losses[i] = loss
 
@@ -570,6 +570,7 @@ def _train(
         t0 = time.time()
         running_loss = 0
         is_first_mini_batch = True
+        running_additional_loss = 0
         for micro_step in range(TRAIN_CONFIG.gradient_accumulation_steps):
             if using_DDP:
                 # this defers gradient sync until the last micro_step
@@ -581,12 +582,14 @@ def _train(
                 is_first_mini_batch,
                 micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1,
             ):
-                (_, loss) = model(X, Y)
+                (_, loss, additional_loss) = model(X, Y)
 
                 loss = (
                     loss / TRAIN_CONFIG.gradient_accumulation_steps
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
+
+                running_additional_loss += additional_loss.item() / TRAIN_CONFIG.gradient_accumulation_steps
 
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y, new_train_iter = get_data_batch_loader(
@@ -619,6 +622,7 @@ def _train(
             wandb.log(
                 {
                     "loss": running_loss,
+                    "mask_loss": running_additional_loss if TRAIN_CONFIG.model_config.use_learned_dropout else None,
                     "time": float(f"{dt*1000:.2f}"),
                     "mfu": mfu,
                 },
