@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 import tiktoken
 import torch
+
 from transformer_dropout.model import DropoutTransformer
 
 
@@ -15,14 +16,13 @@ def get_default_device():
     # NB: "mps" introduces non-deterministic behavior, despite explicitly setting random seeds.
     return "mps" if torch.backends.mps.is_available() else "cpu"
 
+
 @dataclass
 class SampleConfig:
     max_tokens: int  # maximum number of tokens to generate for each sample
     n_samples: int = 1  # number of samples to draw
     seed: int = 1337
-    device: str = field(
-        default_factory=get_default_device
-    )
+    device: str = field(default_factory=get_default_device)
     dtype: str = field(
         default_factory=lambda: (
             "bfloat16"
@@ -39,7 +39,9 @@ class SampleConfig:
         with open(config_file, "r") as file:
             exec(file.read(), {}, config_dict)
         # Filter out built-in items
-        config_dict = {k.lower(): v for k, v in config_dict.items() if not k.startswith("__")}
+        config_dict = {
+            k.lower(): v for k, v in config_dict.items() if not k.startswith("__")
+        }
         return cls(**config_dict)
 
 
@@ -53,7 +55,9 @@ def model_fn(model_dir, file_name=None):
             os.path.join(model_dir, file_name or "model.pth"), map_location=device
         )
     else:
-        model_dict = torch.load(os.path.join(model_dir,file_name or "ckpt.pt"), map_location=device)
+        model_dict = torch.load(
+            os.path.join(model_dir, file_name or "ckpt.pt"), map_location=device
+        )
 
     # Had a bug that saved model_dict as a tuple instead of a dict, so old saved models
     # will run into this issue
