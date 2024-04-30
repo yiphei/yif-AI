@@ -11,11 +11,8 @@ DROPOUT_RATE = 0.1
 LEARNED_DROPOUT_CONFIG = {
     "start_layer": 3,
     "use_bias": False,
-    "softmax_dim": 2,
     "n_heads": 3,
-    "return_type": 1,
-    "use_res_add": True,
-    "normalize_by_context_size": True,
+    "future_dim": 10,
     "profile_dropout_mask": False,
 }
 

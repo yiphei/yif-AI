@@ -369,10 +369,10 @@ class LearnedDropout(nn.Module):
         softmax_causal_attn = softmax_causal_attn.masked_fill(
             self.tril[:, :, :T, :T] == 0, 0.0
         )
-        softmax_full_attn = softmax_full_attn[
+        softmax_future_attn = softmax_full_attn[
             :, :, :T, 1 : min(T + self.config.future_dim, self.context_size)
         ]
-        softmax_full_attn = softmax_full_attn.masked_fill(
+        softmax_future_attn = softmax_future_attn.masked_fill(
             self.future_tril[
                 :, :, :T, : min(T + self.config.future_dim - 1, self.context_size - 1)
             ]
@@ -382,7 +382,7 @@ class LearnedDropout(nn.Module):
 
         causal_mask = softmax_causal_attn @ v
         future_mask = (
-            softmax_full_attn
+            softmax_future_attn
             @ self.future_v_weights[
                 :, : min(T + self.config.future_dim - 1, self.context_size - 1), :
             ]
