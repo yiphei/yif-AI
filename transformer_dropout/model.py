@@ -123,9 +123,11 @@ class ModelConfig:
             raise ValueError(
                 "profile_layer_x cannot be set if profile_dropout_mask is True"
             )
-        
+
         if self.use_learned_dropout:
-            assert 1 <= self.learned_dropout_config.future_dim <= (self.context_size-1)
+            assert (
+                1 <= self.learned_dropout_config.future_dim <= (self.context_size - 1)
+            )
 
 
 class LayerNorm(nn.Module):
@@ -273,8 +275,12 @@ class LearnedDropout(nn.Module):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
-        self.future_k_weights = nn.Parameter(torch.randn(config.n_heads, self.head_size, context_size - 1))
-        self.future_v_weights = nn.Parameter(torch.randn(config.n_heads, self.head_size, context_size - 1))
+        self.future_k_weights = nn.Parameter(
+            torch.randn(config.n_heads, self.head_size, context_size - 1)
+        )
+        self.future_v_weights = nn.Parameter(
+            torch.randn(config.n_heads, self.head_size, context_size - 1)
+        )
         torch.nn.init.normal_(self.future_k_weights, mean=0.0, std=0.02)
         torch.nn.init.normal_(self.future_v_weights, mean=0.0, std=0.02)
         self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
@@ -296,15 +302,13 @@ class LearnedDropout(nn.Module):
         )
         self.register_buffer(
             "future_tril",
-            (torch.tril(
-                torch.ones(context_size, context_size),
-                diagonal = -1
-            ) + torch.triu(
-                torch.ones(context_size, context_size),
-                diagonal = self.config.future_dim
-            )
-            ).view(1, 1, context_size, context_size)
-            ,
+            (
+                torch.tril(torch.ones(context_size, context_size), diagonal=-1)
+                + torch.triu(
+                    torch.ones(context_size, context_size),
+                    diagonal=self.config.future_dim,
+                )
+            ).view(1, 1, context_size, context_size),
         )
         self.register_buffer(
             "full_tril",
@@ -312,7 +316,7 @@ class LearnedDropout(nn.Module):
                 torch.ones(context_size, context_size).view(
                     1, 1, context_size, context_size
                 ),
-                diagonal= self.config.future_dim
+                diagonal=self.config.future_dim,
             ),
         )
 
@@ -331,26 +335,58 @@ class LearnedDropout(nn.Module):
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
         with torch.no_grad():
             self.true_attn = F.softmax(attn, dim=-1)
-        
+
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.config.future_dim, self.context_size - T)
         padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
 
-        future_attn = (q @ self.future_k_weights[:, : , : min(T + self.config.future_dim, self.context_size-1) ]) * (self.head_size**-0.5)
-        future_attn = future_attn.masked_fill(self.future_tril[:, :, :T, :min(T + self.config.future_dim-1, self.context_size-1) ] != 0, 0.0)
-        padded_future_attn = F.pad(future_attn, (1,0), "constant", 0)
+        future_attn = (
+            q
+            @ self.future_k_weights[
+                :, :, : min(T + self.config.future_dim, self.context_size - 1)
+            ]
+        ) * (self.head_size**-0.5)
+        future_attn = future_attn.masked_fill(
+            self.future_tril[
+                :, :, :T, : min(T + self.config.future_dim - 1, self.context_size - 1)
+            ]
+            != 0,
+            0.0,
+        )
+        padded_future_attn = F.pad(future_attn, (1, 0), "constant", 0)
 
         full_attn = padded_causal_attn + padded_future_attn
-        full_attn = full_attn.masked_fill(self.full_tril[:, :, :T, :min(T + self.config.future_dim, self.context_size)] == 0, float("-inf"))
+        full_attn = full_attn.masked_fill(
+            self.full_tril[
+                :, :, :T, : min(T + self.config.future_dim, self.context_size)
+            ]
+            == 0,
+            float("-inf"),
+        )
         softmax_full_attn = F.softmax(full_attn, dim=-1)
-        
+
         softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
-        softmax_causal_attn = softmax_causal_attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0.0)
-        softmax_full_attn = softmax_full_attn[:, :, :T, 1:min(T + self.config.future_dim, self.context_size)]
-        softmax_full_attn = softmax_full_attn.masked_fill(self.future_tril[:, :, :T, :min(T + self.config.future_dim-1, self.context_size-1)] != 0, 0.0)
+        softmax_causal_attn = softmax_causal_attn.masked_fill(
+            self.tril[:, :, :T, :T] == 0, 0.0
+        )
+        softmax_full_attn = softmax_full_attn[
+            :, :, :T, 1 : min(T + self.config.future_dim, self.context_size)
+        ]
+        softmax_full_attn = softmax_full_attn.masked_fill(
+            self.future_tril[
+                :, :, :T, : min(T + self.config.future_dim - 1, self.context_size - 1)
+            ]
+            != 0,
+            0.0,
+        )
 
         causal_mask = softmax_causal_attn @ v
-        future_mask = softmax_full_attn @ self.future_v_weights.transpose(1,2)[:, :min(T + self.config.future_dim-1, self.context_size-1) , :]
+        future_mask = (
+            softmax_full_attn
+            @ self.future_v_weights.transpose(1, 2)[
+                :, : min(T + self.config.future_dim - 1, self.context_size - 1), :
+            ]
+        )
         full_mask = causal_mask + future_mask
         dropout_mask = full_mask.transpose(1, 2).contiguous().view(B, T, C)
 
