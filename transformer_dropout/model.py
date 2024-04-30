@@ -279,7 +279,7 @@ class LearnedDropout(nn.Module):
             torch.randn(config.n_heads, self.head_size, context_size - 1)
         )
         self.future_v_weights = nn.Parameter(
-            torch.randn(config.n_heads, self.head_size, context_size - 1)
+            torch.randn(config.n_heads, context_size - 1, self.head_size)
         )
         torch.nn.init.normal_(self.future_k_weights, mean=0.0, std=0.02)
         torch.nn.init.normal_(self.future_v_weights, mean=0.0, std=0.02)
@@ -303,12 +303,12 @@ class LearnedDropout(nn.Module):
         self.register_buffer(
             "future_tril",
             (
-                torch.tril(torch.ones(context_size, context_size), diagonal=-1)
+                torch.tril(torch.ones(context_size-1, context_size-1), diagonal=-1)
                 + torch.triu(
-                    torch.ones(context_size, context_size),
+                    torch.ones(context_size-1, context_size-1),
                     diagonal=self.config.future_dim,
                 )
-            ).view(1, 1, context_size, context_size),
+            ).view(1, 1, context_size-1, context_size-1),
         )
         self.register_buffer(
             "full_tril",
@@ -343,7 +343,7 @@ class LearnedDropout(nn.Module):
         future_attn = (
             q
             @ self.future_k_weights[
-                :, :, : min(T + self.config.future_dim, self.context_size - 1)
+                :, :, : min(T + self.config.future_dim-1, self.context_size - 1)
             ]
         ) * (self.head_size**-0.5)
         future_attn = future_attn.masked_fill(
@@ -383,7 +383,7 @@ class LearnedDropout(nn.Module):
         causal_mask = softmax_causal_attn @ v
         future_mask = (
             softmax_full_attn
-            @ self.future_v_weights.transpose(1, 2)[
+            @ self.future_v_weights[
                 :, : min(T + self.config.future_dim - 1, self.context_size - 1), :
             ]
         )
