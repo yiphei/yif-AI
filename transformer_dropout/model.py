@@ -557,12 +557,7 @@ class TransformerBlock(nn.Module):
         self.ln2 = LayerNorm(config.n_embed, config.bias)
 
     def forward(self, x):
-        if (
-            self.use_learned_dropout and self.learned_dropout_config.use_res_add
-        ) or not self.use_learned_dropout:
-            x = x + self.multi_attn_head(self.ln1(x))
-        else:
-            x = self.multi_attn_head(self.ln1(x))
+        x = x + self.multi_attn_head(self.ln1(x))
         x = x + self.feed_forward(self.ln2(x))
         return x
 
