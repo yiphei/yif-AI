@@ -319,6 +319,7 @@ class LearnedDropout(nn.Module):
                 diagonal=self.config.future_dim,
             ),
         )
+        self.register_buffer("mask_loss", torch.tensor(0), persistent=False)
 
     def forward(self, x):
         import wandb
@@ -354,7 +355,7 @@ class LearnedDropout(nn.Module):
                     != 0,
                     0.0,
                 )
-                self.true_future_mask = (
+                true_future_mask = (
                     true_future_attn
                     @ v[:, :, 1 : min(T + self.config.future_dim, self.context_size), :]
                 )
@@ -417,6 +418,9 @@ class LearnedDropout(nn.Module):
 
         if self.config.dropout_rate > 0:
             new_x = self.dropout_2(new_x)
+
+        if self.training:
+            self.mask_loss = F.mse_loss(future_mask, true_future_mask)
 
         # if (
         #     self.training
@@ -716,17 +720,15 @@ class DropoutTransformer(nn.Module):
             logits = logits.view(B * T, C)
 
             additional_loss = 0
-            if self.training and self.config.use_learned_dropout and False:
-                self.update_stats()
-                if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
-                    additional_loss += (
-                        self.dropout_entropy * self.dropout_entropy_coefficient
-                    )
-                if self.config.learned_dropout_config.use_dropout_l1_norm_in_loss:
-                    additional_loss += (
-                        self.dropout_l1_norm * self.dropout_l1_norm_coefficient
-                    )
+            if self.training and self.config.use_learned_dropout:
+                mask_losses = torch.empty(self.n_learned_dropout, device=device)
+                curr_idx = 0
+                for module in self.modules():
+                    if isinstance(module, LearnedDropout):
+                        mask_losses[curr_idx] = module.mask_loss
+                        curr_idx += 1
 
+                additional_loss = mask_losses.mean()
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
         return (logits, loss)
 
