@@ -51,57 +51,17 @@ class RoundingType(str, Enum):
             raise ValueError("Invalid rounding type number")
 
 
-class ReturnType(str, Enum):
-    NO_RES_PROJ_MASK = "NO_RES_PROJ_MASK"
-    NO_RES_PROJ_NEW_X = "NO_RES_PROJ_NEW_X"
-    RES_PROJ_MASK_THEN_MASK = "RES_PROJ_MASK_THEN_MASK"
-    RES_PROJ_MASK_THEN_NEW_X = "RES_PROJ_MASK_THEN_NEW_X"
-    RES_PROJ_NEW_X_THEN_NEW_X = "RES_PROJ_NEW_X_THEN_NEW_X"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return ReturnType.NO_RES_PROJ_MASK
-        elif num == 2:
-            return ReturnType.NO_RES_PROJ_NEW_X
-        elif num == 3:
-            return ReturnType.RES_PROJ_MASK_THEN_MASK
-        elif num == 4:
-            return ReturnType.RES_PROJ_MASK_THEN_NEW_X
-        elif num == 5:
-            return ReturnType.RES_PROJ_NEW_X_THEN_NEW_X
-        else:
-            raise ValueError("Invalid return type number")
-
-
 @dataclass
 class LearnedDropoutConfig:
-    # use_dropout_entropy_in_loss: bool
-    # use_dropout_l1_norm_in_loss: bool
     use_bias: bool
     start_layer: int
-    normalize_by_context_size: bool
-    return_type: Union[ReturnType, int]
-    use_res_add: bool
+    future_dim: int
     end_layer: Optional[int] = None
     dropout_rate: float = 0.0
-    softmax_dim: int = 2
-    # rounding_type: Optional[Union[RoundingType, int]] = None
-    # sigmoid_slope: Optional[float] = None
-    # shift_init: float = torch.pi / 2
     n_heads: int = 1
-    # use_canonical_entropy: bool = False
-    # use_detached_x_in_dropout_mask: bool = False
-    # dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
-    # dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
-        # assert 0 <= self.shift_init <= torch.pi
-        assert self.softmax_dim in [0, 1, 2, 3]
         assert 0.0 <= self.dropout_rate < 1.0
         if self.end_layer is None:
             self.end_layer = self.start_layer
@@ -110,64 +70,6 @@ class LearnedDropoutConfig:
             raise ValueError("start_layer must be <= end_layer")
 
         assert self.n_heads >= 1
-
-        if type(self.return_type) == int:
-            assert self.return_type in [1, 2, 3, 4, 5]
-            self.return_type = ReturnType.get_type_from_int(self.return_type)
-
-        # if (
-        #     self.use_dropout_entropy_in_loss
-        #     and self.rounding_type
-        #     and self.rounding_type in [2, 3]
-        # ):
-        #     raise ValueError(
-        #         "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
-        #     )
-
-        # if type(self.rounding_type) == int:
-        #     assert self.rounding_type in [1, 2, 3]
-        #     self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
-
-        # if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_slope:
-        #     raise ValueError(
-        #         "sigmoid_slope can only be set if rounding_type is SIGMOID"
-        #     )
-
-        # if self.rounding_type == RoundingType.SIGMOID and not self.sigmoid_slope:
-        #     self.sigmoid_slope = 60
-
-        # if (
-        #     not self.use_dropout_entropy_in_loss
-        #     and self.dropout_entropy_lambda is not None
-        # ):
-        #     raise ValueError(
-        #         "dropout_entropy_lambda is set but use_dropout_entropy_in_loss is False"
-        #     )
-
-        # if (
-        #     not self.use_dropout_l1_norm_in_loss
-        #     and self.dropout_l1_norm_lambda is not None
-        # ):
-        #     raise ValueError(
-        #         "dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False"
-        #     )
-
-        # for attr_name, flag_attr_name in [
-        #     ("dropout_entropy_lambda", "use_dropout_entropy_in_loss"),
-        #     ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss"),
-        # ]:
-        #     attr_value = getattr(self, attr_name)
-        #     if attr_value is not None:
-        #         if type(attr_value) not in [dict, RegularizingLambdaConfig]:
-        #             raise ValueError(
-        #                 f"{attr_name} must be a dict or RegularizingLambdaConfig"
-        #             )
-
-        #         if type(attr_value) == dict:
-        #             setattr(self, attr_name, RegularizingLambdaConfig(**attr_value))
-        #     else:
-        #         if getattr(self, flag_attr_name):
-        #             setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
 
 
 @dataclass
@@ -221,6 +123,9 @@ class ModelConfig:
             raise ValueError(
                 "profile_layer_x cannot be set if profile_dropout_mask is True"
             )
+        
+        if self.use_learned_dropout:
+            assert 1 <= self.learned_dropout_config.future_dim <= (self.context_size-1)
 
 
 class LayerNorm(nn.Module):
@@ -368,14 +273,11 @@ class LearnedDropout(nn.Module):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
-        if self.config.return_type in [
-            ReturnType.RES_PROJ_MASK_THEN_MASK,
-            ReturnType.RES_PROJ_MASK_THEN_NEW_X,
-            ReturnType.RES_PROJ_NEW_X_THEN_NEW_X,
-        ]:
-            self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
-        else:
-            self.residual_proj = None
+        self.future_k_weights = nn.Parameter(torch.randn(config.n_heads, self.head_size, context_size - 1))
+        self.future_v_weights = nn.Parameter(torch.randn(config.n_heads, self.head_size, context_size - 1))
+        torch.nn.init.normal_(self.future_k_weights, mean=0.0, std=0.02)
+        torch.nn.init.normal_(self.future_v_weights, mean=0.0, std=0.02)
+        self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
 
         if config.dropout_rate > 0:
             self.dropout_1 = nn.Dropout(config.dropout_rate)
@@ -392,6 +294,27 @@ class LearnedDropout(nn.Module):
                 )
             ),
         )
+        self.register_buffer(
+            "future_tril",
+            (torch.tril(
+                torch.ones(context_size, context_size),
+                diagonal = -1
+            ) + torch.triu(
+                torch.ones(context_size, context_size),
+                diagonal = self.config.future_dim
+            )
+            ).view(1, 1, context_size, context_size)
+            ,
+        )
+        self.register_buffer(
+            "full_tril",
+            torch.tril(
+                torch.ones(context_size, context_size).view(
+                    1, 1, context_size, context_size
+                ),
+                diagonal= self.config.future_dim
+            ),
+        )
 
     def forward(self, x):
         import wandb
@@ -406,152 +329,140 @@ class LearnedDropout(nn.Module):
         v = v.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
 
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
-        if self.config.softmax_dim != 0:
-            causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, float("-inf"))
-            if self.config.softmax_dim != 3:
-                causal_attn = F.softmax(causal_attn, dim=-self.config.softmax_dim)
-            else:
-                assert self.config.softmax_dim == 3
-                adjusted_causal_attn = F.softmax(
-                    causal_attn.view(causal_attn.size(0), -1), dim=-1
-                )
-                causal_attn = adjusted_causal_attn.view_as(causal_attn)
-        else:
-            causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
+        with torch.no_grad():
+            self.true_attn = F.softmax(attn, dim=-1)
+        
+        causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0.0)
+        pad_size = min(self.config.future_dim, self.context_size - T)
+        padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
 
-        if self.config.dropout_rate > 0:
-            causal_attn = self.dropout_1(causal_attn)
+        future_attn = (q @ self.future_k_weights[:, : , : min(T + self.config.future_dim, self.context_size-1) ]) * (self.head_size**-0.5)
+        future_attn = future_attn.masked_fill(self.future_tril[:, :, :T, :min(T + self.config.future_dim-1, self.context_size-1) ] != 0, 0.0)
+        padded_future_attn = F.pad(future_attn, (1,0), "constant", 0)
 
-        dropout_mask = causal_attn @ v
-        if self.config.normalize_by_context_size:
-            dropout_mask = dropout_mask * (T**-0.5)
-        dropout_mask = dropout_mask.transpose(1, 2).contiguous().view(B, T, C)
+        full_attn = padded_causal_attn + padded_future_attn
+        full_attn = full_attn.masked_fill(self.full_tril[:, :, :T, :min(T + self.config.future_dim, self.context_size)] == 0, float("-inf"))
+        softmax_full_attn = F.softmax(full_attn, dim=-1)
+        
+        softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
+        softmax_causal_attn = softmax_causal_attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0.0)
+        softmax_full_attn = softmax_full_attn[:, :, :T, 1:min(T + self.config.future_dim, self.context_size)]
+        softmax_full_attn = softmax_full_attn.masked_fill(self.future_tril[:, :, :T, :min(T + self.config.future_dim-1, self.context_size-1)] != 0, 0.0)
 
-        proj_mask = None
-        pre_new_x = None
-        if self.config.return_type == ReturnType.NO_RES_PROJ_MASK:
-            new_x = dropout_mask
-        elif self.config.return_type == ReturnType.NO_RES_PROJ_NEW_X:
-            new_x = x * dropout_mask
-        elif self.config.return_type == ReturnType.RES_PROJ_MASK_THEN_MASK:
-            proj_mask = self.residual_proj(dropout_mask)
-            new_x = proj_mask
-        elif self.config.return_type == ReturnType.RES_PROJ_MASK_THEN_NEW_X:
-            proj_mask = self.residual_proj(dropout_mask)
-            new_x = x * proj_mask
-        elif self.config.return_type == ReturnType.RES_PROJ_NEW_X_THEN_NEW_X:
-            pre_new_x = x * dropout_mask
-            new_x = self.residual_proj(pre_new_x)
-        else:
-            raise ValueError("Invalid return type")
+        causal_mask = softmax_causal_attn @ v
+        future_mask = softmax_full_attn @ self.future_v_weights.transpose(1,2)[:, :min(T + self.config.future_dim-1, self.context_size-1) , :]
+        full_mask = causal_mask + future_mask
+        dropout_mask = full_mask.transpose(1, 2).contiguous().view(B, T, C)
+
+        new_x = self.residual_proj(dropout_mask)
 
         if self.config.dropout_rate > 0:
             new_x = self.dropout_2(new_x)
 
-        if (
-            self.training
-            and self.config.profile_dropout_mask
-            and self.is_last_minibatch
-        ):
-            # NB: because of gradient accumulation, this will only log the last batch
+        # if (
+        #     self.training
+        #     and self.config.profile_dropout_mask
+        #     and self.is_last_minibatch
+        # ):
+        #     # NB: because of gradient accumulation, this will only log the last batch
 
-            with torch.no_grad():
-                if self.config.softmax_dim == 2:
-                    causal_attn_dim_1_mean = causal_attn.mean(dim=-1)
-                    causal_attn_dim_1_mean[:, :, : T // 2] *= -1
-                    causal_attn_dim_1_mean_head_mean = causal_attn_dim_1_mean.mean(
-                        dim=-2
-                    )
-                    causal_attn_dim_1_mean_head_std = causal_attn_dim_1_mean.std(dim=-2)
-                    causal_attn_dim_1_mean_head_std[:, : T // 2] *= -1
-                elif self.config.softmax_dim == 1:
-                    causal_attn_dim_2_mean = causal_attn.mean(dim=-2)
-                    causal_attn_dim_2_mean[:, :, : T // 2] *= -1
-                    causal_attn_dim_2_mean_head_mean = causal_attn_dim_2_mean.mean(
-                        dim=-2
-                    )
-                    causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean.std(dim=-2)
-                    causal_attn_dim_2_mean_head_std[:, : T // 2] *= -1
+        #     with torch.no_grad():
+        #         if self.config.softmax_dim == 2:
+        #             causal_attn_dim_1_mean = causal_attn.mean(dim=-1)
+        #             causal_attn_dim_1_mean[:, :, : T // 2] *= -1
+        #             causal_attn_dim_1_mean_head_mean = causal_attn_dim_1_mean.mean(
+        #                 dim=-2
+        #             )
+        #             causal_attn_dim_1_mean_head_std = causal_attn_dim_1_mean.std(dim=-2)
+        #             causal_attn_dim_1_mean_head_std[:, : T // 2] *= -1
+        #         elif self.config.softmax_dim == 1:
+        #             causal_attn_dim_2_mean = causal_attn.mean(dim=-2)
+        #             causal_attn_dim_2_mean[:, :, : T // 2] *= -1
+        #             causal_attn_dim_2_mean_head_mean = causal_attn_dim_2_mean.mean(
+        #                 dim=-2
+        #             )
+        #             causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean.std(dim=-2)
+        #             causal_attn_dim_2_mean_head_std[:, : T // 2] *= -1
 
-            log_x = x.detach()
-            log_new_x = new_x.detach()
-            log_dropout_mask = dropout_mask.detach()
-            log_causal_attn = causal_attn.detach()
-            log_attn = attn.detach()
-            log_proj_mask = proj_mask.detach() if proj_mask is not None else None
-            log_pre_new_x = pre_new_x.detach() if pre_new_x is not None else None
+        #     log_x = x.detach()
+        #     log_new_x = new_x.detach()
+        #     log_dropout_mask = dropout_mask.detach()
+        #     log_causal_attn = causal_attn.detach()
+        #     log_attn = attn.detach()
+        #     log_proj_mask = proj_mask.detach() if proj_mask is not None else None
+        #     log_pre_new_x = pre_new_x.detach() if pre_new_x is not None else None
 
-            if (
-                dropout_mask.dtype == torch.bfloat16
-                or causal_attn.dtype == torch.bfloat16
-                or dropout_mask.dtype == torch.bfloat16
-            ):
-                log_x = log_x.half()
-                log_new_x = log_new_x.half()
-                log_dropout_mask = log_dropout_mask.half()
-                log_causal_attn = log_causal_attn.half()
-                log_attn = log_attn.half()
-                log_proj_mask = (
-                    log_proj_mask.half() if log_proj_mask is not None else None
-                )
-                log_pre_new_x = (
-                    log_pre_new_x.half() if log_pre_new_x is not None else None
-                )
-                if self.config.softmax_dim == 1:
-                    causal_attn_dim_2_mean = causal_attn_dim_2_mean.detach().half()
-                    causal_attn_dim_2_mean_head_mean = (
-                        causal_attn_dim_2_mean_head_mean.detach().half()
-                    )
-                    causal_attn_dim_2_mean_head_std = (
-                        causal_attn_dim_2_mean_head_std.detach().half()
-                    )
-                elif self.config.softmax_dim == 2:
-                    causal_attn_dim_1_mean = causal_attn_dim_1_mean.detach().half()
-                    causal_attn_dim_1_mean_head_mean = (
-                        causal_attn_dim_1_mean_head_mean.detach().half()
-                    )
-                    causal_attn_dim_1_mean_head_std = (
-                        causal_attn_dim_1_mean_head_std.detach().half()
-                    )
+        #     if (
+        #         dropout_mask.dtype == torch.bfloat16
+        #         or causal_attn.dtype == torch.bfloat16
+        #         or dropout_mask.dtype == torch.bfloat16
+        #     ):
+        #         log_x = log_x.half()
+        #         log_new_x = log_new_x.half()
+        #         log_dropout_mask = log_dropout_mask.half()
+        #         log_causal_attn = log_causal_attn.half()
+        #         log_attn = log_attn.half()
+        #         log_proj_mask = (
+        #             log_proj_mask.half() if log_proj_mask is not None else None
+        #         )
+        #         log_pre_new_x = (
+        #             log_pre_new_x.half() if log_pre_new_x is not None else None
+        #         )
+        #         if self.config.softmax_dim == 1:
+        #             causal_attn_dim_2_mean = causal_attn_dim_2_mean.detach().half()
+        #             causal_attn_dim_2_mean_head_mean = (
+        #                 causal_attn_dim_2_mean_head_mean.detach().half()
+        #             )
+        #             causal_attn_dim_2_mean_head_std = (
+        #                 causal_attn_dim_2_mean_head_std.detach().half()
+        #             )
+        #         elif self.config.softmax_dim == 2:
+        #             causal_attn_dim_1_mean = causal_attn_dim_1_mean.detach().half()
+        #             causal_attn_dim_1_mean_head_mean = (
+        #                 causal_attn_dim_1_mean_head_mean.detach().half()
+        #             )
+        #             causal_attn_dim_1_mean_head_std = (
+        #                 causal_attn_dim_1_mean_head_std.detach().half()
+        #             )
 
-            metrics = {
-                self.module_name + ".a__input_x": log_x,
-                self.module_name + ".l__new_x": log_new_x,
-                self.module_name + ".g__mask": log_dropout_mask,
-                self.module_name + ".c__causal_attn": log_causal_attn,
-                self.module_name + ".b__attn": log_attn,
-                self.module_name + ".h__mask_dim_2_std": log_dropout_mask.std(dim=-2),
-            }
+        #     metrics = {
+        #         self.module_name + ".a__input_x": log_x,
+        #         self.module_name + ".l__new_x": log_new_x,
+        #         self.module_name + ".g__mask": log_dropout_mask,
+        #         self.module_name + ".c__causal_attn": log_causal_attn,
+        #         self.module_name + ".b__attn": log_attn,
+        #         self.module_name + ".h__mask_dim_2_std": log_dropout_mask.std(dim=-2),
+        #     }
 
-            if log_proj_mask is not None:
-                metrics[self.module_name + ".i__proj_mask"] = log_proj_mask
-            if log_pre_new_x is not None:
-                metrics[self.module_name + ".k__pre_new_x"] = log_pre_new_x
+        #     if log_proj_mask is not None:
+        #         metrics[self.module_name + ".i__proj_mask"] = log_proj_mask
+        #     if log_pre_new_x is not None:
+        #         metrics[self.module_name + ".k__pre_new_x"] = log_pre_new_x
 
-            if self.config.softmax_dim == 2:
-                metrics = {
-                    **metrics,
-                    self.module_name
-                    + ".d__causal_attn_dim_1_mean": causal_attn_dim_1_mean,
-                    self.module_name
-                    + ".e__causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean,
-                    self.module_name
-                    + ".f__causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std,
-                }
-            elif self.config.softmax_dim == 1:
-                metrics = {
-                    **metrics,
-                    self.module_name
-                    + ".d__causal_attn_dim_2_mean": causal_attn_dim_2_mean,
-                    self.module_name
-                    + ".e__causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean,
-                    self.module_name
-                    + ".f__causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std,
-                }
-            wandb.log(
-                metrics,
-                commit=False,
-            )
+        #     if self.config.softmax_dim == 2:
+        #         metrics = {
+        #             **metrics,
+        #             self.module_name
+        #             + ".d__causal_attn_dim_1_mean": causal_attn_dim_1_mean,
+        #             self.module_name
+        #             + ".e__causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean,
+        #             self.module_name
+        #             + ".f__causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std,
+        #         }
+        #     elif self.config.softmax_dim == 1:
+        #         metrics = {
+        #             **metrics,
+        #             self.module_name
+        #             + ".d__causal_attn_dim_2_mean": causal_attn_dim_2_mean,
+        #             self.module_name
+        #             + ".e__causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean,
+        #             self.module_name
+        #             + ".f__causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std,
+        #         }
+        #     wandb.log(
+        #         metrics,
+        #         commit=False,
+        #     )
         return new_x
 
 
