@@ -50,6 +50,7 @@ class RoundingType(str, Enum):
         else:
             raise ValueError("Invalid rounding type number")
 
+
 class MaskLossType(str, Enum):
     MSE = "MSE"
     COSINE_SIM = "COSINE_SIM"
@@ -87,7 +88,7 @@ class LearnedDropoutConfig:
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
-        
+
         if type(self.mask_loss_type) == int:
             self.mask_loss_type = MaskLossType.get_type_from_int(self.mask_loss_type)
 
@@ -443,7 +444,9 @@ class LearnedDropout(nn.Module):
             if self.config.mask_loss_type == MaskLossType.MSE:
                 self.mask_loss = F.mse_loss(future_mask, true_future_mask)
             elif self.config.mask_loss_type == MaskLossType.COSINE_SIM:
-                self.mask_loss = F.cosine_similarity(future_mask, true_future_mask).mean()
+                self.mask_loss = F.cosine_similarity(
+                    future_mask, true_future_mask
+                ).mean()
 
         # if (
         #     self.training
@@ -596,7 +599,10 @@ class TransformerBlock(nn.Module):
         self.learned_dropout_config = config.learned_dropout_config
         if use_learned_dropout:
             self.multi_attn_head = LearnedDropout(
-                config.n_embed, config.context_size, config.learned_dropout_config, config.dropout_rate
+                config.n_embed,
+                config.context_size,
+                config.learned_dropout_config,
+                config.dropout_rate,
             )
         else:
             self.multi_attn_head = OptimizedMultiAttentionHead(config)

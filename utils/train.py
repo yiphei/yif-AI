@@ -589,7 +589,9 @@ def _train(
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
 
-                running_additional_loss += additional_loss.item() / TRAIN_CONFIG.gradient_accumulation_steps
+                running_additional_loss += (
+                    additional_loss.item() / TRAIN_CONFIG.gradient_accumulation_steps
+                )
 
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y, new_train_iter = get_data_batch_loader(
@@ -622,7 +624,11 @@ def _train(
             wandb.log(
                 {
                     "loss": running_loss,
-                    "mask_loss": running_additional_loss if TRAIN_CONFIG.model_config.use_learned_dropout else None,
+                    "mask_loss": (
+                        running_additional_loss
+                        if TRAIN_CONFIG.model_config.use_learned_dropout
+                        else None
+                    ),
                     "time": float(f"{dt*1000:.2f}"),
                     "mfu": mfu,
                 },
