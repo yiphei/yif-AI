@@ -74,6 +74,7 @@ class LearnedDropoutConfig:
     start_layer: int
     future_dim: int
     mask_loss_type: Union[MaskLossType, int]
+    use_mask_loss: bool = True
     end_layer: Optional[int] = None
     mask_loss_coeff: Optional[float] = None
     n_heads: int = 1
@@ -94,6 +95,8 @@ class LearnedDropoutConfig:
 
         assert self.n_heads >= 1
 
+        if not self.use_mask_loss and self.mask_loss_coeff is not None:
+            raise ValueError("mask_loss_coeff must be None if use_mask_loss is False")
 
 @dataclass
 class ModelConfig:
@@ -758,9 +761,12 @@ class DropoutTransformer(nn.Module):
                         curr_idx += 1
 
                 coeff = self.config.learned_dropout_config.mask_loss_coeff or 1.0
-                additional_loss = mask_losses.mean() * coeff
+                mean_mask_losses = mask_losses.mean() * coeff
+                if self.config.learned_dropout_config.use_mask_loss:
+                    additional_loss = mean_mask_losses
+                    
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
-        return (logits, loss, additional_loss)
+        return (logits, loss, mean_mask_losses)
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters
