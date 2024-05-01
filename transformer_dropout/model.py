@@ -74,10 +74,14 @@ class LearnedDropoutConfig:
     future_dim: int
     mask_loss_type: Union[MaskLossType, int]
     end_layer: Optional[int] = None
+    mask_loss_coeff: Optional[float] = None
     n_heads: int = 1
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
+        if self.mask_loss_coeff is not None:
+            assert self.mask_loss_coeff > 0
+
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
@@ -747,7 +751,8 @@ class DropoutTransformer(nn.Module):
                         mask_losses[curr_idx] = module.mask_loss
                         curr_idx += 1
 
-                additional_loss = mask_losses.mean()
+                coeff = self.config.learned_dropout_config.mask_loss_coeff or 1.0
+                additional_loss = mask_losses.mean() * coeff
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
         return (logits, loss, additional_loss)
 
