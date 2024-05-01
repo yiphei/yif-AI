@@ -57,12 +57,10 @@ class LearnedDropoutConfig:
     start_layer: int
     future_dim: int
     end_layer: Optional[int] = None
-    dropout_rate: float = 0.0
     n_heads: int = 1
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
-        assert 0.0 <= self.dropout_rate < 1.0
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
