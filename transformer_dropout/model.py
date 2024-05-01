@@ -449,7 +449,7 @@ class LearnedDropout(nn.Module):
             elif self.config.mask_loss_type == MaskLossType.COSINE_SIM:
                 self.mask_loss = F.cosine_similarity(
                     future_mask, true_future_mask
-                ).mean()
+                ).mean() ** 2
 
         # if (
         #     self.training
