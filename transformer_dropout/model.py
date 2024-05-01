@@ -50,12 +50,29 @@ class RoundingType(str, Enum):
         else:
             raise ValueError("Invalid rounding type number")
 
+class MaskLossType(str, Enum):
+    MSE = "MSE"
+    COSINE_SIM = "COSINE_SIM"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return MaskLossType.MSE
+        elif num == 2:
+            return MaskLossType.COSINE_SIM
+        else:
+            raise ValueError("Invalid mask loss number")
+
 
 @dataclass
 class LearnedDropoutConfig:
     use_bias: bool
     start_layer: int
     future_dim: int
+    mask_loss_type: Union[MaskLossType, int]
     end_layer: Optional[int] = None
     n_heads: int = 1
     profile_dropout_mask: bool = False
@@ -66,6 +83,9 @@ class LearnedDropoutConfig:
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
+        
+        if type(self.mask_loss_type) == int:
+            self.mask_loss_type = MaskLossType.get_type_from_int(self.mask_loss_type)
 
         assert self.n_heads >= 1
 
@@ -416,7 +436,10 @@ class LearnedDropout(nn.Module):
         new_x = self.dropout_2(new_x)
 
         if self.training:
-            self.mask_loss = F.mse_loss(future_mask, true_future_mask)
+            if self.config.mask_loss_type == MaskLossType.MSE:
+                self.mask_loss = F.mse_loss(future_mask, true_future_mask)
+            else:
+                assert False
 
         # if (
         #     self.training
