@@ -752,6 +752,7 @@ class DropoutTransformer(nn.Module):
             logits = logits.view(B * T, C)
 
             additional_loss = torch.tensor(0.0, device=device)
+            mean_mask_losses = torch.tensor(0.0, device=device)
             if self.training and self.config.use_learned_dropout:
                 mask_losses = torch.empty(self.n_learned_dropout, device=device)
                 curr_idx = 0
