@@ -25,17 +25,17 @@ parameters:
             learned_dropout_config:
                 parameters:
                     use_bias:
-                        values: [True, False]
+                        value: False
                     start_layer:
-                        values: [11, 6]
-                    normalize_by_context_size:
-                        values: [True, False]
-                    return_type:
-                        values: [1,2,3,4,5]
-                    use_res_add:
-                        values: [True, False]
-                    softmax_dim:
-                        value: 2
+                        value: 1
+                    end_layer:
+                        value: 11
+                    future_dim:
+                        values: [2, 3]
+                    mask_loss_type:
+                        values: [1,2]
+                    mask_loss_coeff:
+                        values: [0.5, 1, 2, 5, 10, 50]
                     n_heads:
                         value: 10
                     profile_dropout_mask:
