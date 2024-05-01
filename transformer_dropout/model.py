@@ -362,7 +362,10 @@ class LearnedDropout(nn.Module):
 
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.config.future_dim, self.context_size - T)
-        padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
+        if pad_size > 0:
+            padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
+        else:
+            padded_causal_attn = causal_attn
 
         future_attn = (
             q
