@@ -32,6 +32,8 @@ parameters:
                         value: 10
                     future_dim:
                         values: [2, 5, 10, 20, 50, 75 ,99]
+                    use_mask_loss:
+                        value: True
                     mask_loss_type:
                         values: [1,2]
                     mask_loss_coeff:
