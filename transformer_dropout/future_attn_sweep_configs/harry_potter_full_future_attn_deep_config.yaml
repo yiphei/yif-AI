@@ -15,7 +15,7 @@ parameters:
             n_embed: 
                 value: 150
             n_layer: 
-                value: 11
+                value: 10
             n_head: 
                 value: 10
             dropout_rate:
@@ -29,13 +29,13 @@ parameters:
                     start_layer:
                         value: 1
                     end_layer:
-                        value: 11
+                        value: 10
                     future_dim:
-                        values: [2, 3]
+                        values: [2, 5, 10, 20, 50, 75 ,99]
                     mask_loss_type:
                         values: [1,2]
                     mask_loss_coeff:
-                        values: [0.5, 1, 2, 5, 10, 50]
+                        values: [0.1, 0.5, 1, 2, 5, 10, 25, 50]
                     n_heads:
                         value: 10
                     profile_dropout_mask:
