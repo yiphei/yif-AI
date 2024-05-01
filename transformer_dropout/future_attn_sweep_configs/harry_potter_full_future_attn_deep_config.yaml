@@ -1,0 +1,60 @@
+program: transformer_dropout/training_script.py
+name: harry_potter_full_future_attn_deep_config
+project: transformer_dropout_5_future_attn
+method: grid
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: False
+            context_size:
+                value: 100
+            n_embed: 
+                value: 150
+            n_layer: 
+                value: 11
+            n_head: 
+                value: 10
+            dropout_rate:
+                value: 0.3
+            use_learned_dropout:
+                value: True
+            learned_dropout_config:
+                parameters:
+                    use_bias:
+                        values: [True, False]
+                    start_layer:
+                        values: [11, 6]
+                    normalize_by_context_size:
+                        values: [True, False]
+                    return_type:
+                        values: [1,2,3,4,5]
+                    use_res_add:
+                        values: [True, False]
+                    softmax_dim:
+                        value: 2
+                    n_heads:
+                        value: 10
+                    profile_dropout_mask:
+                        value: False
+    batch_size: 
+        value: 50
+    train_steps: 
+        value: 10000
+    lr: 
+        value: 3e-4
+    warmup_iters:
+        value: 300
+    min_lr: 
+        value: 3e-5
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: # code needs to be modified 
+        value: 700000
+    est_interval: 
+        value: 500
+    est_steps:
+        value: 200
