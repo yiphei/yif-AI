@@ -263,7 +263,7 @@ class OptimizedMultiAttentionHead(nn.Module):
 
 
 class LearnedDropout(nn.Module):
-    def __init__(self, embed_dim, context_size, config):
+    def __init__(self, embed_dim, context_size, config, dropout_rate):
         super().__init__()
         self.embed_dim = embed_dim
         self.context_size = context_size
@@ -285,12 +285,8 @@ class LearnedDropout(nn.Module):
         torch.nn.init.normal_(self.future_v_weights, mean=0.0, std=0.02)
         self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
 
-        if config.dropout_rate > 0:
-            self.dropout_1 = nn.Dropout(config.dropout_rate)
-            self.dropout_2 = nn.Dropout(config.dropout_rate)
-        else:
-            self.dropout_1 = None
-            self.dropout_2 = None
+        self.dropout_1 = nn.Dropout(dropout_rate)
+        self.dropout_2 = nn.Dropout(dropout_rate)
 
         self.register_buffer(
             "tril",
@@ -391,6 +387,7 @@ class LearnedDropout(nn.Module):
             float("-inf"),
         )
         softmax_full_attn = F.softmax(full_attn, dim=-1)
+        softmax_full_attn = self.dropout_1(softmax_full_attn)
 
         softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
         softmax_causal_attn = softmax_causal_attn.masked_fill(
@@ -418,9 +415,7 @@ class LearnedDropout(nn.Module):
         dropout_mask = full_mask.transpose(1, 2).contiguous().view(B, T, C)
 
         new_x = self.residual_proj(dropout_mask)
-
-        if self.config.dropout_rate > 0:
-            new_x = self.dropout_2(new_x)
+        new_x = self.dropout_2(new_x)
 
         if self.training:
             self.mask_loss = F.mse_loss(future_mask, true_future_mask)
@@ -576,7 +571,7 @@ class TransformerBlock(nn.Module):
         self.learned_dropout_config = config.learned_dropout_config
         if use_learned_dropout:
             self.multi_attn_head = LearnedDropout(
-                config.n_embed, config.context_size, config.learned_dropout_config
+                config.n_embed, config.context_size, config.learned_dropout_config, config.dropout_rate
             )
         else:
             self.multi_attn_head = OptimizedMultiAttentionHead(config)
