@@ -76,6 +76,7 @@ class LearnedDropoutConfig:
     use_bias: bool
     start_layer: int
     order_type: Union[OrderType, int]
+    add_pos_embed: bool
     end_layer: Optional[int] = None
     n_heads: int = 1
     profile_dropout_mask: bool = False
@@ -451,7 +452,10 @@ class DropoutTransformer(nn.Module):
         self.is_last_minibatch = False
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
-        self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
+        if config.use_learned_dropout and config.learned_dropout_config.add_pos_embed:
+            self.positional_embedding = nn.Embedding(config.context_size + 1, config.n_embed)
+        else:
+            self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.pred_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.bias
         )
@@ -556,7 +560,13 @@ class DropoutTransformer(nn.Module):
         )
         embed = token_embed + pos_embed
         x_state = self.dropout(embed)
-        x_pred = self.pred_feed_forward(x_state)
+        if self.config.use_learned_dropout and self.config.learned_dropout_config.add_pos_embed:
+            x_pred = self.pred_feed_forward(x_state) + self.positional_embedding(
+            torch.arange(start = 1, end = x.shape[1] + 1, dtype=torch.long, device=device)
+        )
+        else:
+            x_pred = self.pred_feed_forward(x_state)
+
         for transformer_block in self.transformer_blocks:
             x_state, x_pred = transformer_block(x_state, x_pred)
         out = self.ln(x_pred)
