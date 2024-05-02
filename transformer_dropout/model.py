@@ -370,7 +370,7 @@ class TransformerBlock(nn.Module):
     ):
         super().__init__()
         self.update_state = not (
-            is_last and config.use_learned_dropout.order_type == OrderType.ALT2
+            is_last and config.learned_dropout_config.order_type == OrderType.ALT2
         )
         self.order_type = config.learned_dropout_config.order_type
 
