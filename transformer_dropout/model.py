@@ -98,6 +98,7 @@ class LearnedDropoutConfig:
         if not self.use_mask_loss and self.mask_loss_coeff is not None:
             raise ValueError("mask_loss_coeff must be None if use_mask_loss is False")
 
+
 @dataclass
 class ModelConfig:
     context_size: int
@@ -447,9 +448,9 @@ class LearnedDropout(nn.Module):
             if self.config.mask_loss_type == MaskLossType.MSE:
                 self.mask_loss = F.mse_loss(future_mask, true_future_mask)
             elif self.config.mask_loss_type == MaskLossType.COSINE_SIM:
-                self.mask_loss = F.cosine_similarity(
-                    future_mask, true_future_mask
-                ).mean() ** 2
+                self.mask_loss = (
+                    F.cosine_similarity(future_mask, true_future_mask).mean() ** 2
+                )
 
         # if (
         #     self.training
@@ -765,7 +766,7 @@ class DropoutTransformer(nn.Module):
                 mean_mask_losses = mask_losses.mean() * coeff
                 if self.config.learned_dropout_config.use_mask_loss:
                     additional_loss = mean_mask_losses
-                    
+
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
         return (logits, loss, mean_mask_losses)
 
