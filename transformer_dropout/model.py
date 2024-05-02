@@ -345,9 +345,13 @@ class TransformerBlock(nn.Module):
         config: ModelConfig,
         use_learned_dropout=False,
         should_profile_layer_x=False,
+        is_last = False
     ):
         super().__init__()
-        self.multi_attn_head_state = OptimizedMultiAttentionHead(config)
+        self.is_last
+
+        if not is_last:
+            self.multi_attn_head_state = OptimizedMultiAttentionHead(config)
         self.multi_attn_head_pred = OptimizedMultiAttentionHead(config)
         self.multi_attn_head_merge = LearnedDropout(
             config.n_embed,
@@ -355,24 +359,28 @@ class TransformerBlock(nn.Module):
             config.learned_dropout_config,
             config.dropout_rate,
         )
-        self.feed_forward_state = FeedForward(
-            config, use_learned_dropout, should_profile_layer_x
-        )
+        if not is_last:
+            self.feed_forward_state = FeedForward(
+                config, use_learned_dropout, should_profile_layer_x
+            )
         self.feed_forward_pred = FeedForward(
             config, use_learned_dropout, should_profile_layer_x
         )
 
-        self.ln1_state = LayerNorm(config.n_embed, config.bias)
-        self.ln2_state = LayerNorm(config.n_embed, config.bias)
+        if not is_last:
+            self.ln1_state = LayerNorm(config.n_embed, config.bias)
+            self.ln2_state = LayerNorm(config.n_embed, config.bias)
         self.ln1_pred = LayerNorm(config.n_embed, config.bias)
         self.ln2_pred = LayerNorm(config.n_embed, config.bias)
 
     def forward(self, x_state, x_pred):
         x_pred = x_pred + self.multi_attn_head_merge(x_state, x_pred)
-        x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
+        if not self.is_last:
+            x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
         x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
 
-        x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
+        if not self.is_last:
+            x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
         x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
         return x_state, x_pred
 
@@ -417,6 +425,7 @@ class DropoutTransformer(nn.Module):
                     (i + 1) >= (learned_config_start_layer)
                     and (i + 1) <= (learned_config_end_layer),
                     i + 1 == profile_layer_x,
+                    i == (config.n_layer - 1)
                 )
                 for i in range(config.n_layer)
             ])
