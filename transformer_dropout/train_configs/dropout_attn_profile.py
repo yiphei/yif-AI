@@ -9,10 +9,10 @@ BIAS = False
 USE_LEARNED_DROPOUT = True
 DROPOUT_RATE = 0.1
 LEARNED_DROPOUT_CONFIG = {
-    "start_layer": 3,
+    "start_layer": 1,
+    "end_layer": 3,
     "use_bias": False,
     "n_heads": 3,
-    "future_dim": 10,
     "profile_dropout_mask": False,
 }
 
