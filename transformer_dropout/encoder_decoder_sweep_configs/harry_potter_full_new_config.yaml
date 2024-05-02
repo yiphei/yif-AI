@@ -9,19 +9,31 @@ parameters:
     model_config:
         parameters:
             bias:
-                values: [True,False]
+                value: False
             context_size:
                 value: 100
             n_embed: 
-                value: 150
+                value: 147
             n_layer: 
-                value: 12
+                value: 6
             n_head: 
-                values: [10, 15]
+                value: 7
             dropout_rate:
-                values: [0, 0.1, 0.2, 0.3, 0.4, 0.5]
+                value: 0
             use_learned_dropout:
-                value: False
+                value: True
+            learned_dropout_config:
+                parameters:
+                    use_bias:
+                        value: False
+                    start_layer:
+                        value: 1
+                    end_layer:
+                        value: 6
+                    n_heads:
+                        value: 7
+                    profile_dropout_mask:
+                        value: False
     batch_size: 
         value: 50
     train_steps: 
