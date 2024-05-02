@@ -34,6 +34,12 @@ parameters:
                         value: 7
                     profile_dropout_mask:
                         value: False
+                    order_type:
+                        values: [1,2,3]
+                    add_pos_embed:
+                        values: [True, False]
+                    sub_pos_embed:
+                        values: [1,2,3]
     batch_size: 
         value: 50
     train_steps: 
