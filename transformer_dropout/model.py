@@ -49,7 +49,8 @@ class RoundingType(str, Enum):
             return RoundingType.LINEAR
         else:
             raise ValueError("Invalid rounding type number")
-        
+
+
 class OrderType(str, Enum):
     ORIGINAL = "ORIGINAL"
     ALT = "ALT"
@@ -69,6 +70,7 @@ class OrderType(str, Enum):
         else:
             raise ValueError("Invalid rounding type number")
 
+
 @dataclass
 class LearnedDropoutConfig:
     use_bias: bool
@@ -84,7 +86,7 @@ class LearnedDropoutConfig:
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
-        
+
         if type(self.order_type) == int:
             self.order_type = OrderType.get_type_from_int(self.order_type)
 
@@ -286,12 +288,8 @@ class LearnedDropout(nn.Module):
         self.module_name = None  # used for logging
 
         self.head_size = embed_dim // config.n_heads
-        self.k_v_weights = nn.Linear(
-            embed_dim, embed_dim * 2, bias=config.use_bias
-        )
-        self.q_weights = nn.Linear(
-            embed_dim, embed_dim, bias=config.use_bias
-        )
+        self.k_v_weights = nn.Linear(embed_dim, embed_dim * 2, bias=config.use_bias)
+        self.q_weights = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
         self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
         self.dropout_2 = nn.Dropout(dropout_rate)
 
@@ -308,6 +306,7 @@ class LearnedDropout(nn.Module):
 
     def forward(self, x_state, x_pred):
         import wandb
+
         B, T, C = x_state.shape
         k, v = self.k_v_weights(x_state).split(self.embed_dim, dim=2)
         k = k.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
@@ -317,8 +316,8 @@ class LearnedDropout(nn.Module):
         q = q.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
 
         out = F.scaled_dot_product_attention(
-                        q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
-                    )
+            q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
+        )
 
         mask = (
             out.transpose(1, 2).contiguous().view(B, T, C)
@@ -367,10 +366,12 @@ class TransformerBlock(nn.Module):
         config: ModelConfig,
         use_learned_dropout=False,
         should_profile_layer_x=False,
-        is_last = False
+        is_last=False,
     ):
         super().__init__()
-        self.update_state = not (is_last and config.use_learned_dropout.order_type == OrderType.ALT2)
+        self.update_state = not (
+            is_last and config.use_learned_dropout.order_type == OrderType.ALT2
+        )
         self.order_type = config.learned_dropout_config.order_type
 
         if self.update_state:
@@ -405,17 +406,23 @@ class TransformerBlock(nn.Module):
             x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
 
             x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
-            x_pred = x_pred + self.multi_attn_head_merge(self.merge_ln_state(x_state), self.merge_ln_pred(x_pred))
+            x_pred = x_pred + self.multi_attn_head_merge(
+                self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
+            )
             x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
         elif self.order_type == OrderType.ALT:
             x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
             x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
 
-            x_pred = x_pred + self.multi_attn_head_merge(self.merge_ln_state(x_state), self.merge_ln_pred(x_pred))
+            x_pred = x_pred + self.multi_attn_head_merge(
+                self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
+            )
             x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
             x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
         elif self.order_type == OrderType.ALT2:
-            x_pred = x_pred + self.multi_attn_head_merge(self.merge_ln_state(x_state), self.merge_ln_pred(x_pred))
+            x_pred = x_pred + self.multi_attn_head_merge(
+                self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
+            )
             if self.update_state:
                 x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
             x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
@@ -445,7 +452,9 @@ class DropoutTransformer(nn.Module):
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
-        self.pred_feed_forward = nn.Linear(config.n_embed, config.n_embed, bias=config.bias)
+        self.pred_feed_forward = nn.Linear(
+            config.n_embed, config.n_embed, bias=config.bias
+        )
         if config.use_learned_dropout and False:
             self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
         else:
@@ -462,16 +471,18 @@ class DropoutTransformer(nn.Module):
 
         profile_layer_x = config.profile_layer_x or 0
 
-        self.transformer_blocks = nn.ModuleList([
+        self.transformer_blocks = nn.ModuleList(
+            [
                 TransformerBlock(
                     config,
                     (i + 1) >= (learned_config_start_layer)
                     and (i + 1) <= (learned_config_end_layer),
                     i + 1 == profile_layer_x,
-                    i == (config.n_layer - 1)
+                    i == (config.n_layer - 1),
                 )
                 for i in range(config.n_layer)
-            ])
+            ]
+        )
         self.ln = LayerNorm(config.n_embed, config.bias)
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
 
@@ -491,9 +502,7 @@ class DropoutTransformer(nn.Module):
         for module in self.modules():
             if isinstance(module, LearnedDropout):
                 module.module_name = ".".join(
-                    param_to_param_name[module.k_v_weights.weight].split(".")[
-                        :-2
-                    ]
+                    param_to_param_name[module.k_v_weights.weight].split(".")[:-2]
                 )
                 n_learned_dropout += 1
             elif isinstance(module, FeedForward):
