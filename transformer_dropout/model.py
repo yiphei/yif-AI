@@ -370,10 +370,10 @@ class TransformerBlock(nn.Module):
         is_last = False
     ):
         super().__init__()
-        self.is_last = is_last
+        self.update_state = not (is_last and config.use_learned_dropout.order_type == OrderType.ALT2)
         self.order_type = config.learned_dropout_config.order_type
 
-        if not is_last:
+        if self.update_state:
             self.multi_attn_head_state = OptimizedMultiAttentionHead(config)
         self.multi_attn_head_pred = OptimizedMultiAttentionHead(config)
         self.multi_attn_head_merge = LearnedDropout(
@@ -382,7 +382,7 @@ class TransformerBlock(nn.Module):
             config.learned_dropout_config,
             config.dropout_rate,
         )
-        if not is_last:
+        if self.update_state:
             self.feed_forward_state = FeedForward(
                 config, use_learned_dropout, should_profile_layer_x
             )
@@ -390,10 +390,10 @@ class TransformerBlock(nn.Module):
             config, use_learned_dropout, should_profile_layer_x
         )
 
-        if not is_last:
+        self.merge_ln_state = LayerNorm(config.n_embed, config.bias)
+        if self.update_state:
             self.ln1_state = LayerNorm(config.n_embed, config.bias)
             self.ln2_state = LayerNorm(config.n_embed, config.bias)
-            self.merge_ln_state = LayerNorm(config.n_embed, config.bias)
 
         self.ln1_pred = LayerNorm(config.n_embed, config.bias)
         self.ln2_pred = LayerNorm(config.n_embed, config.bias)
@@ -416,11 +416,11 @@ class TransformerBlock(nn.Module):
             x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
         elif self.order_type == OrderType.ALT2:
             x_pred = x_pred + self.multi_attn_head_merge(self.merge_ln_state(x_state), self.merge_ln_pred(x_pred))
-            if not self.is_last:
+            if self.update_state:
                 x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
             x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
 
-            if not self.is_last:
+            if self.update_state:
                 x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
             x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
         else:
