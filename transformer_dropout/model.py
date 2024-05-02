@@ -49,12 +49,31 @@ class RoundingType(str, Enum):
             return RoundingType.LINEAR
         else:
             raise ValueError("Invalid rounding type number")
+        
+class OrderType(str, Enum):
+    ORIGINAL = "ORIGINAL"
+    ALT = "ALT"
+    ALT2 = "ALT2"
 
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return OrderType.ORIGINAL
+        elif num == 2:
+            return OrderType.ALT
+        elif num == 3:
+            return OrderType.ALT2
+        else:
+            raise ValueError("Invalid rounding type number")
 
 @dataclass
 class LearnedDropoutConfig:
     use_bias: bool
     start_layer: int
+    order_type: Union[OrderType, int]
     end_layer: Optional[int] = None
     n_heads: int = 1
     profile_dropout_mask: bool = False
@@ -65,6 +84,9 @@ class LearnedDropoutConfig:
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
+        
+        if type(self.order_type) == int:
+            self.order_type = OrderType.get_type_from_int(self.order_type)
 
         assert self.n_heads >= 1
 
@@ -348,7 +370,8 @@ class TransformerBlock(nn.Module):
         is_last = False
     ):
         super().__init__()
-        self.is_last
+        self.is_last = is_last
+        self.order_type = config.learned_dropout_config.order_type
 
         if not is_last:
             self.multi_attn_head_state = OptimizedMultiAttentionHead(config)
@@ -374,14 +397,31 @@ class TransformerBlock(nn.Module):
         self.ln2_pred = LayerNorm(config.n_embed, config.bias)
 
     def forward(self, x_state, x_pred):
-        x_pred = x_pred + self.multi_attn_head_merge(x_state, x_pred)
-        if not self.is_last:
+        if self.order_type == OrderType.ORIGINAL:
             x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
-        x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
-
-        if not self.is_last:
             x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
-        x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+
+            x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
+            x_pred = x_pred + self.multi_attn_head_merge(x_state, x_pred)
+            x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+        elif self.order_type == OrderType.ALT:
+            x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
+            x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
+
+            x_pred = x_pred + self.multi_attn_head_merge(x_state, x_pred)
+            x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
+            x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+        elif self.order_type == OrderType.ALT2:
+            x_pred = x_pred + self.multi_attn_head_merge(x_state, x_pred)
+            if not self.is_last:
+                x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
+            x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
+
+            if not self.is_last:
+                x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
+            x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+        else:
+            raise ValueError("Invalid order type")
         return x_state, x_pred
 
 
