@@ -77,6 +77,7 @@ class LearnedDropoutConfig:
     start_layer: int
     order_type: Union[OrderType, int]
     add_pos_embed: bool
+    sub_pos_embed: bool
     end_layer: Optional[int] = None
     n_heads: int = 1
     profile_dropout_mask: bool = False
@@ -570,6 +571,11 @@ class DropoutTransformer(nn.Module):
         for transformer_block in self.transformer_blocks:
             x_state, x_pred = transformer_block(x_state, x_pred)
         out = self.ln(x_pred)
+
+        if self.config.use_learned_dropout and self.config.learned_dropout_config.sub_pos_embed:
+            out = out - self.positional_embedding(
+                torch.arange(start = 1, end = x.shape[1] + 1, dtype=torch.long, device=device)
+            )
 
         if targets is None:
             loss = None
