@@ -69,6 +69,26 @@ class OrderType(str, Enum):
             return OrderType.ALT2
         else:
             raise ValueError("Invalid rounding type number")
+        
+
+class SubPosEmbedType(str, Enum):
+    NO = "NO"
+    NO_LN = "NO_LN"
+    YES_LN = "YES_LN"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return SubPosEmbedType.NO
+        elif num == 2:
+            return SubPosEmbedType.NO_LN
+        elif num == 3:
+            return SubPosEmbedType.YES_LN
+        else:
+            raise ValueError("Invalid sub pos embed type number")
 
 
 @dataclass
@@ -77,7 +97,7 @@ class LearnedDropoutConfig:
     start_layer: int
     order_type: Union[OrderType, int]
     add_pos_embed: bool
-    sub_pos_embed: bool
+    sub_pos_embed: Union[SubPosEmbedType, int]
     end_layer: Optional[int] = None
     n_heads: int = 1
     profile_dropout_mask: bool = False
@@ -91,6 +111,9 @@ class LearnedDropoutConfig:
 
         if type(self.order_type) == int:
             self.order_type = OrderType.get_type_from_int(self.order_type)
+
+        if type(self.sub_pos_embed) == int:
+            self.sub_pos_embed = SubPosEmbedType.get_type_from_int(self.sub_pos_embed)
 
         assert self.n_heads >= 1
 
@@ -489,6 +512,9 @@ class DropoutTransformer(nn.Module):
             ]
         )
         self.ln = LayerNorm(config.n_embed, config.bias)
+        if config.use_learned_dropout and config.learned_dropout_config.sub_pos_embed == SubPosEmbedType.YES_LN:
+            self.positional_embedding_ln = LayerNorm(config.n_embed, config.bias)
+
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
 
         self.token_embedding.weight = self.output_layer.weight  # weight tying
@@ -572,10 +598,12 @@ class DropoutTransformer(nn.Module):
             x_state, x_pred = transformer_block(x_state, x_pred)
         out = self.ln(x_pred)
 
-        if self.config.use_learned_dropout and self.config.learned_dropout_config.sub_pos_embed:
+        if self.config.use_learned_dropout and self.config.learned_dropout_config.sub_pos_embed != SubPosEmbedType.NO:
             out = out - self.positional_embedding(
                 torch.arange(start = 1, end = x.shape[1] + 1, dtype=torch.long, device=device)
             )
+            if self.config.learned_dropout_config.sub_pos_embed == SubPosEmbedType.YES_LN:
+                out = self.positional_embedding_ln(out)
 
         if targets is None:
             loss = None
