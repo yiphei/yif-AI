@@ -587,7 +587,7 @@ class DropoutTransformer(nn.Module):
         )
         embed = token_embed + pos_embed
         x_state = self.dropout(embed)
-        if self.config.use_learned_dropout and self.config.learned_dropout_config.add_pos_embed:
+        if self.config.use_learned_dropout and (self.config.learned_dropout_config.add_pos_embed or self.config.learned_dropout_config.sub_pos_embed != SubPosEmbedType.NO):
             x_pred = self.pred_feed_forward(x_state) + self.positional_embedding(
             torch.arange(start = 1, end = x.shape[1] + 1, dtype=torch.long, device=device)
         )
