@@ -393,8 +393,11 @@ class TransformerBlock(nn.Module):
         if not is_last:
             self.ln1_state = LayerNorm(config.n_embed, config.bias)
             self.ln2_state = LayerNorm(config.n_embed, config.bias)
+            self.merge_ln_state = LayerNorm(config.n_embed, config.bias)
+
         self.ln1_pred = LayerNorm(config.n_embed, config.bias)
         self.ln2_pred = LayerNorm(config.n_embed, config.bias)
+        self.merge_ln_pred = LayerNorm(config.n_embed, config.bias)
 
     def forward(self, x_state, x_pred):
         if self.order_type == OrderType.ORIGINAL:
@@ -402,17 +405,17 @@ class TransformerBlock(nn.Module):
             x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
 
             x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
-            x_pred = x_pred + self.multi_attn_head_merge(x_state, x_pred)
+            x_pred = x_pred + self.multi_attn_head_merge(self.merge_ln_state(x_state), self.merge_ln_pred(x_pred))
             x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
         elif self.order_type == OrderType.ALT:
             x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
             x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
 
-            x_pred = x_pred + self.multi_attn_head_merge(x_state, x_pred)
+            x_pred = x_pred + self.multi_attn_head_merge(self.merge_ln_state(x_state), self.merge_ln_pred(x_pred))
             x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
             x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
         elif self.order_type == OrderType.ALT2:
-            x_pred = x_pred + self.multi_attn_head_merge(x_state, x_pred)
+            x_pred = x_pred + self.multi_attn_head_merge(self.merge_ln_state(x_state), self.merge_ln_pred(x_pred))
             if not self.is_last:
                 x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
             x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
