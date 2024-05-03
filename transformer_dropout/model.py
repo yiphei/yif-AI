@@ -429,7 +429,7 @@ class TransformerBlock(nn.Module):
         else:
             self.multi_attn_head = OptimizedMultiAttentionHead(config)
             self.feed_forward = FeedForward(
-            config, use_learned_dropout, should_profile_layer_x
+                config, use_learned_dropout, should_profile_layer_x
             )
             self.ln1 = LayerNorm(config.n_embed, config.bias)
             self.ln2 = LayerNorm(config.n_embed, config.bias)
@@ -459,7 +459,9 @@ class TransformerBlock(nn.Module):
                     self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
                 )
                 if self.update_state:
-                    x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
+                    x_state = x_state + self.multi_attn_head_state(
+                        self.ln1_state(x_state)
+                    )
                 x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
 
                 if self.update_state:
