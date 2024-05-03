@@ -14,6 +14,9 @@ LEARNED_DROPOUT_CONFIG = {
     "use_bias": False,
     "n_heads": 3,
     "profile_dropout_mask": False,
+    "add_pos_embed": True,
+    "order_type": 1,
+    "sub_pos_embed": 1,
 }
 
 # Training config
