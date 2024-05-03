@@ -29,7 +29,7 @@ parameters:
                     start_layer:
                         value: 1
                     end_layer:
-                        value: 12
+                        value: 6
                     n_heads:
                         value: 12
                     profile_dropout_mask:
