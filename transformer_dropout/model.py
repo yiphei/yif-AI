@@ -394,69 +394,82 @@ class TransformerBlock(nn.Module):
         is_last=False,
     ):
         super().__init__()
-        self.update_state = not (
-            is_last and config.learned_dropout_config.order_type == OrderType.ALT2
-        )
-        self.order_type = config.learned_dropout_config.order_type
+        self.use_learned_dropout = config.use_learned_dropout
+        if self.use_learned_dropout:
+            self.update_state = not (
+                is_last and config.learned_dropout_config.order_type == OrderType.ALT2
+            )
+            self.order_type = config.learned_dropout_config.order_type
 
-        if self.update_state:
-            self.multi_attn_head_state = OptimizedMultiAttentionHead(config)
-        self.multi_attn_head_pred = OptimizedMultiAttentionHead(config)
-        self.multi_attn_head_merge = LearnedDropout(
-            config.n_embed,
-            config.context_size,
-            config.learned_dropout_config,
-            config.dropout_rate,
-        )
-        if self.update_state:
-            self.feed_forward_state = FeedForward(
+            if self.update_state:
+                self.multi_attn_head_state = OptimizedMultiAttentionHead(config)
+            self.multi_attn_head_pred = OptimizedMultiAttentionHead(config)
+            self.multi_attn_head_merge = LearnedDropout(
+                config.n_embed,
+                config.context_size,
+                config.learned_dropout_config,
+                config.dropout_rate,
+            )
+            if self.update_state:
+                self.feed_forward_state = FeedForward(
+                    config, use_learned_dropout, should_profile_layer_x
+                )
+            self.feed_forward_pred = FeedForward(
                 config, use_learned_dropout, should_profile_layer_x
             )
-        self.feed_forward_pred = FeedForward(
+
+            self.merge_ln_state = LayerNorm(config.n_embed, config.bias)
+            if self.update_state:
+                self.ln1_state = LayerNorm(config.n_embed, config.bias)
+                self.ln2_state = LayerNorm(config.n_embed, config.bias)
+
+            self.ln1_pred = LayerNorm(config.n_embed, config.bias)
+            self.ln2_pred = LayerNorm(config.n_embed, config.bias)
+            self.merge_ln_pred = LayerNorm(config.n_embed, config.bias)
+        else:
+            self.multi_attn_head = OptimizedMultiAttentionHead(config)
+            self.feed_forward = FeedForward(
             config, use_learned_dropout, should_profile_layer_x
-        )
-
-        self.merge_ln_state = LayerNorm(config.n_embed, config.bias)
-        if self.update_state:
-            self.ln1_state = LayerNorm(config.n_embed, config.bias)
-            self.ln2_state = LayerNorm(config.n_embed, config.bias)
-
-        self.ln1_pred = LayerNorm(config.n_embed, config.bias)
-        self.ln2_pred = LayerNorm(config.n_embed, config.bias)
-        self.merge_ln_pred = LayerNorm(config.n_embed, config.bias)
+            )
+            self.ln1 = LayerNorm(config.n_embed, config.bias)
+            self.ln2 = LayerNorm(config.n_embed, config.bias)
 
     def forward(self, x_state, x_pred):
-        if self.order_type == OrderType.ORIGINAL:
-            x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
-            x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
-
-            x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
-            x_pred = x_pred + self.multi_attn_head_merge(
-                self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
-            )
-            x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
-        elif self.order_type == OrderType.ALT:
-            x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
-            x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
-
-            x_pred = x_pred + self.multi_attn_head_merge(
-                self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
-            )
-            x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
-            x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
-        elif self.order_type == OrderType.ALT2:
-            x_pred = x_pred + self.multi_attn_head_merge(
-                self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
-            )
-            if self.update_state:
+        if self.use_learned_dropout:
+            if self.order_type == OrderType.ORIGINAL:
                 x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
-            x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
-
-            if self.update_state:
                 x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
-            x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+
+                x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
+                x_pred = x_pred + self.multi_attn_head_merge(
+                    self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
+                )
+                x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+            elif self.order_type == OrderType.ALT:
+                x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
+                x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
+
+                x_pred = x_pred + self.multi_attn_head_merge(
+                    self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
+                )
+                x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
+                x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+            elif self.order_type == OrderType.ALT2:
+                x_pred = x_pred + self.multi_attn_head_merge(
+                    self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
+                )
+                if self.update_state:
+                    x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
+                x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
+
+                if self.update_state:
+                    x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
+                x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+            else:
+                raise ValueError("Invalid order type")
         else:
-            raise ValueError("Invalid order type")
+            x_state = x_state + self.multi_attn_head(self.ln1(x_state))
+            x_state = x_state + self.feed_forward(self.ln2(x_state))
         return x_state, x_pred
 
 
@@ -597,6 +610,7 @@ class DropoutTransformer(nn.Module):
         )
         embed = token_embed + pos_embed
         x_state = self.dropout(embed)
+        x_pred = None
         if (
             self.config.use_learned_dropout
             and self.config.learned_dropout_config.add_pos_embed
@@ -611,7 +625,11 @@ class DropoutTransformer(nn.Module):
 
         for transformer_block in self.transformer_blocks:
             x_state, x_pred = transformer_block(x_state, x_pred)
-        out = self.ln(x_pred)
+
+        if self.config.use_learned_dropout:
+            out = self.ln(x_pred)
+        else:
+            out = self.ln(x_state)
 
         if (
             self.config.use_learned_dropout
