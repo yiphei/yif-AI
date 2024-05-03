@@ -500,9 +500,10 @@ class DropoutTransformer(nn.Module):
             self.positional_embedding = nn.Embedding(
                 config.context_size, config.n_embed
             )
-        self.pred_feed_forward = nn.Linear(
-            config.n_embed, config.n_embed, bias=config.bias
-        )
+        if config.use_learned_dropout:
+            self.pred_feed_forward = nn.Linear(
+                config.n_embed, config.n_embed, bias=config.bias
+            )
         if config.use_learned_dropout and False:
             self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
         else:
@@ -611,17 +612,18 @@ class DropoutTransformer(nn.Module):
         embed = token_embed + pos_embed
         x_state = self.dropout(embed)
         x_pred = None
-        if (
-            self.config.use_learned_dropout
-            and self.config.learned_dropout_config.add_pos_embed
-        ):
-            x_pred = self.pred_feed_forward(x_state) + self.positional_embedding(
-                torch.arange(
-                    start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
+        if self.config.use_learned_dropout:
+            if (
+                self.config.use_learned_dropout
+                and self.config.learned_dropout_config.add_pos_embed
+            ):
+                x_pred = self.pred_feed_forward(x_state) + self.positional_embedding(
+                    torch.arange(
+                        start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
+                    )
                 )
-            )
-        else:
-            x_pred = self.pred_feed_forward(x_state)
+            else:
+                x_pred = self.pred_feed_forward(x_state)
 
         for transformer_block in self.transformer_blocks:
             x_state, x_pred = transformer_block(x_state, x_pred)
