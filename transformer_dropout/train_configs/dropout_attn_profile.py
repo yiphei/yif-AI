@@ -17,6 +17,8 @@ LEARNED_DROPOUT_CONFIG = {
     "add_pos_embed": True,
     "order_type": 1,
     "sub_pos_embed": 1,
+    "token_loss_type": 2,
+    "token_loss_detach_type": 3,
 }
 
 # Training config
