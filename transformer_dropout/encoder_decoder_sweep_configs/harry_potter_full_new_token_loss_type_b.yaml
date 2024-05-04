@@ -43,7 +43,7 @@ parameters:
                     token_loss_type:
                         values: [2,3,4]
                     token_loss_coeff:
-                        values: [0.2,50, 100, 200]
+                        values: [0.2,50, 100, 500, 1000]
     batch_size: 
         value: 50
     train_steps: 
