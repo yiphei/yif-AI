@@ -44,6 +44,8 @@ parameters:
                         values: [2,3,4]
                     token_loss_coeff:
                         values: [0.2,50, 100, 500, 1000]
+                    token_loss_detach_type:
+                        value: 1
     batch_size: 
         value: 50
     train_steps: 
