@@ -89,7 +89,8 @@ class SubPosEmbedType(str, Enum):
             return SubPosEmbedType.YES_LN
         else:
             raise ValueError("Invalid sub pos embed type number")
-        
+
+
 class TokenLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
@@ -672,17 +673,35 @@ class DropoutTransformer(nn.Module):
             out = self.ln(x_state)
 
         additional_loss = torch.tensor(0.0, device=device)
-        if self.config.use_learned_dropout and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE:
-            cum_sum = torch.cumsum(x_original, dim = -2)
-            avg_sum = cum_sum / torch.arange(1, x.shape[1]+1, dtype=torch.long, device=device).unsqueeze(0).unsqueeze(-1)
+        if (
+            self.config.use_learned_dropout
+            and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
+        ):
+            cum_sum = torch.cumsum(x_original, dim=-2)
+            avg_sum = cum_sum / torch.arange(
+                1, x.shape[1] + 1, dtype=torch.long, device=device
+            ).unsqueeze(0).unsqueeze(-1)
             if self.config.learned_dropout_config.token_loss_type == TokenLossType.MSE:
-                additional_loss = F.mse_loss(avg_sum,x_state, reduce=True) * self.config.learned_dropout_config.token_loss_coeff
-            elif self.config.learned_dropout_config.token_loss_type == TokenLossType.COSINE_SIM_NORM:
+                additional_loss = (
+                    F.mse_loss(avg_sum, x_state, reduce=True)
+                    * self.config.learned_dropout_config.token_loss_coeff
+                )
+            elif (
+                self.config.learned_dropout_config.token_loss_type
+                == TokenLossType.COSINE_SIM_NORM
+            ):
                 cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
-                additional_loss = (1- (cosine_sim+1)/2).mean() * self.config.learned_dropout_config.token_loss_coeff
-            elif self.config.learned_dropout_config.token_loss_type == TokenLossType.COSINE_SIM_LOG:
+                additional_loss = (
+                    1 - (cosine_sim + 1) / 2
+                ).mean() * self.config.learned_dropout_config.token_loss_coeff
+            elif (
+                self.config.learned_dropout_config.token_loss_type
+                == TokenLossType.COSINE_SIM_LOG
+            ):
                 cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
-                additional_loss =  (- torch.log(((cosine_sim+1)/2))).mean() * self.config.learned_dropout_config.token_loss_coeff
+                additional_loss = (
+                    -torch.log(((cosine_sim + 1) / 2))
+                ).mean() * self.config.learned_dropout_config.token_loss_coeff
             else:
                 raise ValueError("Invalid token loss type")
 
