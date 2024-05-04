@@ -674,6 +674,7 @@ class DropoutTransformer(nn.Module):
 
         additional_loss = torch.tensor(0.0, device=device)
         if (
+            self.training and
             self.config.use_learned_dropout
             and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
         ):
