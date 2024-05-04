@@ -673,18 +673,20 @@ class DropoutTransformer(nn.Module):
             out = self.ln(x_state)
 
         additional_loss = torch.tensor(0.0, device=device)
+        raw_loss = torch.tensor(0.0, device=device)
         if (
             self.training and
             self.config.use_learned_dropout
             and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
-        ):
+        ): 
             cum_sum = torch.cumsum(x_original, dim=-2)
             avg_sum = cum_sum / torch.arange(
                 1, x.shape[1] + 1, dtype=torch.long, device=device
             ).unsqueeze(0).unsqueeze(-1)
             if self.config.learned_dropout_config.token_loss_type == TokenLossType.MSE:
+                raw_loss = F.mse_loss(avg_sum, x_state, reduction='mean')
                 additional_loss = (
-                    F.mse_loss(avg_sum, x_state, reduction='mean')
+                    raw_loss
                     * self.config.learned_dropout_config.token_loss_coeff
                 )
             elif (
@@ -692,17 +694,19 @@ class DropoutTransformer(nn.Module):
                 == TokenLossType.COSINE_SIM_NORM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
-                additional_loss = (
+                raw_loss = (
                     1 - (cosine_sim + 1) / 2
-                ).mean() * self.config.learned_dropout_config.token_loss_coeff
+                ).mean()
+                additional_loss = raw_loss * self.config.learned_dropout_config.token_loss_coeff
             elif (
                 self.config.learned_dropout_config.token_loss_type
                 == TokenLossType.COSINE_SIM_LOG
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
-                additional_loss = (
+                raw_loss = (
                     -torch.log(((cosine_sim + 1) / 2))
-                ).mean() * self.config.learned_dropout_config.token_loss_coeff
+                ).mean()
+                additional_loss = raw_loss * self.config.learned_dropout_config.token_loss_coeff
             else:
                 raise ValueError("Invalid token loss type")
 
@@ -729,7 +733,7 @@ class DropoutTransformer(nn.Module):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
-        return (logits, loss)
+        return (logits, loss, raw_loss, additional_loss)
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters
