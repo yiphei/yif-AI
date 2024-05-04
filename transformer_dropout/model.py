@@ -675,38 +675,37 @@ class DropoutTransformer(nn.Module):
         additional_loss = torch.tensor(0.0, device=device)
         raw_loss = torch.tensor(0.0, device=device)
         if (
-            self.training and
-            self.config.use_learned_dropout
+            self.training
+            and self.config.use_learned_dropout
             and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
-        ): 
+        ):
             cum_sum = torch.cumsum(x_original, dim=-2)
             avg_sum = cum_sum / torch.arange(
                 1, x.shape[1] + 1, dtype=torch.long, device=device
             ).unsqueeze(0).unsqueeze(-1)
             if self.config.learned_dropout_config.token_loss_type == TokenLossType.MSE:
-                raw_loss = F.mse_loss(avg_sum, x_state, reduction='mean')
+                raw_loss = F.mse_loss(avg_sum, x_state, reduction="mean")
                 additional_loss = (
-                    raw_loss
-                    * self.config.learned_dropout_config.token_loss_coeff
+                    raw_loss * self.config.learned_dropout_config.token_loss_coeff
                 )
             elif (
                 self.config.learned_dropout_config.token_loss_type
                 == TokenLossType.COSINE_SIM_NORM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
-                raw_loss = (
-                    1 - (cosine_sim + 1) / 2
-                ).mean()
-                additional_loss = raw_loss * self.config.learned_dropout_config.token_loss_coeff
+                raw_loss = (1 - (cosine_sim + 1) / 2).mean()
+                additional_loss = (
+                    raw_loss * self.config.learned_dropout_config.token_loss_coeff
+                )
             elif (
                 self.config.learned_dropout_config.token_loss_type
                 == TokenLossType.COSINE_SIM_LOG
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
-                raw_loss = (
-                    -torch.log(((cosine_sim + 1) / 2))
-                ).mean()
-                additional_loss = raw_loss * self.config.learned_dropout_config.token_loss_coeff
+                raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
+                additional_loss = (
+                    raw_loss * self.config.learned_dropout_config.token_loss_coeff
+                )
             else:
                 raise ValueError("Invalid token loss type")
 
