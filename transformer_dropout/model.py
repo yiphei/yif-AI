@@ -89,6 +89,28 @@ class SubPosEmbedType(str, Enum):
             return SubPosEmbedType.YES_LN
         else:
             raise ValueError("Invalid sub pos embed type number")
+        
+class TokenLossType(str, Enum):
+    NONE = "NONE"
+    MSE = "MSE"
+    COSINE_SIM_NORM = "CONSINE_SIM_NORM"
+    COSINE_SIM_LOG = "CONSINE_SIM_LOG"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return TokenLossType.NONE
+        elif num == 2:
+            return TokenLossType.MSE
+        elif num == 3:
+            return TokenLossType.COSINE_SIM_NORM
+        elif num == 4:
+            return TokenLossType.COSINE_SIM_LOG
+        else:
+            raise ValueError("Invalid token loss type number")
 
 
 @dataclass
@@ -98,11 +120,22 @@ class LearnedDropoutConfig:
     order_type: Union[OrderType, int]
     add_pos_embed: bool
     sub_pos_embed: Union[SubPosEmbedType, int]
+    token_loss_type: Union[TokenLossType, int] = TokenLossType.NONE
+    token_loss_coeff: Optional[float] = None
     end_layer: Optional[int] = None
     n_heads: int = 1
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
+        if type(self.token_loss_type) == int:
+            self.token_loss_type = TokenLossType.get_type_from_int(self.token_loss_type)
+
+        if self.token_loss_type != TokenLossType.NONE:
+            if self.token_loss_coeff is None:
+                self.token_loss_coeff = 1.0
+            else:
+                assert self.token_loss_coeff > 0
+
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
@@ -613,6 +646,7 @@ class DropoutTransformer(nn.Module):
         )
         embed = token_embed + pos_embed
         x_state = self.dropout(embed)
+        x_original = x_state
         x_pred = None
         if self.config.use_learned_dropout:
             if (
@@ -634,6 +668,21 @@ class DropoutTransformer(nn.Module):
             out = self.ln(x_pred)
         else:
             out = self.ln(x_state)
+
+        additional_loss = torch.tensor(0.0, device=device)
+        if self.config.use_learned_dropout and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE:
+            cum_sum = torch.cumsum(x_original, dim = -2)
+            avg_sum = cum_sum / torch.arange(1, x.shape[1]+1, dtype=torch.long, device=device).unsqueeze(0).unsqueeze(-1)
+            if self.config.learned_dropout_config.token_loss_type == TokenLossType.MSE:
+                additional_loss = F.mse_loss(avg_sum,x_state, reduce=True) * self.config.learned_dropout_config.token_loss_coeff
+            elif self.config.learned_dropout_config.token_loss_type == TokenLossType.COSINE_SIM_NORM:
+                cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
+                additional_loss = (1- (cosine_sim+1)/2).mean() * self.config.learned_dropout_config.token_loss_coeff
+            elif self.config.learned_dropout_config.token_loss_type == TokenLossType.COSINE_SIM_LOG:
+                cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
+                additional_loss =  (- torch.log(((cosine_sim+1)/2))).mean() * self.config.learned_dropout_config.token_loss_coeff
+            else:
+                raise ValueError("Invalid token loss type")
 
         if (
             self.config.use_learned_dropout
@@ -657,7 +706,7 @@ class DropoutTransformer(nn.Module):
             logits = self.output_layer(out)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
-            loss = F.cross_entropy(logits, targets.view(-1))
+            loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
         return (logits, loss)
 
     def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
