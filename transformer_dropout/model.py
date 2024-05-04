@@ -112,7 +112,8 @@ class TokenLossType(str, Enum):
             return TokenLossType.COSINE_SIM_LOG
         else:
             raise ValueError("Invalid token loss type number")
-        
+
+
 class TokenLossDetachType(str, Enum):
     NONE = "NONE"
     ORIGINAL = "ORIGINAL"
@@ -150,9 +151,11 @@ class LearnedDropoutConfig:
     def __post_init__(self):
         if type(self.token_loss_type) == int:
             self.token_loss_type = TokenLossType.get_type_from_int(self.token_loss_type)
-        
+
         if type(self.token_loss_detach_type) == int:
-            self.token_loss_detach_type = TokenLossDetachType.get_type_from_int(self.token_loss_detach_type)
+            self.token_loss_detach_type = TokenLossDetachType.get_type_from_int(
+                self.token_loss_detach_type
+            )
 
         if self.token_loss_type != TokenLossType.NONE:
             if self.token_loss_coeff is None:
@@ -707,9 +710,15 @@ class DropoutTransformer(nn.Module):
             and self.config.use_learned_dropout
             and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
         ):
-            if self.config.learned_dropout_config.token_loss_detach_type == TokenLossDetachType.ORIGINAL:
+            if (
+                self.config.learned_dropout_config.token_loss_detach_type
+                == TokenLossDetachType.ORIGINAL
+            ):
                 x_original = x_original.detach()
-            elif self.config.learned_dropout_config.token_loss_detach_type == TokenLossDetachType.FINAL:
+            elif (
+                self.config.learned_dropout_config.token_loss_detach_type
+                == TokenLossDetachType.FINAL
+            ):
                 x_state = x_state.detach()
 
             cum_sum = torch.cumsum(x_original, dim=-2)
