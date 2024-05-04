@@ -570,7 +570,7 @@ def _train(
         t0 = time.time()
         running_loss = 0
         running_raw_loss = 0
-        running_real_loss= 0
+        running_real_loss = 0
         is_first_mini_batch = True
         for micro_step in range(TRAIN_CONFIG.gradient_accumulation_steps):
             if using_DDP:
@@ -589,8 +589,12 @@ def _train(
                     loss / TRAIN_CONFIG.gradient_accumulation_steps
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
-                running_raw_loss += raw_loss.item() / TRAIN_CONFIG.gradient_accumulation_steps
-                running_real_loss += real_loss.item() / TRAIN_CONFIG.gradient_accumulation_steps
+                running_raw_loss += (
+                    raw_loss.item() / TRAIN_CONFIG.gradient_accumulation_steps
+                )
+                running_real_loss += (
+                    real_loss.item() / TRAIN_CONFIG.gradient_accumulation_steps
+                )
 
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y, new_train_iter = get_data_batch_loader(
@@ -620,10 +624,14 @@ def _train(
                     dt,
                 )
 
-            extra_logs = {
+            extra_logs = (
+                {
                     "raw_token_loss": running_raw_loss,
                     "actual_token_loss": running_real_loss,
-            } if TRAIN_CONFIG.model_config.use_learned_dropout else {}
+                }
+                if TRAIN_CONFIG.model_config.use_learned_dropout
+                else {}
+            )
 
             wandb.log(
                 {
