@@ -135,6 +135,8 @@ class LearnedDropoutConfig:
                 self.token_loss_coeff = 1.0
             else:
                 assert self.token_loss_coeff > 0
+        else:
+            assert self.token_loss_coeff is None
 
         if self.end_layer is None:
             self.end_layer = self.start_layer
