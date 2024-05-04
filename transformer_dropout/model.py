@@ -683,7 +683,7 @@ class DropoutTransformer(nn.Module):
             ).unsqueeze(0).unsqueeze(-1)
             if self.config.learned_dropout_config.token_loss_type == TokenLossType.MSE:
                 additional_loss = (
-                    F.mse_loss(avg_sum, x_state, reduce=True)
+                    F.mse_loss(avg_sum, x_state, reduction='mean')
                     * self.config.learned_dropout_config.token_loss_coeff
                 )
             elif (
