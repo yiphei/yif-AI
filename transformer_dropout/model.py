@@ -112,6 +112,25 @@ class TokenLossType(str, Enum):
             return TokenLossType.COSINE_SIM_LOG
         else:
             raise ValueError("Invalid token loss type number")
+        
+class TokenLossDetachType(str, Enum):
+    NONE = "NONE"
+    ORIGINAL = "ORIGINAL"
+    FINAL = "FINAL"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return TokenLossDetachType.NONE
+        elif num == 2:
+            return TokenLossDetachType.ORIGINAL
+        elif num == 3:
+            return TokenLossDetachType.FINAL
+        else:
+            raise ValueError("Invalid token loss detatch type number")
 
 
 @dataclass
@@ -122,6 +141,7 @@ class LearnedDropoutConfig:
     add_pos_embed: bool
     sub_pos_embed: Union[SubPosEmbedType, int]
     token_loss_type: Union[TokenLossType, int] = TokenLossType.NONE
+    token_loss_detach_type: Optional[Union[TokenLossDetachType, int]] = None
     token_loss_coeff: Optional[float] = None
     end_layer: Optional[int] = None
     n_heads: int = 1
@@ -130,6 +150,9 @@ class LearnedDropoutConfig:
     def __post_init__(self):
         if type(self.token_loss_type) == int:
             self.token_loss_type = TokenLossType.get_type_from_int(self.token_loss_type)
+        
+        if type(self.token_loss_detach_type) == int:
+            self.token_loss_detach_type = TokenLossDetachType.get_type_from_int(self.token_loss_detach_type)
 
         if self.token_loss_type != TokenLossType.NONE:
             if self.token_loss_coeff is None:
@@ -152,6 +175,11 @@ class LearnedDropoutConfig:
             self.sub_pos_embed = SubPosEmbedType.get_type_from_int(self.sub_pos_embed)
 
         assert self.n_heads >= 1
+
+        if self.token_loss_detach_type is not None:
+            assert self.token_loss_type != TokenLossType.NONE
+        else:
+            assert self.token_loss_type == TokenLossType.NONE
 
 
 @dataclass
@@ -679,6 +707,11 @@ class DropoutTransformer(nn.Module):
             and self.config.use_learned_dropout
             and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
         ):
+            if self.config.learned_dropout_config.token_loss_detach_type == TokenLossDetachType.ORIGINAL:
+                x_original = x_original.detach()
+            elif self.config.learned_dropout_config.token_loss_detach_type == TokenLossDetachType.FINAL:
+                x_state = x_state.detach()
+
             cum_sum = torch.cumsum(x_original, dim=-2)
             avg_sum = cum_sum / torch.arange(
                 1, x.shape[1] + 1, dtype=torch.long, device=device
