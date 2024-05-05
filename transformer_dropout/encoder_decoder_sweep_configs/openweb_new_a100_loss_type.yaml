@@ -39,7 +39,7 @@ parameters:
                     add_pos_embed:
                         values: [True, False]
                     sub_pos_embed:
-                        values: [1,2,3]
+                        values: [1,3]
     batch_size: 
         value: 15
     train_steps: 
