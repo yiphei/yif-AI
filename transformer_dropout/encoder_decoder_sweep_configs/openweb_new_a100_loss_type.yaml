@@ -35,7 +35,7 @@ parameters:
                     profile_dropout_mask:
                         value: False
                     order_type:
-                        values: [1,2]
+                        value: 1
                     add_pos_embed:
                         values: [True, False]
                     sub_pos_embed:
