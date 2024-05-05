@@ -20,6 +20,8 @@ LEARNED_DROPOUT_CONFIG = {
     "token_loss_type": 2,
     "token_loss_detach_type": 1,
     "token_loss_coeff": 1,
+    "use_ln_on_final_x_state": True,
+    "token_embed_layer_norm_type": 2,
 }
 
 # Training config
