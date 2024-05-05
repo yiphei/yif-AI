@@ -1,5 +1,5 @@
 program: transformer_dropout/training_script.py
-name: openweb_new_a100_loss_type
+name: openweb_new_a100_loss_type_b
 project: transformer_dropout_5_encoder_decoder
 method: grid
 metric:
