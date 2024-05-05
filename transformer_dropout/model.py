@@ -133,6 +133,7 @@ class TokenLossDetachType(str, Enum):
         else:
             raise ValueError("Invalid token loss detatch type number")
 
+
 class TokenEmbedLayerNormType(str, Enum):
     NONE = "NONE"
     X_ORIGINAL = "X_ORIGINAL"
@@ -151,6 +152,7 @@ class TokenEmbedLayerNormType(str, Enum):
             return TokenEmbedLayerNormType.AVG_CUM_SUM
         else:
             raise ValueError("Invalid token embed layer norm type number")
+
 
 @dataclass
 class LearnedDropoutConfig:
@@ -178,8 +180,10 @@ class LearnedDropoutConfig:
             )
 
         if type(self.token_embed_layer_norm_type) == int:
-            self.token_embed_layer_norm_type = TokenEmbedLayerNormType.get_type_from_int(
-                self.token_embed_layer_norm_type
+            self.token_embed_layer_norm_type = (
+                TokenEmbedLayerNormType.get_type_from_int(
+                    self.token_embed_layer_norm_type
+                )
             )
 
         if self.token_loss_type != TokenLossType.NONE:
@@ -641,9 +645,18 @@ class DropoutTransformer(nn.Module):
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
 
-        if self.config.use_learned_dropout and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE and self.config.learned_dropout_config.use_ln_on_final_x_state:
+        if (
+            self.config.use_learned_dropout
+            and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
+            and self.config.learned_dropout_config.use_ln_on_final_x_state
+        ):
             self.final_x_state_ln = LayerNorm(config.n_embed, True)
-        if self.config.use_learned_dropout and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE and self.config.learned_dropout_config.token_embed_layer_norm_type != TokenEmbedLayerNormType.NONE:
+        if (
+            self.config.use_learned_dropout
+            and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
+            and self.config.learned_dropout_config.token_embed_layer_norm_type
+            != TokenEmbedLayerNormType.NONE
+        ):
             self.token_embed_layer_norm = LayerNorm(config.n_embed, True)
 
         self.token_embedding.weight = self.output_layer.weight  # weight tying
@@ -760,7 +773,10 @@ class DropoutTransformer(nn.Module):
             if self.config.learned_dropout_config.use_ln_on_final_x_state:
                 x_state = self.final_x_state_ln(x_state)
 
-            if self.config.learned_dropout_config.token_embed_layer_norm_type == TokenEmbedLayerNormType.X_ORIGINAL:
+            if (
+                self.config.learned_dropout_config.token_embed_layer_norm_type
+                == TokenEmbedLayerNormType.X_ORIGINAL
+            ):
                 x_original = self.token_embed_layer_norm(x_original)
 
             cum_sum = torch.cumsum(x_original, dim=-2)
@@ -768,7 +784,10 @@ class DropoutTransformer(nn.Module):
                 1, x.shape[1] + 1, dtype=torch.long, device=device
             ).unsqueeze(0).unsqueeze(-1)
 
-            if self.config.learned_dropout_config.token_embed_layer_norm_type == TokenEmbedLayerNormType.AVG_CUM_SUM:
+            if (
+                self.config.learned_dropout_config.token_embed_layer_norm_type
+                == TokenEmbedLayerNormType.AVG_CUM_SUM
+            ):
                 avg_sum = self.token_embed_layer_norm(avg_sum)
 
             if self.config.learned_dropout_config.token_loss_type == TokenLossType.MSE:
