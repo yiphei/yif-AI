@@ -16,9 +16,10 @@ LEARNED_DROPOUT_CONFIG = {
     "profile_dropout_mask": False,
     "add_pos_embed": True,
     "order_type": 1,
-    "sub_pos_embed": 1,
+    "sub_pos_embed": 3,
     "token_loss_type": 2,
-    "token_loss_detach_type": 3,
+    "token_loss_detach_type": 1,
+    "token_loss_coeff": 1,
 }
 
 # Training config
