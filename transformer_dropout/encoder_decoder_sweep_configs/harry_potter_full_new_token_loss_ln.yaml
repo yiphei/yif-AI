@@ -43,7 +43,7 @@ parameters:
                     token_loss_type:
                         values: [2,3,4]
                     token_loss_coeff:
-                        values: [0.5, 1, 5,50, 100, 500, 1000]
+                        values: [0.5, 1, 5,50]
                     token_loss_detach_type:
                         values: [1,2,3]
                     use_ln_on_final_x_state:
