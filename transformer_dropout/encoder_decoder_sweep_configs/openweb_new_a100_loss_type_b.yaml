@@ -43,7 +43,7 @@ parameters:
                     token_loss_type:
                         values: [3,4]
                     token_loss_coeff:
-                        values: [0.2, 0.5, 1,]
+                        values: [0.2, 0.5, 1]
                     token_loss_detach_type:
                         values: [1,3]
     batch_size: 
