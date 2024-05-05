@@ -47,9 +47,9 @@ parameters:
                     token_loss_detach_type:
                         values: [1,2,3]
                     use_ln_on_final_x_state:
-                        values: [True, False]
+                        value: False
                     token_embed_layer_norm_type:
-                        values: [1,2,3]
+                        values: [2,3]
     batch_size: 
         value: 50
     train_steps: 

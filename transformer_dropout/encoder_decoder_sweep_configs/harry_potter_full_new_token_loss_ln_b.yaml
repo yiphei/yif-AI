@@ -47,7 +47,7 @@ parameters:
                     token_loss_detach_type:
                         values: [1,2,3]
                     use_ln_on_final_x_state:
-                        values: [True, False]
+                        value: True
                     token_embed_layer_norm_type:
                         values: [1,2,3]
     batch_size: 
