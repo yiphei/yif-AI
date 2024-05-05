@@ -133,6 +133,24 @@ class TokenLossDetachType(str, Enum):
         else:
             raise ValueError("Invalid token loss detatch type number")
 
+class TokenEmbedLayerNormType(str, Enum):
+    NONE = "NONE"
+    X_ORIGINAL = "X_ORIGINAL"
+    AVG_CUM_SUM = "AVG_CUM_SUM"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return TokenEmbedLayerNormType.NONE
+        elif num == 2:
+            return TokenEmbedLayerNormType.X_ORIGINAL
+        elif num == 3:
+            return TokenEmbedLayerNormType.AVG_CUM_SUM
+        else:
+            raise ValueError("Invalid token embed layer norm type number")
 
 @dataclass
 class LearnedDropoutConfig:
@@ -144,6 +162,8 @@ class LearnedDropoutConfig:
     token_loss_type: Union[TokenLossType, int] = TokenLossType.NONE
     token_loss_detach_type: Optional[Union[TokenLossDetachType, int]] = None
     token_loss_coeff: Optional[float] = None
+    use_ln_on_final_x_state: Optional[bool] = None
+    token_embed_layer_norm_type: Optional[Union[TokenEmbedLayerNormType, int]] = None
     end_layer: Optional[int] = None
     n_heads: int = 1
     profile_dropout_mask: bool = False
@@ -157,13 +177,24 @@ class LearnedDropoutConfig:
                 self.token_loss_detach_type
             )
 
+        if type(self.token_embed_layer_norm_type) == int:
+            self.token_embed_layer_norm_type = TokenEmbedLayerNormType.get_type_from_int(
+                self.token_embed_layer_norm_type
+            )
+
         if self.token_loss_type != TokenLossType.NONE:
             if self.token_loss_coeff is None:
                 self.token_loss_coeff = 1.0
             else:
                 assert self.token_loss_coeff > 0
+            assert self.use_ln_on_final_x_state is not None
+            assert self.token_embed_layer_norm_type is not None
+            assert self.token_loss_detach_type is not None
         else:
             assert self.token_loss_coeff is None
+            assert self.use_ln_on_final_x_state is None
+            assert self.token_embed_layer_norm_type is None
+            assert self.token_loss_detach_type is None
 
         if self.end_layer is None:
             self.end_layer = self.start_layer
@@ -610,6 +641,11 @@ class DropoutTransformer(nn.Module):
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
 
+        if self.config.use_learned_dropout and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE and self.config.learned_dropout_config.use_ln_on_final_x_state:
+            self.final_x_state_ln = LayerNorm(config.n_embed, True)
+        if self.config.use_learned_dropout and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE and self.config.learned_dropout_config.token_embed_layer_norm_type != TokenEmbedLayerNormType.NONE:
+            self.token_embed_layer_norm = LayerNorm(config.n_embed, True)
+
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
@@ -721,10 +757,20 @@ class DropoutTransformer(nn.Module):
             ):
                 x_state = x_state.detach()
 
+            if self.config.learned_dropout_config.use_ln_on_final_x_state:
+                x_state = self.final_x_state_ln(x_state)
+
+            if self.config.learned_dropout_config.token_embed_layer_norm_type == TokenEmbedLayerNormType.X_ORIGINAL:
+                x_original = self.token_embed_layer_norm(x_original)
+
             cum_sum = torch.cumsum(x_original, dim=-2)
             avg_sum = cum_sum / torch.arange(
                 1, x.shape[1] + 1, dtype=torch.long, device=device
             ).unsqueeze(0).unsqueeze(-1)
+
+            if self.config.learned_dropout_config.token_embed_layer_norm_type == TokenEmbedLayerNormType.AVG_CUM_SUM:
+                avg_sum = self.token_embed_layer_norm(avg_sum)
+
             if self.config.learned_dropout_config.token_loss_type == TokenLossType.MSE:
                 raw_loss = F.mse_loss(avg_sum, x_state, reduction="mean")
                 additional_loss = (
