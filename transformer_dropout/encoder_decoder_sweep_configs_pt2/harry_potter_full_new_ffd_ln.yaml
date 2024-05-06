@@ -40,6 +40,8 @@ parameters:
                         value: False
                     add_ln_before_pred_ff:
                         value: True
+                    sub_pos_embed:
+                        value: 1
     batch_size: 
         value: 50
     train_steps: 
