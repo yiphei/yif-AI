@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import inspect
+from typing import Type
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -123,3 +125,143 @@ class TransformerBlock(nn.Module):
         x = x + self.multi_attn_head(self.ln1(x))
         x = x + self.feed_forward(self.ln2(x))
         return x
+    
+class BaseModel(nn.Module):
+    model_config: Type
+
+    def __init__(self, gradient_accumulation_steps):
+        super().__init__()
+        # these variables enable profiling
+        self.gradient_accumulation_steps = gradient_accumulation_steps
+        # these two variables are set by the training script
+        self.training_step = (
+            None
+        )
+        self.is_last_minibatch = False
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, (nn.Embedding)):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def update_is_last_minibatch(self, new_val):
+        if new_val != self.is_last_minibatch:
+            self.is_last_minibatch = new_val
+            for module in self.modules():
+                module.is_last_minibatch = new_val
+
+    @classmethod
+    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps):
+        model_config = cls.model_config(**checkpoint_dict["model_config"])
+        model = cls(model_config, gradient_accumulation_steps)
+        state_dict = checkpoint_dict["model"]
+
+        # This is caused by compiling the model. From https://github.com/karpathy/nanoGPT/blob/master/train.py
+        unwanted_prefix = "_orig_mod."
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix) :]] = state_dict.pop(k)
+
+        model.load_state_dict(state_dict)
+        return model
+
+    def forward(self):
+        raise NotImplementedError
+
+    def configure_optimizer(self, weight_decay, learning_rate, betas, device_type):
+        # start with all of the candidate parameters
+        param_dict = {pn: p for pn, p in self.named_parameters()}
+        # filter out those that do not require grad
+        param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
+
+        # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
+        # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
+        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
+        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
+
+        adamw_groups = [
+            {"params": decay_params, "weight_decay": weight_decay},
+            {"params": nodecay_params, "weight_decay": 0.0},
+        ]
+
+        # Create AdamW optimizer and use the fused version if it is available
+        fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters
+        use_fused = fused_available and device_type == "cuda"
+        extra_args = dict(fused=True) if use_fused else dict()
+        adam_optimizer = torch.optim.AdamW(
+            adamw_groups, lr=learning_rate, betas=betas, **extra_args
+        )
+        print(f"using fused AdamW: {use_fused}")
+        return OptimizerWrapper(adam_optimizer, None)
+
+    def get_num_params(self, exclude_positional_embedding=True):
+        n_params = sum(p.numel() for p in self.parameters())
+        if exclude_positional_embedding:
+            n_params -= self.positional_embedding.weight.numel()
+        return n_params
+
+    def get_accuracy(self, logits, targets):
+        probs = F.softmax(logits, dim=-1)
+        return (probs.max(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
+
+    def estimate_mfu(self):
+        raise NotImplementedError
+
+    @torch.no_grad()
+    def generate(self, x, max_tokens):
+        for _ in range(max_tokens):
+            logits, _ = self(x[:, -self.config.context_size :], None)
+            probs = F.softmax(logits[:, -1, :], dim=-1)
+            next_t = torch.multinomial(probs, num_samples=1)
+            x = torch.cat((x, next_t), dim=1)
+        return x
+    
+
+class OptimizerWrapper:
+    def __init__(self, adamw_optimizer, sgd_optimizer):
+        self.adamw_optimizer = adamw_optimizer
+        self.sgd_optimizer = sgd_optimizer
+
+    def state_dict(self):
+        return {
+            "adam_optimizer": self.adamw_optimizer.state_dict(),
+            **(
+                {"sgd_optimizer": self.sgd_optimizer.state_dict()}
+                if self.sgd_optimizer is not None
+                else {}
+            ),
+        }
+
+    def load_state_dict(self, state_dict):
+        self.adamw_optimizer.load_state_dict(state_dict["adam_optimizer"])
+        if state_dict.get("sgd_optimizer", None) is not None:
+            self.sgd_optimizer.load_state_dict(state_dict["sgd_optimizer"])
+
+    def change_lr(self, lr):
+        for optimizer in [self.adamw_optimizer, self.sgd_optimizer]:
+            if optimizer is None:
+                continue
+
+            for param_group in optimizer.param_groups:
+                if param_group.get("is_lr_fixed", False):
+                    continue
+                param_group["lr"] = lr
+
+    def step(self, *args, **kwargs):
+        self.adamw_optimizer.step(*args, **kwargs)
+        if self.sgd_optimizer is not None:
+            self.sgd_optimizer.step(*args, **kwargs)
+
+    def zero_grad(self, *args, **kwargs):
+        self.adamw_optimizer.zero_grad(*args, **kwargs)
+        if self.sgd_optimizer is not None:
+            self.sgd_optimizer.zero_grad(*args, **kwargs)
+
+    @property
+    def param_groups(self):
+        return self.adamw_optimizer.param_groups + (
+            self.sgd_optimizer.param_groups if self.sgd_optimizer is not None else []
+        )
