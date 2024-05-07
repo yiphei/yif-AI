@@ -10,6 +10,8 @@ LEARNED_DROPOUT_CONFIG = {
     "use_dropout_l1_norm_in_loss": True,
     "use_sigmoid_on_dropout_mask": False,
 }
+DROPOUT_RATE = 0.1
+
 # Training config
 BATCH_SIZE = 10
 TRAIN_STEPS = 500

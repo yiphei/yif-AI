@@ -1,0 +1,70 @@
+program: transformer_dropout/training_script.py
+name: harry_potter_full_new_token_loss_ln_a
+project: transformer_dropout_5_encoder_decoder
+method: grid
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: False
+            context_size:
+                value: 100
+            n_embed: 
+                value: 147
+            n_layer: 
+                value: 6
+            n_head: 
+                value: 7
+            dropout_rate:
+                value: 0
+            use_learned_dropout:
+                value: True
+            learned_dropout_config:
+                parameters:
+                    use_bias:
+                        value: False
+                    start_layer:
+                        value: 1
+                    end_layer:
+                        value: 6
+                    n_heads:
+                        value: 7 # should be 14, but keeping it 7 to compare it with prior runs
+                    profile_dropout_mask:
+                        value: False
+                    order_type:
+                        value: 1
+                    add_pos_embed:
+                        values: [True, False]
+                    sub_pos_embed:
+                        values: [1,3]
+                    token_loss_type:
+                        values: [2,3,4]
+                    token_loss_coeff:
+                        values: [0.5, 1, 5]
+                    token_loss_detach_type:
+                        values: [1,2,3]
+                    use_ln_on_final_x_state:
+                        value: False
+                    token_embed_layer_norm_type:
+                        values: [2,3]
+    batch_size: 
+        value: 50
+    train_steps: 
+        value: 7000
+    lr: 
+        value: 3e-4
+    warmup_iters:
+        value: 300
+    min_lr: 
+        value: 3e-5
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: # code needs to be modified 
+        value: 700000
+    est_interval: 
+        value: 500
+    est_steps:
+        value: 200

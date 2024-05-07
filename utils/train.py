@@ -205,8 +205,8 @@ def estimate_loss(
             if new_data_iter is not None:
                 data_iter = new_data_iter
 
-            with ctx(i, False):
-                logits, loss, _ = model(xb, yb)
+            with ctx(i, False, False):
+                logits, loss, _, _ = model(xb, yb)
 
             losses[i] = loss
 
@@ -261,7 +261,6 @@ def broadcast_object(obj, local_rank, device, src_rank=0):
 
 def _train(
     args,
-    batch_stats_class,
     model_cls,
     create_training_context_fn,
     local_dir,
@@ -416,11 +415,17 @@ def _train(
             meta = pickle.load(f)
 
         TRAIN_CONFIG.model_config.alphabet_size = meta["alphabet_size"]
-        model = model_cls(TRAIN_CONFIG.model_config)
+        model = model_cls(
+            TRAIN_CONFIG.model_config,
+            gradient_accumulation_steps=TRAIN_CONFIG.gradient_accumulation_steps,
+        )
     else:
         print("Loading checkpoint...")
         checkpoint = torch.load(ckpt_file_path, map_location=DEVICE)
-        model = model_cls.init_from_checkpoint(checkpoint)
+        model = model_cls.init_from_checkpoint(
+            checkpoint,
+            gradient_accumulation_steps=TRAIN_CONFIG.gradient_accumulation_steps,
+        )
         TRAIN_CONFIG.model_config = model.config
         iter_num = checkpoint["iter_num"] + 1
         best_val_loss = checkpoint["best_val_loss"]
@@ -440,16 +445,21 @@ def _train(
         optimizer.load_state_dict(checkpoint["optimizer"])
     checkpoint = None
 
-    # when using DDP and LearnedDropout, compiling the model causes a bug in sagemaker, so disabling for now
-    if TRAIN_CONFIG.compile and using_DDP and False:
-        print("compiling the model... (takes a ~minute)")
-        unoptimized_model = model
-        model = torch.compile(model)  # requires PyTorch 2.0
-
     if using_DDP:
+        # NB: broadcast_buffers = False is fine here because there is no buffer
+        # that currently needs to be synced. But if the model uses BatchNorm
+        # and the likes, the buffers will need to be synced.
         model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[ddp_local_rank]
+            model, device_ids=[ddp_local_rank], broadcast_buffers=True
         )
+
+    # Empirically, this usually produces slightly worse results than not compiling, but it's usually worth it
+    if TRAIN_CONFIG.compile and torch.cuda.is_available():
+        print("compiling the model... (takes a ~minute)")
+        if using_DDP:
+            model.module = torch.compile(model.module)  # requires PyTorch 2.0
+        else:
+            model = torch.compile(model)
 
     # learning rate decay scheduler (cosine with warmup). From https://github.com/karpathy/nanoGPT/blob/master/train.py
     def get_lr(training_step):
@@ -490,9 +500,11 @@ def _train(
         -1,
         DEVICE,
     )
+    if is_master_process and args.profile and args.profile_model:
+        wandb.watch(
+            raw_model, log="all", log_freq=TRAIN_CONFIG.gradient_accumulation_steps * 2
+        )
     while iter_num < TRAIN_CONFIG.train_steps:
-        t0 = time.time()
-
         # determine and set the learning rate for this iteration. From https://github.com/karpathy/nanoGPT/blob/master/train.py
         lr = get_lr(iter_num) if TRAIN_CONFIG.decay_lr else TRAIN_CONFIG.lr
         optimizer.change_lr(lr)
@@ -555,8 +567,10 @@ def _train(
                     s3_client,
                 )
 
+        t0 = time.time()
         running_loss = 0
-        current_batch_stats = batch_stats_class.initialize(TRAIN_CONFIG, raw_model)
+        running_raw_loss = 0
+        running_real_loss = 0
         is_first_mini_batch = True
         for micro_step in range(TRAIN_CONFIG.gradient_accumulation_steps):
             if using_DDP:
@@ -564,19 +578,23 @@ def _train(
                 model.require_backward_grad_sync = (
                     micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1
                 )
-            with ctx(iter_num, is_first_mini_batch):
-                (
-                    _,
-                    loss,
-                    mini_batch_stats,
-                ) = model(X, Y)
-                current_batch_stats.add_mini_batch_stats(mini_batch_stats)
+            with ctx(
+                iter_num,
+                is_first_mini_batch,
+                micro_step == TRAIN_CONFIG.gradient_accumulation_steps - 1,
+            ):
+                (_, loss, raw_loss, real_loss) = model(X, Y)
 
                 loss = (
                     loss / TRAIN_CONFIG.gradient_accumulation_steps
                 )  # scale the loss to account for gradient accumulation
                 running_loss += loss.item()
-                current_batch_stats.scale()
+                running_raw_loss += (
+                    raw_loss.item() / TRAIN_CONFIG.gradient_accumulation_steps
+                )
+                running_real_loss += (
+                    real_loss.item() / TRAIN_CONFIG.gradient_accumulation_steps
+                )
 
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y, new_train_iter = get_data_batch_loader(
@@ -599,11 +617,28 @@ def _train(
         t1 = time.time()
         dt = t1 - t0
         if is_master_process and args.profile:
+            mfu = 0
+            if iter_num >= 5:
+                mfu = raw_model.estimate_mfu(
+                    TRAIN_CONFIG.batch_size * TRAIN_CONFIG.gradient_accumulation_steps,
+                    dt,
+                )
+
+            extra_logs = (
+                {
+                    "raw_token_loss": running_raw_loss,
+                    "actual_token_loss": running_real_loss,
+                }
+                if TRAIN_CONFIG.model_config.use_learned_dropout
+                else {}
+            )
+
             wandb.log(
                 {
                     "loss": running_loss,
                     "time": float(f"{dt*1000:.2f}"),
-                    **current_batch_stats.get_wandb_batch_stats(),
+                    "mfu": mfu,
+                    **extra_logs,
                 },
                 step=iter_num,
                 # commit=False,
@@ -685,11 +720,11 @@ def get_default_args(args, local_dir):
             args.sync_profile_live = True
     if not args.profile:
         assert args.sync_profile_live is None
+        assert args.profile_model is None
+        assert args.save_code is False
 
 
-def train(
-    batch_stats_class, model_cls, create_training_context_fn, local_dir, wandb_project
-):
+def train(model_cls, create_training_context_fn, local_dir, wandb_project):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
@@ -707,6 +742,7 @@ def train(
     parser.add_argument("--sweep_count", type=int, default=None)
     parser.add_argument("--save_code", type=lambda v: bool(strtobool(v)), default=False)
     parser.add_argument("--profile", type=lambda v: bool(strtobool(v)), default=True)
+    parser.add_argument("--profile_model", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--sync_profile_live", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--save_checkpoint", type=lambda v: bool(strtobool(v)))
     parser.add_argument("--save_model", type=lambda v: bool(strtobool(v)))
@@ -719,7 +755,6 @@ def train(
             args.sweep_id,
             function=lambda: _train(
                 args,
-                batch_stats_class,
                 model_cls,
                 create_training_context_fn,
                 local_dir,
@@ -731,7 +766,6 @@ def train(
     else:
         _train(
             args,
-            batch_stats_class,
             model_cls,
             create_training_context_fn,
             local_dir,

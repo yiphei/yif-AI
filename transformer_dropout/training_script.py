@@ -1,75 +1,14 @@
 from contextlib import ExitStack, contextmanager, nullcontext
-from dataclasses import dataclass
-from typing import Optional
 
 import torch
 
 from utils.train import train
-from utils.train_common import BatchStatsBase
 
 try:
     from transformer_dropout.model import DropoutTransformer
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
     from model import DropoutTransformer
-
-
-@dataclass
-class BatchStats(BatchStatsBase):
-    running_entropy: Optional[float]
-    running_l1_norm: Optional[float]
-    entropy: Optional[float] = None
-    dropout_l1_norm: Optional[float] = None
-    entropy_coefficient: Optional[float] = None
-    dropout_l1_norm_coefficient: Optional[float] = None
-
-    @classmethod
-    def initialize(cls, train_config, model):
-        return cls(
-            running_entropy=(
-                0.0 if train_config.model_config.use_learned_dropout else None
-            ),
-            running_l1_norm=(
-                0.0 if train_config.model_config.use_learned_dropout else None
-            ),
-            model=model,
-            train_config=train_config,
-        )
-
-    def add_mini_batch_stats(self, mini_batch_stats):
-        entropy, dropout_l1_norm, entropy_coefficient, dropout_l1_norm_coefficient = (
-            mini_batch_stats
-        )
-        self.entropy = entropy
-        self.dropout_l1_norm = dropout_l1_norm
-        self.entropy_coefficient = entropy_coefficient
-        self.dropout_l1_norm_coefficient = dropout_l1_norm_coefficient
-
-    def scale(self):
-        if self.train_config.model_config.use_learned_dropout:
-            self.running_entropy += (
-                self.entropy.item() / self.train_config.gradient_accumulation_steps
-            )
-            self.running_l1_norm += (
-                self.dropout_l1_norm.item()
-                / self.train_config.gradient_accumulation_steps
-            )
-
-    def get_wandb_batch_stats(self):
-        A_mean, A_std = self.model.get_A_stats()
-        B_mean, B_std = self.model.get_B_stats()
-        return {
-            "dropout_entropy": self.running_entropy,
-            "dropout_l1_norm": self.running_l1_norm,
-            "mean_dropout_near_one_percent": self.model.get_mean_dropout_near_one_percent(),
-            "mean_dropout_near_zero_percent": self.model.get_mean_dropout_near_zero_percent(),
-            "dropout_entropy_coefficient": self.entropy_coefficient,
-            "dropout_l1_norm_coefficient": self.dropout_l1_norm_coefficient,
-            "A_mean": A_mean,
-            "A_std": A_std,
-            "B_mean": B_mean,
-            "B_std": B_std,
-        }
 
 
 def create_autocast_context(device_type, ptdtype):
@@ -88,14 +27,16 @@ def create_autocast_context(device_type, ptdtype):
 
 def create_training_step_context(starting_training_step, model):
     @contextmanager
-    def training_step_context(training_step, is_first_minibatch):
-        if model.config.use_learned_dropout and model.training and is_first_minibatch:
-            assert (
-                model.training_step == training_step - 1
-                if training_step != starting_training_step
-                else model.training_step is None
-            )
-            model.training_step = training_step
+    def training_step_context(training_step, is_first_minibatch, is_last_minibatch):
+        if model.training:
+            if model.config.use_learned_dropout and is_first_minibatch:
+                assert (
+                    model.training_step == training_step - 1
+                    if training_step != starting_training_step
+                    else model.training_step is None
+                )
+                model.training_step = training_step
+            model.update_is_last_minibatch(is_last_minibatch)
         yield
 
     return training_step_context
@@ -106,11 +47,13 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
     entropy_lambda_context = create_training_step_context(starting_training_step, model)
 
     @contextmanager
-    def training_context(training_step, is_first_minibatch):
+    def training_context(training_step, is_first_minibatch, is_last_minibatch):
         with ExitStack() as stack:
             stack.enter_context(autocast_context())
             stack.enter_context(
-                entropy_lambda_context(training_step, is_first_minibatch)
+                entropy_lambda_context(
+                    training_step, is_first_minibatch, is_last_minibatch
+                )
             )
             yield
 
@@ -119,9 +62,8 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
 
 if __name__ == "__main__":
     train(
-        BatchStats,
         DropoutTransformer,
         create_training_context,
         "transformer_dropout/",
-        "transformer_dropout_3",
+        "transformer_dropout_5_encoder_decoder",
     )

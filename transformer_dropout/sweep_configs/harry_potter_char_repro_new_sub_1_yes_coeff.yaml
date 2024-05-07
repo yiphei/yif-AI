@@ -1,7 +1,7 @@
 program: transformer_dropout/training_script.py
 name: harry_potter_dropout_char_repro_new_sub_1_yes_coeff
 project: transformer_dropout_4
-method: grid
+method: random
 metric:
   goal: minimize
   name: est_val_loss
@@ -25,6 +25,8 @@ parameters:
                 value: 4
             use_learned_dropout:
                 value: True
+            dropout_rate:
+                value: 0
             learned_dropout_config:
                 parameters:
                     use_dropout_entropy_in_loss:

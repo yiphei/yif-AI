@@ -1,0 +1,66 @@
+program: transformer_dropout/training_script.py
+name: openweb_new_a100_loss_type_a
+project: transformer_dropout_5_encoder_decoder
+method: grid
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: True
+            context_size:
+                value: 1024
+            n_embed: 
+                value: 768
+            n_layer: 
+                value: 6
+            n_head: 
+                value: 6
+            dropout_rate:
+                value: 0
+            use_learned_dropout:
+                value: True
+            learned_dropout_config:
+                parameters:
+                    use_bias:
+                        value: True
+                    start_layer:
+                        value: 1
+                    end_layer:
+                        value: 6
+                    n_heads:
+                        value: 12
+                    profile_dropout_mask:
+                        value: False
+                    order_type:
+                        value: 1
+                    add_pos_embed:
+                        values: [True, False]
+                    sub_pos_embed:
+                        values: [1,3]
+                    token_loss_type:
+                        value: 2
+                    token_loss_coeff:
+                        values: [1, 5,50]
+                    token_loss_detach_type:
+                        values: [1,3]
+    batch_size: 
+        value: 15
+    train_steps: 
+        value: 11000
+    lr: 
+        value: 6e-4
+    warmup_iters:
+        value: 500
+    min_lr: 
+        value: 6e-5
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: # code needs to be modified 
+        value: 600000
+    est_interval: 
+        value: 500
+    est_steps:
+        value: 200

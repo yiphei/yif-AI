@@ -23,6 +23,8 @@ parameters:
                 value: 4
             n_head: 
                 value: 4
+            dropout_rate:
+                value: 0
             use_learned_dropout:
                 value: True
             learned_dropout_config:
@@ -40,31 +42,35 @@ parameters:
                     A_param_config:
                         parameters:
                             init_mean:
-                                values: [0, 10, 100]
+                                values: [0, 10]
                             init_std:
-                                values: [0, 1, 10]
+                                values: [0, 10]
                             optimizer_type:
-                                values: ["ADAMW", "SGD"]
+                                value: "ADAMW"
                             lr:
                                 values: [3e-2, 1, null]
                     B_param_config:
                         parameters:
                             init_mean:
-                                values: [0, 3.1415, 1.5707, 1.3033]
+                                values: [0, 3.1415, 1.5707]
                             init_std:
-                                values: [0, 0.02]
+                                value: 0
                             optimizer_type:
-                                values: ["ADAMW", "SGD"]
+                                value: "ADAMW"
                             lr:
                                 values: [3e-2, null]
                     dropout_entropy_lambda:
                         parameters:
+                            min_lambda:
+                              value: 0
                             max_lambda:
-                              values: [1,2]
+                              value: 1
+                            coefficient:
+                              value: 0.001
                     dropout_l1_norm_lambda:
                         parameters:
                             max_lambda:
-                              values: [1,2]
+                              value: 1
     batch_size: 
         value: 50
     train_steps: 
