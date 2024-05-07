@@ -127,7 +127,7 @@ class TransformerBlock(nn.Module):
         return x
     
 class BaseModel(nn.Module):
-    model_config: Type
+    model_config_cls: Type
 
     def __init__(self, gradient_accumulation_steps):
         super().__init__()
@@ -155,7 +155,7 @@ class BaseModel(nn.Module):
 
     @classmethod
     def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps):
-        model_config = cls.model_config(**checkpoint_dict["model_config"])
+        model_config = cls.model_config_cls(**checkpoint_dict["model_config"])
         model = cls(model_config, gradient_accumulation_steps)
         state_dict = checkpoint_dict["model"]
 

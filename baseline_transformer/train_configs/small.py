@@ -3,7 +3,7 @@ CONTEXT_SIZE = 200
 N_EMBED = 200
 N_LAYER = 4
 N_HEAD = 4
-BIAS = False
+USE_BIAS = False
 DROPOUT_RATE = 0
 
 # Training config

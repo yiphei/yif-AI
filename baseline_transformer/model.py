@@ -18,7 +18,7 @@ class ModelConfig:
     use_flash: bool = True
 
 class TransformerModel(BaseModel):
-    modeL_config = ModelConfig
+    model_config_cls = ModelConfig
 
     def __init__(self, config: ModelConfig, gradient_accumulation_steps):
         super().__init__(gradient_accumulation_steps)
