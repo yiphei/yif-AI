@@ -25,9 +25,7 @@ class ModelConfig:
 class TransformerModel(BaseModel):
     model_config_cls = ModelConfig
 
-    def _init_model(
-        self, config: ModelConfig
-    ):
+    def _init_model(self, config: ModelConfig):
         assert (
             config.alphabet_size is not None
         )  # an ugly workaround because of training script

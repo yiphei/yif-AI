@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
 
@@ -118,6 +119,8 @@ class TransformerBlock(nn.Module):
 
 
 RUNNING_STAT_PREFIX = "running_"
+
+
 class SubModuleStats(nn.Module):
     extra_stats: List[str]
 
@@ -126,11 +129,14 @@ class SubModuleStats(nn.Module):
         for stat in self.extra_stats:
             self.register_buffer(stat, torch.empty(0), persistent=False)
 
+
 class BaseModel(nn.Module):
     model_config_cls: Type
     extra_stats: List[str] = []
 
-    def __init__(self, config, gradient_accumulation_steps=None, is_master_process=True):
+    def __init__(
+        self, config, gradient_accumulation_steps=None, is_master_process=True
+    ):
         super().__init__()
         self._init_model(config)
         # these variables enable profiling

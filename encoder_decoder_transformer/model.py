@@ -299,9 +299,7 @@ class EncoderDecoderTransformer(BaseModel):
     model_config_cls = ModelConfig
     extra_stats = ["additional_loss", "raw_loss"]
 
-    def _init_model(
-        self, config: ModelConfig
-    ):
+    def _init_model(self, config: ModelConfig):
         assert (
             config.alphabet_size is not None
         )  # an ugly workaround because of training script

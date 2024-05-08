@@ -277,9 +277,7 @@ class TransformerBlock(nn.Module):
 class FutureAttentionTransformer(BaseModel):
     model_config_cls = ModelConfig
 
-    def _init_model(
-        self, config: ModelConfig
-    ):
+    def _init_model(self, config: ModelConfig):
         assert (
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
@@ -344,7 +342,7 @@ class FutureAttentionTransformer(BaseModel):
             loss = F.cross_entropy(logits, targets.view(-1))
             if self.config.use_future_x_loss:
                 loss += self.mask_loss
-        
+
         self._update_running_stats()
         return (logits, loss)
 
