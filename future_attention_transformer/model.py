@@ -306,17 +306,12 @@ class TransformerBlock(nn.Module):
 class FutureAttentionTransformer(BaseModel):
     model_config_cls = ModelConfig
 
-    def __init__(self, config: ModelConfig, gradient_accumulation_steps):
-        super().__init__()
+    def __init__(self, config: ModelConfig, gradient_accumulation_steps, is_master_process):
+        super().__init__(gradient_accumulation_steps, is_master_process)
         assert (
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
         self.config = config
-        self.gradient_accumulation_steps = gradient_accumulation_steps
-        self.training_step = (
-            None  # this is provided by the context manager in the training script
-        )
-        self.is_last_minibatch = False
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
@@ -341,7 +336,7 @@ class FutureAttentionTransformer(BaseModel):
                 for i in range(config.n_layer)
             ]
         )
-        self.ln = LayerNorm(config.n_embed, config.bias)
+        self.ln = LayerNorm(config.n_embed, config.use_bias)
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
 
         self.token_embedding.weight = self.output_layer.weight  # weight tying
@@ -403,7 +398,7 @@ class FutureAttentionTransformer(BaseModel):
                     additional_loss = mean_mask_losses
 
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
-        return (logits, loss, mean_mask_losses)
+        return (logits, loss)
 
     def estimate_mfu(self, fwdbwd_per_iter, dt):
         # TODO: add mfu estimation

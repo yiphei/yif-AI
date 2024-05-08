@@ -12,6 +12,7 @@ LEARNED_DROPOUT_CONFIG = {
     "n_heads": 3,
     "future_dim": 10,
     "profile_dropout_mask": False,
+    "mask_loss_type": 1,
 }
 
 # Training config
