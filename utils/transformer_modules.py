@@ -125,8 +125,9 @@ class BaseModel(nn.Module):
     model_config_cls: Type
     extra_stats: List[str] = []
 
-    def __init__(self, gradient_accumulation_steps=None, is_master_process=True):
+    def __init__(self, config, gradient_accumulation_steps=None, is_master_process=True):
         super().__init__()
+        self._init_model(config)
         # these variables enable profiling
         self.gradient_accumulation_steps = gradient_accumulation_steps
         # these two variables are set by the context manager in the training script
@@ -140,6 +141,9 @@ class BaseModel(nn.Module):
             self.register_buffer(
                 RUNNING_STAT_PREFIX + stat, torch.empty(0), persistent=False
             )
+
+    def _init_model(self):
+        raise NotImplementedError
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
