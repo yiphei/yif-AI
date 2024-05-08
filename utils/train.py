@@ -206,7 +206,7 @@ def estimate_loss(
                 data_iter = new_data_iter
 
             with ctx(i, False, False):
-                logits, loss= model(xb, yb)
+                logits, loss = model(xb, yb)
 
             losses[i] = loss
 

@@ -18,7 +18,6 @@ LEARNED_DROPOUT_CONFIG = {
     "order_type": 1,
     "sub_pos_embed": 1,
     "add_ln_before_pred_ff": True,
-    
 }
 
 # Training config

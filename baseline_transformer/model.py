@@ -1,10 +1,13 @@
-import torch
-import torch.nn as nn
-from torch.nn import functional as F
-from utils.transformer_modules import LayerNorm, TransformerBlock, BaseModel
 import math
 from dataclasses import dataclass
 from typing import Optional
+
+import torch
+import torch.nn as nn
+from torch.nn import functional as F
+
+from utils.transformer_modules import BaseModel, LayerNorm, TransformerBlock
+
 
 @dataclass
 class ModelConfig:
@@ -17,6 +20,7 @@ class ModelConfig:
     use_bias: bool = False
     use_flash: bool = True
 
+
 class TransformerModel(BaseModel):
     model_config_cls = ModelConfig
 
@@ -28,19 +32,17 @@ class TransformerModel(BaseModel):
         self.config = config
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
-        self.positional_embedding = nn.Embedding(
-            config.context_size, config.n_embed
-        )
+        self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.Sequential(
             *[
                 TransformerBlock(
-                            config.n_embed,
-                            config.n_head,
-                            config.use_bias,
-                            config.context_size,
-                            config.dropout_rate,
-                            config.use_flash,
+                    config.n_embed,
+                    config.n_head,
+                    config.use_bias,
+                    config.context_size,
+                    config.dropout_rate,
+                    config.use_flash,
                 )
                 for _ in range(config.n_layer)
             ]

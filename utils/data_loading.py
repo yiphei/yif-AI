@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DistributedSampler
 
+
 # A DistributedSampler that works with both distributed and non-distributed training
 class CustomDistributedSampler(DistributedSampler):
     # there is prob a better way to do this, but too lazy. The only new param is batch_size

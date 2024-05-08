@@ -1,8 +1,10 @@
+import inspect
+from typing import Type
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-import inspect
-from typing import Type
+
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -17,7 +19,9 @@ class LayerNorm(nn.Module):
 
 
 class MultiAttentionHead(nn.Module):
-    def __init__(self, dim_in, n_head, use_bias, context_size, dropout_rate = 0, use_flash = True):
+    def __init__(
+        self, dim_in, n_head, use_bias, context_size, dropout_rate=0, use_flash=True
+    ):
         super().__init__()
         assert dim_in % n_head == 0
         self.dim_in = dim_in
@@ -25,19 +29,14 @@ class MultiAttentionHead(nn.Module):
         self.n_head = n_head
         self.dropout_rate = dropout_rate
 
-        self.batch_attn_weights = nn.Linear(
-            self.dim_in, self.dim_in * 3, bias=use_bias
-        )
+        self.batch_attn_weights = nn.Linear(self.dim_in, self.dim_in * 3, bias=use_bias)
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=use_bias)
 
         self.dropout_1 = nn.Dropout(dropout_rate)
         self.dropout_2 = nn.Dropout(dropout_rate)
 
         self.using_flash = False
-        if (
-            not hasattr(F, "scaled_dot_product_attention")
-            or not use_flash
-        ):
+        if not hasattr(F, "scaled_dot_product_attention") or not use_flash:
             self.register_buffer(
                 "tril",
                 torch.tril(
@@ -78,19 +77,13 @@ class MultiAttentionHead(nn.Module):
         new_x = self.dropout_2(new_x)
         return new_x
 
+
 class FeedForward(nn.Module):
-    def __init__(
-        self,
-        dim_in,
-        use_bias,
-        dropout_rate = 0
-    ):
+    def __init__(self, dim_in, use_bias, dropout_rate=0):
         super().__init__()
         self.linear = nn.Linear(dim_in, dim_in * 4, bias=use_bias)
         self.gelu = nn.GELU()
-        self.residual_proj = nn.Linear(
-            dim_in * 4, dim_in, bias=use_bias
-        )
+        self.residual_proj = nn.Linear(dim_in * 4, dim_in, bias=use_bias)
         self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, x):
@@ -108,16 +101,14 @@ class TransformerBlock(nn.Module):
         n_head,
         use_bias,
         context_size,
-        dropout_rate = 0,
-        use_flash = True,
+        dropout_rate=0,
+        use_flash=True,
     ):
         super().__init__()
-        self.multi_attn_head = MultiAttentionHead(dim_in, n_head, use_bias, context_size, dropout_rate, use_flash)
-        self.feed_forward = FeedForward(
-                    dim_in,
-                use_bias,
-                dropout_rate
+        self.multi_attn_head = MultiAttentionHead(
+            dim_in, n_head, use_bias, context_size, dropout_rate, use_flash
         )
+        self.feed_forward = FeedForward(dim_in, use_bias, dropout_rate)
         self.ln1 = LayerNorm(dim_in, use_bias)
         self.ln2 = LayerNorm(dim_in, use_bias)
 
@@ -125,7 +116,8 @@ class TransformerBlock(nn.Module):
         x = x + self.multi_attn_head(self.ln1(x))
         x = x + self.feed_forward(self.ln2(x))
         return x
-    
+
+
 class BaseModel(nn.Module):
     model_config_cls: Type
 
@@ -134,9 +126,7 @@ class BaseModel(nn.Module):
         # these variables enable profiling
         self.gradient_accumulation_steps = gradient_accumulation_steps
         # these two variables are set by the training script
-        self.training_step = (
-            None
-        )
+        self.training_step = None
         self.is_last_minibatch = False
 
     def _init_weights(self, module):
@@ -218,7 +208,7 @@ class BaseModel(nn.Module):
             next_t = torch.multinomial(probs, num_samples=1)
             x = torch.cat((x, next_t), dim=1)
         return x
-    
+
 
 class OptimizerWrapper:
     def __init__(self, adamw_optimizer, sgd_optimizer):

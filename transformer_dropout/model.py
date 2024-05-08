@@ -2,12 +2,15 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Union
-from utils.transformer_modules import LayerNorm, MultiAttentionHead, FeedForward, BaseModel
-from baseline_transformer.model import ModelConfig as BaseModelConfig
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+
+from baseline_transformer.model import ModelConfig as BaseModelConfig
+from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
+                                       MultiAttentionHead)
+
 
 class OrderType(str, Enum):
     ORIGINAL = "ORIGINAL"
@@ -204,6 +207,7 @@ class ModelConfig(BaseModelConfig):
             ):
                 raise ValueError("end_layer <= n_layer and >= 1")
 
+
 class LearnedDropout(nn.Module):
     def __init__(self, embed_dim, context_size, config, dropout_rate):
         super().__init__()
@@ -252,6 +256,7 @@ class LearnedDropout(nn.Module):
 
         return new_x_pred
 
+
 class TransformerBlock(nn.Module):
     def __init__(
         self,
@@ -269,8 +274,22 @@ class TransformerBlock(nn.Module):
             self.order_type = config.learned_dropout_config.order_type
 
             if self.update_state:
-                self.multi_attn_head_state = MultiAttentionHead(config.n_embed, config.n_head, config.use_bias, config.context_size, config.dropout_rate, config.use_flash)
-            self.multi_attn_head_pred = MultiAttentionHead(config.n_embed, config.n_head, config.use_bias, config.context_size, config.dropout_rate, config.use_flash)
+                self.multi_attn_head_state = MultiAttentionHead(
+                    config.n_embed,
+                    config.n_head,
+                    config.use_bias,
+                    config.context_size,
+                    config.dropout_rate,
+                    config.use_flash,
+                )
+            self.multi_attn_head_pred = MultiAttentionHead(
+                config.n_embed,
+                config.n_head,
+                config.use_bias,
+                config.context_size,
+                config.dropout_rate,
+                config.use_flash,
+            )
             self.multi_attn_head_merge = LearnedDropout(
                 config.n_embed,
                 config.context_size,
@@ -279,10 +298,14 @@ class TransformerBlock(nn.Module):
             )
             if self.update_state:
                 self.feed_forward_state = FeedForward(
-                    config.n_embed, config.use_bias, config.dropout_rate,
+                    config.n_embed,
+                    config.use_bias,
+                    config.dropout_rate,
                 )
             self.feed_forward_pred = FeedForward(
-                config.n_embed, config.use_bias, config.dropout_rate,
+                config.n_embed,
+                config.use_bias,
+                config.dropout_rate,
             )
 
             self.merge_ln_state = LayerNorm(config.n_embed, config.use_bias)
@@ -375,9 +398,7 @@ class DropoutTransformer(BaseModel):
             ]
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
-        if (
-            config.learned_dropout_config.sub_pos_embed == SubPosEmbedType.YES_LN
-        ):
+        if config.learned_dropout_config.sub_pos_embed == SubPosEmbedType.YES_LN:
             self.positional_embedding_ln = LayerNorm(config.n_embed, config.use_bias)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
@@ -414,10 +435,7 @@ class DropoutTransformer(BaseModel):
         x_state = self.dropout(embed)
         x_original = x_state
         x_pred = None
-        if (
-            
-            self.config.learned_dropout_config.add_pos_embed
-        ):
+        if self.config.learned_dropout_config.add_pos_embed:
             if self.config.learned_dropout_config.add_ln_before_pred_ff:
                 x_state = self.ffd_ln(x_state)
 
@@ -428,7 +446,7 @@ class DropoutTransformer(BaseModel):
             )
         else:
             if self.config.learned_dropout_config.add_ln_before_pred_ff:
-                x_state = self.ffd_ln(x_state)                
+                x_state = self.ffd_ln(x_state)
             x_pred = self.pred_feed_forward(x_state)
 
         for transformer_block in self.transformer_blocks:
@@ -499,9 +517,7 @@ class DropoutTransformer(BaseModel):
             else:
                 raise ValueError("Invalid token loss type")
 
-        if (
-            self.config.learned_dropout_config.sub_pos_embed != SubPosEmbedType.NO
-        ):
+        if self.config.learned_dropout_config.sub_pos_embed != SubPosEmbedType.NO:
             out = out - self.positional_embedding(
                 torch.arange(
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
