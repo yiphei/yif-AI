@@ -12,6 +12,10 @@ CROSS_ATTN_CONFIG = {
     "order_type": 1,
     "sub_pos_embed": 1,
     "add_ln_before_decoder_ff": True,
+    "encoder_embed_loss_type": 2,
+    "use_ln_on_encoder_out": True,
+    "encoder_embed_detach_type": 1,
+    "encoder_embed_ln_type": 1,
 }
 
 # Training config
