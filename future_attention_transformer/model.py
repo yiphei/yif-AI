@@ -108,28 +108,29 @@ class ModelConfig(BaseModelConfig):
                 1 <= self.learned_dropout_config.future_dim <= (self.context_size - 1)
             )
 
-class LearnedDropout(nn.Module):
-    def __init__(self, embed_dim, context_size, config, dropout_rate):
+class FutureMultiAttentionHead(nn.Module):
+    def __init__(self, dim_in, n_head, use_bias, context_size, dropout_rate, future_dim, mask_loss_type):
         super().__init__()
-        self.embed_dim = embed_dim
+        assert dim_in % n_head == 0
+        self.dim_in = dim_in
         self.context_size = context_size
+        self.n_head = n_head
+        self.head_size = dim_in // n_head
+        self.future_dim = future_dim
+        self.mask_loss_type = mask_loss_type
 
-        self.config = config
-        self.module_name = None  # used for logging
-
-        self.head_size = embed_dim // config.n_heads
         self.batch_attn_weights = nn.Linear(
-            embed_dim, embed_dim * 3, bias=config.use_bias
+            dim_in, dim_in * 3, bias=use_bias
         )
         self.future_k_weights = nn.Parameter(
-            torch.randn(config.n_heads, self.head_size, context_size - 1)
+            torch.randn(n_head, self.head_size, context_size - 1)
         )
         self.future_v_weights = nn.Parameter(
-            torch.randn(config.n_heads, context_size - 1, self.head_size)
+            torch.randn(n_head, context_size - 1, self.head_size)
         )
         torch.nn.init.normal_(self.future_k_weights, mean=0.0, std=0.02)
         torch.nn.init.normal_(self.future_v_weights, mean=0.0, std=0.02)
-        self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
+        self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
 
         self.dropout_1 = nn.Dropout(dropout_rate)
         self.dropout_2 = nn.Dropout(dropout_rate)
@@ -148,7 +149,7 @@ class LearnedDropout(nn.Module):
                 torch.tril(torch.ones(context_size, context_size - 1), diagonal=-1)
                 + torch.triu(
                     torch.ones(context_size, context_size - 1),
-                    diagonal=self.config.future_dim,
+                    diagonal=future_dim,
                 )
             ).view(1, 1, context_size, context_size - 1),
         )
@@ -158,29 +159,26 @@ class LearnedDropout(nn.Module):
                 torch.ones(context_size, context_size).view(
                     1, 1, context_size, context_size
                 ),
-                diagonal=self.config.future_dim,
+                diagonal=future_dim,
             ),
         )
         self.register_buffer("mask_loss", torch.tensor(0), persistent=False)
 
     def forward(self, x):
-        import wandb
-
-        # dropout_x = x.detach() if self.config.use_detached_x_in_dropout_mask else x
         dropout_x = x
 
         B, T, C = dropout_x.shape
-        q, k, v = self.batch_attn_weights(dropout_x).split(self.embed_dim, dim=2)
-        k = k.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
-        q = q.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
-        v = v.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
+        q, k, v = self.batch_attn_weights(dropout_x).split(self.dim_in, dim=2)
+        k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
         if self.training:
             with torch.no_grad():
                 true_attn = attn.masked_fill(
                     self.full_tril[
-                        :, :, :T, : min(T + self.config.future_dim, self.context_size)
+                        :, :, :T, : min(T + self.future_dim, self.context_size)
                     ]
                     == 0,
                     float("-inf"),
@@ -192,18 +190,18 @@ class LearnedDropout(nn.Module):
                         :,
                         :,
                         :T,
-                        : min(T + self.config.future_dim - 1, self.context_size - 1),
+                        : min(T + self.future_dim - 1, self.context_size - 1),
                     ]
                     != 0,
                     0.0,
                 )
                 true_future_mask = (
                     true_future_attn
-                    @ v[:, :, 1 : min(T + self.config.future_dim, self.context_size), :]
+                    @ v[:, :, 1 : min(T + self.future_dim, self.context_size), :]
                 )
 
         causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0.0)
-        pad_size = min(self.config.future_dim, self.context_size - T)
+        pad_size = min(self.future_dim, self.context_size - T)
         if pad_size > 0:
             padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
         else:
@@ -212,12 +210,12 @@ class LearnedDropout(nn.Module):
         future_attn = (
             q
             @ self.future_k_weights[
-                :, :, : min(T + self.config.future_dim - 1, self.context_size - 1)
+                :, :, : min(T + self.future_dim - 1, self.context_size - 1)
             ]
         ) * (self.head_size**-0.5)
         future_attn = future_attn.masked_fill(
             self.future_tril[
-                :, :, :T, : min(T + self.config.future_dim - 1, self.context_size - 1)
+                :, :, :T, : min(T + self.future_dim - 1, self.context_size - 1)
             ]
             != 0,
             0.0,
@@ -227,7 +225,7 @@ class LearnedDropout(nn.Module):
         full_attn = padded_causal_attn + padded_future_attn
         full_attn = full_attn.masked_fill(
             self.full_tril[
-                :, :, :T, : min(T + self.config.future_dim, self.context_size)
+                :, :, :T, : min(T + self.future_dim, self.context_size)
             ]
             == 0,
             float("-inf"),
@@ -240,11 +238,11 @@ class LearnedDropout(nn.Module):
             self.tril[:, :, :T, :T] == 0, 0.0
         )
         softmax_future_attn = softmax_full_attn[
-            :, :, :T, 1 : min(T + self.config.future_dim, self.context_size)
+            :, :, :T, 1 : min(T + self.future_dim, self.context_size)
         ]
         softmax_future_attn = softmax_future_attn.masked_fill(
             self.future_tril[
-                :, :, :T, : min(T + self.config.future_dim - 1, self.context_size - 1)
+                :, :, :T, : min(T + self.future_dim - 1, self.context_size - 1)
             ]
             != 0,
             0.0,
@@ -254,7 +252,7 @@ class LearnedDropout(nn.Module):
         future_mask = (
             softmax_future_attn
             @ self.future_v_weights[
-                :, : min(T + self.config.future_dim - 1, self.context_size - 1), :
+                :, : min(T + self.future_dim - 1, self.context_size - 1), :
             ]
         )
         full_mask = causal_mask + future_mask
@@ -264,9 +262,9 @@ class LearnedDropout(nn.Module):
         new_x = self.dropout_2(new_x)
 
         if self.training:
-            if self.config.mask_loss_type == MaskLossType.MSE:
+            if self.mask_loss_type == MaskLossType.MSE:
                 self.mask_loss = F.mse_loss(future_mask, true_future_mask)
-            elif self.config.mask_loss_type == MaskLossType.COSINE_SIM:
+            elif self.mask_loss_type == MaskLossType.COSINE_SIM:
                 self.mask_loss = (
                     F.cosine_similarity(future_mask, true_future_mask).mean() ** 2
                 )
@@ -283,11 +281,14 @@ class TransformerBlock(nn.Module):
         self.use_learned_dropout = use_learned_dropout
         self.learned_dropout_config = config.learned_dropout_config
         if use_learned_dropout:
-            self.multi_attn_head = LearnedDropout(
+            self.multi_attn_head = FutureMultiAttentionHead(
                 config.n_embed,
+                config.learned_dropout_config.n_heads,
+                config.learned_dropout_config.use_bias,
                 config.context_size,
-                config.learned_dropout_config,
                 config.dropout_rate,
+                config.learned_dropout_config.future_dim,
+                config.learned_dropout_config.mask_loss_type,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(config.n_embed, config.n_head, config.use_bias, config.context_size, config.dropout_rate, config.use_flash)
@@ -353,7 +354,7 @@ class FutureAttentionTransformer(BaseModel):
         n_learned_dropout = 0
         param_to_param_name = {p: n for n, p in self.named_parameters()}
         for module in self.modules():
-            if isinstance(module, LearnedDropout):
+            if isinstance(module, FutureMultiAttentionHead):
                 module.module_name = ".".join(
                     param_to_param_name[module.batch_attn_weights.weight].split(".")[
                         :-2
@@ -388,7 +389,7 @@ class FutureAttentionTransformer(BaseModel):
                 mask_losses = torch.empty(self.n_learned_dropout, device=device)
                 curr_idx = 0
                 for module in self.modules():
-                    if isinstance(module, LearnedDropout):
+                    if isinstance(module, FutureMultiAttentionHead):
                         mask_losses[curr_idx] = module.mask_loss
                         curr_idx += 1
 
