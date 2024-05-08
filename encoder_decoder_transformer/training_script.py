@@ -36,6 +36,7 @@ def create_training_step_context(starting_training_step, model):
                     else model.training_step is None
                 )
                 model.training_step = training_step
+                model.reset_running_stats()
             model.update_is_last_minibatch(is_last_minibatch)
         yield
 

@@ -1,5 +1,5 @@
 import inspect
-from typing import Type
+from typing import Type, List
 
 import torch
 import torch.nn as nn
@@ -117,9 +117,11 @@ class TransformerBlock(nn.Module):
         x = x + self.feed_forward(self.ln2(x))
         return x
 
+RUNNING_STAT_PREFIX = "running_"
 
 class BaseModel(nn.Module):
     model_config_cls: Type
+    extra_stats: List[str]
 
     def __init__(self, gradient_accumulation_steps):
         super().__init__()
@@ -129,6 +131,11 @@ class BaseModel(nn.Module):
         self.training_step = None
         self.is_last_minibatch = False
 
+        # It's faster to use keep stats on the same device, hence the buffer registration
+        for stat in self.extra_stats:
+            self.register_buffer(stat, torch.empty(0), persistent=False)
+            self.register_buffer(RUNNING_STAT_PREFIX + stat, torch.empty(0), persistent=False)
+
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
@@ -136,6 +143,26 @@ class BaseModel(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def _update_running_stats(self):
+        for stat in self.extra_stats:
+            current_running_stat = getattr(self, RUNNING_STAT_PREFIX + stat)
+            current_stat = getattr(self, stat)
+            if current_stat.numel() == 0:
+                continue
+            if current_running_stat.numel() == 0:
+                current_running_stat = current_stat.clone() / self.gradient_accumulation_steps
+            else:
+                current_running_stat += current_stat / self.gradient_accumulation_steps
+            
+            setattr(self, RUNNING_STAT_PREFIX + stat, current_running_stat)
+
+    def reset_running_stats(self):
+        for stat in self.extra_stats:
+            setattr(self, RUNNING_STAT_PREFIX + stat, torch.empty(0))
+
+    def dump_extra_stats(self):
+        return {stat: getattr(self, RUNNING_STAT_PREFIX +  stat).item() for stat in self.extra_stats if getattr(self, RUNNING_STAT_PREFIX + stat).numel() != 0}
 
     def update_is_last_minibatch(self, new_val):
         # this is called by the context manager in the training script
