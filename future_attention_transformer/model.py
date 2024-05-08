@@ -93,7 +93,7 @@ class DynamicLinear(nn.Module):
 
 
 class FutureMultiAttentionHead(SubModuleStats):
-    extra_stats = ["mask_loss"]
+    extra_stats = ["future_loss"]
 
     def __init__(
         self,
@@ -228,12 +228,12 @@ class FutureMultiAttentionHead(SubModuleStats):
 
         if self.training:
             if self.future_x_loss_type == FutureXLossType.MSE:
-                self.mask_loss = F.mse_loss(future_x, true_future_x)
+                self.future_loss = F.mse_loss(future_x, true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
                 cosine_sim = (
                     F.cosine_similarity(future_x, true_future_x, dim=-1)
                 )
-                self.mask_loss = (1-(1+ cosine_sim)/2).mean()
+                self.future_loss = (1-(1+ cosine_sim)/2).mean()
 
         return new_x
 
@@ -332,18 +332,18 @@ class FutureAttentionTransformer(BaseModel):
             logits = logits.view(B * T, C)
 
             if self.training:
-                mask_losses = torch.empty(self.n_future_attn, device=device)
+                future_losses = torch.empty(self.n_future_attn, device=device)
                 curr_idx = 0
                 for module in self.modules():
                     if isinstance(module, FutureMultiAttentionHead):
-                        mask_losses[curr_idx] = module.mask_loss
+                        future_losses[curr_idx] = module.future_loss
                         curr_idx += 1
 
-                self.mask_loss = mask_losses.mean() * self.config.future_x_loss_coeff
+                self.future_loss = future_losses.mean() * self.config.future_x_loss_coeff
 
             loss = F.cross_entropy(logits, targets.view(-1))
             if self.training and self.config.use_future_x_loss:
-                loss += self.mask_loss
+                loss += self.future_loss
 
         self._update_running_stats()
         return (logits, loss)
