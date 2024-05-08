@@ -52,8 +52,8 @@ class SubPosEmbedType(str, Enum):
 class EncoderEmbedLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
-    COSINE_SIM_NORM = "CONSINE_SIM_NORM"
-    COSINE_SIM_LOG = "CONSINE_SIM_LOG"
+    COSINE_SIM = "CONSINE_SIM"
+    LOG_COSINE_SIM = "LOG_COSINE_SIM"
 
     def __str__(self):
         return self.value
@@ -65,9 +65,9 @@ class EncoderEmbedLossType(str, Enum):
         elif num == 2:
             return EncoderEmbedLossType.MSE
         elif num == 3:
-            return EncoderEmbedLossType.COSINE_SIM_NORM
+            return EncoderEmbedLossType.COSINE_SIM
         elif num == 4:
-            return EncoderEmbedLossType.COSINE_SIM_LOG
+            return EncoderEmbedLossType.LOG_COSINE_SIM
         else:
             raise ValueError("Invalid encoder embed loss type number")
 
@@ -120,7 +120,7 @@ class EncoderDecoderCrossAttentionHeadConfig:
     n_head: int
     add_pos_embed: bool
     sub_pos_embed: Union[SubPosEmbedType, int]
-    use_ln_on_final_x_state: Optional[bool] = None
+    use_ln_on_encoder_out: Optional[bool] = None
     encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = (
         EncoderEmbedLossType.NONE
     )
@@ -151,12 +151,12 @@ class EncoderDecoderCrossAttentionHeadConfig:
                 self.encoder_embed_loss_coeff = 1.0
             else:
                 assert self.encoder_embed_loss_coeff > 0
-            assert self.use_ln_on_final_x_state is not None
+            assert self.use_ln_on_encoder_out is not None
             assert self.encoder_embed_ln_type is not None
             assert self.encoder_embed_detach_type is not None
         else:
             assert self.encoder_embed_loss_coeff is None
-            assert self.use_ln_on_final_x_state is None
+            assert self.use_ln_on_encoder_out is None
             assert self.encoder_embed_ln_type is None
             assert self.encoder_embed_detach_type is None
 
@@ -183,6 +183,7 @@ class CrossMultiAttentionHead(nn.Module):
         self.n_head = n_head
         self.head_size = dim_in // n_head
         self.dropout_rate = dropout_rate
+
         self.k_v_weights = nn.Linear(dim_in, dim_in * 2, bias=use_bias)
         self.q_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
@@ -311,17 +312,16 @@ class EncoderDecoderTransformer(BaseModel):
         self.config = config
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
+        positional_embedding_size = config.context_size
         if (
             config.learned_dropout_config.add_pos_embed
             or self.config.learned_dropout_config.sub_pos_embed != SubPosEmbedType.NO
         ):
-            self.positional_embedding = nn.Embedding(
-                config.context_size + 1, config.n_embed
-            )
-        else:
-            self.positional_embedding = nn.Embedding(
-                config.context_size, config.n_embed
-            )
+            positional_embedding_size += 1
+        self.positional_embedding = nn.Embedding(
+                        positional_embedding_size, config.n_embed
+                    )
+
         self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
         )
@@ -345,7 +345,7 @@ class EncoderDecoderTransformer(BaseModel):
         if (
             self.config.learned_dropout_config.encoder_embed_loss_type
             != EncoderEmbedLossType.NONE
-            and self.config.learned_dropout_config.use_ln_on_final_x_state
+            and self.config.learned_dropout_config.use_ln_on_encoder_out
         ):
             self.final_x_state_ln = LayerNorm(config.n_embed, True)
         if (
@@ -413,7 +413,7 @@ class EncoderDecoderTransformer(BaseModel):
             ):
                 encoder_out = encoder_out.detach()
 
-            if self.config.learned_dropout_config.use_ln_on_final_x_state:
+            if self.config.learned_dropout_config.use_ln_on_encoder_out:
                 encoder_out = self.final_x_state_ln(encoder_out)
 
             if (
@@ -444,7 +444,7 @@ class EncoderDecoderTransformer(BaseModel):
                 )
             elif (
                 self.config.learned_dropout_config.encoder_embed_loss_type
-                == EncoderEmbedLossType.COSINE_SIM_NORM
+                == EncoderEmbedLossType.COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_embed, dim=-1)
                 raw_loss = (1 - (cosine_sim + 1) / 2).mean()
@@ -454,7 +454,7 @@ class EncoderDecoderTransformer(BaseModel):
                 )
             elif (
                 self.config.learned_dropout_config.encoder_embed_loss_type
-                == EncoderEmbedLossType.COSINE_SIM_LOG
+                == EncoderEmbedLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_embed, dim=-1)
                 raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
