@@ -1,5 +1,5 @@
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Union
 
@@ -15,7 +15,6 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
 class OrderType(str, Enum):
     ORIGINAL = "ORIGINAL"
     ALT = "ALT"
-    ALT2 = "ALT2"
 
     def __str__(self):
         return self.value
@@ -26,15 +25,13 @@ class OrderType(str, Enum):
             return OrderType.ORIGINAL
         elif num == 2:
             return OrderType.ALT
-        elif num == 3:
-            return OrderType.ALT2
         else:
-            raise ValueError("Invalid rounding type number")
+            raise ValueError("Invalid order type number")
 
 
 class SubPosEmbedType(str, Enum):
     NO = "NO"
-    NO_LN = "NO_LN"
+    YES_NO_LN = "YES_NO_LN"
     YES_LN = "YES_LN"
 
     def __str__(self):
@@ -45,7 +42,7 @@ class SubPosEmbedType(str, Enum):
         if num == 1:
             return SubPosEmbedType.NO
         elif num == 2:
-            return SubPosEmbedType.NO_LN
+            return SubPosEmbedType.YES_NO_LN
         elif num == 3:
             return SubPosEmbedType.YES_LN
         else:
@@ -120,6 +117,7 @@ class EncoderDecoderCrossAttentionHeadConfig:
     use_bias: bool
     order_type: Union[OrderType, int]
     add_ln_before_pred_ff: bool
+    n_head: int
     add_pos_embed: bool
     sub_pos_embed: Union[SubPosEmbedType, int]
     token_loss_type: Union[TokenLossType, int] = TokenLossType.NONE
@@ -127,8 +125,6 @@ class EncoderDecoderCrossAttentionHeadConfig:
     token_loss_coeff: Optional[float] = None
     use_ln_on_final_x_state: Optional[bool] = None
     token_embed_layer_norm_type: Optional[Union[TokenEmbedLayerNormType, int]] = None
-    n_heads: int = 1
-    profile_dropout_mask: bool = False
 
     def __post_init__(self):
         if type(self.token_loss_type) == int:
@@ -166,8 +162,6 @@ class EncoderDecoderCrossAttentionHeadConfig:
         if type(self.sub_pos_embed) == int:
             self.sub_pos_embed = SubPosEmbedType.get_type_from_int(self.sub_pos_embed)
 
-        assert self.n_heads >= 1
-
         if self.token_loss_detach_type is not None:
             assert self.token_loss_type != TokenLossType.NONE
         else:
@@ -189,40 +183,29 @@ class ModelConfig(BaseModelConfig):
 
 
 class EncoderDecoderCrossAttentionHead(nn.Module):
-    def __init__(self, embed_dim, context_size, config, dropout_rate):
+    def __init__(self, dim_in, n_head, use_bias, context_size, dropout_rate=0):
+
         super().__init__()
-        self.embed_dim = embed_dim
+        self.dim_in = dim_in
         self.context_size = context_size
 
-        self.config = config
-        self.module_name = None  # used for logging
-
-        self.head_size = embed_dim // config.n_heads
-        self.k_v_weights = nn.Linear(embed_dim, embed_dim * 2, bias=config.use_bias)
-        self.q_weights = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
-        self.residual_proj = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
+        self.n_head = n_head
+        self.head_size = dim_in // n_head
+        self.k_v_weights = nn.Linear(dim_in, dim_in * 2, bias=use_bias)
+        self.q_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
+        self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
         self.dropout_2 = nn.Dropout(dropout_rate)
-
         self.dropout_rate = dropout_rate
-
-        self.register_buffer(
-            "tril",
-            torch.tril(
-                torch.ones(context_size, context_size).view(
-                    1, 1, context_size, context_size
-                )
-            ),
-        )
 
     def forward(self, x_state, x_pred):
 
         B, T, C = x_state.shape
-        k, v = self.k_v_weights(x_state).split(self.embed_dim, dim=2)
-        k = k.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
-        v = v.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
+        k, v = self.k_v_weights(x_state).split(self.dim_in, dim=2)
+        k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
         q = self.q_weights(x_pred)
-        q = q.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
+        q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
         out = F.scaled_dot_product_attention(
             q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
@@ -263,8 +246,9 @@ class TransformerBlock(nn.Module):
         )
         self.multi_attn_head_merge = EncoderDecoderCrossAttentionHead(
             config.n_embed,
+            config.learned_dropout_config.n_head,
+            config.learned_dropout_config.use_bias,
             config.context_size,
-            config.learned_dropout_config,
             config.dropout_rate,
         )
         self.feed_forward_state = FeedForward(
