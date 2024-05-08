@@ -319,8 +319,8 @@ class EncoderDecoderTransformer(BaseModel):
         ):
             positional_embedding_size += 1
         self.positional_embedding = nn.Embedding(
-                        positional_embedding_size, config.n_embed
-                    )
+            positional_embedding_size, config.n_embed
+        )
 
         if config.learned_dropout_config.add_ln_before_pred_ff:
             self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
@@ -341,9 +341,7 @@ class EncoderDecoderTransformer(BaseModel):
         if config.learned_dropout_config.sub_pos_embed == SubPosEmbedType.YES_LN:
             self.post_sub_pos_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        if (
-            self.config.learned_dropout_config.use_ln_on_encoder_out
-        ):
+        if self.config.learned_dropout_config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
         if (
             self.config.learned_dropout_config.encoder_embed_ln_type
