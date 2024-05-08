@@ -1,24 +1,19 @@
-import torch
-
 # ModelConfig
 CONTEXT_SIZE = 100
 N_EMBED = 147
 N_LAYER = 6
 N_HEAD = 7
-BIAS = False
-USE_LEARNED_DROPOUT = True
+USE_BIAS = False
 DROPOUT_RATE = 0
-LEARNED_DROPOUT_CONFIG = {
-    "start_layer": 1,
-    "end_layer": 6,
-    "use_bias": False,
-    "n_heads": 7,
-    "profile_dropout_mask": False,
-    "add_pos_embed": False,
-    "order_type": 1,
-    "sub_pos_embed": 1,
-    "add_ln_before_pred_ff": True,
-}
+ADD_POS_EMBED = False
+ORDER_TYPE = 1
+SUB_POS_EMBED = 1
+ADD_LN_BEFORE_DECODER_FF = True
+ENCODER_EMBED_LOSS_TYPE = 2
+USE_LN_ON_ENCODER_OUT = True
+ENCODER_EMBED_DETACH_TYPE = 1
+ENCODER_EMBED_LN_TYPE = 1
+CROSS_ATTN_CONFIG = {"use_bias": False, "n_head": 7}
 
 # Training config
 BATCH_SIZE = 15  # 50 when run on 1x A10
