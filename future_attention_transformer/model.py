@@ -142,10 +142,8 @@ class FutureMultiAttentionHead(nn.Module):
         self.register_buffer("mask_loss", torch.tensor(0), persistent=False)
 
     def forward(self, x):
-        dropout_x = x
-
-        B, T, C = dropout_x.shape
-        q, k, v = self.batch_attn_weights(dropout_x).split(self.dim_in, dim=2)
+        B, T, C = x.shape
+        q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
         k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
