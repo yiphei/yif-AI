@@ -5,7 +5,7 @@ import torch
 from utils.train import train
 
 try:
-    from transformer_dropout.model import DropoutTransformer
+    from encoder_decoder_transformer.model import DropoutTransformer
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
     from model import DropoutTransformer

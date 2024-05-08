@@ -1,27 +1,18 @@
-import torch
-
 # ModelConfig
 CONTEXT_SIZE = 100
 N_EMBED = 90
 N_LAYER = 3
 N_HEAD = 3
-BIAS = False
-USE_LEARNED_DROPOUT = True
-DROPOUT_RATE = 0.1
+USE_BIAS = False
+DROPOUT_RATE = 0
 LEARNED_DROPOUT_CONFIG = {
-    "start_layer": 1,
-    "end_layer": 3,
     "use_bias": False,
     "n_heads": 3,
     "profile_dropout_mask": False,
-    "add_pos_embed": True,
+    "add_pos_embed": False,
     "order_type": 1,
-    "sub_pos_embed": 3,
-    "token_loss_type": 2,
-    "token_loss_detach_type": 1,
-    "token_loss_coeff": 1,
-    "use_ln_on_final_x_state": True,
-    "token_embed_layer_norm_type": 2,
+    "sub_pos_embed": 1,
+    "add_ln_before_pred_ff": True,
 }
 
 # Training config
