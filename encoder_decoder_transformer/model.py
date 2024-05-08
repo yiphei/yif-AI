@@ -173,7 +173,7 @@ class ModelConfig(BaseModelConfig):
             )
 
 
-class EncoderDecoderCrossAttentionHead(nn.Module):
+class CrossMultiAttentionHead(nn.Module):
     def __init__(self, dim_in, n_head, use_bias, dropout_rate=0):
         super().__init__()
         assert dim_in % n_head == 0
@@ -186,13 +186,13 @@ class EncoderDecoderCrossAttentionHead(nn.Module):
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
         self.dropout_2 = nn.Dropout(dropout_rate)
 
-    def forward(self, x_state, x_pred):
-        B, T, C = x_state.shape
-        k, v = self.k_v_weights(x_state).split(self.dim_in, dim=2)
+    def forward(self, encoder_x, decoder_x):
+        B, T, C = encoder_x.shape
+        k, v = self.k_v_weights(encoder_x).split(self.dim_in, dim=2)
         k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
-        q = self.q_weights(x_pred)
+        q = self.q_weights(decoder_x)
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
         out = F.scaled_dot_product_attention(
@@ -202,10 +202,10 @@ class EncoderDecoderCrossAttentionHead(nn.Module):
         out = (
             out.transpose(1, 2).contiguous().view(B, T, C)
         )  # B,H,T,S -> B,T,H,S -> B,T,C
-        new_x_pred = self.residual_proj(out)
-        new_x_pred = self.dropout_2(new_x_pred)
+        new_decoder_x = self.residual_proj(out)
+        new_decoder_x = self.dropout_2(new_decoder_x)
 
-        return new_x_pred
+        return new_decoder_x
 
 
 class TransformerBlock(nn.Module):
@@ -215,7 +215,7 @@ class TransformerBlock(nn.Module):
     ):
         super().__init__()
         self.order_type = config.learned_dropout_config.order_type
-        self.multi_attn_head_state = MultiAttentionHead(
+        self.encoder_multi_attn_head = MultiAttentionHead(
             config.n_embed,
             config.n_head,
             config.use_bias,
@@ -223,7 +223,7 @@ class TransformerBlock(nn.Module):
             config.dropout_rate,
             config.use_flash,
         )
-        self.multi_attn_head_pred = MultiAttentionHead(
+        self.decoder_multi_attn_head = MultiAttentionHead(
             config.n_embed,
             config.n_head,
             config.use_bias,
@@ -231,55 +231,55 @@ class TransformerBlock(nn.Module):
             config.dropout_rate,
             config.use_flash,
         )
-        self.multi_attn_head_merge = EncoderDecoderCrossAttentionHead(
+        self.cross_multi_attn_head = CrossMultiAttentionHead(
             config.n_embed,
             config.learned_dropout_config.n_head,
             config.learned_dropout_config.use_bias,
             config.dropout_rate,
         )
 
-        self.feed_forward_state = FeedForward(
+        self.encoder_feed_forward = FeedForward(
             config.n_embed,
             config.use_bias,
             config.dropout_rate,
         )
-        self.feed_forward_pred = FeedForward(
+        self.decoder_feed_forward = FeedForward(
             config.n_embed,
             config.use_bias,
             config.dropout_rate,
         )
 
-        self.merge_ln_state = LayerNorm(config.n_embed, config.use_bias)
-        self.merge_ln_pred = LayerNorm(config.n_embed, config.use_bias)
+        self.encoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
+        self.decoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        self.ln1_state = LayerNorm(config.n_embed, config.use_bias)
-        self.ln2_state = LayerNorm(config.n_embed, config.use_bias)
+        self.encoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
+        self.encoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-        self.ln1_pred = LayerNorm(config.n_embed, config.use_bias)
-        self.ln2_pred = LayerNorm(config.n_embed, config.use_bias)
+        self.decoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
+        self.decoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, x_state, x_pred):
+    def forward(self, encoder_x, decoder_x):
         if self.order_type == OrderType.ORIGINAL:
-            x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
-            x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
+            encoder_x = encoder_x + self.encoder_multi_attn_head(self.encoder_ln1(encoder_x))
+            encoder_x = encoder_x + self.encoder_feed_forward(self.encoder_ln2(encoder_x))
 
-            x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
-            x_pred = x_pred + self.multi_attn_head_merge(
-                self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
+            decoder_x = decoder_x + self.decoder_multi_attn_head(self.decoder_ln1(decoder_x))
+            decoder_x = decoder_x + self.cross_multi_attn_head(
+                self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
             )
-            x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+            decoder_x = decoder_x + self.decoder_feed_forward(self.decoder_ln2(decoder_x))
         elif self.order_type == OrderType.ALT:
-            x_state = x_state + self.multi_attn_head_state(self.ln1_state(x_state))
-            x_state = x_state + self.feed_forward_state(self.ln2_state(x_state))
+            encoder_x = encoder_x + self.encoder_multi_attn_head(self.encoder_ln1(encoder_x))
+            encoder_x = encoder_x + self.encoder_feed_forward(self.encoder_ln2(encoder_x))
 
-            x_pred = x_pred + self.multi_attn_head_merge(
-                self.merge_ln_state(x_state), self.merge_ln_pred(x_pred)
+            decoder_x = decoder_x + self.cross_multi_attn_head(
+                self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
             )
-            x_pred = x_pred + self.multi_attn_head_pred(self.ln1_pred(x_pred))
-            x_pred = x_pred + self.feed_forward_pred(self.ln2_pred(x_pred))
+            decoder_x = decoder_x + self.decoder_multi_attn_head(self.decoder_ln1(decoder_x))
+            decoder_x = decoder_x + self.decoder_feed_forward(self.decoder_ln2(decoder_x))
         else:
             raise ValueError("Invalid order type")
-        return x_state, x_pred
+        return encoder_x, decoder_x
 
 
 class EncoderDecoderTransformer(BaseModel):
@@ -304,7 +304,7 @@ class EncoderDecoderTransformer(BaseModel):
             self.positional_embedding = nn.Embedding(
                 config.context_size, config.n_embed
             )
-        self.pred_feed_forward = nn.Linear(
+        self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
         )
         if config.learned_dropout_config.add_ln_before_pred_ff:
@@ -354,26 +354,27 @@ class EncoderDecoderTransformer(BaseModel):
             torch.arange(x.shape[1], dtype=torch.long, device=device)
         )
         embed = token_embed + pos_embed
-        x_state = self.dropout(embed)
-        x_original = x_state
-        if self.config.learned_dropout_config.add_pos_embed:
-            if self.config.learned_dropout_config.add_ln_before_pred_ff:
-                x_pred = self.ffd_ln(x_state)
+        encoder_embed = self.dropout(embed)
+        encoder_x = encoder_embed
+        
+        decoder_x = None
+        if self.config.learned_dropout_config.add_ln_before_pred_ff:
+            decoder_x = self.ffd_ln(encoder_embed)
+        decoder_x = self.decoder_feed_forward(decoder_x)
+        
 
-            x_pred = self.pred_feed_forward(x_state) + self.positional_embedding(
+        if self.config.learned_dropout_config.add_pos_embed:
+            decoder_x += self.positional_embedding(
                 torch.arange(
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
                 )
             )
-        else:
-            if self.config.learned_dropout_config.add_ln_before_pred_ff:
-                x_pred = self.ffd_ln(x_state)
-            x_pred = self.pred_feed_forward(x_state)
 
         for transformer_block in self.transformer_blocks:
-            x_state, x_pred = transformer_block(x_state, x_pred)
+            encoder_x, decoder_x = transformer_block(encoder_x, decoder_x)
 
-        out = self.ln(x_pred)
+        encoder_out = encoder_x
+        decoder_out = self.ln(decoder_x)
 
         additional_loss = torch.tensor(0.0, device=device)
         raw_loss = torch.tensor(0.0, device=device)
@@ -385,23 +386,23 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.encoder_embed_detach_type
                 == EncoderEmbedDetachType.INIT
             ):
-                x_original = x_original.detach()
+                encoder_embed = encoder_embed.detach()
             elif (
                 self.config.learned_dropout_config.encoder_embed_detach_type
                 == EncoderEmbedDetachType.FINAL
             ):
-                x_state = x_state.detach()
+                encoder_out = encoder_out.detach()
 
             if self.config.learned_dropout_config.use_ln_on_final_x_state:
-                x_state = self.final_x_state_ln(x_state)
+                encoder_out = self.final_x_state_ln(encoder_out)
 
             if (
                 self.config.learned_dropout_config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.INIT
             ):
-                x_original = self.token_embed_layer_norm(x_original)
+                encoder_embed = self.token_embed_layer_norm(encoder_embed)
 
-            cum_sum = torch.cumsum(x_original, dim=-2)
+            cum_sum = torch.cumsum(encoder_embed, dim=-2)
             avg_sum = cum_sum / torch.arange(
                 1, x.shape[1] + 1, dtype=torch.long, device=device
             ).unsqueeze(0).unsqueeze(-1)
@@ -413,7 +414,7 @@ class EncoderDecoderTransformer(BaseModel):
                 avg_sum = self.token_embed_layer_norm(avg_sum)
 
             if self.config.learned_dropout_config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
-                raw_loss = F.mse_loss(avg_sum, x_state, reduction="mean")
+                raw_loss = F.mse_loss(avg_sum, encoder_embed, reduction="mean")
                 additional_loss = (
                     raw_loss * self.config.learned_dropout_config.encoder_embed_loss_coeff
                 )
@@ -421,7 +422,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.encoder_embed_loss_type
                 == EncoderEmbedLossType.COSINE_SIM_NORM
             ):
-                cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
+                cosine_sim = F.cosine_similarity(avg_sum, encoder_embed, dim=-1)
                 raw_loss = (1 - (cosine_sim + 1) / 2).mean()
                 additional_loss = (
                     raw_loss * self.config.learned_dropout_config.encoder_embed_loss_coeff
@@ -430,7 +431,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.encoder_embed_loss_type
                 == EncoderEmbedLossType.COSINE_SIM_LOG
             ):
-                cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
+                cosine_sim = F.cosine_similarity(avg_sum, encoder_embed, dim=-1)
                 raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 additional_loss = (
                     raw_loss * self.config.learned_dropout_config.encoder_embed_loss_coeff
@@ -452,9 +453,9 @@ class EncoderDecoderTransformer(BaseModel):
 
         if targets is None:
             loss = None
-            logits = self.output_layer(out[:, [-1], :])
+            logits = self.output_layer(decoder_out[:, [-1], :])
         else:
-            logits = self.output_layer(out)
+            logits = self.output_layer(decoder_out)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
