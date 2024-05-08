@@ -61,18 +61,9 @@ class LearnedDropoutConfig:
 
 
 @dataclass
-class ModelConfig:
-    context_size: int
-    n_embed: int
-    n_layer: int
-    n_head: int
+class ModelConfig(BaseModelConfig):
     use_learned_dropout: bool
     learned_dropout_config: LearnedDropoutConfig = None
-    dropout_rate: Optional[float] = field(default=None)
-    alphabet_size: Optional[int] = field(default=None)
-    bias: bool = False
-    profile_layer_x: int = None
-    profile_attn: bool = False
 
     def __post_init__(self):
         if not (self.use_learned_dropout == (self.learned_dropout_config is not None)):
@@ -279,111 +270,6 @@ class LearnedDropout(nn.Module):
                 self.mask_loss = (
                     F.cosine_similarity(future_mask, true_future_mask).mean() ** 2
                 )
-
-        # if (
-        #     self.training
-        #     and self.config.profile_dropout_mask
-        #     and self.is_last_minibatch
-        # ):
-        #     # NB: because of gradient accumulation, this will only log the last batch
-
-        #     with torch.no_grad():
-        #         if self.config.softmax_dim == 2:
-        #             causal_attn_dim_1_mean = causal_attn.mean(dim=-1)
-        #             causal_attn_dim_1_mean[:, :, : T // 2] *= -1
-        #             causal_attn_dim_1_mean_head_mean = causal_attn_dim_1_mean.mean(
-        #                 dim=-2
-        #             )
-        #             causal_attn_dim_1_mean_head_std = causal_attn_dim_1_mean.std(dim=-2)
-        #             causal_attn_dim_1_mean_head_std[:, : T // 2] *= -1
-        #         elif self.config.softmax_dim == 1:
-        #             causal_attn_dim_2_mean = causal_attn.mean(dim=-2)
-        #             causal_attn_dim_2_mean[:, :, : T // 2] *= -1
-        #             causal_attn_dim_2_mean_head_mean = causal_attn_dim_2_mean.mean(
-        #                 dim=-2
-        #             )
-        #             causal_attn_dim_2_mean_head_std = causal_attn_dim_2_mean.std(dim=-2)
-        #             causal_attn_dim_2_mean_head_std[:, : T // 2] *= -1
-
-        #     log_x = x.detach()
-        #     log_new_x = new_x.detach()
-        #     log_dropout_mask = dropout_mask.detach()
-        #     log_causal_attn = causal_attn.detach()
-        #     log_attn = attn.detach()
-        #     log_proj_mask = proj_mask.detach() if proj_mask is not None else None
-        #     log_pre_new_x = pre_new_x.detach() if pre_new_x is not None else None
-
-        #     if (
-        #         dropout_mask.dtype == torch.bfloat16
-        #         or causal_attn.dtype == torch.bfloat16
-        #         or dropout_mask.dtype == torch.bfloat16
-        #     ):
-        #         log_x = log_x.half()
-        #         log_new_x = log_new_x.half()
-        #         log_dropout_mask = log_dropout_mask.half()
-        #         log_causal_attn = log_causal_attn.half()
-        #         log_attn = log_attn.half()
-        #         log_proj_mask = (
-        #             log_proj_mask.half() if log_proj_mask is not None else None
-        #         )
-        #         log_pre_new_x = (
-        #             log_pre_new_x.half() if log_pre_new_x is not None else None
-        #         )
-        #         if self.config.softmax_dim == 1:
-        #             causal_attn_dim_2_mean = causal_attn_dim_2_mean.detach().half()
-        #             causal_attn_dim_2_mean_head_mean = (
-        #                 causal_attn_dim_2_mean_head_mean.detach().half()
-        #             )
-        #             causal_attn_dim_2_mean_head_std = (
-        #                 causal_attn_dim_2_mean_head_std.detach().half()
-        #             )
-        #         elif self.config.softmax_dim == 2:
-        #             causal_attn_dim_1_mean = causal_attn_dim_1_mean.detach().half()
-        #             causal_attn_dim_1_mean_head_mean = (
-        #                 causal_attn_dim_1_mean_head_mean.detach().half()
-        #             )
-        #             causal_attn_dim_1_mean_head_std = (
-        #                 causal_attn_dim_1_mean_head_std.detach().half()
-        #             )
-
-        #     metrics = {
-        #         self.module_name + ".a__input_x": log_x,
-        #         self.module_name + ".l__new_x": log_new_x,
-        #         self.module_name + ".g__mask": log_dropout_mask,
-        #         self.module_name + ".c__causal_attn": log_causal_attn,
-        #         self.module_name + ".b__attn": log_attn,
-        #         self.module_name + ".h__mask_dim_2_std": log_dropout_mask.std(dim=-2),
-        #     }
-
-        #     if log_proj_mask is not None:
-        #         metrics[self.module_name + ".i__proj_mask"] = log_proj_mask
-        #     if log_pre_new_x is not None:
-        #         metrics[self.module_name + ".k__pre_new_x"] = log_pre_new_x
-
-        #     if self.config.softmax_dim == 2:
-        #         metrics = {
-        #             **metrics,
-        #             self.module_name
-        #             + ".d__causal_attn_dim_1_mean": causal_attn_dim_1_mean,
-        #             self.module_name
-        #             + ".e__causal_attn_dim_1_mean_head_mean": causal_attn_dim_1_mean_head_mean,
-        #             self.module_name
-        #             + ".f__causal_attn_dim_1_mean_head_std": causal_attn_dim_1_mean_head_std,
-        #         }
-        #     elif self.config.softmax_dim == 1:
-        #         metrics = {
-        #             **metrics,
-        #             self.module_name
-        #             + ".d__causal_attn_dim_2_mean": causal_attn_dim_2_mean,
-        #             self.module_name
-        #             + ".e__causal_attn_dim_2_mean_head_mean": causal_attn_dim_2_mean_head_mean,
-        #             self.module_name
-        #             + ".f__causal_attn_dim_2_mean_head_std": causal_attn_dim_2_mean_head_std,
-        #         }
-        #     wandb.log(
-        #         metrics,
-        #         commit=False,
-        #     )
         return new_x
 
 
@@ -392,7 +278,6 @@ class TransformerBlock(nn.Module):
         self,
         config: ModelConfig,
         use_learned_dropout=False,
-        should_profile_layer_x=False,
     ):
         super().__init__()
         self.use_learned_dropout = use_learned_dropout
@@ -405,12 +290,12 @@ class TransformerBlock(nn.Module):
                 config.dropout_rate,
             )
         else:
-            self.multi_attn_head = OptimizedMultiAttentionHead(config)
+            self.multi_attn_head = MultiAttentionHead(config.n_embed, config.n_head, config.use_bias, config.context_size, config.dropout_rate, config.use_flash)
         self.feed_forward = FeedForward(
-            config, use_learned_dropout, should_profile_layer_x
+            config.n_embed, config.use_bias, config.dropout_rate
         )
-        self.ln1 = LayerNorm(config.n_embed, config.bias)
-        self.ln2 = LayerNorm(config.n_embed, config.bias)
+        self.ln1 = LayerNorm(config.n_embed, config.use_bias)
+        self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, x):
         x = x + self.multi_attn_head(self.ln1(x))
@@ -418,7 +303,7 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class DropoutTransformer(nn.Module):
+class FutureAttentionTransformer(BaseModel):
     model_config_cls = ModelConfig
 
     def __init__(self, config: ModelConfig, gradient_accumulation_steps):
@@ -435,10 +320,7 @@ class DropoutTransformer(nn.Module):
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
-        if config.use_learned_dropout and False:
-            self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
-        else:
-            self.dropout = nn.Dropout(config.dropout_rate)
+        self.dropout = nn.Dropout(config.dropout_rate)
 
         learned_config_start_layer = (
             config.learned_dropout_config.start_layer
@@ -449,15 +331,12 @@ class DropoutTransformer(nn.Module):
             config.learned_dropout_config.end_layer if config.use_learned_dropout else 0
         )
 
-        profile_layer_x = config.profile_layer_x or 0
-
         self.transformer_blocks = nn.Sequential(
             *[
                 TransformerBlock(
                     config,
                     (i + 1) >= (learned_config_start_layer)
                     and (i + 1) <= (learned_config_end_layer),
-                    i + 1 == profile_layer_x,
                 )
                 for i in range(config.n_layer)
             ]
@@ -486,17 +365,6 @@ class DropoutTransformer(nn.Module):
                     ]
                 )
                 n_learned_dropout += 1
-            elif isinstance(module, FeedForward):
-                module.module_name = ".".join(
-                    param_to_param_name[module.linear.weight].split(".")[:-2]
-                )
-            elif isinstance(module, OptimizedMultiAttentionHead):
-                module.module_name = ".".join(
-                    param_to_param_name[module.batch_attn_weights.weight].split(".")[
-                        :-2
-                    ]
-                )
-
             module.is_last_minibatch = False
         self.n_learned_dropout = n_learned_dropout
 

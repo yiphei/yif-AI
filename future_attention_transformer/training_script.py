@@ -1,14 +1,14 @@
 from utils.train import train
 
 try:
-    from encoder_decoder_transformer.model import EncoderDecoderTransformer
+    from future_attention_transformer.model import FutureAttentionTransformer
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
-    from model import EncoderDecoderTransformer
+    from model import FutureAttentionTransformer
 
 if __name__ == "__main__":
     train(
-        EncoderDecoderTransformer,
-        "encoder_decoder_transformer/",
-        "encoder_decoder_transformer",
+        FutureAttentionTransformer,
+        "future_attention_transformer/",
+        "future_attention_transformer",
     )
