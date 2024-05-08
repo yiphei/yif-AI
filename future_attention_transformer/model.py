@@ -75,7 +75,7 @@ class ModelConfig(BaseModelConfig):
             self.future_x_loss_type = FutureXLossType.get_type_from_int(self.future_x_loss_type)
 
         if not self.use_future_x_loss and self.future_x_loss_coeff is not None:
-            raise ValueError("mask_loss_coeff must be None if use_mask_loss is False")
+            raise ValueError("future_x_loss_coeff must be None if use_future_x_loss is False")
 
 
 class FutureMultiAttentionHead(nn.Module):
@@ -280,15 +280,12 @@ class FutureAttentionTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
 
-        learned_config_start_layer = config.start_layer
-        learned_config_end_layer = config.end_layer
-
         self.transformer_blocks = nn.Sequential(
             *[
                 TransformerBlock(
                     config,
-                    (i + 1) >= (learned_config_start_layer)
-                    and (i + 1) <= (learned_config_end_layer),
+                    (i + 1) >= config.start_layer
+                    and (i + 1) <= config.end_layer,
                 )
                 for i in range(config.n_layer)
             ]
@@ -305,20 +302,6 @@ class FutureAttentionTransformer(BaseModel):
                 torch.nn.init.normal_(
                     p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
                 )
-
-        # maybe there is a better way
-        n_learned_dropout = 0
-        param_to_param_name = {p: n for n, p in self.named_parameters()}
-        for module in self.modules():
-            if isinstance(module, FutureMultiAttentionHead):
-                module.module_name = ".".join(
-                    param_to_param_name[module.batch_attn_weights.weight].split(".")[
-                        :-2
-                    ]
-                )
-                n_learned_dropout += 1
-            module.is_last_minibatch = False
-        self.n_learned_dropout = n_learned_dropout
 
     def forward(self, x, targets=None):
         device = x.device
