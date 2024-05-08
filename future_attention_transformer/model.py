@@ -230,9 +230,11 @@ class FutureMultiAttentionHead(SubModuleStats):
             if self.future_x_loss_type == FutureXLossType.MSE:
                 self.mask_loss = F.mse_loss(future_x, true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
-                self.mask_loss = (
-                    F.cosine_similarity(future_x, true_future_x).mean() ** 2
+                cosine_sim = (
+                    F.cosine_similarity(future_x, true_future_x, dim=-1)
                 )
+                self.mask_loss = (1-(1+ cosine_sim)/2).mean()
+
         return new_x
 
 
