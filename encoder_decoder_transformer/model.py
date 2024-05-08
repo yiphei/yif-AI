@@ -166,10 +166,7 @@ class ModelConfig(BaseModelConfig):
     cross_attn_config: EncoderDecoderCrossAttentionHeadConfig = None
 
     def __post_init__(self):
-        if (
-            self.cross_attn_config is not None
-            and type(self.cross_attn_config) == dict
-        ):
+        if self.cross_attn_config is not None and type(self.cross_attn_config) == dict:
             self.cross_attn_config = EncoderDecoderCrossAttentionHeadConfig(
                 **self.cross_attn_config
             )
@@ -432,8 +429,7 @@ class EncoderDecoderTransformer(BaseModel):
             ):
                 raw_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
                 additional_loss = (
-                    raw_loss
-                    * self.config.cross_attn_config.encoder_embed_loss_coeff
+                    raw_loss * self.config.cross_attn_config.encoder_embed_loss_coeff
                 )
             elif (
                 self.config.cross_attn_config.encoder_embed_loss_type
@@ -442,8 +438,7 @@ class EncoderDecoderTransformer(BaseModel):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 raw_loss = (1 - (cosine_sim + 1) / 2).mean()
                 additional_loss = (
-                    raw_loss
-                    * self.config.cross_attn_config.encoder_embed_loss_coeff
+                    raw_loss * self.config.cross_attn_config.encoder_embed_loss_coeff
                 )
             elif (
                 self.config.cross_attn_config.encoder_embed_loss_type
@@ -452,8 +447,7 @@ class EncoderDecoderTransformer(BaseModel):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 additional_loss = (
-                    raw_loss
-                    * self.config.cross_attn_config.encoder_embed_loss_coeff
+                    raw_loss * self.config.cross_attn_config.encoder_embed_loss_coeff
                 )
             else:
                 raise ValueError("Invalid token loss type")
@@ -464,10 +458,7 @@ class EncoderDecoderTransformer(BaseModel):
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
                 )
             )
-            if (
-                self.config.cross_attn_config.sub_pos_embed
-                == SubPosEmbedType.YES_LN
-            ):
+            if self.config.cross_attn_config.sub_pos_embed == SubPosEmbedType.YES_LN:
                 decoder_out = self.post_sub_pos_ln(decoder_out)
 
         if targets is None:
