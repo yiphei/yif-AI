@@ -31,14 +31,19 @@ class FutureXLossType(str, Enum):
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    start_layer: int
-    future_dim: int
+    start_layer: int  # layer at which to start using future attention
+    future_dim: int  # number of future tokens to attend to
     future_x_loss_type: Union[FutureXLossType, int]
     use_future_x_loss: bool = True
     end_layer: Optional[int] = None
     future_x_loss_coeff: Optional[float] = None
 
     def __post_init__(self):
+        if type(self.future_x_loss_type) == int:
+            self.future_x_loss_type = FutureXLossType.get_type_from_int(
+                self.future_x_loss_type
+            )
+
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
@@ -46,24 +51,21 @@ class ModelConfig(BaseModelConfig):
             raise ValueError("start_layer must be <= end_layer")
 
         if self.start_layer > self.n_layer or self.start_layer < 1:
-            raise ValueError("start_layer <= n_layer and >= 1")
+            raise ValueError("start_layer must be <= n_layer and >= 1")
         if self.end_layer > self.n_layer or self.end_layer < 1:
-            raise ValueError("end_layer <= n_layer and >= 1")
+            raise ValueError("end_layer must be <= n_layer and >= 1")
 
         assert 1 <= self.future_dim <= (self.context_size - 1)
-
-        if self.future_x_loss_coeff is not None:
-            assert self.future_x_loss_coeff > 0
-
-        if type(self.future_x_loss_type) == int:
-            self.future_x_loss_type = FutureXLossType.get_type_from_int(
-                self.future_x_loss_type
-            )
 
         if not self.use_future_x_loss and self.future_x_loss_coeff is not None:
             raise ValueError(
                 "future_x_loss_coeff must be None if use_future_x_loss is False"
             )
+
+        if self.future_x_loss_coeff is not None:
+            assert self.future_x_loss_coeff > 0
+        elif self.use_future_x_loss:
+            self.future_x_loss_coeff = 1.0
 
 
 class DynamicLinear(nn.Module):
@@ -338,7 +340,7 @@ class FutureAttentionTransformer(BaseModel):
                         mask_losses[curr_idx] = module.mask_loss
                         curr_idx += 1
 
-                coeff = self.config.future_x_loss_coeff or 1.0
+                coeff = self.config.future_x_loss_coeff
                 mean_mask_losses = mask_losses.mean() * coeff
                 if self.config.use_future_x_loss:
                     additional_loss = mean_mask_losses
