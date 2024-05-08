@@ -7,9 +7,6 @@ except ImportError:
     from model import TransformerModel
 
 
-
-
-
 if __name__ == "__main__":
     train(
         TransformerModel,

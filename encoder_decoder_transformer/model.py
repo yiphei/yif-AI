@@ -299,7 +299,9 @@ class EncoderDecoderTransformer(BaseModel):
     model_config_cls = ModelConfig
     extra_stats = ["additional_loss", "raw_loss"]
 
-    def __init__(self, config: ModelConfig, gradient_accumulation_steps, is_master_process):
+    def __init__(
+        self, config: ModelConfig, gradient_accumulation_steps, is_master_process
+    ):
         super().__init__(gradient_accumulation_steps, is_master_process)
         assert (
             config.alphabet_size is not None

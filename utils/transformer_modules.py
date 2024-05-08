@@ -161,7 +161,9 @@ class BaseModel(nn.Module):
                         current_stat.clone() / self.gradient_accumulation_steps
                     )
                 else:
-                    current_running_stat += current_stat / self.gradient_accumulation_steps
+                    current_running_stat += (
+                        current_stat / self.gradient_accumulation_steps
+                    )
 
                 setattr(self, RUNNING_STAT_PREFIX + stat, current_running_stat)
 
@@ -179,13 +181,19 @@ class BaseModel(nn.Module):
 
     def update_is_last_minibatch(self, new_val):
         # this is called by the context manager in the training script
-        if self.training and self.is_master_process and new_val != self.is_last_minibatch:
+        if (
+            self.training
+            and self.is_master_process
+            and new_val != self.is_last_minibatch
+        ):
             self.is_last_minibatch = new_val
             for module in self.modules():
                 module.is_last_minibatch = new_val
 
     @classmethod
-    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps=None, is_master_process=True):
+    def init_from_checkpoint(
+        cls, checkpoint_dict, gradient_accumulation_steps=None, is_master_process=True
+    ):
         model_config = cls.model_config_cls(**checkpoint_dict["model_config"])
         model = cls(model_config, gradient_accumulation_steps, is_master_process)
         state_dict = checkpoint_dict["model"]

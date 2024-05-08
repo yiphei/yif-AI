@@ -259,8 +259,6 @@ def broadcast_object(obj, local_rank, device, src_rank=0):
     return obj
 
 
-
-
 def create_autocast_context(device_type, ptdtype):
     @contextmanager
     def autocast_context():
@@ -302,13 +300,12 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
         with ExitStack() as stack:
             stack.enter_context(autocast_context())
             stack.enter_context(
-                profiling_context(
-                    training_step, is_first_minibatch, is_last_minibatch
-                )
+                profiling_context(training_step, is_first_minibatch, is_last_minibatch)
             )
             yield
 
     return training_context
+
 
 def _train(
     args,
