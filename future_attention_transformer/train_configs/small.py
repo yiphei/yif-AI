@@ -5,13 +5,13 @@ N_LAYER = 3
 N_HEAD = 3
 USE_BIAS = False
 DROPOUT_RATE = 0.1
+START_LAYER = 3
+USE_BIAS = False
+FUTURE_DIM = 10
+MASK_LOSS_TYPE = 1
 LEARNED_DROPOUT_CONFIG = {
-    "start_layer": 3,
     "use_bias": False,
     "n_heads": 3,
-    "future_dim": 10,
-    "profile_dropout_mask": False,
-    "mask_loss_type": 1,
 }
 
 # Training config

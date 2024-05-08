@@ -32,36 +32,16 @@ class MaskLossType(str, Enum):
 @dataclass
 class LearnedDropoutConfig:
     use_bias: bool
+    n_heads: int
+
+@dataclass
+class ModelConfig(BaseModelConfig):
     start_layer: int
     future_dim: int
     mask_loss_type: Union[MaskLossType, int]
     use_mask_loss: bool = True
     end_layer: Optional[int] = None
     mask_loss_coeff: Optional[float] = None
-    n_heads: int = 1
-    profile_dropout_mask: bool = False
-
-    def __post_init__(self):
-        if self.mask_loss_coeff is not None:
-            assert self.mask_loss_coeff > 0
-
-        if self.end_layer is None:
-            self.end_layer = self.start_layer
-
-        if self.start_layer > self.end_layer:
-            raise ValueError("start_layer must be <= end_layer")
-
-        if type(self.mask_loss_type) == int:
-            self.mask_loss_type = MaskLossType.get_type_from_int(self.mask_loss_type)
-
-        assert self.n_heads >= 1
-
-        if not self.use_mask_loss and self.mask_loss_coeff is not None:
-            raise ValueError("mask_loss_coeff must be None if use_mask_loss is False")
-
-
-@dataclass
-class ModelConfig(BaseModelConfig):
     learned_dropout_config: LearnedDropoutConfig = None
 
     def __post_init__(self):
@@ -73,21 +53,37 @@ class ModelConfig(BaseModelConfig):
                 **self.learned_dropout_config
             )
 
+        if self.end_layer is None:
+            self.end_layer = self.start_layer
+
+        if self.start_layer > self.end_layer:
+            raise ValueError("start_layer must be <= end_layer")
+
         if self.learned_dropout_config:
             if (
-                self.learned_dropout_config.start_layer > self.n_layer
-                or self.learned_dropout_config.start_layer < 1
+                self.start_layer > self.n_layer
+                or self.start_layer < 1
             ):
                 raise ValueError("start_layer <= n_layer and >= 1")
             if (
-                self.learned_dropout_config.end_layer > self.n_layer
-                or self.learned_dropout_config.end_layer < 1
+                self.end_layer > self.n_layer
+                or self.end_layer < 1
             ):
                 raise ValueError("end_layer <= n_layer and >= 1")
 
         assert (
-            1 <= self.learned_dropout_config.future_dim <= (self.context_size - 1)
+            1 <= self.future_dim <= (self.context_size - 1)
         )
+
+        if self.mask_loss_coeff is not None:
+            assert self.mask_loss_coeff > 0
+
+        if type(self.mask_loss_type) == int:
+            self.mask_loss_type = MaskLossType.get_type_from_int(self.mask_loss_type)
+
+        if not self.use_mask_loss and self.mask_loss_coeff is not None:
+            raise ValueError("mask_loss_coeff must be None if use_mask_loss is False")
+
 
 class FutureMultiAttentionHead(nn.Module):
     def __init__(self, dim_in, n_head, use_bias, context_size, dropout_rate, future_dim, mask_loss_type):
@@ -268,8 +264,8 @@ class TransformerBlock(nn.Module):
                 config.learned_dropout_config.use_bias,
                 config.context_size,
                 config.dropout_rate,
-                config.learned_dropout_config.future_dim,
-                config.learned_dropout_config.mask_loss_type,
+                config.future_dim,
+                config.mask_loss_type,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(config.n_embed, config.n_head, config.use_bias, config.context_size, config.dropout_rate, config.use_flash)
@@ -300,10 +296,10 @@ class FutureAttentionTransformer(BaseModel):
         self.dropout = nn.Dropout(config.dropout_rate)
 
         learned_config_start_layer = (
-            config.learned_dropout_config.start_layer
+            config.start_layer
         )
         learned_config_end_layer = (
-            config.learned_dropout_config.end_layer
+            config.end_layer
         )
 
         self.transformer_blocks = nn.Sequential(
@@ -372,9 +368,9 @@ class FutureAttentionTransformer(BaseModel):
                         mask_losses[curr_idx] = module.mask_loss
                         curr_idx += 1
 
-                coeff = self.config.learned_dropout_config.mask_loss_coeff or 1.0
+                coeff = self.config.mask_loss_coeff or 1.0
                 mean_mask_losses = mask_losses.mean() * coeff
-                if self.config.learned_dropout_config.use_mask_loss:
+                if self.config.use_mask_loss:
                     additional_loss = mean_mask_losses
 
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
