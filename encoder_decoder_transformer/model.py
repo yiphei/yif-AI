@@ -116,7 +116,7 @@ class EncoderEmbedLayerNormType(str, Enum):
 class EncoderDecoderCrossAttentionHeadConfig:
     use_bias: bool
     order_type: Union[OrderType, int]
-    add_ln_before_pred_ff: bool
+    add_ln_before_decoder_ff: bool
     n_head: int
     add_pos_embed: bool
     sub_pos_embed: Union[SubPosEmbedType, int]
@@ -322,7 +322,7 @@ class EncoderDecoderTransformer(BaseModel):
             positional_embedding_size, config.n_embed
         )
 
-        if config.learned_dropout_config.add_ln_before_pred_ff:
+        if config.learned_dropout_config.add_ln_before_decoder_ff:
             self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
@@ -371,7 +371,7 @@ class EncoderDecoderTransformer(BaseModel):
         encoder_x = encoder_embed
 
         decoder_x = encoder_embed
-        if self.config.learned_dropout_config.add_ln_before_pred_ff:
+        if self.config.learned_dropout_config.add_ln_before_decoder_ff:
             decoder_x = self.ffd_ln(decoder_x)
         decoder_x = self.decoder_feed_forward(decoder_x)
 
