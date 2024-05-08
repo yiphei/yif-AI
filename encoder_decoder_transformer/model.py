@@ -113,13 +113,17 @@ class EncoderEmbedLayerNormType(str, Enum):
 
 
 @dataclass
-class EncoderDecoderCrossAttentionHeadConfig:
+class CrossAttentionConfig:
     use_bias: bool
+    n_head: int
+
+@dataclass
+class ModelConfig(BaseModelConfig):
     order_type: Union[OrderType, int]
     add_ln_before_decoder_ff: bool
-    n_head: int
     add_pos_embed: bool
     sub_pos_embed: Union[SubPosEmbedType, int]
+    cross_attn_config: CrossAttentionConfig
     use_ln_on_encoder_out: Optional[bool] = None
     encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = (
         EncoderEmbedLossType.NONE
@@ -160,14 +164,8 @@ class EncoderDecoderCrossAttentionHeadConfig:
             assert self.encoder_embed_ln_type is None
             assert self.encoder_embed_detach_type is None
 
-
-@dataclass
-class ModelConfig(BaseModelConfig):
-    cross_attn_config: EncoderDecoderCrossAttentionHeadConfig
-
-    def __post_init__(self):
         if self.cross_attn_config is not None and type(self.cross_attn_config) == dict:
-            self.cross_attn_config = EncoderDecoderCrossAttentionHeadConfig(
+            self.cross_attn_config = CrossAttentionConfig(
                 **self.cross_attn_config
             )
 
@@ -214,7 +212,7 @@ class TransformerBlock(nn.Module):
         config: ModelConfig,
     ):
         super().__init__()
-        self.order_type = config.cross_attn_config.order_type
+        self.order_type = config.order_type
         self.encoder_multi_attn_head = MultiAttentionHead(
             config.n_embed,
             config.n_head,
@@ -312,15 +310,15 @@ class EncoderDecoderTransformer(BaseModel):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         positional_embedding_size = config.context_size
         if (
-            config.cross_attn_config.add_pos_embed
-            or self.config.cross_attn_config.sub_pos_embed != SubPosEmbedType.NO
+            config.add_pos_embed
+            or self.config.sub_pos_embed != SubPosEmbedType.NO
         ):
             positional_embedding_size += 1
         self.positional_embedding = nn.Embedding(
             positional_embedding_size, config.n_embed
         )
 
-        if config.cross_attn_config.add_ln_before_decoder_ff:
+        if config.add_ln_before_decoder_ff:
             self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
@@ -336,13 +334,13 @@ class EncoderDecoderTransformer(BaseModel):
             ]
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
-        if config.cross_attn_config.sub_pos_embed == SubPosEmbedType.YES_LN:
+        if config.sub_pos_embed == SubPosEmbedType.YES_LN:
             self.post_sub_pos_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        if self.config.cross_attn_config.use_ln_on_encoder_out:
+        if self.config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
         if (
-            self.config.cross_attn_config.encoder_embed_ln_type
+            self.config.encoder_embed_ln_type
             != EncoderEmbedLayerNormType.NONE
         ):
             self.encoder_embed_ln = LayerNorm(config.n_embed, True)
@@ -369,11 +367,11 @@ class EncoderDecoderTransformer(BaseModel):
         encoder_x = encoder_embed
 
         decoder_x = encoder_embed
-        if self.config.cross_attn_config.add_ln_before_decoder_ff:
+        if self.config.add_ln_before_decoder_ff:
             decoder_x = self.ffd_ln(decoder_x)
         decoder_x = self.decoder_feed_forward(decoder_x)
 
-        if self.config.cross_attn_config.add_pos_embed:
+        if self.config.add_pos_embed:
             decoder_x += self.positional_embedding(
                 torch.arange(
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
@@ -388,25 +386,25 @@ class EncoderDecoderTransformer(BaseModel):
 
         if (
             self.training
-            and self.config.cross_attn_config.encoder_embed_loss_type
+            and self.config.encoder_embed_loss_type
             != EncoderEmbedLossType.NONE
         ):
             if (
-                self.config.cross_attn_config.encoder_embed_detach_type
+                self.config.encoder_embed_detach_type
                 == EncoderEmbedDetachType.INIT
             ):
                 encoder_embed = encoder_embed.detach()
             elif (
-                self.config.cross_attn_config.encoder_embed_detach_type
+                self.config.encoder_embed_detach_type
                 == EncoderEmbedDetachType.FINAL
             ):
                 encoder_out = encoder_out.detach()
 
-            if self.config.cross_attn_config.use_ln_on_encoder_out:
+            if self.config.use_ln_on_encoder_out:
                 encoder_out = self.encoder_out_ln(encoder_out)
 
             if (
-                self.config.cross_attn_config.encoder_embed_ln_type
+                self.config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.INIT
             ):
                 encoder_embed = self.encoder_embed_ln(encoder_embed)
@@ -417,50 +415,50 @@ class EncoderDecoderTransformer(BaseModel):
             ).unsqueeze(0).unsqueeze(-1)
 
             if (
-                self.config.cross_attn_config.encoder_embed_ln_type
+                self.config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.AVG_CUM_SUM
             ):
                 avg_sum = self.encoder_embed_ln(avg_sum)
 
             if (
-                self.config.cross_attn_config.encoder_embed_loss_type
+                self.config.encoder_embed_loss_type
                 == EncoderEmbedLossType.MSE
             ):
                 self.raw_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
                 self.additional_loss = (
                     self.raw_loss
-                    * self.config.cross_attn_config.encoder_embed_loss_coeff
+                    * self.config.encoder_embed_loss_coeff
                 )
             elif (
-                self.config.cross_attn_config.encoder_embed_loss_type
+                self.config.encoder_embed_loss_type
                 == EncoderEmbedLossType.COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 self.raw_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.additional_loss = (
                     self.raw_loss
-                    * self.config.cross_attn_config.encoder_embed_loss_coeff
+                    * self.config.encoder_embed_loss_coeff
                 )
             elif (
-                self.config.cross_attn_config.encoder_embed_loss_type
+                self.config.encoder_embed_loss_type
                 == EncoderEmbedLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 self.raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.additional_loss = (
                     self.raw_loss
-                    * self.config.cross_attn_config.encoder_embed_loss_coeff
+                    * self.config.encoder_embed_loss_coeff
                 )
             else:
                 raise ValueError("Invalid token loss type")
 
-        if self.config.cross_attn_config.sub_pos_embed != SubPosEmbedType.NO:
+        if self.config.sub_pos_embed != SubPosEmbedType.NO:
             decoder_out = decoder_out - self.positional_embedding(
                 torch.arange(
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
                 )
             )
-            if self.config.cross_attn_config.sub_pos_embed == SubPosEmbedType.YES_LN:
+            if self.config.sub_pos_embed == SubPosEmbedType.YES_LN:
                 decoder_out = self.post_sub_pos_ln(decoder_out)
 
         if targets is None:

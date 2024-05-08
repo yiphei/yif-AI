@@ -5,17 +5,17 @@ N_LAYER = 3
 N_HEAD = 3
 USE_BIAS = False
 DROPOUT_RATE = 0
+ADD_POS_EMBED= False
+ORDER_TYPE = 1
+SUB_POS_EMBED= 1
+ADD_LN_BEFORE_DECODER_FF= True
+ENCODER_EMBED_LOSS_TYPE = 2
+USE_LN_ON_ENCODER_OUT = True
+ENCODER_EMBED_DETACH_TYPE = 1
+ENCODER_EMBED_LN_TYPE = 1
 CROSS_ATTN_CONFIG = {
     "use_bias": False,
-    "n_head": 3,
-    "add_pos_embed": False,
-    "order_type": 1,
-    "sub_pos_embed": 1,
-    "add_ln_before_decoder_ff": True,
-    "encoder_embed_loss_type": 2,
-    "use_ln_on_encoder_out": True,
-    "encoder_embed_detach_type": 1,
-    "encoder_embed_ln_type": 1,
+    "n_head": 3
 }
 
 # Training config
