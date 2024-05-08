@@ -49,7 +49,7 @@ class SubPosEmbedType(str, Enum):
             raise ValueError("Invalid sub pos embed type number")
 
 
-class TokenLossType(str, Enum):
+class EncoderEmbedLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
     COSINE_SIM_NORM = "CONSINE_SIM_NORM"
@@ -61,20 +61,20 @@ class TokenLossType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return TokenLossType.NONE
+            return EncoderEmbedLossType.NONE
         elif num == 2:
-            return TokenLossType.MSE
+            return EncoderEmbedLossType.MSE
         elif num == 3:
-            return TokenLossType.COSINE_SIM_NORM
+            return EncoderEmbedLossType.COSINE_SIM_NORM
         elif num == 4:
-            return TokenLossType.COSINE_SIM_LOG
+            return EncoderEmbedLossType.COSINE_SIM_LOG
         else:
-            raise ValueError("Invalid token loss type number")
+            raise ValueError("Invalid encoder embed loss type number")
 
 
-class TokenLossDetachType(str, Enum):
+class EncoderEmbedDetachType(str, Enum):
     NONE = "NONE"
-    ORIGINAL = "ORIGINAL"
+    INIT = "INIT"
     FINAL = "FINAL"
 
     def __str__(self):
@@ -83,18 +83,18 @@ class TokenLossDetachType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return TokenLossDetachType.NONE
+            return EncoderEmbedDetachType.NONE
         elif num == 2:
-            return TokenLossDetachType.ORIGINAL
+            return EncoderEmbedDetachType.INIT
         elif num == 3:
-            return TokenLossDetachType.FINAL
+            return EncoderEmbedDetachType.FINAL
         else:
-            raise ValueError("Invalid token loss detatch type number")
+            raise ValueError("Invalid encoder embed detatch type number")
 
 
-class TokenEmbedLayerNormType(str, Enum):
+class EncoderEmbedLayerNormType(str, Enum):
     NONE = "NONE"
-    X_ORIGINAL = "X_ORIGINAL"
+    INIT = "INIT"
     AVG_CUM_SUM = "AVG_CUM_SUM"
 
     def __str__(self):
@@ -103,13 +103,13 @@ class TokenEmbedLayerNormType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return TokenEmbedLayerNormType.NONE
+            return EncoderEmbedLayerNormType.NONE
         elif num == 2:
-            return TokenEmbedLayerNormType.X_ORIGINAL
+            return EncoderEmbedLayerNormType.INIT
         elif num == 3:
-            return TokenEmbedLayerNormType.AVG_CUM_SUM
+            return EncoderEmbedLayerNormType.AVG_CUM_SUM
         else:
-            raise ValueError("Invalid token embed layer norm type number")
+            raise ValueError("Invalid encoder embed layer norm type number")
 
 
 @dataclass
@@ -120,52 +120,43 @@ class EncoderDecoderCrossAttentionHeadConfig:
     n_head: int
     add_pos_embed: bool
     sub_pos_embed: Union[SubPosEmbedType, int]
-    token_loss_type: Union[TokenLossType, int] = TokenLossType.NONE
-    token_loss_detach_type: Optional[Union[TokenLossDetachType, int]] = None
-    token_loss_coeff: Optional[float] = None
     use_ln_on_final_x_state: Optional[bool] = None
-    token_embed_layer_norm_type: Optional[Union[TokenEmbedLayerNormType, int]] = None
+    encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.NONE
+    encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = None
+    encoder_embed_loss_coeff: Optional[float] = None
+    encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = None
 
     def __post_init__(self):
-        if type(self.token_loss_type) == int:
-            self.token_loss_type = TokenLossType.get_type_from_int(self.token_loss_type)
-
-        if type(self.token_loss_detach_type) == int:
-            self.token_loss_detach_type = TokenLossDetachType.get_type_from_int(
-                self.token_loss_detach_type
-            )
-
-        if type(self.token_embed_layer_norm_type) == int:
-            self.token_embed_layer_norm_type = (
-                TokenEmbedLayerNormType.get_type_from_int(
-                    self.token_embed_layer_norm_type
-                )
-            )
-
-        if self.token_loss_type != TokenLossType.NONE:
-            if self.token_loss_coeff is None:
-                self.token_loss_coeff = 1.0
-            else:
-                assert self.token_loss_coeff > 0
-            assert self.use_ln_on_final_x_state is not None
-            assert self.token_embed_layer_norm_type is not None
-            assert self.token_loss_detach_type is not None
-        else:
-            assert self.token_loss_coeff is None
-            assert self.use_ln_on_final_x_state is None
-            assert self.token_embed_layer_norm_type is None
-            assert self.token_loss_detach_type is None
-
         if type(self.order_type) == int:
             self.order_type = OrderType.get_type_from_int(self.order_type)
-
+        if type(self.encoder_embed_loss_type) == int:
+            self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(self.encoder_embed_loss_type)
+        if type(self.encoder_embed_detach_type) == int:
+            self.encoder_embed_detach_type = EncoderEmbedDetachType.get_type_from_int(
+                self.encoder_embed_detach_type
+            )
+        if type(self.encoder_embed_ln_type) == int:
+            self.encoder_embed_ln_type = (
+                EncoderEmbedLayerNormType.get_type_from_int(
+                    self.encoder_embed_ln_type
+                )
+            )
         if type(self.sub_pos_embed) == int:
             self.sub_pos_embed = SubPosEmbedType.get_type_from_int(self.sub_pos_embed)
 
-        if self.token_loss_detach_type is not None:
-            assert self.token_loss_type != TokenLossType.NONE
+        if self.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
+            if self.encoder_embed_loss_coeff is None:
+                self.encoder_embed_loss_coeff = 1.0
+            else:
+                assert self.encoder_embed_loss_coeff > 0
+            assert self.use_ln_on_final_x_state is not None
+            assert self.encoder_embed_ln_type is not None
+            assert self.encoder_embed_detach_type is not None
         else:
-            assert self.token_loss_type == TokenLossType.NONE
+            assert self.encoder_embed_loss_coeff is None
+            assert self.use_ln_on_final_x_state is None
+            assert self.encoder_embed_ln_type is None
+            assert self.encoder_embed_detach_type is None
 
 
 @dataclass
@@ -183,22 +174,19 @@ class ModelConfig(BaseModelConfig):
 
 
 class EncoderDecoderCrossAttentionHead(nn.Module):
-    def __init__(self, dim_in, n_head, use_bias, context_size, dropout_rate=0):
-
+    def __init__(self, dim_in, n_head, use_bias, dropout_rate=0):
         super().__init__()
+        assert dim_in % n_head == 0
         self.dim_in = dim_in
-        self.context_size = context_size
-
         self.n_head = n_head
         self.head_size = dim_in // n_head
+        self.dropout_rate = dropout_rate
         self.k_v_weights = nn.Linear(dim_in, dim_in * 2, bias=use_bias)
         self.q_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
         self.dropout_2 = nn.Dropout(dropout_rate)
-        self.dropout_rate = dropout_rate
 
     def forward(self, x_state, x_pred):
-
         B, T, C = x_state.shape
         k, v = self.k_v_weights(x_state).split(self.dim_in, dim=2)
         k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
@@ -211,10 +199,10 @@ class EncoderDecoderCrossAttentionHead(nn.Module):
             q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
         )
 
-        mask = (
+        out = (
             out.transpose(1, 2).contiguous().view(B, T, C)
         )  # B,H,T,S -> B,T,H,S -> B,T,C
-        new_x_pred = self.residual_proj(mask)
+        new_x_pred = self.residual_proj(out)
         new_x_pred = self.dropout_2(new_x_pred)
 
         return new_x_pred
@@ -227,7 +215,6 @@ class TransformerBlock(nn.Module):
     ):
         super().__init__()
         self.order_type = config.learned_dropout_config.order_type
-
         self.multi_attn_head_state = MultiAttentionHead(
             config.n_embed,
             config.n_head,
@@ -248,9 +235,9 @@ class TransformerBlock(nn.Module):
             config.n_embed,
             config.learned_dropout_config.n_head,
             config.learned_dropout_config.use_bias,
-            config.context_size,
             config.dropout_rate,
         )
+
         self.feed_forward_state = FeedForward(
             config.n_embed,
             config.use_bias,
@@ -263,12 +250,13 @@ class TransformerBlock(nn.Module):
         )
 
         self.merge_ln_state = LayerNorm(config.n_embed, config.use_bias)
+        self.merge_ln_pred = LayerNorm(config.n_embed, config.use_bias)
+
         self.ln1_state = LayerNorm(config.n_embed, config.use_bias)
         self.ln2_state = LayerNorm(config.n_embed, config.use_bias)
 
         self.ln1_pred = LayerNorm(config.n_embed, config.use_bias)
         self.ln2_pred = LayerNorm(config.n_embed, config.use_bias)
-        self.merge_ln_pred = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, x_state, x_pred):
         if self.order_type == OrderType.ORIGINAL:
@@ -336,20 +324,19 @@ class EncoderDecoderTransformer(BaseModel):
         if config.learned_dropout_config.sub_pos_embed == SubPosEmbedType.YES_LN:
             self.positional_embedding_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
-
         if (
-            self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
+            self.config.learned_dropout_config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
             and self.config.learned_dropout_config.use_ln_on_final_x_state
         ):
             self.final_x_state_ln = LayerNorm(config.n_embed, True)
         if (
-            self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
-            and self.config.learned_dropout_config.token_embed_layer_norm_type
-            != TokenEmbedLayerNormType.NONE
+            self.config.learned_dropout_config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
+            and self.config.learned_dropout_config.encoder_embed_ln_type
+            != EncoderEmbedLayerNormType.NONE
         ):
             self.token_embed_layer_norm = LayerNorm(config.n_embed, True)
 
+        self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
@@ -369,10 +356,9 @@ class EncoderDecoderTransformer(BaseModel):
         embed = token_embed + pos_embed
         x_state = self.dropout(embed)
         x_original = x_state
-        x_pred = None
         if self.config.learned_dropout_config.add_pos_embed:
             if self.config.learned_dropout_config.add_ln_before_pred_ff:
-                x_state = self.ffd_ln(x_state)
+                x_pred = self.ffd_ln(x_state)
 
             x_pred = self.pred_feed_forward(x_state) + self.positional_embedding(
                 torch.arange(
@@ -381,7 +367,7 @@ class EncoderDecoderTransformer(BaseModel):
             )
         else:
             if self.config.learned_dropout_config.add_ln_before_pred_ff:
-                x_state = self.ffd_ln(x_state)
+                x_pred = self.ffd_ln(x_state)
             x_pred = self.pred_feed_forward(x_state)
 
         for transformer_block in self.transformer_blocks:
@@ -393,16 +379,16 @@ class EncoderDecoderTransformer(BaseModel):
         raw_loss = torch.tensor(0.0, device=device)
         if (
             self.training
-            and self.config.learned_dropout_config.token_loss_type != TokenLossType.NONE
+            and self.config.learned_dropout_config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
         ):
             if (
-                self.config.learned_dropout_config.token_loss_detach_type
-                == TokenLossDetachType.ORIGINAL
+                self.config.learned_dropout_config.encoder_embed_detach_type
+                == EncoderEmbedDetachType.INIT
             ):
                 x_original = x_original.detach()
             elif (
-                self.config.learned_dropout_config.token_loss_detach_type
-                == TokenLossDetachType.FINAL
+                self.config.learned_dropout_config.encoder_embed_detach_type
+                == EncoderEmbedDetachType.FINAL
             ):
                 x_state = x_state.detach()
 
@@ -410,8 +396,8 @@ class EncoderDecoderTransformer(BaseModel):
                 x_state = self.final_x_state_ln(x_state)
 
             if (
-                self.config.learned_dropout_config.token_embed_layer_norm_type
-                == TokenEmbedLayerNormType.X_ORIGINAL
+                self.config.learned_dropout_config.encoder_embed_ln_type
+                == EncoderEmbedLayerNormType.INIT
             ):
                 x_original = self.token_embed_layer_norm(x_original)
 
@@ -421,33 +407,33 @@ class EncoderDecoderTransformer(BaseModel):
             ).unsqueeze(0).unsqueeze(-1)
 
             if (
-                self.config.learned_dropout_config.token_embed_layer_norm_type
-                == TokenEmbedLayerNormType.AVG_CUM_SUM
+                self.config.learned_dropout_config.encoder_embed_ln_type
+                == EncoderEmbedLayerNormType.AVG_CUM_SUM
             ):
                 avg_sum = self.token_embed_layer_norm(avg_sum)
 
-            if self.config.learned_dropout_config.token_loss_type == TokenLossType.MSE:
+            if self.config.learned_dropout_config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
                 raw_loss = F.mse_loss(avg_sum, x_state, reduction="mean")
                 additional_loss = (
-                    raw_loss * self.config.learned_dropout_config.token_loss_coeff
+                    raw_loss * self.config.learned_dropout_config.encoder_embed_loss_coeff
                 )
             elif (
-                self.config.learned_dropout_config.token_loss_type
-                == TokenLossType.COSINE_SIM_NORM
+                self.config.learned_dropout_config.encoder_embed_loss_type
+                == EncoderEmbedLossType.COSINE_SIM_NORM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
                 raw_loss = (1 - (cosine_sim + 1) / 2).mean()
                 additional_loss = (
-                    raw_loss * self.config.learned_dropout_config.token_loss_coeff
+                    raw_loss * self.config.learned_dropout_config.encoder_embed_loss_coeff
                 )
             elif (
-                self.config.learned_dropout_config.token_loss_type
-                == TokenLossType.COSINE_SIM_LOG
+                self.config.learned_dropout_config.encoder_embed_loss_type
+                == EncoderEmbedLossType.COSINE_SIM_LOG
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, x_state, dim=-1)
                 raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 additional_loss = (
-                    raw_loss * self.config.learned_dropout_config.token_loss_coeff
+                    raw_loss * self.config.learned_dropout_config.encoder_embed_loss_coeff
                 )
             else:
                 raise ValueError("Invalid token loss type")
