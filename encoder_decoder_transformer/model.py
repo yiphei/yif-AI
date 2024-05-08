@@ -163,7 +163,7 @@ class EncoderDecoderCrossAttentionHeadConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    cross_attn_config: EncoderDecoderCrossAttentionHeadConfig = None
+    cross_attn_config: EncoderDecoderCrossAttentionHeadConfig
 
     def __post_init__(self):
         if self.cross_attn_config is not None and type(self.cross_attn_config) == dict:

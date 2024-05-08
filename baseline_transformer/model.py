@@ -1,5 +1,5 @@
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, KW_ONLY
 from typing import Optional
 
 import torch
@@ -15,6 +15,7 @@ class ModelConfig:
     n_embed: int
     n_layer: int
     n_head: int
+    _: KW_ONLY
     dropout_rate: float = 0.0
     alphabet_size: Optional[int] = None
     use_bias: bool = False
