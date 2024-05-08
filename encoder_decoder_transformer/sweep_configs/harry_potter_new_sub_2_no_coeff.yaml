@@ -1,0 +1,84 @@
+program: transformer_dropout/training_script.py
+name: harry_potter_dropout_new_sub_2_no_coeff
+project: transformer_dropout_3
+early_terminate:
+    type: hyperband
+    min_iter: 1000
+    eta: 2
+    strict: True
+method: random
+run_cap: 4000
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: False
+            context_size:
+                value: 1024
+            n_embed: 
+                value: 400
+            n_layer: 
+                value: 4
+            n_head: 
+                value: 4
+            use_learned_dropout:
+                value: True
+            learned_dropout_config:
+                parameters:
+                    use_dropout_entropy_in_loss:
+                        value: True
+                    use_dropout_l1_norm_in_loss:
+                        value: False
+                    use_sigmoid_on_dropout_mask:
+                        values: [True, False]
+                    use_canonical_entropy:
+                        values: [True, False]
+                    use_detached_x_in_dropout_mask:
+                        value: True
+                    A_param_config:
+                        parameters:
+                            init_mean:
+                                values: [100000, 0, 10000, 1000000]
+                            init_std:
+                                values: [0.02, 1, 10, 100]
+                            optimizer_type:
+                                values: ["ADAMW", "SGD"]
+                            lr:
+                                values: [0.1, 0.01, 1, 10, null]
+                    B_param_config:
+                        parameters:
+                            init_mean:
+                                values: [0, 3.1415, 1.5707, 1.3033]
+                            init_std:
+                                values: [0.02, 0.2]
+                            optimizer_type:
+                                values: ["ADAMW", "SGD"]
+                            lr:
+                                values: [6e-4, 6e-3, 6e-2, 6e-5, null]
+                    dropout_entropy_lambda:
+                        parameters:
+                            max_lambda:
+                              values: [0.5, 1,2,5]
+    batch_size: 
+        value: 13
+    train_steps: 
+        value: 6000
+    lr: 
+        values: [6e-4, 6e-5, 6e-3]
+    warmup_iters: 
+        value: 600
+    min_lr: 
+        values: [6e-5, 6e-6, 6e-4]
+    gradient_accumulation_steps: 
+        value: 8
+    lr_decay_iters: 
+        value: 6000
+    est_interval: 
+        value: 100
+    est_steps: 
+        value: 100
+        
+    

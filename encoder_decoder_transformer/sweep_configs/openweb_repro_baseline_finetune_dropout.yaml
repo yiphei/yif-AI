@@ -1,0 +1,47 @@
+program: transformer_dropout/training_script.py
+name: openweb_dropout_baseline_repro_finetune_dropout
+project: transformer_dropout_5
+method: grid
+metric:
+  goal: minimize
+  name: est_val_loss
+early_terminate:
+    type: hyperband
+    min_iter: 1000
+    eta: 2
+    strict: False
+parameters:
+    model_config:
+        parameters:
+            bias:
+                value: False
+            context_size:
+                value: 1024
+            n_embed: 
+                value: 768
+            n_layer: 
+                value: 12
+            n_head: 
+                value: 12
+            dropout_rate:
+                values: [0, 0.1, 0.2, 0.3, 0.4]
+            use_learned_dropout:
+                value: False
+    batch_size: 
+        value: 15 # to match the transformer_embed baseline
+    train_steps: 
+        value: 22000
+    lr: 
+        value: 0.001
+    warmup_iters:
+        value: 100
+    min_lr: 
+        value: 1e-4
+    gradient_accumulation_steps: 
+        value: 40
+    lr_decay_iters: 
+        value: 22000
+    est_interval: 
+        value: 200
+    est_steps: 
+        value: 100
