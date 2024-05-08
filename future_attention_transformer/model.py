@@ -34,6 +34,7 @@ class LearnedDropoutConfig:
     use_bias: bool
     n_heads: int
 
+
 @dataclass
 class ModelConfig(BaseModelConfig):
     start_layer: int
@@ -60,20 +61,12 @@ class ModelConfig(BaseModelConfig):
             raise ValueError("start_layer must be <= end_layer")
 
         if self.learned_dropout_config:
-            if (
-                self.start_layer > self.n_layer
-                or self.start_layer < 1
-            ):
+            if self.start_layer > self.n_layer or self.start_layer < 1:
                 raise ValueError("start_layer <= n_layer and >= 1")
-            if (
-                self.end_layer > self.n_layer
-                or self.end_layer < 1
-            ):
+            if self.end_layer > self.n_layer or self.end_layer < 1:
                 raise ValueError("end_layer <= n_layer and >= 1")
 
-        assert (
-            1 <= self.future_dim <= (self.context_size - 1)
-        )
+        assert 1 <= self.future_dim <= (self.context_size - 1)
 
         if self.mask_loss_coeff is not None:
             assert self.mask_loss_coeff > 0
@@ -86,7 +79,16 @@ class ModelConfig(BaseModelConfig):
 
 
 class FutureMultiAttentionHead(nn.Module):
-    def __init__(self, dim_in, n_head, use_bias, context_size, dropout_rate, future_dim, mask_loss_type):
+    def __init__(
+        self,
+        dim_in,
+        n_head,
+        use_bias,
+        context_size,
+        dropout_rate,
+        future_dim,
+        mask_loss_type,
+    ):
         super().__init__()
         assert dim_in % n_head == 0
         self.dim_in = dim_in
@@ -96,9 +98,7 @@ class FutureMultiAttentionHead(nn.Module):
         self.future_dim = future_dim
         self.mask_loss_type = mask_loss_type
 
-        self.batch_attn_weights = nn.Linear(
-            dim_in, dim_in * 3, bias=use_bias
-        )
+        self.batch_attn_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
         self.future_k_weights = nn.Parameter(
             torch.randn(n_head, self.head_size, context_size - 1)
         )
@@ -201,9 +201,7 @@ class FutureMultiAttentionHead(nn.Module):
 
         full_attn = padded_causal_attn + padded_future_attn
         full_attn = full_attn.masked_fill(
-            self.full_tril[
-                :, :, :T, : min(T + self.future_dim, self.context_size)
-            ]
+            self.full_tril[:, :, :T, : min(T + self.future_dim, self.context_size)]
             == 0,
             float("-inf"),
         )
@@ -268,7 +266,14 @@ class TransformerBlock(nn.Module):
                 config.mask_loss_type,
             )
         else:
-            self.multi_attn_head = MultiAttentionHead(config.n_embed, config.n_head, config.use_bias, config.context_size, config.dropout_rate, config.use_flash)
+            self.multi_attn_head = MultiAttentionHead(
+                config.n_embed,
+                config.n_head,
+                config.use_bias,
+                config.context_size,
+                config.dropout_rate,
+                config.use_flash,
+            )
         self.feed_forward = FeedForward(
             config.n_embed, config.use_bias, config.dropout_rate
         )
@@ -284,7 +289,9 @@ class TransformerBlock(nn.Module):
 class FutureAttentionTransformer(BaseModel):
     model_config_cls = ModelConfig
 
-    def __init__(self, config: ModelConfig, gradient_accumulation_steps, is_master_process):
+    def __init__(
+        self, config: ModelConfig, gradient_accumulation_steps, is_master_process
+    ):
         super().__init__(gradient_accumulation_steps, is_master_process)
         assert (
             config.alphabet_size is not None
@@ -295,12 +302,8 @@ class FutureAttentionTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
 
-        learned_config_start_layer = (
-            config.start_layer
-        )
-        learned_config_end_layer = (
-            config.end_layer
-        )
+        learned_config_start_layer = config.start_layer
+        learned_config_end_layer = config.end_layer
 
         self.transformer_blocks = nn.Sequential(
             *[
