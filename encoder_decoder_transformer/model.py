@@ -343,18 +343,14 @@ class EncoderDecoderTransformer(BaseModel):
             self.positional_embedding_ln = LayerNorm(config.n_embed, config.use_bias)
 
         if (
-            self.config.learned_dropout_config.encoder_embed_loss_type
-            != EncoderEmbedLossType.NONE
-            and self.config.learned_dropout_config.use_ln_on_encoder_out
+            self.config.learned_dropout_config.use_ln_on_encoder_out
         ):
-            self.final_x_state_ln = LayerNorm(config.n_embed, True)
+            self.encoder_out_ln = LayerNorm(config.n_embed, True)
         if (
-            self.config.learned_dropout_config.encoder_embed_loss_type
-            != EncoderEmbedLossType.NONE
-            and self.config.learned_dropout_config.encoder_embed_ln_type
+            self.config.learned_dropout_config.encoder_embed_ln_type
             != EncoderEmbedLayerNormType.NONE
         ):
-            self.token_embed_layer_norm = LayerNorm(config.n_embed, True)
+            self.encoder_embed_layer_norm = LayerNorm(config.n_embed, True)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
         self.token_embedding.weight = self.output_layer.weight  # weight tying
@@ -373,13 +369,13 @@ class EncoderDecoderTransformer(BaseModel):
         pos_embed = self.positional_embedding(
             torch.arange(x.shape[1], dtype=torch.long, device=device)
         )
-        embed = token_embed + pos_embed
-        encoder_embed = self.dropout(embed)
+        encoder_embed = token_embed + pos_embed
+        encoder_embed = self.dropout(encoder_embed)
         encoder_x = encoder_embed
 
-        decoder_x = None
+        decoder_x = encoder_embed
         if self.config.learned_dropout_config.add_ln_before_pred_ff:
-            decoder_x = self.ffd_ln(encoder_embed)
+            decoder_x = self.ffd_ln(decoder_x)
         decoder_x = self.decoder_feed_forward(decoder_x)
 
         if self.config.learned_dropout_config.add_pos_embed:
@@ -414,13 +410,13 @@ class EncoderDecoderTransformer(BaseModel):
                 encoder_out = encoder_out.detach()
 
             if self.config.learned_dropout_config.use_ln_on_encoder_out:
-                encoder_out = self.final_x_state_ln(encoder_out)
+                encoder_out = self.encoder_out_ln(encoder_out)
 
             if (
                 self.config.learned_dropout_config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.INIT
             ):
-                encoder_embed = self.token_embed_layer_norm(encoder_embed)
+                encoder_embed = self.encoder_embed_layer_norm(encoder_embed)
 
             cum_sum = torch.cumsum(encoder_embed, dim=-2)
             avg_sum = cum_sum / torch.arange(
@@ -431,7 +427,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.AVG_CUM_SUM
             ):
-                avg_sum = self.token_embed_layer_norm(avg_sum)
+                avg_sum = self.encoder_embed_layer_norm(avg_sum)
 
             if (
                 self.config.learned_dropout_config.encoder_embed_loss_type
@@ -466,7 +462,7 @@ class EncoderDecoderTransformer(BaseModel):
                 raise ValueError("Invalid token loss type")
 
         if self.config.learned_dropout_config.sub_pos_embed != SubPosEmbedType.NO:
-            out = out - self.positional_embedding(
+            decoder_out = decoder_out - self.positional_embedding(
                 torch.arange(
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
                 )
@@ -475,7 +471,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.sub_pos_embed
                 == SubPosEmbedType.YES_LN
             ):
-                out = self.positional_embedding_ln(out)
+                decoder_out = self.positional_embedding_ln(decoder_out)
 
         if targets is None:
             loss = None
