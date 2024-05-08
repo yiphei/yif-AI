@@ -7,10 +7,10 @@ import torch
 # ugly workound to make both Sagemaker, python, and me happy
 try:
     # I like to run the script from the project root as a module, so it needs to be relative import
-    from .model import DropoutTransformer, ModelConfig
+    from .model import EncoderDecoderTransformer, ModelConfig
 except ImportError:
     # Sagemaker prob runs the script as a standalone file, so it needs to be an absolute import
-    from model import DropoutTransformer, ModelConfig
+    from model import EncoderDecoderTransformer, ModelConfig
 
 import tiktoken
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     model_dict = torch.load(args.model_path, map_location=SAMPLE_CONFIG.DEVICE)
     model_config = ModelConfig(**model_dict["model_config"])
-    model = DropoutTransformer(model_config)
+    model = EncoderDecoderTransformer(model_config)
     state_dict = model_dict["model"]
     unwanted_prefix = "_orig_mod."
     for k, v in list(state_dict.items()):

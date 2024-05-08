@@ -5,10 +5,10 @@ import torch
 from utils.train import train
 
 try:
-    from encoder_decoder_transformer.model import DropoutTransformer
+    from encoder_decoder_transformer.model import EncoderDecoderTransformer
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
-    from model import DropoutTransformer
+    from model import EncoderDecoderTransformer
 
 
 def create_autocast_context(device_type, ptdtype):
@@ -62,8 +62,8 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
 
 if __name__ == "__main__":
     train(
-        DropoutTransformer,
+        EncoderDecoderTransformer,
         create_training_context,
-        "transformer_dropout/",
-        "transformer_dropout_5_encoder_decoder",
+        "encoder_decoder_transformer/",
+        "encoder_decoder_transformer",
     )

@@ -294,7 +294,7 @@ class TransformerBlock(nn.Module):
         return x_state, x_pred
 
 
-class DropoutTransformer(BaseModel):
+class EncoderDecoderTransformer(BaseModel):
     model_config_cls = ModelConfig
 
     def __init__(self, config: ModelConfig, gradient_accumulation_steps):
