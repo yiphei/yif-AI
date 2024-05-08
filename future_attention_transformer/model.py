@@ -113,7 +113,7 @@ class FutureMultiAttentionHead(nn.Module):
         self.dropout_2 = nn.Dropout(dropout_rate)
 
         self.register_buffer(
-            "tril",
+            "causal_tril",
             torch.tril(
                 torch.ones(context_size, context_size).view(
                     1, 1, context_size, context_size
@@ -177,7 +177,7 @@ class FutureMultiAttentionHead(nn.Module):
                     @ v[:, :, 1 : min(T + self.future_dim, self.context_size), :]
                 )
 
-        causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0.0)
+        causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.future_dim, self.context_size - T)
         if pad_size > 0:
             padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
@@ -210,7 +210,7 @@ class FutureMultiAttentionHead(nn.Module):
 
         softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
         softmax_causal_attn = softmax_causal_attn.masked_fill(
-            self.tril[:, :, :T, :T] == 0, 0.0
+            self.causal_tril[:, :, :T, :T] == 0, 0.0
         )
         softmax_future_attn = softmax_full_attn[
             :, :, :T, 1 : min(T + self.future_dim, self.context_size)
