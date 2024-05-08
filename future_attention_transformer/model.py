@@ -9,7 +9,7 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
-                                       MultiAttentionHead)
+                                       MultiAttentionHead, SubModuleStats)
 
 
 class FutureXLossType(str, Enum):
@@ -92,7 +92,9 @@ class DynamicLinear(nn.Module):
         return x
 
 
-class FutureMultiAttentionHead(nn.Module):
+class FutureMultiAttentionHead(SubModuleStats):
+    extra_stats = ["mask_loss"]
+
     def __init__(
         self,
         dim_in,
@@ -328,8 +330,6 @@ class FutureAttentionTransformer(BaseModel):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
 
-            additional_loss = torch.tensor(0.0, device=device)
-            mean_mask_losses = torch.tensor(0.0, device=device)
             if self.training:
                 n_learned_dropout = 1
                 mask_losses = torch.empty(n_learned_dropout, device=device)
@@ -339,12 +339,13 @@ class FutureAttentionTransformer(BaseModel):
                         mask_losses[curr_idx] = module.mask_loss
                         curr_idx += 1
 
-                coeff = self.config.future_x_loss_coeff
-                mean_mask_losses = mask_losses.mean() * coeff
-                if self.config.use_future_x_loss:
-                    additional_loss = mean_mask_losses
+                self.mask_loss = mask_losses.mean() * self.config.future_x_loss_coeff
 
-            loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
+            loss = F.cross_entropy(logits, targets.view(-1))
+            if self.config.use_future_x_loss:
+                loss += self.mask_loss
+        
+        self._update_running_stats()
         return (logits, loss)
 
     def estimate_mfu(self, fwdbwd_per_iter, dt):

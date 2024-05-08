@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
 
@@ -119,7 +118,13 @@ class TransformerBlock(nn.Module):
 
 
 RUNNING_STAT_PREFIX = "running_"
+class SubModuleStats(nn.Module):
+    extra_stats: List[str]
 
+    def __init__(self):
+        super().__init__()
+        for stat in self.extra_stats:
+            self.register_buffer(stat, torch.empty(0), persistent=False)
 
 class BaseModel(nn.Module):
     model_config_cls: Type
@@ -134,6 +139,26 @@ class BaseModel(nn.Module):
         self.training_step = None
         self.is_last_minibatch = False
         self.is_master_process = is_master_process
+
+        stat_to_module_class = {}
+        for module in self.modules():
+            if isinstance(module, SubModuleStats):
+                for stat in module.extra_stats:
+                    if stat in stat_to_module_class:
+                        if stat_to_module_class[stat] != module.__class__:
+                            raise ValueError(
+                                f"Stat {stat} is already registered to {stat_to_module_class[stat]}"
+                            )
+                        else:
+                            continue
+                    stat_to_module_class[stat] = module.__class__
+
+        if not self.extra_stats:
+            self.extra_stats = list(stat_to_module_class.keys())
+        else:
+            sub_module_stats = list(stat_to_module_class.keys())
+            assert len(set(self.extra_stats) & set(sub_module_stats)) == 0
+            self.extra_stats.extend(sub_module_stats)
 
         # It's faster to use keep stats on the same device, hence the buffer registration
         for stat in self.extra_stats:
