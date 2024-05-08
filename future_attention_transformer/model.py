@@ -12,7 +12,7 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead)
 
 
-class MaskLossType(str, Enum):
+class FutureXLossType(str, Enum):
     MSE = "MSE"
     COSINE_SIM = "COSINE_SIM"
 
@@ -22,11 +22,11 @@ class MaskLossType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return MaskLossType.MSE
+            return FutureXLossType.MSE
         elif num == 2:
-            return MaskLossType.COSINE_SIM
+            return FutureXLossType.COSINE_SIM
         else:
-            raise ValueError("Invalid mask loss number")
+            raise ValueError("Invalid future x loss number")
 
 
 @dataclass
@@ -39,10 +39,10 @@ class LearnedDropoutConfig:
 class ModelConfig(BaseModelConfig):
     start_layer: int
     future_dim: int
-    mask_loss_type: Union[MaskLossType, int]
-    use_mask_loss: bool = True
+    future_x_loss_type: Union[FutureXLossType, int]
+    use_future_x_loss: bool = True
     end_layer: Optional[int] = None
-    mask_loss_coeff: Optional[float] = None
+    future_x_loss_coeff: Optional[float] = None
     learned_dropout_config: LearnedDropoutConfig = None
 
     def __post_init__(self):
@@ -68,13 +68,13 @@ class ModelConfig(BaseModelConfig):
 
         assert 1 <= self.future_dim <= (self.context_size - 1)
 
-        if self.mask_loss_coeff is not None:
-            assert self.mask_loss_coeff > 0
+        if self.future_x_loss_coeff is not None:
+            assert self.future_x_loss_coeff > 0
 
-        if type(self.mask_loss_type) == int:
-            self.mask_loss_type = MaskLossType.get_type_from_int(self.mask_loss_type)
+        if type(self.future_x_loss_type) == int:
+            self.future_x_loss_type = FutureXLossType.get_type_from_int(self.future_x_loss_type)
 
-        if not self.use_mask_loss and self.mask_loss_coeff is not None:
+        if not self.use_future_x_loss and self.future_x_loss_coeff is not None:
             raise ValueError("mask_loss_coeff must be None if use_mask_loss is False")
 
 
@@ -87,7 +87,7 @@ class FutureMultiAttentionHead(nn.Module):
         context_size,
         dropout_rate,
         future_dim,
-        mask_loss_type,
+        future_x_loss_type,
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -96,7 +96,7 @@ class FutureMultiAttentionHead(nn.Module):
         self.n_head = n_head
         self.head_size = dim_in // n_head
         self.future_dim = future_dim
-        self.mask_loss_type = mask_loss_type
+        self.future_x_loss_type = future_x_loss_type
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
         self.future_k_weights = nn.Parameter(
@@ -215,9 +215,9 @@ class FutureMultiAttentionHead(nn.Module):
         new_x = self.dropout_2(new_x)
 
         if self.training:
-            if self.mask_loss_type == MaskLossType.MSE:
+            if self.future_x_loss_type == FutureXLossType.MSE:
                 self.mask_loss = F.mse_loss(future_x, true_future_x)
-            elif self.mask_loss_type == MaskLossType.COSINE_SIM:
+            elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
                 self.mask_loss = (
                     F.cosine_similarity(future_x, true_future_x).mean() ** 2
                 )
@@ -241,7 +241,7 @@ class TransformerBlock(nn.Module):
                 config.context_size,
                 config.dropout_rate,
                 config.future_dim,
-                config.mask_loss_type,
+                config.future_x_loss_type,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
@@ -349,9 +349,9 @@ class FutureAttentionTransformer(BaseModel):
                         mask_losses[curr_idx] = module.mask_loss
                         curr_idx += 1
 
-                coeff = self.config.mask_loss_coeff or 1.0
+                coeff = self.config.future_x_loss_coeff or 1.0
                 mean_mask_losses = mask_losses.mean() * coeff
-                if self.config.use_mask_loss:
+                if self.config.use_future_x_loss:
                     additional_loss = mean_mask_losses
 
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
