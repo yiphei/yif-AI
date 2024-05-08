@@ -168,7 +168,7 @@ class FutureMultiAttentionHead(nn.Module):
                     != 0,
                     0.0,
                 )
-                true_future_mask = true_future_attn @ v[:, :, 1:T_w_future, :]
+                true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
 
         causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.future_dim, self.context_size - T)
@@ -204,22 +204,22 @@ class FutureMultiAttentionHead(nn.Module):
             0.0,
         )
 
-        causal_mask = softmax_causal_attn @ v
-        future_mask = (
+        causal_x = softmax_causal_attn @ v
+        future_x = (
             softmax_future_attn @ self.future_v_weights[:, : T_w_future - 1, :]
         )
-        full_mask = causal_mask + future_mask
-        dropout_mask = full_mask.transpose(1, 2).contiguous().view(B, T, C)
+        new_x = causal_x + future_x
+        new_x = new_x.transpose(1, 2).contiguous().view(B, T, C)
 
-        new_x = self.residual_proj(dropout_mask)
+        new_x = self.residual_proj(new_x)
         new_x = self.dropout_2(new_x)
 
         if self.training:
             if self.mask_loss_type == MaskLossType.MSE:
-                self.mask_loss = F.mse_loss(future_mask, true_future_mask)
+                self.mask_loss = F.mse_loss(future_x, true_future_x)
             elif self.mask_loss_type == MaskLossType.COSINE_SIM:
                 self.mask_loss = (
-                    F.cosine_similarity(future_mask, true_future_mask).mean() ** 2
+                    F.cosine_similarity(future_x, true_future_x).mean() ** 2
                 )
         return new_x
 
