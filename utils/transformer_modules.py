@@ -149,19 +149,20 @@ class BaseModel(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def _update_running_stats(self):
-        for stat in self.extra_stats:
-            current_running_stat = getattr(self, RUNNING_STAT_PREFIX + stat)
-            current_stat = getattr(self, stat)
-            if current_stat.numel() == 0:
-                continue
-            if current_running_stat.numel() == 0:
-                current_running_stat = (
-                    current_stat.clone() / self.gradient_accumulation_steps
-                )
-            else:
-                current_running_stat += current_stat / self.gradient_accumulation_steps
+        if self.training:
+            for stat in self.extra_stats:
+                current_running_stat = getattr(self, RUNNING_STAT_PREFIX + stat)
+                current_stat = getattr(self, stat)
+                if current_stat.numel() == 0:
+                    continue
+                if current_running_stat.numel() == 0:
+                    current_running_stat = (
+                        current_stat.clone() / self.gradient_accumulation_steps
+                    )
+                else:
+                    current_running_stat += current_stat / self.gradient_accumulation_steps
 
-            setattr(self, RUNNING_STAT_PREFIX + stat, current_running_stat)
+                setattr(self, RUNNING_STAT_PREFIX + stat, current_running_stat)
 
     def reset_running_stats(self):
         for stat in self.extra_stats:
