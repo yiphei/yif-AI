@@ -123,7 +123,7 @@ RUNNING_STAT_PREFIX = "running_"
 
 class BaseModel(nn.Module):
     model_config_cls: Type
-    extra_stats: List[str]
+    extra_stats: List[str] = []
 
     def __init__(self, gradient_accumulation_steps=None, is_master_process=True):
         super().__init__()
