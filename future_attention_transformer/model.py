@@ -78,6 +78,29 @@ class ModelConfig(BaseModelConfig):
             raise ValueError("future_x_loss_coeff must be None if use_future_x_loss is False")
 
 
+class DynamicLinear(nn.Module):
+    def __init__(self, head_dim, in_dim, out_dim, use_bias):
+        super().__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.weight = nn.Parameter(
+            torch.randn(head_dim, in_dim, out_dim)
+        )
+        torch.nn.init.normal_(self.weight, mean=0.0, std=0.02)
+        self.bias = nn.Parameter(torch.zeros(head_dim,1, out_dim)) if use_bias else None
+
+    def forward(self, x, in_size = None,out_size=None):
+        in_size = in_size or self.in_dim
+        out_size = out_size or self.out_dim
+
+        weight = self.weight[:, :in_size, :out_size]
+        bias = self.bias[:,:, :out_size] if self.bias is not None else None
+        
+        x = x @ weight
+        if bias is not None:
+            x = x + bias
+        return x
+
 class FutureMultiAttentionHead(nn.Module):
     def __init__(
         self,
@@ -99,14 +122,10 @@ class FutureMultiAttentionHead(nn.Module):
         self.future_x_loss_type = future_x_loss_type
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
-        self.future_k_weights = nn.Parameter(
-            torch.randn(n_head, self.head_size, context_size - 1)
-        )
-        self.future_v_weights = nn.Parameter(
-            torch.randn(n_head, context_size - 1, self.head_size)
-        )
-        torch.nn.init.normal_(self.future_k_weights, mean=0.0, std=0.02)
-        torch.nn.init.normal_(self.future_v_weights, mean=0.0, std=0.02)
+        self.future_k_weights = DynamicLinear(n_head, self.head_size, context_size-1, use_bias)
+        self.future_v_weights = DynamicLinear(
+            n_head, context_size -1, self.head_size, use_bias
+        )        
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
 
         self.dropout_1 = nn.Dropout(dropout_rate)
@@ -177,7 +196,7 @@ class FutureMultiAttentionHead(nn.Module):
         else:
             padded_causal_attn = causal_attn
 
-        future_attn = (q @ self.future_k_weights[:, :, : T_w_future - 1]) * (
+        future_attn = self.future_k_weights(q,out_size=T_w_future - 1)* (
             self.head_size**-0.5
         )
         future_attn = future_attn.masked_fill(
@@ -205,9 +224,7 @@ class FutureMultiAttentionHead(nn.Module):
         )
 
         causal_x = softmax_causal_attn @ v
-        future_x = (
-            softmax_future_attn @ self.future_v_weights[:, : T_w_future - 1, :]
-        )
+        future_x = self.future_v_weights(softmax_future_attn, in_size=  T_w_future - 1)
         new_x = causal_x + future_x
         new_x = new_x.transpose(1, 2).contiguous().view(B, T, C)
 
@@ -325,7 +342,8 @@ class FutureAttentionTransformer(BaseModel):
             additional_loss = torch.tensor(0.0, device=device)
             mean_mask_losses = torch.tensor(0.0, device=device)
             if self.training:
-                mask_losses = torch.empty(self.n_learned_dropout, device=device)
+                n_learned_dropout = 1
+                mask_losses = torch.empty(n_learned_dropout, device=device)
                 curr_idx = 0
                 for module in self.modules():
                     if isinstance(module, FutureMultiAttentionHead):
