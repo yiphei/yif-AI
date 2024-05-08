@@ -1,5 +1,5 @@
 import math
-from dataclasses import dataclass, KW_ONLY
+from dataclasses import KW_ONLY, dataclass
 from typing import Optional
 
 import torch
