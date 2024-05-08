@@ -143,6 +143,7 @@ class FutureMultiAttentionHead(nn.Module):
 
     def forward(self, x):
         B, T, C = x.shape
+        T_w_future = min(T + self.future_dim, self.context_size)
         q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
         k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
@@ -153,7 +154,7 @@ class FutureMultiAttentionHead(nn.Module):
             with torch.no_grad():
                 true_attn = attn.masked_fill(
                     self.full_tril[
-                        :, :, :T, : min(T + self.future_dim, self.context_size)
+                        :, :, :T, : T_w_future
                     ]
                     == 0,
                     float("-inf"),
@@ -165,14 +166,14 @@ class FutureMultiAttentionHead(nn.Module):
                         :,
                         :,
                         :T,
-                        : min(T + self.future_dim - 1, self.context_size - 1),
+                        : T_w_future -1,
                     ]
                     != 0,
                     0.0,
                 )
                 true_future_mask = (
                     true_future_attn
-                    @ v[:, :, 1 : min(T + self.future_dim, self.context_size), :]
+                    @ v[:, :, 1 : T_w_future, :]
                 )
 
         causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
@@ -185,12 +186,12 @@ class FutureMultiAttentionHead(nn.Module):
         future_attn = (
             q
             @ self.future_k_weights[
-                :, :, : min(T + self.future_dim - 1, self.context_size - 1)
+                :, :, : T_w_future -1
             ]
         ) * (self.head_size**-0.5)
         future_attn = future_attn.masked_fill(
             self.future_tril[
-                :, :, :T, : min(T + self.future_dim - 1, self.context_size - 1)
+                :, :, :T, : T_w_future-1
             ]
             != 0,
             0.0,
@@ -199,7 +200,7 @@ class FutureMultiAttentionHead(nn.Module):
 
         full_attn = padded_causal_attn + padded_future_attn
         full_attn = full_attn.masked_fill(
-            self.full_tril[:, :, :T, : min(T + self.future_dim, self.context_size)]
+            self.full_tril[:, :, :T, : T_w_future]
             == 0,
             float("-inf"),
         )
@@ -211,11 +212,11 @@ class FutureMultiAttentionHead(nn.Module):
             self.causal_tril[:, :, :T, :T] == 0, 0.0
         )
         softmax_future_attn = softmax_full_attn[
-            :, :, :T, 1 : min(T + self.future_dim, self.context_size)
+            :, :, :T, 1 : T_w_future
         ]
         softmax_future_attn = softmax_future_attn.masked_fill(
             self.future_tril[
-                :, :, :T, : min(T + self.future_dim - 1, self.context_size - 1)
+                :, :, :T, : T_w_future-1
             ]
             != 0,
             0.0,
@@ -225,7 +226,7 @@ class FutureMultiAttentionHead(nn.Module):
         future_mask = (
             softmax_future_attn
             @ self.future_v_weights[
-                :, : min(T + self.future_dim - 1, self.context_size - 1), :
+                :, : T_w_future-1, :
             ]
         )
         full_mask = causal_mask + future_mask
