@@ -9,10 +9,6 @@ START_LAYER = 3
 USE_BIAS = False
 FUTURE_DIM = 10
 FUTURE_X_LOSS_TYPE = 1
-LEARNED_DROPOUT_CONFIG = {
-    "use_bias": False,
-    "n_heads": 3,
-}
 
 # Training config
 BATCH_SIZE = 15  # 50 when run on 1x A10

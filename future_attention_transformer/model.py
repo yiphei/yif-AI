@@ -30,12 +30,6 @@ class FutureXLossType(str, Enum):
 
 
 @dataclass
-class LearnedDropoutConfig:
-    use_bias: bool
-    n_heads: int
-
-
-@dataclass
 class ModelConfig(BaseModelConfig):
     start_layer: int
     future_dim: int
@@ -43,28 +37,18 @@ class ModelConfig(BaseModelConfig):
     use_future_x_loss: bool = True
     end_layer: Optional[int] = None
     future_x_loss_coeff: Optional[float] = None
-    learned_dropout_config: LearnedDropoutConfig = None
 
     def __post_init__(self):
-        if (
-            self.learned_dropout_config is not None
-            and type(self.learned_dropout_config) == dict
-        ):
-            self.learned_dropout_config = LearnedDropoutConfig(
-                **self.learned_dropout_config
-            )
-
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
 
-        if self.learned_dropout_config:
-            if self.start_layer > self.n_layer or self.start_layer < 1:
-                raise ValueError("start_layer <= n_layer and >= 1")
-            if self.end_layer > self.n_layer or self.end_layer < 1:
-                raise ValueError("end_layer <= n_layer and >= 1")
+        if self.start_layer > self.n_layer or self.start_layer < 1:
+            raise ValueError("start_layer <= n_layer and >= 1")
+        if self.end_layer > self.n_layer or self.end_layer < 1:
+            raise ValueError("end_layer <= n_layer and >= 1")
 
         assert 1 <= self.future_dim <= (self.context_size - 1)
 
@@ -252,16 +236,14 @@ class TransformerBlock(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
-        use_learned_dropout=False,
+        use_future_attn=False,
     ):
         super().__init__()
-        self.use_learned_dropout = use_learned_dropout
-        self.learned_dropout_config = config.learned_dropout_config
-        if use_learned_dropout:
+        if use_future_attn:
             self.multi_attn_head = FutureMultiAttentionHead(
                 config.n_embed,
-                config.learned_dropout_config.n_heads,
-                config.learned_dropout_config.use_bias,
+                config.n_head,
+                config.use_bias,
                 config.context_size,
                 config.dropout_rate,
                 config.future_dim,
