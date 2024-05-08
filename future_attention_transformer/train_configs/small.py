@@ -4,16 +4,15 @@ N_EMBED = 90
 N_LAYER = 3
 N_HEAD = 3
 USE_BIAS = False
-DROPOUT_RATE = 0
-ADD_POS_EMBED = False
-ORDER_TYPE = 1
-SUB_POS_EMBED = 1
-ADD_LN_BEFORE_DECODER_FF = True
-ENCODER_EMBED_LOSS_TYPE = 2
-USE_LN_ON_ENCODER_OUT = True
-ENCODER_EMBED_DETACH_TYPE = 1
-ENCODER_EMBED_LN_TYPE = 1
-CROSS_ATTN_CONFIG = {"use_bias": False, "n_head": 3}
+USE_LEARNED_DROPOUT = True
+DROPOUT_RATE = 0.1
+LEARNED_DROPOUT_CONFIG = {
+    "start_layer": 3,
+    "use_bias": False,
+    "n_heads": 3,
+    "future_dim": 10,
+    "profile_dropout_mask": False,
+}
 
 # Training config
 BATCH_SIZE = 15  # 50 when run on 1x A10
