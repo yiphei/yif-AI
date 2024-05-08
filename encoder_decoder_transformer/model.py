@@ -163,15 +163,15 @@ class EncoderDecoderCrossAttentionHeadConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    learned_dropout_config: EncoderDecoderCrossAttentionHeadConfig = None
+    cross_attn_config: EncoderDecoderCrossAttentionHeadConfig = None
 
     def __post_init__(self):
         if (
-            self.learned_dropout_config is not None
-            and type(self.learned_dropout_config) == dict
+            self.cross_attn_config is not None
+            and type(self.cross_attn_config) == dict
         ):
-            self.learned_dropout_config = EncoderDecoderCrossAttentionHeadConfig(
-                **self.learned_dropout_config
+            self.cross_attn_config = EncoderDecoderCrossAttentionHeadConfig(
+                **self.cross_attn_config
             )
 
 
@@ -217,7 +217,7 @@ class TransformerBlock(nn.Module):
         config: ModelConfig,
     ):
         super().__init__()
-        self.order_type = config.learned_dropout_config.order_type
+        self.order_type = config.cross_attn_config.order_type
         self.encoder_multi_attn_head = MultiAttentionHead(
             config.n_embed,
             config.n_head,
@@ -236,8 +236,8 @@ class TransformerBlock(nn.Module):
         )
         self.cross_multi_attn_head = CrossMultiAttentionHead(
             config.n_embed,
-            config.learned_dropout_config.n_head,
-            config.learned_dropout_config.use_bias,
+            config.cross_attn_config.n_head,
+            config.cross_attn_config.use_bias,
             config.dropout_rate,
         )
 
@@ -314,15 +314,15 @@ class EncoderDecoderTransformer(BaseModel):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         positional_embedding_size = config.context_size
         if (
-            config.learned_dropout_config.add_pos_embed
-            or self.config.learned_dropout_config.sub_pos_embed != SubPosEmbedType.NO
+            config.cross_attn_config.add_pos_embed
+            or self.config.cross_attn_config.sub_pos_embed != SubPosEmbedType.NO
         ):
             positional_embedding_size += 1
         self.positional_embedding = nn.Embedding(
             positional_embedding_size, config.n_embed
         )
 
-        if config.learned_dropout_config.add_ln_before_decoder_ff:
+        if config.cross_attn_config.add_ln_before_decoder_ff:
             self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
@@ -338,13 +338,13 @@ class EncoderDecoderTransformer(BaseModel):
             ]
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
-        if config.learned_dropout_config.sub_pos_embed == SubPosEmbedType.YES_LN:
+        if config.cross_attn_config.sub_pos_embed == SubPosEmbedType.YES_LN:
             self.post_sub_pos_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        if self.config.learned_dropout_config.use_ln_on_encoder_out:
+        if self.config.cross_attn_config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
         if (
-            self.config.learned_dropout_config.encoder_embed_ln_type
+            self.config.cross_attn_config.encoder_embed_ln_type
             != EncoderEmbedLayerNormType.NONE
         ):
             self.encoder_embed_ln = LayerNorm(config.n_embed, True)
@@ -371,11 +371,11 @@ class EncoderDecoderTransformer(BaseModel):
         encoder_x = encoder_embed
 
         decoder_x = encoder_embed
-        if self.config.learned_dropout_config.add_ln_before_decoder_ff:
+        if self.config.cross_attn_config.add_ln_before_decoder_ff:
             decoder_x = self.ffd_ln(decoder_x)
         decoder_x = self.decoder_feed_forward(decoder_x)
 
-        if self.config.learned_dropout_config.add_pos_embed:
+        if self.config.cross_attn_config.add_pos_embed:
             decoder_x += self.positional_embedding(
                 torch.arange(
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
@@ -392,25 +392,25 @@ class EncoderDecoderTransformer(BaseModel):
         raw_loss = torch.tensor(0.0, device=device)
         if (
             self.training
-            and self.config.learned_dropout_config.encoder_embed_loss_type
+            and self.config.cross_attn_config.encoder_embed_loss_type
             != EncoderEmbedLossType.NONE
         ):
             if (
-                self.config.learned_dropout_config.encoder_embed_detach_type
+                self.config.cross_attn_config.encoder_embed_detach_type
                 == EncoderEmbedDetachType.INIT
             ):
                 encoder_embed = encoder_embed.detach()
             elif (
-                self.config.learned_dropout_config.encoder_embed_detach_type
+                self.config.cross_attn_config.encoder_embed_detach_type
                 == EncoderEmbedDetachType.FINAL
             ):
                 encoder_out = encoder_out.detach()
 
-            if self.config.learned_dropout_config.use_ln_on_encoder_out:
+            if self.config.cross_attn_config.use_ln_on_encoder_out:
                 encoder_out = self.encoder_out_ln(encoder_out)
 
             if (
-                self.config.learned_dropout_config.encoder_embed_ln_type
+                self.config.cross_attn_config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.INIT
             ):
                 encoder_embed = self.encoder_embed_ln(encoder_embed)
@@ -421,51 +421,51 @@ class EncoderDecoderTransformer(BaseModel):
             ).unsqueeze(0).unsqueeze(-1)
 
             if (
-                self.config.learned_dropout_config.encoder_embed_ln_type
+                self.config.cross_attn_config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.AVG_CUM_SUM
             ):
                 avg_sum = self.encoder_embed_ln(avg_sum)
 
             if (
-                self.config.learned_dropout_config.encoder_embed_loss_type
+                self.config.cross_attn_config.encoder_embed_loss_type
                 == EncoderEmbedLossType.MSE
             ):
                 raw_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
                 additional_loss = (
                     raw_loss
-                    * self.config.learned_dropout_config.encoder_embed_loss_coeff
+                    * self.config.cross_attn_config.encoder_embed_loss_coeff
                 )
             elif (
-                self.config.learned_dropout_config.encoder_embed_loss_type
+                self.config.cross_attn_config.encoder_embed_loss_type
                 == EncoderEmbedLossType.COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 raw_loss = (1 - (cosine_sim + 1) / 2).mean()
                 additional_loss = (
                     raw_loss
-                    * self.config.learned_dropout_config.encoder_embed_loss_coeff
+                    * self.config.cross_attn_config.encoder_embed_loss_coeff
                 )
             elif (
-                self.config.learned_dropout_config.encoder_embed_loss_type
+                self.config.cross_attn_config.encoder_embed_loss_type
                 == EncoderEmbedLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 additional_loss = (
                     raw_loss
-                    * self.config.learned_dropout_config.encoder_embed_loss_coeff
+                    * self.config.cross_attn_config.encoder_embed_loss_coeff
                 )
             else:
                 raise ValueError("Invalid token loss type")
 
-        if self.config.learned_dropout_config.sub_pos_embed != SubPosEmbedType.NO:
+        if self.config.cross_attn_config.sub_pos_embed != SubPosEmbedType.NO:
             decoder_out = decoder_out - self.positional_embedding(
                 torch.arange(
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
                 )
             )
             if (
-                self.config.learned_dropout_config.sub_pos_embed
+                self.config.cross_attn_config.sub_pos_embed
                 == SubPosEmbedType.YES_LN
             ):
                 decoder_out = self.post_sub_pos_ln(decoder_out)

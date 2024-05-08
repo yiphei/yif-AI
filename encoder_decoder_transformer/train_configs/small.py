@@ -5,13 +5,13 @@ N_LAYER = 3
 N_HEAD = 3
 USE_BIAS = False
 DROPOUT_RATE = 0
-LEARNED_DROPOUT_CONFIG = {
+CROSS_ATTN_CONFIG = {
     "use_bias": False,
     "n_head": 3,
     "add_pos_embed": False,
     "order_type": 1,
     "sub_pos_embed": 1,
-    "add_ln_before_pred_ff": True,
+    "add_ln_before_decoder_ff": True,
 }
 
 # Training config
