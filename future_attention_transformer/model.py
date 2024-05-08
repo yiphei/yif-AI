@@ -153,10 +153,7 @@ class FutureMultiAttentionHead(nn.Module):
         if self.training:
             with torch.no_grad():
                 true_attn = attn.masked_fill(
-                    self.full_tril[
-                        :, :, :T, : T_w_future
-                    ]
-                    == 0,
+                    self.full_tril[:, :, :T, :T_w_future] == 0,
                     float("-inf"),
                 )
                 true_attn = F.softmax(true_attn, dim=-1)
@@ -166,15 +163,12 @@ class FutureMultiAttentionHead(nn.Module):
                         :,
                         :,
                         :T,
-                        : T_w_future -1,
+                        : T_w_future - 1,
                     ]
                     != 0,
                     0.0,
                 )
-                true_future_mask = (
-                    true_future_attn
-                    @ v[:, :, 1 : T_w_future, :]
-                )
+                true_future_mask = true_future_attn @ v[:, :, 1:T_w_future, :]
 
         causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.future_dim, self.context_size - T)
@@ -183,25 +177,18 @@ class FutureMultiAttentionHead(nn.Module):
         else:
             padded_causal_attn = causal_attn
 
-        future_attn = (
-            q
-            @ self.future_k_weights[
-                :, :, : T_w_future -1
-            ]
-        ) * (self.head_size**-0.5)
+        future_attn = (q @ self.future_k_weights[:, :, : T_w_future - 1]) * (
+            self.head_size**-0.5
+        )
         future_attn = future_attn.masked_fill(
-            self.future_tril[
-                :, :, :T, : T_w_future-1
-            ]
-            != 0,
+            self.future_tril[:, :, :T, : T_w_future - 1] != 0,
             0.0,
         )
         padded_future_attn = F.pad(future_attn, (1, 0), "constant", 0)
 
         full_attn = padded_causal_attn + padded_future_attn
         full_attn = full_attn.masked_fill(
-            self.full_tril[:, :, :T, : T_w_future]
-            == 0,
+            self.full_tril[:, :, :T, :T_w_future] == 0,
             float("-inf"),
         )
         softmax_full_attn = F.softmax(full_attn, dim=-1)
@@ -211,23 +198,15 @@ class FutureMultiAttentionHead(nn.Module):
         softmax_causal_attn = softmax_causal_attn.masked_fill(
             self.causal_tril[:, :, :T, :T] == 0, 0.0
         )
-        softmax_future_attn = softmax_full_attn[
-            :, :, :T, 1 : T_w_future
-        ]
+        softmax_future_attn = softmax_full_attn[:, :, :T, 1:T_w_future]
         softmax_future_attn = softmax_future_attn.masked_fill(
-            self.future_tril[
-                :, :, :T, : T_w_future-1
-            ]
-            != 0,
+            self.future_tril[:, :, :T, : T_w_future - 1] != 0,
             0.0,
         )
 
         causal_mask = softmax_causal_attn @ v
         future_mask = (
-            softmax_future_attn
-            @ self.future_v_weights[
-                :, : T_w_future-1, :
-            ]
+            softmax_future_attn @ self.future_v_weights[:, : T_w_future - 1, :]
         )
         full_mask = causal_mask + future_mask
         dropout_mask = full_mask.transpose(1, 2).contiguous().view(B, T, C)
