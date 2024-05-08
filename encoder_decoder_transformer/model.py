@@ -259,9 +259,7 @@ class TransformerBlock(nn.Module):
         encoder_x = encoder_x + self.encoder_multi_attn_head(
             self.encoder_ln1(encoder_x)
         )
-        encoder_x = encoder_x + self.encoder_feed_forward(
-            self.encoder_ln2(encoder_x)
-        )
+        encoder_x = encoder_x + self.encoder_feed_forward(self.encoder_ln2(encoder_x))
         if self.order_type == OrderType.ORIGINAL:
             decoder_x = decoder_x + self.decoder_multi_attn_head(
                 self.decoder_ln1(decoder_x)
@@ -278,10 +276,8 @@ class TransformerBlock(nn.Module):
             )
         else:
             raise ValueError("Invalid order type")
-        
-        decoder_x = decoder_x + self.decoder_feed_forward(
-                self.decoder_ln2(decoder_x)
-            )
+
+        decoder_x = decoder_x + self.decoder_feed_forward(self.decoder_ln2(decoder_x))
         return encoder_x, decoder_x
 
 
