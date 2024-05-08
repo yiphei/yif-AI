@@ -29,7 +29,7 @@ def create_training_step_context(starting_training_step, model):
     @contextmanager
     def training_step_context(training_step, is_first_minibatch, is_last_minibatch):
         if model.training:
-            if model.config.use_learned_dropout and is_first_minibatch:
+            if is_first_minibatch:
                 assert (
                     model.training_step == training_step - 1
                     if training_step != starting_training_step
