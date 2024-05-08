@@ -4,7 +4,6 @@ N_EMBED = 90
 N_LAYER = 3
 N_HEAD = 3
 USE_BIAS = False
-USE_LEARNED_DROPOUT = True
 DROPOUT_RATE = 0.1
 LEARNED_DROPOUT_CONFIG = {
     "start_layer": 3,

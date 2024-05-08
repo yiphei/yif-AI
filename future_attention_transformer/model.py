@@ -62,18 +62,9 @@ class LearnedDropoutConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    use_learned_dropout: bool
     learned_dropout_config: LearnedDropoutConfig = None
 
     def __post_init__(self):
-        if not (self.use_learned_dropout == (self.learned_dropout_config is not None)):
-            raise ValueError(
-                "use_learned_dropout and learned_dropout_config are mutually inclusive"
-            )
-
-        elif not self.use_learned_dropout and self.dropout_rate is None:
-            raise ValueError("dropout_rate must be set if not use_learned_dropout")
-
         if (
             self.learned_dropout_config is not None
             and type(self.learned_dropout_config) == dict
@@ -94,19 +85,9 @@ class ModelConfig(BaseModelConfig):
             ):
                 raise ValueError("end_layer <= n_layer and >= 1")
 
-        if (
-            self.use_learned_dropout
-            and self.learned_dropout_config.profile_dropout_mask
-            and self.profile_layer_x is not None
-        ):
-            raise ValueError(
-                "profile_layer_x cannot be set if profile_dropout_mask is True"
-            )
-
-        if self.use_learned_dropout:
-            assert (
-                1 <= self.learned_dropout_config.future_dim <= (self.context_size - 1)
-            )
+        assert (
+            1 <= self.learned_dropout_config.future_dim <= (self.context_size - 1)
+        )
 
 class FutureMultiAttentionHead(nn.Module):
     def __init__(self, dim_in, n_head, use_bias, context_size, dropout_rate, future_dim, mask_loss_type):
@@ -320,11 +301,9 @@ class FutureAttentionTransformer(BaseModel):
 
         learned_config_start_layer = (
             config.learned_dropout_config.start_layer
-            if config.use_learned_dropout
-            else config.n_layer + 1
         )
         learned_config_end_layer = (
-            config.learned_dropout_config.end_layer if config.use_learned_dropout else 0
+            config.learned_dropout_config.end_layer
         )
 
         self.transformer_blocks = nn.Sequential(
@@ -385,7 +364,7 @@ class FutureAttentionTransformer(BaseModel):
 
             additional_loss = torch.tensor(0.0, device=device)
             mean_mask_losses = torch.tensor(0.0, device=device)
-            if self.training and self.config.use_learned_dropout:
+            if self.training:
                 mask_losses = torch.empty(self.n_learned_dropout, device=device)
                 curr_idx = 0
                 for module in self.modules():
