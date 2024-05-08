@@ -322,14 +322,13 @@ class EncoderDecoderTransformer(BaseModel):
                         positional_embedding_size, config.n_embed
                     )
 
+        if config.learned_dropout_config.add_ln_before_pred_ff:
+            self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
         )
-        if config.learned_dropout_config.add_ln_before_pred_ff:
-            self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
 
         self.dropout = nn.Dropout(config.dropout_rate)
-
         self.transformer_blocks = nn.ModuleList(
             [
                 TransformerBlock(
@@ -340,7 +339,7 @@ class EncoderDecoderTransformer(BaseModel):
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
         if config.learned_dropout_config.sub_pos_embed == SubPosEmbedType.YES_LN:
-            self.positional_embedding_ln = LayerNorm(config.n_embed, config.use_bias)
+            self.post_sub_pos_ln = LayerNorm(config.n_embed, config.use_bias)
 
         if (
             self.config.learned_dropout_config.use_ln_on_encoder_out
@@ -350,7 +349,7 @@ class EncoderDecoderTransformer(BaseModel):
             self.config.learned_dropout_config.encoder_embed_ln_type
             != EncoderEmbedLayerNormType.NONE
         ):
-            self.encoder_embed_layer_norm = LayerNorm(config.n_embed, True)
+            self.encoder_embed_ln = LayerNorm(config.n_embed, True)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
         self.token_embedding.weight = self.output_layer.weight  # weight tying
@@ -416,7 +415,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.INIT
             ):
-                encoder_embed = self.encoder_embed_layer_norm(encoder_embed)
+                encoder_embed = self.encoder_embed_ln(encoder_embed)
 
             cum_sum = torch.cumsum(encoder_embed, dim=-2)
             avg_sum = cum_sum / torch.arange(
@@ -427,13 +426,13 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.AVG_CUM_SUM
             ):
-                avg_sum = self.encoder_embed_layer_norm(avg_sum)
+                avg_sum = self.encoder_embed_ln(avg_sum)
 
             if (
                 self.config.learned_dropout_config.encoder_embed_loss_type
                 == EncoderEmbedLossType.MSE
             ):
-                raw_loss = F.mse_loss(avg_sum, encoder_embed, reduction="mean")
+                raw_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
                 additional_loss = (
                     raw_loss
                     * self.config.learned_dropout_config.encoder_embed_loss_coeff
@@ -442,7 +441,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.encoder_embed_loss_type
                 == EncoderEmbedLossType.COSINE_SIM
             ):
-                cosine_sim = F.cosine_similarity(avg_sum, encoder_embed, dim=-1)
+                cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 raw_loss = (1 - (cosine_sim + 1) / 2).mean()
                 additional_loss = (
                     raw_loss
@@ -452,7 +451,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.encoder_embed_loss_type
                 == EncoderEmbedLossType.LOG_COSINE_SIM
             ):
-                cosine_sim = F.cosine_similarity(avg_sum, encoder_embed, dim=-1)
+                cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 additional_loss = (
                     raw_loss
@@ -471,7 +470,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.learned_dropout_config.sub_pos_embed
                 == SubPosEmbedType.YES_LN
             ):
-                decoder_out = self.positional_embedding_ln(decoder_out)
+                decoder_out = self.post_sub_pos_ln(decoder_out)
 
         if targets is None:
             loss = None
