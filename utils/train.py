@@ -418,6 +418,7 @@ def _train(
         model = model_cls(
             TRAIN_CONFIG.model_config,
             gradient_accumulation_steps=TRAIN_CONFIG.gradient_accumulation_steps,
+            is_master_process=is_master_process,
         )
     else:
         print("Loading checkpoint...")
@@ -425,6 +426,7 @@ def _train(
         model = model_cls.init_from_checkpoint(
             checkpoint,
             gradient_accumulation_steps=TRAIN_CONFIG.gradient_accumulation_steps,
+            is_master_process=is_master_process,
         )
         TRAIN_CONFIG.model_config = model.config
         iter_num = checkpoint["iter_num"] + 1

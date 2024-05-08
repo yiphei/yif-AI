@@ -125,13 +125,14 @@ class BaseModel(nn.Module):
     model_config_cls: Type
     extra_stats: List[str]
 
-    def __init__(self, gradient_accumulation_steps):
+    def __init__(self, gradient_accumulation_steps=None, is_master_process=True):
         super().__init__()
         # these variables enable profiling
         self.gradient_accumulation_steps = gradient_accumulation_steps
         # these two variables are set by the context manager in the training script
         self.training_step = None
         self.is_last_minibatch = False
+        self.is_master_process = is_master_process
 
         # It's faster to use keep stats on the same device, hence the buffer registration
         for stat in self.extra_stats:
@@ -149,7 +150,7 @@ class BaseModel(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def _update_running_stats(self):
-        if self.training:
+        if self.training and self.is_master_process:
             for stat in self.extra_stats:
                 current_running_stat = getattr(self, RUNNING_STAT_PREFIX + stat)
                 current_stat = getattr(self, stat)
@@ -165,8 +166,9 @@ class BaseModel(nn.Module):
                 setattr(self, RUNNING_STAT_PREFIX + stat, current_running_stat)
 
     def reset_running_stats(self):
-        for stat in self.extra_stats:
-            setattr(self, RUNNING_STAT_PREFIX + stat, torch.empty(0))
+        if self.is_master_process:
+            for stat in self.extra_stats:
+                setattr(self, RUNNING_STAT_PREFIX + stat, torch.empty(0))
 
     def dump_extra_stats(self):
         return {
@@ -177,15 +179,15 @@ class BaseModel(nn.Module):
 
     def update_is_last_minibatch(self, new_val):
         # this is called by the context manager in the training script
-        if self.training and new_val != self.is_last_minibatch:
+        if self.training and self.is_master_process and new_val != self.is_last_minibatch:
             self.is_last_minibatch = new_val
             for module in self.modules():
                 module.is_last_minibatch = new_val
 
     @classmethod
-    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps=None):
+    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps=None, is_master_process=True):
         model_config = cls.model_config_cls(**checkpoint_dict["model_config"])
-        model = cls(model_config, gradient_accumulation_steps)
+        model = cls(model_config, gradient_accumulation_steps, is_master_process)
         state_dict = checkpoint_dict["model"]
 
         # This is caused by compiling the model. From https://github.com/karpathy/nanoGPT/blob/master/train.py
