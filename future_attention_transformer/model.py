@@ -284,6 +284,7 @@ class FutureAttentionTransformer(BaseModel):
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
         self.config = config
+        self.n_future_attn = config.end_layer - config.start_layer + 1
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
@@ -331,8 +332,7 @@ class FutureAttentionTransformer(BaseModel):
             logits = logits.view(B * T, C)
 
             if self.training:
-                n_learned_dropout = 1
-                mask_losses = torch.empty(n_learned_dropout, device=device)
+                mask_losses = torch.empty(self.n_future_attn, device=device)
                 curr_idx = 0
                 for module in self.modules():
                     if isinstance(module, FutureMultiAttentionHead):
@@ -342,7 +342,7 @@ class FutureAttentionTransformer(BaseModel):
                 self.mask_loss = mask_losses.mean() * self.config.future_x_loss_coeff
 
             loss = F.cross_entropy(logits, targets.view(-1))
-            if self.config.use_future_x_loss:
+            if self.training and self.config.use_future_x_loss:
                 loss += self.mask_loss
 
         self._update_running_stats()

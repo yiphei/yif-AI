@@ -428,7 +428,7 @@ class EncoderDecoderTransformer(BaseModel):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
-            if self.additional_loss.numel() != 0:
+            if self.training and self.additional_loss.numel() != 0:
                 loss += self.additional_loss
 
         self._update_running_stats()
