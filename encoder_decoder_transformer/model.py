@@ -428,7 +428,8 @@ class EncoderDecoderTransformer(BaseModel):
             ):
                 self.raw_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
                 self.additional_loss = (
-                    self.raw_loss * self.config.cross_attn_config.encoder_embed_loss_coeff
+                    self.raw_loss
+                    * self.config.cross_attn_config.encoder_embed_loss_coeff
                 )
             elif (
                 self.config.cross_attn_config.encoder_embed_loss_type
@@ -437,7 +438,8 @@ class EncoderDecoderTransformer(BaseModel):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 self.raw_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.additional_loss = (
-                    self.raw_loss * self.config.cross_attn_config.encoder_embed_loss_coeff
+                    self.raw_loss
+                    * self.config.cross_attn_config.encoder_embed_loss_coeff
                 )
             elif (
                 self.config.cross_attn_config.encoder_embed_loss_type
@@ -446,7 +448,8 @@ class EncoderDecoderTransformer(BaseModel):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 self.raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.additional_loss = (
-                    self.raw_loss * self.config.cross_attn_config.encoder_embed_loss_coeff
+                    self.raw_loss
+                    * self.config.cross_attn_config.encoder_embed_loss_coeff
                 )
             else:
                 raise ValueError("Invalid token loss type")
