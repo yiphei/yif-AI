@@ -187,7 +187,7 @@ def estimate_loss(
     val_data_batch_args,
     iter_num,
 ):
-    mean_accuracies = []
+    mean_accuracy_losses = []
     mean_losses = []
     model.eval()
     new_data_iters = []
@@ -196,7 +196,7 @@ def estimate_loss(
         data_iter = args[0]
         data_loader = args[1]
         data_sampler = args[2]
-        accuracies = torch.zeros(est_steps, device=device)
+        accuracy_losses = torch.zeros(est_steps, device=device)
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
             xb, yb, new_data_iter = get_data_batch_loader(
@@ -210,13 +210,13 @@ def estimate_loss(
 
             losses[i] = loss
 
-            accuracies[i] = raw_model.get_accuracy(logits, yb)
+            accuracy_losses[i] = raw_model.get_accuracy_loss(logits, yb)
 
         new_data_iters.append(data_iter if original_data_iter != data_iter else None)
-        mean_accuracies.append(accuracies.mean().item())
+        mean_accuracy_losses.append(accuracy_losses.mean().item())
         mean_losses.append(losses.mean().item())
     model.train()
-    return (mean_accuracies, mean_losses, new_data_iters)
+    return (mean_accuracy_losses, mean_losses, new_data_iters)
 
 
 def save_model_artifact(filenames, model_dict, dir_path, s3_client):

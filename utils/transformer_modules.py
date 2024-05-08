@@ -125,7 +125,7 @@ class BaseModel(nn.Module):
         super().__init__()
         # these variables enable profiling
         self.gradient_accumulation_steps = gradient_accumulation_steps
-        # these two variables are set by the training script
+        # these two variables are set by the context manager in the training script
         self.training_step = None
         self.is_last_minibatch = False
 
@@ -138,13 +138,14 @@ class BaseModel(nn.Module):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def update_is_last_minibatch(self, new_val):
-        if new_val != self.is_last_minibatch:
+        # this is called by the context manager in the training script
+        if self.training and new_val != self.is_last_minibatch:
             self.is_last_minibatch = new_val
             for module in self.modules():
                 module.is_last_minibatch = new_val
 
     @classmethod
-    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps):
+    def init_from_checkpoint(cls, checkpoint_dict, gradient_accumulation_steps=None):
         model_config = cls.model_config_cls(**checkpoint_dict["model_config"])
         model = cls(model_config, gradient_accumulation_steps)
         state_dict = checkpoint_dict["model"]
@@ -193,7 +194,7 @@ class BaseModel(nn.Module):
             n_params -= self.positional_embedding.weight.numel()
         return n_params
 
-    def get_accuracy(self, logits, targets):
+    def get_accuracy_loss(self, logits, targets):
         probs = F.softmax(logits, dim=-1)
         return (probs.max(dim=-1).indices.view(-1) != targets.view(-1)).float().mean()
 
