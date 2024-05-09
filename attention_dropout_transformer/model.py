@@ -8,7 +8,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
-from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
+from utils.transformer_modules import (BaseModel, LayerNorm,
                                        MultiAttentionHead, SubModuleStats)
 
 @dataclass
@@ -455,11 +455,9 @@ class FeedForward(nn.Module):
         self,
         config: ModelConfig,
         use_learned_dropout=False,
-        should_profile_layer_x=False,
     ):
         super().__init__()
         self.module_name = None
-        self.should_profile_layer_x = should_profile_layer_x
         self.use_learned_dropout = use_learned_dropout
         self.config = config
         self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.bias)
@@ -467,7 +465,7 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.bias
         )
-        if config.use_learned_dropout and use_learned_dropout:
+        if use_learned_dropout:
             self.dropout = LearnedDropout(
                 config.n_embed, config.context_size, config.learned_dropout_config
             )
@@ -487,12 +485,11 @@ class TransformerBlock(nn.Module):
         self,
         config: ModelConfig,
         use_learned_dropout=False,
-        should_profile_layer_x=False,
     ):
         super().__init__()
         self.multi_attn_head = MultiAttentionHead(config)
         self.feed_forward = FeedForward(
-            config, use_learned_dropout, should_profile_layer_x
+            config, use_learned_dropout
         )
         self.ln1 = LayerNorm(config.n_embed, config.bias)
         self.ln2 = LayerNorm(config.n_embed, config.bias)
@@ -520,21 +517,14 @@ class AttentionDropoutTransformer(BaseModel):
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
-        if config.use_learned_dropout and False:
-            self.dropout = LearnedDropout(config.n_embed, config.learned_dropout_config)
-        else:
-            self.dropout = nn.Dropout(config.dropout_rate)
+        self.dropout = nn.Dropout(config.dropout_rate)
 
         learned_config_start_layer = (
             config.learned_dropout_config.start_layer
-            if config.use_learned_dropout
-            else config.n_layer + 1
         )
         learned_config_end_layer = (
-            config.learned_dropout_config.end_layer if config.use_learned_dropout else 0
+            config.learned_dropout_config.end_layer
         )
-
-        profile_layer_x = config.profile_layer_x or 0
 
         self.transformer_blocks = nn.Sequential(
             *[
@@ -542,7 +532,6 @@ class AttentionDropoutTransformer(BaseModel):
                     config,
                     (i + 1) >= (learned_config_start_layer)
                     and (i + 1) <= (learned_config_end_layer),
-                    i + 1 == profile_layer_x,
                 )
                 for i in range(config.n_layer)
             ]
@@ -599,7 +588,7 @@ class AttentionDropoutTransformer(BaseModel):
             logits = logits.view(B * T, C)
 
             additional_loss = 0
-            if self.training and self.config.use_learned_dropout:
+            if self.training:
                 self.update_stats()
                 if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
                     additional_loss += (
@@ -628,14 +617,13 @@ class AttentionDropoutTransformer(BaseModel):
             self.config.context_size,
         )
         flops_per_token = 6 * N + 12 * L * H * Q * T
-        if self.config.use_learned_dropout:
-            flops_per_token += (
-                (self.running_active_dropout_percent)
-                * 12
-                * self.config.n_embed
-                * self.config.context_size
-                * self.n_learned_dropout
-            )
+        flops_per_token += (
+            (self.running_active_dropout_percent)
+            * 12
+            * self.config.n_embed
+            * self.config.context_size
+            * self.n_learned_dropout
+        )
 
         flops_per_fwdbwd = flops_per_token * T
         flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
