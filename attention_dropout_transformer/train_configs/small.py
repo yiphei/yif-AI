@@ -1,15 +1,29 @@
+import torch
 # ModelConfig
 CONTEXT_SIZE = 100
 N_EMBED = 90
 N_LAYER = 3
 N_HEAD = 3
-USE_BIAS = False
+BIAS = False
+USE_LEARNED_DROPOUT = True
 DROPOUT_RATE = 0.1
-START_LAYER = 3
-USE_BIAS = False
-FUTURE_DIM = 10
-FUTURE_X_LOSS_TYPE = 1
-USE_FUTURE_X_LOSS = True
+LEARNED_DROPOUT_CONFIG = {
+    "start_layer": 3,
+    "use_dropout_entropy_in_loss": True,
+    "use_dropout_l1_norm_in_loss": False,
+    "use_bias": False,
+    "shift_init": torch.pi / 2,
+    "softmax_dim": 2,
+    "n_heads": 3,
+    "use_canonical_entropy": False,
+    "rounding_type": 1,
+    "sigmoid_slope": 100,
+    "use_detached_x_in_dropout_mask": False,
+    "profile_dropout_mask": False,
+    "dropout_entropy_lambda": {
+        "max_lambda": 1,
+    },
+}
 
 # Training config
 BATCH_SIZE = 15  # 50 when run on 1x A10
