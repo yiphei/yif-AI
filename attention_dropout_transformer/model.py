@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-
+from contextlib import nullcontext
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.transformer_modules import (BaseModel, LayerNorm,
                                        MultiAttentionHead, SubModuleStats)
@@ -139,24 +139,22 @@ class ModelConfig(BaseModelConfig):
 
     def __post_init__(self):
         if (
-            self.learned_dropout_config is not None
-            and type(self.learned_dropout_config) == dict
+            type(self.learned_dropout_config) == dict
         ):
             self.learned_dropout_config = LearnedDropoutConfig(
                 **self.learned_dropout_config
             )
 
-        if self.learned_dropout_config:
-            if (
-                self.learned_dropout_config.start_layer > self.n_layer
-                or self.learned_dropout_config.start_layer < 1
-            ):
-                raise ValueError("start_layer <= n_layer and >= 1")
-            if (
-                self.learned_dropout_config.end_layer > self.n_layer
-                or self.learned_dropout_config.end_layer < 1
-            ):
-                raise ValueError("end_layer <= n_layer and >= 1")
+        if (
+            self.learned_dropout_config.start_layer > self.n_layer
+            or self.learned_dropout_config.start_layer < 1
+        ):
+            raise ValueError("start_layer <= n_layer and >= 1")
+        if (
+            self.learned_dropout_config.end_layer > self.n_layer
+            or self.learned_dropout_config.end_layer < 1
+        ):
+            raise ValueError("end_layer <= n_layer and >= 1")
 
 
 class BaseDropoutStats(nn.Module):
@@ -415,38 +413,6 @@ class LearnedDropout(LearnedDropoutStats):
             self.update_stats(dropout_mask)
 
         new_x = x * dropout_mask
-        if (
-            self.training
-            and self.config.profile_dropout_mask
-            and self.is_last_minibatch
-        ):
-            # NB: because of gradient accumulation, this will only log the last batch
-
-            if (
-                dropout_mask.dtype == torch.bfloat16
-                or causal_attn.dtype == torch.bfloat16
-                or dropout_logits.dtype == torch.bfloat16
-            ):
-                wandb.log(
-                    {
-                        self.module_name + ".new_x": new_x.detach().half(),
-                        self.module_name + ".mask": dropout_mask.detach().half(),
-                        self.module_name + ".causal_attn": causal_attn.detach().half(),
-                        self.module_name
-                        + ".dropout_logits": dropout_logits.detach().half(),
-                    },
-                    commit=False,
-                )
-            else:
-                wandb.log(
-                    {
-                        self.module_name + ".new_x": new_x,
-                        self.module_name + ".mask": dropout_mask,
-                        self.module_name + ".causal_attn": causal_attn,
-                        self.module_name + ".dropout_logits": dropout_logits,
-                    },
-                    commit=False,
-                )
         return new_x
 
 
@@ -460,10 +426,10 @@ class FeedForward(nn.Module):
         self.module_name = None
         self.use_learned_dropout = use_learned_dropout
         self.config = config
-        self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.bias)
+        self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.use_bias)
         self.gelu = nn.GELU()
         self.residual_proj = nn.Linear(
-            config.n_embed * 4, config.n_embed, bias=config.bias
+            config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
         if use_learned_dropout:
             self.dropout = LearnedDropout(
@@ -491,8 +457,8 @@ class TransformerBlock(nn.Module):
         self.feed_forward = FeedForward(
             config, use_learned_dropout
         )
-        self.ln1 = LayerNorm(config.n_embed, config.bias)
-        self.ln2 = LayerNorm(config.n_embed, config.bias)
+        self.ln1 = LayerNorm(config.n_embed, config.use_bias)
+        self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, x):
         x = x + self.multi_attn_head(self.ln1(x))
@@ -536,7 +502,7 @@ class AttentionDropoutTransformer(BaseModel):
                 for i in range(config.n_layer)
             ]
         )
-        self.ln = LayerNorm(config.n_embed, config.bias)
+        self.ln = LayerNorm(config.n_embed, config.use_bias)
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
 
         self.token_embedding.weight = self.output_layer.weight  # weight tying
