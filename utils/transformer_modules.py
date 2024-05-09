@@ -203,6 +203,7 @@ class BaseModel(nn.Module):
             mean_stat = stacked_values.mean()
             setattr(self, stat, mean_stat)
 
+    @torch.no_grad()
     def update_running_stats(self):
         if self.training and self.is_master_process:
             for stat in self.extra_stats:
@@ -216,7 +217,7 @@ class BaseModel(nn.Module):
                     )
                 else:
                     current_running_stat += (
-                        current_stat / self.gradient_accumulation_steps
+                        current_stat.detach() / self.gradient_accumulation_steps
                     )
 
                 setattr(self, RUNNING_STAT_PREFIX + stat, current_running_stat)
