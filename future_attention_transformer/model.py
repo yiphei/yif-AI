@@ -283,7 +283,6 @@ class FutureAttentionTransformer(BaseModel):
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
         self.config = config
-        self.n_future_attn = config.end_layer - config.start_layer + 1
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
