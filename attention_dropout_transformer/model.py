@@ -2,7 +2,7 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Union
-
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -65,8 +65,8 @@ class LearnedDropoutConfig:
     n_heads: int = 1
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
-    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
-    dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = field(default=None)
+    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] =None
+    dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
     profile_dropout_mask: bool = False
 
     def __post_init__(self):
@@ -134,27 +134,10 @@ class LearnedDropoutConfig:
 
 
 @dataclass
-class ModelConfig:
-    context_size: int
-    n_embed: int
-    n_layer: int
-    n_head: int
-    use_learned_dropout: bool
-    learned_dropout_config: LearnedDropoutConfig = None
-    dropout_rate: Optional[float] = field(default=None)
-    alphabet_size: Optional[int] = field(default=None)
-    bias: bool = False
-    profile_layer_x: int = None
+class ModelConfig(BaseModelConfig):
+    learned_dropout_config: LearnedDropoutConfig
 
     def __post_init__(self):
-        if not (self.use_learned_dropout == (self.learned_dropout_config is not None)):
-            raise ValueError(
-                "use_learned_dropout and learned_dropout_config are mutually inclusive"
-            )
-
-        elif not self.use_learned_dropout and self.dropout_rate is None:
-            raise ValueError("dropout_rate must be set if not use_learned_dropout")
-
         if (
             self.learned_dropout_config is not None
             and type(self.learned_dropout_config) == dict
@@ -174,15 +157,6 @@ class ModelConfig:
                 or self.learned_dropout_config.end_layer < 1
             ):
                 raise ValueError("end_layer <= n_layer and >= 1")
-
-        if (
-            self.use_learned_dropout
-            and self.learned_dropout_config.profile_dropout_mask
-            and self.profile_layer_x is not None
-        ):
-            raise ValueError(
-                "profile_layer_x cannot be set if profile_dropout_mask is True"
-            )
 
 
 class BaseDropoutStats(nn.Module):
