@@ -278,6 +278,7 @@ class TransformerBlock(nn.Module):
 
 class FutureAttentionTransformer(BaseModel):
     model_config_cls = ModelConfig
+    extra_stats= ["scaled_future_loss"]
 
     def _init_model(self, config: ModelConfig):
         assert (
@@ -332,18 +333,12 @@ class FutureAttentionTransformer(BaseModel):
             logits = logits.view(B * T, C)
 
             if self.training:
-                future_losses = torch.empty(self.n_future_attn, device=device)
-                curr_idx = 0
-                for module in self.modules():
-                    if isinstance(module, FutureMultiAttentionHead):
-                        future_losses[curr_idx] = module.future_loss
-                        curr_idx += 1
-
-                self.future_loss = future_losses.mean() * self.config.future_x_loss_coeff
+                self.aggregate_sub_module_stats()
+                self.scaled_future_loss = self.config.future_x_loss_coeff * self.future_loss
 
             loss = F.cross_entropy(logits, targets.view(-1))
             if self.training and self.config.use_future_x_loss:
-                loss += self.future_loss
+                loss += self.scaled_future_loss
 
         return (logits, loss)
 

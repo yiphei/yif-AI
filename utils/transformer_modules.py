@@ -4,7 +4,7 @@ from typing import List, Type
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-
+from collections import defaultdict
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -158,13 +158,16 @@ class BaseModel(nn.Module):
                         else:
                             continue
                     stat_to_module_class[stat] = module.__class__
-
-        if not self.extra_stats:
-            self.extra_stats = list(stat_to_module_class.keys())
-        else:
-            sub_module_stats = list(stat_to_module_class.keys())
-            assert len(set(self.extra_stats) & set(sub_module_stats)) == 0
-            self.extra_stats.extend(sub_module_stats)
+        
+        self.sub_module_extra_stats = None
+        if stat_to_module_class:
+            self.sub_module_extra_stats = list(stat_to_module_class.keys())
+            if not self.extra_stats:
+                self.extra_stats = list(stat_to_module_class.keys())
+            else:
+                sub_module_stats = list(stat_to_module_class.keys())
+                assert len(set(self.extra_stats) & set(sub_module_stats)) == 0
+                self.extra_stats.extend(sub_module_stats)
 
         # It's faster to use keep stats on the same device, hence the buffer registration
         for stat in self.extra_stats:
@@ -183,6 +186,22 @@ class BaseModel(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def aggregate_sub_module_stats(self):
+        if self.sub_module_extra_stats is None:
+            return
+
+        # Perhaps it's better build this dict with tensors
+        sub_module_stat_dict = defaultdict(list)
+        for module in self.modules():
+            if isinstance(module, SubModuleStats):
+                for stat in module.extra_stats:
+                    sub_module_stat_dict[stat].append(getattr(module, stat))
+
+        for stat, values in sub_module_stat_dict.items():
+            stacked_values = torch.stack(values)
+            mean_stat = stacked_values.mean()
+            setattr(self, stat, mean_stat)
 
     def update_running_stats(self):
         if self.training and self.is_master_process:
