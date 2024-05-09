@@ -74,7 +74,7 @@ class LearnedDropoutConfig:
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
-        assert self.softmax_dim in [0, 1, 2]
+        assert self.softmax_dim in [0, 1]
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
