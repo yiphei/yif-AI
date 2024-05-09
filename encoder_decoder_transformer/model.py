@@ -218,7 +218,7 @@ class TransformerBlock(nn.Module):
             config.use_bias,
             config.context_size,
             config.dropout_rate,
-            config.use_flash,
+            True,
         )
         self.decoder_multi_attn_head = MultiAttentionHead(
             config.n_embed,
@@ -226,7 +226,7 @@ class TransformerBlock(nn.Module):
             config.use_bias,
             config.context_size,
             config.dropout_rate,
-            config.use_flash,
+            True,
         )
         self.cross_multi_attn_head = CrossMultiAttentionHead(
             config.n_embed,

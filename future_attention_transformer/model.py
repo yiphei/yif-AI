@@ -262,7 +262,7 @@ class TransformerBlock(nn.Module):
                 config.use_bias,
                 config.context_size,
                 config.dropout_rate,
-                config.use_flash,
+                True,
             )
         self.feed_forward = FeedForward(
             config.n_embed, config.use_bias, config.dropout_rate
