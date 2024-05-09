@@ -79,12 +79,12 @@ class DynamicLinear(nn.Module):
             nn.Parameter(torch.zeros(head_dim, 1, out_dim)) if use_bias else None
         )
 
-    def forward(self, x, in_size=None, out_size=None):
-        in_size = in_size or self.in_dim
-        out_size = out_size or self.out_dim
+    def forward(self, x, max_in_size=None, max_out_size=None):
+        max_in_size = max_in_size or self.in_dim
+        max_out_size = max_out_size or self.out_dim
 
-        weight = self.weight[:, :in_size, :out_size]
-        bias = self.bias[:, :, :out_size] if self.bias is not None else None
+        weight = self.weight[:, :max_in_size, :max_out_size]
+        bias = self.bias[:, :, :max_out_size] if self.bias is not None else None
 
         x = x @ weight
         if bias is not None:
@@ -191,7 +191,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         else:
             padded_causal_attn = causal_attn
 
-        future_attn = self.future_k_weights(q, out_size=T_w_future - 1) * (
+        future_attn = self.future_k_weights(q, max_out_size=T_w_future - 1) * (
             self.head_size**-0.5
         )
         future_attn = future_attn.masked_fill(
@@ -219,7 +219,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         )
 
         causal_x = softmax_causal_attn @ v
-        future_x = self.future_v_weights(softmax_future_attn, in_size=T_w_future - 1)
+        future_x = self.future_v_weights(softmax_future_attn, max_in_size=T_w_future - 1)
         new_x = causal_x + future_x
         new_x = new_x.transpose(1, 2).contiguous().view(B, T, C)
 
