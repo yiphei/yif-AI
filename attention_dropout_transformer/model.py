@@ -185,89 +185,6 @@ class ModelConfig:
             )
 
 
-class LayerNorm(nn.Module):
-    """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
-
-    def __init__(self, dim_in, bias):
-        super().__init__()
-        self.weight = nn.Parameter(torch.ones(dim_in))
-        self.bias = nn.Parameter(torch.zeros(dim_in)) if bias else None
-
-    def forward(self, input):
-        return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
-
-
-class OptimizedMultiAttentionHead(nn.Module):
-    def __init__(self, config: ModelConfig):
-        super().__init__()
-
-        assert config.n_embed % config.n_head == 0
-        self.dim_in = config.n_embed
-        self.head_size = config.n_embed // config.n_head
-        self.n_heads = config.n_head
-        self.dropout_rate = config.dropout_rate
-
-        self.batch_attn_weights = nn.Linear(
-            self.dim_in, self.dim_in * 3, bias=config.bias
-        )
-        self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=config.bias)
-
-        if config.use_learned_dropout and False:
-            self.dropout_1 = LearnedDropout(
-                config.context_size, config.learned_dropout_config
-            )
-            self.dropout_2 = LearnedDropout(self.dim_in, config.learned_dropout_config)
-        else:
-            self.dropout_1 = nn.Dropout(config.dropout_rate)
-            self.dropout_2 = nn.Dropout(config.dropout_rate)
-
-        self.use_flash = False
-        if not hasattr(F, "scaled_dot_product_attention") or isinstance(
-            self.dropout_1, LearnedDropout
-        ):
-            self.register_buffer(
-                "tril",
-                torch.tril(
-                    torch.ones(config.context_size, config.context_size).view(
-                        1, 1, config.context_size, config.context_size
-                    )
-                ),
-            )
-        else:
-            print("Using flash attention.")
-            self.use_flash = True
-
-    def forward(self, x):
-        B, T, C = x.shape
-
-        q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
-        k = k.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
-        q = q.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
-        v = v.view(B, T, self.n_heads, self.head_size).transpose(1, 2)
-
-        if self.use_flash:
-            out = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
-            )
-            # TODO: add custom dropout here. Otherwise, avoid using flash attention for now
-            # if dropout_1 is LearnedDropout
-        else:
-            attn = (q @ k.transpose(-2, -1)) * (
-                self.head_size**-0.5
-            )  # B,H,T,S @ B,H,S,T ->B, H, T, T
-            causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, float("-inf"))
-            causal_attn = F.softmax(causal_attn, dim=-1)
-            causal_attn = self.dropout_1(causal_attn)
-            out = causal_attn @ v  # B,H,T,T @ B,H,T,S -> B,H,T,S
-
-        out = (
-            out.transpose(1, 2).contiguous().view(B, T, C)
-        )  # B,H,T,S -> B,T,H,S -> B,T,C
-        out = self.residual_proj(out)
-        out = self.dropout_2(out)
-        return out
-
-
 class BaseDropoutStats(nn.Module):
     def __init__(self):
         super().__init__()
@@ -587,27 +504,6 @@ class FeedForward(nn.Module):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        if (
-            self.training
-            and (
-                self.should_profile_layer_x
-                or (
-                    self.use_learned_dropout
-                    and self.config.learned_dropout_config.profile_dropout_mask
-                )
-            )
-            and self.is_last_minibatch
-        ):
-            import wandb
-
-            if x.dtype == torch.bfloat16:
-                wandb.log(
-                    {self.module_name + ".dropout_input_x": x.detach().half()},
-                    commit=False,
-                )
-            else:
-                wandb.log({self.module_name + ".dropout_input_x": x}, commit=False)
-
         x = self.dropout(x)
         return x
 
@@ -620,7 +516,7 @@ class TransformerBlock(nn.Module):
         should_profile_layer_x=False,
     ):
         super().__init__()
-        self.multi_attn_head = OptimizedMultiAttentionHead(config)
+        self.multi_attn_head = MultiAttentionHead(config)
         self.feed_forward = FeedForward(
             config, use_learned_dropout, should_profile_layer_x
         )
