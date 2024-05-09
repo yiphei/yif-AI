@@ -1,10 +1,11 @@
 import inspect
+from collections import defaultdict
 from typing import List, Type
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from collections import defaultdict
+
 
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
@@ -158,7 +159,7 @@ class BaseModel(nn.Module):
                         else:
                             continue
                     stat_to_module_class[stat] = module.__class__
-        
+
         self.sub_module_extra_stats = None
         if stat_to_module_class:
             self.sub_module_extra_stats = list(stat_to_module_class.keys())

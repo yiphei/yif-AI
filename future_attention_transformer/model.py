@@ -230,10 +230,8 @@ class FutureMultiAttentionHead(SubModuleStats):
             if self.future_x_loss_type == FutureXLossType.MSE:
                 self.future_loss = F.mse_loss(future_x, true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
-                cosine_sim = (
-                    F.cosine_similarity(future_x, true_future_x, dim=-1)
-                )
-                self.future_loss = (1-(1+ cosine_sim)/2).mean()
+                cosine_sim = F.cosine_similarity(future_x, true_future_x, dim=-1)
+                self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
 
         return new_x
 
@@ -278,7 +276,7 @@ class TransformerBlock(nn.Module):
 
 class FutureAttentionTransformer(BaseModel):
     model_config_cls = ModelConfig
-    extra_stats= ["scaled_future_loss"]
+    extra_stats = ["scaled_future_loss"]
 
     def _init_model(self, config: ModelConfig):
         assert (
@@ -334,7 +332,9 @@ class FutureAttentionTransformer(BaseModel):
 
             if self.training:
                 self.aggregate_sub_module_stats()
-                self.scaled_future_loss = self.config.future_x_loss_coeff * self.future_loss
+                self.scaled_future_loss = (
+                    self.config.future_x_loss_coeff * self.future_loss
+                )
 
             loss = F.cross_entropy(logits, targets.view(-1))
             if self.training and self.config.use_future_x_loss:
