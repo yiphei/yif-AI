@@ -458,21 +458,20 @@ class AttentionDropoutTransformer(BaseModel):
 
             additional_loss = 0
             if self.training:
-
+                self.aggregate_sub_module_stats()
                 if self.need_new_coefficients:
                     self.dropout_entropy_coefficient = (
                         self.get_annealed_dropout_coefficient(
-                            self.learned_dropout_config.dropout_entropy_lambda
+                            self.config.learned_dropout_config.dropout_entropy_lambda
                         )
                     )
                     self.dropout_l1_norm_coefficient = (
                         self.get_annealed_dropout_coefficient(
-                            self.learned_dropout_config.dropout_l1_norm_lambda
+                            self.config.learned_dropout_config.dropout_l1_norm_lambda
                         )
                     )
                     self.need_new_coefficients = True
 
-                self.update_stats()
                 if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
                     additional_loss += (
                         self.dropout_entropy * self.dropout_entropy_coefficient
