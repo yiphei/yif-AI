@@ -1,4 +1,5 @@
 import torch
+
 # ModelConfig
 CONTEXT_SIZE = 100
 N_EMBED = 90

@@ -1,15 +1,18 @@
 import math
+from contextlib import nullcontext
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Union
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from contextlib import nullcontext
+
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.transformer_modules import (BaseModel, LayerNorm,
                                        MultiAttentionHead, SubModuleStats)
+
 
 @dataclass
 class RegularizingLambdaConfig:
@@ -65,7 +68,7 @@ class LearnedDropoutConfig:
     n_heads: int = 1
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
-    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] =None
+    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
     profile_dropout_mask: bool = False
 
@@ -138,9 +141,7 @@ class ModelConfig(BaseModelConfig):
     learned_dropout_config: LearnedDropoutConfig
 
     def __post_init__(self):
-        if (
-            type(self.learned_dropout_config) == dict
-        ):
+        if type(self.learned_dropout_config) == dict:
             self.learned_dropout_config = LearnedDropoutConfig(
                 **self.learned_dropout_config
             )
@@ -158,10 +159,14 @@ class ModelConfig(BaseModelConfig):
 
 
 class LearnedDropout(SubModuleStats):
-    extra_stats = ["dropout_entropy","dropout_l1_norm", "dropout_near_one_percent",
-                   "dropout_near_zero_percent", "dropout_change_rate_from_prev",
-                   "active_dropout_percent"]
-
+    extra_stats = [
+        "dropout_entropy",
+        "dropout_l1_norm",
+        "dropout_near_one_percent",
+        "dropout_near_zero_percent",
+        "dropout_change_rate_from_prev",
+        "active_dropout_percent",
+    ]
 
     def __init__(self, embed_dim, context_size, config):
         super().__init__()
@@ -309,7 +314,9 @@ class FeedForward(nn.Module):
         self.module_name = None
         self.use_learned_dropout = use_learned_dropout
         self.config = config
-        self.linear = nn.Linear(config.n_embed, config.n_embed * 4, bias=config.use_bias)
+        self.linear = nn.Linear(
+            config.n_embed, config.n_embed * 4, bias=config.use_bias
+        )
         self.gelu = nn.GELU()
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.use_bias
@@ -337,9 +344,7 @@ class TransformerBlock(nn.Module):
     ):
         super().__init__()
         self.multi_attn_head = MultiAttentionHead(config)
-        self.feed_forward = FeedForward(
-            config, use_learned_dropout
-        )
+        self.feed_forward = FeedForward(config, use_learned_dropout)
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
@@ -368,12 +373,8 @@ class AttentionDropoutTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
 
-        learned_config_start_layer = (
-            config.learned_dropout_config.start_layer
-        )
-        learned_config_end_layer = (
-            config.learned_dropout_config.end_layer
-        )
+        learned_config_start_layer = config.learned_dropout_config.start_layer
+        learned_config_end_layer = config.learned_dropout_config.end_layer
 
         self.transformer_blocks = nn.Sequential(
             *[
@@ -465,11 +466,15 @@ class AttentionDropoutTransformer(BaseModel):
             if self.training:
 
                 if self.need_new_coefficients:
-                    self.dropout_entropy_coefficient = self.get_annealed_dropout_coefficient(
-                        self.learned_dropout_config.dropout_entropy_lambda
+                    self.dropout_entropy_coefficient = (
+                        self.get_annealed_dropout_coefficient(
+                            self.learned_dropout_config.dropout_entropy_lambda
+                        )
                     )
-                    self.dropout_l1_norm_coefficient = self.get_annealed_dropout_coefficient(
-                        self.learned_dropout_config.dropout_l1_norm_lambda
+                    self.dropout_l1_norm_coefficient = (
+                        self.get_annealed_dropout_coefficient(
+                            self.learned_dropout_config.dropout_l1_norm_lambda
+                        )
                     )
                     self.need_new_coefficients = True
 
