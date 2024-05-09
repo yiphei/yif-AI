@@ -283,7 +283,7 @@ class TransformerBlock(nn.Module):
 
 class EncoderDecoderTransformer(BaseModel):
     model_config_cls = ModelConfig
-    extra_stats = ["encoder_loss", "encoder_raw_loss"]
+    extra_stats = ["encoder_loss", "scaled_encoder_loss"]
 
     def _init_model(self, config: ModelConfig):
         assert (
@@ -389,24 +389,24 @@ class EncoderDecoderTransformer(BaseModel):
                 avg_sum = self.encoder_embed_ln(avg_sum)
 
             if self.config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
-                self.encoder_raw_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
-                self.encoder_loss = (
-                    self.encoder_raw_loss * self.config.encoder_embed_loss_coeff
+                self.encoder_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
+                self.scaled_encoder_loss = (
+                    self.encoder_loss * self.config.encoder_embed_loss_coeff
                 )
             elif self.config.encoder_embed_loss_type == EncoderEmbedLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
-                self.encoder_raw_loss = (1 - (cosine_sim + 1) / 2).mean()
-                self.encoder_loss = (
-                    self.encoder_raw_loss * self.config.encoder_embed_loss_coeff
+                self.encoder_loss = (1 - (cosine_sim + 1) / 2).mean()
+                self.scaled_encoder_loss = (
+                    self.encoder_loss * self.config.encoder_embed_loss_coeff
                 )
             elif (
                 self.config.encoder_embed_loss_type
                 == EncoderEmbedLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
-                self.encoder_raw_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
-                self.encoder_loss = (
-                    self.encoder_raw_loss * self.config.encoder_embed_loss_coeff
+                self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
+                self.scaled_encoder_loss = (
+                    self.encoder_loss * self.config.encoder_embed_loss_coeff
                 )
             else:
                 raise ValueError("Invalid token loss type")
@@ -428,8 +428,8 @@ class EncoderDecoderTransformer(BaseModel):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
-            if self.training and self.encoder_loss.numel() != 0:
-                loss += self.encoder_loss
+            if self.training and self.scaled_encoder_loss.numel() != 0:
+                loss += self.scaled_encoder_loss
 
         return (logits, loss)
 
