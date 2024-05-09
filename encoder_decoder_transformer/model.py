@@ -431,7 +431,6 @@ class EncoderDecoderTransformer(BaseModel):
             if self.training and self.encoder_loss.numel() != 0:
                 loss += self.encoder_loss
 
-        self._update_running_stats()
         return (logits, loss)
 
     def estimate_mfu(self, fwdbwd_per_iter, dt):

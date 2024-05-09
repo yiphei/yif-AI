@@ -345,7 +345,6 @@ class FutureAttentionTransformer(BaseModel):
             if self.training and self.config.use_future_x_loss:
                 loss += self.future_loss
 
-        self._update_running_stats()
         return (logits, loss)
 
     def estimate_mfu(self, fwdbwd_per_iter, dt):

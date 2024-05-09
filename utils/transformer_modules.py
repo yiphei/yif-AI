@@ -184,7 +184,7 @@ class BaseModel(nn.Module):
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def _update_running_stats(self):
+    def update_running_stats(self):
         if self.training and self.is_master_process:
             for stat in self.extra_stats:
                 current_running_stat = getattr(self, RUNNING_STAT_PREFIX + stat)
