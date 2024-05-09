@@ -153,7 +153,6 @@ class FutureMultiAttentionHead(SubModuleStats):
                 diagonal=future_dim,
             ),
         )
-        self.register_buffer("mask_loss", torch.tensor(0), persistent=False)
 
     def forward(self, x):
         B, T, C = x.shape
