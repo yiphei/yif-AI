@@ -165,7 +165,7 @@ class ModelConfig(BaseModelConfig):
             assert self.encoder_embed_ln_type is None
             assert self.encoder_embed_detach_type is None
 
-        if self.cross_attn_config is not None and type(self.cross_attn_config) == dict:
+        if type(self.cross_attn_config) == dict:
             self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
 
 
