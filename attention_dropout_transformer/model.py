@@ -343,7 +343,7 @@ class TransformerBlock(nn.Module):
         use_learned_dropout=False,
     ):
         super().__init__()
-        self.multi_attn_head = MultiAttentionHead(config)
+        self.multi_attn_head = MultiAttentionHead(config.n_embed, config.n_head, config.use_bias, config.context_size, config.dropout_rate, True)
         self.feed_forward = FeedForward(config, use_learned_dropout)
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
@@ -357,17 +357,11 @@ class TransformerBlock(nn.Module):
 class AttentionDropoutTransformer(BaseModel):
     model_config_cls = ModelConfig
 
-    def __init__(self, config: ModelConfig, gradient_accumulation_steps):
-        super().__init__(config.learned_dropout_config)
+    def _init_model(self, config: ModelConfig):
         assert (
             config.alphabet_size is not None
         )  # an ugly workaround because of training script
         self.config = config
-        self.gradient_accumulation_steps = gradient_accumulation_steps
-        self.training_step = (
-            None  # this is provided by the context manager in the training script
-        )
-        self.is_last_minibatch = False
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
