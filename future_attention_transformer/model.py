@@ -157,7 +157,7 @@ class FutureMultiAttentionHead(SubModuleStats):
     def forward(self, x):
         B, T, C = x.shape
         T_w_future = min(T + self.future_dim, self.context_size)
-        
+
         q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
         k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
@@ -219,7 +219,9 @@ class FutureMultiAttentionHead(SubModuleStats):
         )
 
         causal_x = softmax_causal_attn @ v
-        future_x = self.future_v_weights(softmax_future_attn, max_in_size=T_w_future - 1)
+        future_x = self.future_v_weights(
+            softmax_future_attn, max_in_size=T_w_future - 1
+        )
         new_x = causal_x + future_x
         new_x = new_x.transpose(1, 2).contiguous().view(B, T, C)
 
