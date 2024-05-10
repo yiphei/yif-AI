@@ -102,11 +102,10 @@ class ModelConfig(BaseModelConfig):
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
-
         if self.start_layer > self.n_layer or self.start_layer < 1:
-            raise ValueError("start_layer <= n_layer and >= 1")
+            raise ValueError("start_layer must be <= n_layer and >= 1")
         if self.end_layer > self.n_layer or self.end_layer < 1:
-            raise ValueError("end_layer <= n_layer and >= 1")
+            raise ValueError("end_layer must be <= n_layer and >= 1")
 
         if (
             self.use_dropout_entropy_in_loss
