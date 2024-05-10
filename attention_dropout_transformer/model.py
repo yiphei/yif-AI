@@ -53,6 +53,7 @@ class RoundingType(str, Enum):
         else:
             raise ValueError("Invalid rounding type number")
 
+
 @dataclass
 class AttentionDropoutConfig:
     use_bias: bool
@@ -81,7 +82,6 @@ class AttentionDropoutConfig:
             self.sigmoid_slope = 60
 
 
-
 @dataclass
 class ModelConfig(BaseModelConfig):
     use_dropout_entropy_in_loss: bool
@@ -103,17 +103,11 @@ class ModelConfig(BaseModelConfig):
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
 
-        if (
-            self.start_layer > self.n_layer
-            or self.start_layer < 1
-        ):
+        if self.start_layer > self.n_layer or self.start_layer < 1:
             raise ValueError("start_layer <= n_layer and >= 1")
-        if (
-            self.end_layer > self.n_layer
-            or self.end_layer < 1
-        ):
+        if self.end_layer > self.n_layer or self.end_layer < 1:
             raise ValueError("end_layer <= n_layer and >= 1")
-        
+
         if (
             self.use_dropout_entropy_in_loss
             and self.attention_dropout_config.rounding_type
@@ -122,7 +116,7 @@ class ModelConfig(BaseModelConfig):
             raise ValueError(
                 "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
             )
-        
+
         if (
             not self.use_dropout_entropy_in_loss
             and self.dropout_entropy_lambda is not None
@@ -138,7 +132,7 @@ class ModelConfig(BaseModelConfig):
             raise ValueError(
                 "dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False"
             )
-        
+
         for attr_name, flag_attr_name in [
             ("dropout_entropy_lambda", "use_dropout_entropy_in_loss"),
             ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss"),
@@ -157,7 +151,6 @@ class ModelConfig(BaseModelConfig):
                     setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
 
 
-
 class AttentionDropout(SubModuleStats):
     extra_stats = [
         "dropout_entropy",
@@ -168,7 +161,14 @@ class AttentionDropout(SubModuleStats):
         "active_dropout_percent",
     ]
 
-    def __init__(self, embed_dim, context_size, config, use_dropout_entropy_in_loss, use_dropout_l1_norm_in_loss):
+    def __init__(
+        self,
+        embed_dim,
+        context_size,
+        config,
+        use_dropout_entropy_in_loss,
+        use_dropout_l1_norm_in_loss,
+    ):
         super().__init__()
         self.embed_dim = embed_dim
         self.context_size = context_size
@@ -311,7 +311,11 @@ class FeedForward(nn.Module):
         )
         if use_learned_dropout:
             self.dropout = AttentionDropout(
-                config.n_embed, config.context_size, config.attention_dropout_config, config.use_dropout_entropy_in_loss, config.use_dropout_l1_norm_in_loss
+                config.n_embed,
+                config.context_size,
+                config.attention_dropout_config,
+                config.use_dropout_entropy_in_loss,
+                config.use_dropout_l1_norm_in_loss,
             )
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
@@ -331,7 +335,14 @@ class TransformerBlock(nn.Module):
         use_learned_dropout=False,
     ):
         super().__init__()
-        self.multi_attn_head = MultiAttentionHead(config.n_embed, config.n_head, config.use_bias, config.context_size, config.dropout_rate, True)
+        self.multi_attn_head = MultiAttentionHead(
+            config.n_embed,
+            config.n_head,
+            config.use_bias,
+            config.context_size,
+            config.dropout_rate,
+            True,
+        )
         self.feed_forward = FeedForward(config, use_learned_dropout)
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
@@ -359,8 +370,7 @@ class AttentionDropoutTransformer(BaseModel):
             *[
                 TransformerBlock(
                     config,
-                    (i + 1) >= (config.start_layer)
-                    and (i + 1) <= (config.end_layer),
+                    (i + 1) >= (config.start_layer) and (i + 1) <= (config.end_layer),
                 )
                 for i in range(config.n_layer)
             ]
