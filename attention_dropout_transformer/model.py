@@ -70,7 +70,6 @@ class AttentionDropoutConfig:
         assert self.softmax_dim in [0, 1]
 
         if type(self.rounding_type) == int:
-            assert self.rounding_type in [1, 2, 3]
             self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
 
         if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_slope:
