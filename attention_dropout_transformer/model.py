@@ -168,11 +168,11 @@ class AttentionDropout(SubModuleStats):
         use_dropout_l1_norm_in_loss,
     ):
         super().__init__()
+        assert embed_dim % config.n_heads == 0
         self.embed_dim = embed_dim
         self.context_size = context_size
 
         self.config = config
-        self.module_name = None  # used for logging
 
         self.head_size = embed_dim // config.n_heads
         self.batch_attn_weights = nn.Linear(
