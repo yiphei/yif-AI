@@ -243,8 +243,6 @@ class AttentionDropout(SubModuleStats):
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x):
-        import wandb
-
         dropout_x = x.detach() if self.config.use_detached_x_in_dropout_mask else x
 
         B, T, C = dropout_x.shape
@@ -380,24 +378,6 @@ class AttentionDropoutTransformer(BaseModel):
                     p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
                 )
 
-        # maybe there is a better way
-        n_learned_dropout = 0
-        param_to_param_name = {p: n for n, p in self.named_parameters()}
-        for module in self.modules():
-            if isinstance(module, AttentionDropout):
-                module.module_name = ".".join(
-                    param_to_param_name[module.batch_attn_weights.weight].split(".")[
-                        :-2
-                    ]
-                )
-                n_learned_dropout += 1
-            elif isinstance(module, FeedForward):
-                module.module_name = ".".join(
-                    param_to_param_name[module.linear.weight].split(".")[:-2]
-                )
-
-            module.is_last_minibatch = False
-        self.n_learned_dropout = n_learned_dropout
         self.register_buffer(
             "dropout_entropy_coefficient", torch.empty(0), persistent=False
         )
@@ -491,7 +471,7 @@ class AttentionDropoutTransformer(BaseModel):
             * 12
             * self.config.n_embed
             * self.config.context_size
-            * self.n_learned_dropout
+            * (self.config.end_layer - self.config.start_layer + 1)
         )
 
         flops_per_fwdbwd = flops_per_token * T
