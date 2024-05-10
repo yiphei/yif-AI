@@ -285,6 +285,7 @@ def create_training_step_context(starting_training_step, model):
                 )
                 model.training_step = training_step
                 model.reset_running_stats()
+            model.update_is_first_minibatch(is_first_minibatch)
             model.update_is_last_minibatch(is_last_minibatch)
         yield
         if model.training:

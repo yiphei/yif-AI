@@ -393,7 +393,6 @@ class AttentionDropoutTransformer(BaseModel):
         self.register_buffer(
             "dropout_l1_norm_coefficient", torch.empty(0), persistent=False
         )
-        self.need_new_coefficients = True
 
     def get_annealed_dropout_coefficient(self, lambda_config):
         if lambda_config is None:
@@ -435,7 +434,7 @@ class AttentionDropoutTransformer(BaseModel):
             additional_loss = torch.tensor(0.0, device=device)
             if self.training:
                 self.aggregate_sub_module_stats()
-                if self.need_new_coefficients:
+                if self.is_first_minibatch:
                     self.dropout_entropy_coefficient = (
                         self.get_annealed_dropout_coefficient(
                             self.config.dropout_entropy_lambda
@@ -446,7 +445,6 @@ class AttentionDropoutTransformer(BaseModel):
                             self.config.dropout_l1_norm_lambda
                         )
                     )
-                    self.need_new_coefficients = True
 
                 if self.config.use_dropout_entropy_in_loss:
                     additional_loss += (

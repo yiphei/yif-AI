@@ -145,6 +145,7 @@ class BaseModel(nn.Module):
         # these two variables are set by the context manager in the training script
         self.training_step = None
         self.is_last_minibatch = False
+        self.is_first_minibatch = True
         self.is_master_process = is_master_process
 
         stat_to_module_class = {}
@@ -239,12 +240,21 @@ class BaseModel(nn.Module):
         # this is called by the context manager in the training script
         if (
             self.training
-            and self.is_master_process
             and new_val != self.is_last_minibatch
         ):
             self.is_last_minibatch = new_val
             for module in self.modules():
                 module.is_last_minibatch = new_val
+
+    def update_is_first_minibatch(self, new_val):
+        # this is called by the context manager in the training script
+        if (
+            self.training
+            and new_val != self.is_first_minibatch
+        ):
+            self.is_first_minibatch = new_val
+            for module in self.modules():
+                module.is_first_minibatch = new_val
 
     @classmethod
     def init_from_checkpoint(
