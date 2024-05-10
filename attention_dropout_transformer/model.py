@@ -357,15 +357,12 @@ class AttentionDropoutTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
 
-        learned_config_start_layer = config.start_layer
-        learned_config_end_layer = config.end_layer
-
         self.transformer_blocks = nn.Sequential(
             *[
                 TransformerBlock(
                     config,
-                    (i + 1) >= (learned_config_start_layer)
-                    and (i + 1) <= (learned_config_end_layer),
+                    (i + 1) >= (config.start_layer)
+                    and (i + 1) <= (config.end_layer),
                 )
                 for i in range(config.n_layer)
             ]
