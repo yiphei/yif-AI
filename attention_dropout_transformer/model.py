@@ -432,7 +432,7 @@ class AttentionDropoutTransformer(BaseModel):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
 
-            additional_loss = 0
+            additional_loss = torch.tensor(0.0, device=device)
             if self.training:
                 self.aggregate_sub_module_stats()
                 if self.need_new_coefficients:
