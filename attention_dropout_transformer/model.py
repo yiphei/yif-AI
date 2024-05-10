@@ -296,11 +296,10 @@ class FeedForward(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
-        use_learned_dropout=False,
+        use_attention_dropout=False,
     ):
         super().__init__()
         self.module_name = None
-        self.use_learned_dropout = use_learned_dropout
         self.config = config
         self.linear = nn.Linear(
             config.n_embed, config.n_embed * 4, bias=config.use_bias
@@ -309,7 +308,7 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
-        if use_learned_dropout:
+        if use_attention_dropout:
             self.dropout = AttentionDropout(
                 config.n_embed,
                 config.context_size,
