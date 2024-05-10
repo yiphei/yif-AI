@@ -238,20 +238,14 @@ class BaseModel(nn.Module):
 
     def update_is_last_minibatch(self, new_val):
         # this is called by the context manager in the training script
-        if (
-            self.training
-            and new_val != self.is_last_minibatch
-        ):
+        if self.training and new_val != self.is_last_minibatch:
             self.is_last_minibatch = new_val
             for module in self.modules():
                 module.is_last_minibatch = new_val
 
     def update_is_first_minibatch(self, new_val):
         # this is called by the context manager in the training script
-        if (
-            self.training
-            and new_val != self.is_first_minibatch
-        ):
+        if self.training and new_val != self.is_first_minibatch:
             self.is_first_minibatch = new_val
             for module in self.modules():
                 module.is_first_minibatch = new_val
