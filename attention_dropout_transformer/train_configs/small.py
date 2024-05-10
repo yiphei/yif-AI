@@ -13,7 +13,7 @@ USE_DROPOUT_L1_NORM_IN_LOSS = False
 DROPOUT_ENTROPY_LAMBDA = {
     "max_lambda": 1,
 }
-LEARNED_DROPOUT_CONFIG = {
+ATTENTION_DROPOUT_CONFIG = {
     "use_bias": False,
     "shift_init": torch.pi / 2,
     "softmax_dim": 1,

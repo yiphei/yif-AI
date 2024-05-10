@@ -54,7 +54,7 @@ class RoundingType(str, Enum):
             raise ValueError("Invalid rounding type number")
 
 @dataclass
-class LearnedDropoutConfig:
+class AttentionDropoutConfig:
     use_bias: bool
     softmax_dim: int = 1
     rounding_type: Optional[Union[RoundingType, int]] = None
@@ -87,15 +87,15 @@ class ModelConfig(BaseModelConfig):
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
     start_layer: int
-    learned_dropout_config: LearnedDropoutConfig
+    attention_dropout_config: AttentionDropoutConfig
     end_layer: Optional[int] = None
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
 
     def __post_init__(self):
-        if type(self.learned_dropout_config) == dict:
-            self.learned_dropout_config = LearnedDropoutConfig(
-                **self.learned_dropout_config
+        if type(self.attention_dropout_config) == dict:
+            self.attention_dropout_config = AttentionDropoutConfig(
+                **self.attention_dropout_config
             )
         if self.end_layer is None:
             self.end_layer = self.start_layer
@@ -116,8 +116,8 @@ class ModelConfig(BaseModelConfig):
         
         if (
             self.use_dropout_entropy_in_loss
-            and self.learned_dropout_config.rounding_type
-            and self.learned_dropout_config.rounding_type in [2, 3]
+            and self.attention_dropout_config.rounding_type
+            and self.attention_dropout_config.rounding_type in [2, 3]
         ):
             raise ValueError(
                 "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
@@ -158,7 +158,7 @@ class ModelConfig(BaseModelConfig):
 
 
 
-class LearnedDropout(SubModuleStats):
+class AttentionDropout(SubModuleStats):
     extra_stats = [
         "dropout_entropy",
         "dropout_l1_norm",
@@ -312,8 +312,8 @@ class FeedForward(nn.Module):
             config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
         if use_learned_dropout:
-            self.dropout = LearnedDropout(
-                config.n_embed, config.context_size, config.learned_dropout_config, config.use_dropout_entropy_in_loss, config.use_dropout_l1_norm_in_loss
+            self.dropout = AttentionDropout(
+                config.n_embed, config.context_size, config.attention_dropout_config, config.use_dropout_entropy_in_loss, config.use_dropout_l1_norm_in_loss
             )
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
@@ -384,7 +384,7 @@ class AttentionDropoutTransformer(BaseModel):
         n_learned_dropout = 0
         param_to_param_name = {p: n for n, p in self.named_parameters()}
         for module in self.modules():
-            if isinstance(module, LearnedDropout):
+            if isinstance(module, AttentionDropout):
                 module.module_name = ".".join(
                     param_to_param_name[module.batch_attn_weights.weight].split(".")[
                         :-2
