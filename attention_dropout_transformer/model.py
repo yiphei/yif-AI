@@ -53,42 +53,20 @@ class RoundingType(str, Enum):
         else:
             raise ValueError("Invalid rounding type number")
 
-
 @dataclass
 class LearnedDropoutConfig:
-    use_dropout_entropy_in_loss: bool
-    use_dropout_l1_norm_in_loss: bool
     use_bias: bool
-    start_layer: int
-    end_layer: Optional[int] = None
-    softmax_dim: int = 2
+    softmax_dim: int = 1
     rounding_type: Optional[Union[RoundingType, int]] = None
     sigmoid_slope: Optional[float] = None
     shift_init: float = torch.pi / 2
     n_heads: int = 1
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
-    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
-    dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
-    profile_dropout_mask: bool = False
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
         assert self.softmax_dim in [0, 1]
-        if self.end_layer is None:
-            self.end_layer = self.start_layer
-
-        if self.start_layer > self.end_layer:
-            raise ValueError("start_layer must be <= end_layer")
-
-        if (
-            self.use_dropout_entropy_in_loss
-            and self.rounding_type
-            and self.rounding_type in [2, 3]
-        ):
-            raise ValueError(
-                "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
-            )
 
         if type(self.rounding_type) == int:
             assert self.rounding_type in [1, 2, 3]
@@ -102,6 +80,49 @@ class LearnedDropoutConfig:
         if self.rounding_type == RoundingType.SIGMOID and not self.sigmoid_slope:
             self.sigmoid_slope = 60
 
+
+
+@dataclass
+class ModelConfig(BaseModelConfig):
+    use_dropout_entropy_in_loss: bool
+    use_dropout_l1_norm_in_loss: bool
+    start_layer: int
+    learned_dropout_config: LearnedDropoutConfig
+    end_layer: Optional[int] = None
+    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
+    dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
+
+    def __post_init__(self):
+        if type(self.learned_dropout_config) == dict:
+            self.learned_dropout_config = LearnedDropoutConfig(
+                **self.learned_dropout_config
+            )
+        if self.end_layer is None:
+            self.end_layer = self.start_layer
+
+        if self.start_layer > self.end_layer:
+            raise ValueError("start_layer must be <= end_layer")
+
+        if (
+            self.start_layer > self.n_layer
+            or self.start_layer < 1
+        ):
+            raise ValueError("start_layer <= n_layer and >= 1")
+        if (
+            self.end_layer > self.n_layer
+            or self.end_layer < 1
+        ):
+            raise ValueError("end_layer <= n_layer and >= 1")
+        
+        if (
+            self.use_dropout_entropy_in_loss
+            and self.learned_dropout_config.rounding_type
+            and self.learned_dropout_config.rounding_type in [2, 3]
+        ):
+            raise ValueError(
+                "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
+            )
+        
         if (
             not self.use_dropout_entropy_in_loss
             and self.dropout_entropy_lambda is not None
@@ -117,7 +138,7 @@ class LearnedDropoutConfig:
             raise ValueError(
                 "dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False"
             )
-
+        
         for attr_name, flag_attr_name in [
             ("dropout_entropy_lambda", "use_dropout_entropy_in_loss"),
             ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss"),
@@ -136,27 +157,6 @@ class LearnedDropoutConfig:
                     setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
 
 
-@dataclass
-class ModelConfig(BaseModelConfig):
-    learned_dropout_config: LearnedDropoutConfig
-
-    def __post_init__(self):
-        if type(self.learned_dropout_config) == dict:
-            self.learned_dropout_config = LearnedDropoutConfig(
-                **self.learned_dropout_config
-            )
-
-        if (
-            self.learned_dropout_config.start_layer > self.n_layer
-            or self.learned_dropout_config.start_layer < 1
-        ):
-            raise ValueError("start_layer <= n_layer and >= 1")
-        if (
-            self.learned_dropout_config.end_layer > self.n_layer
-            or self.learned_dropout_config.end_layer < 1
-        ):
-            raise ValueError("end_layer <= n_layer and >= 1")
-
 
 class LearnedDropout(SubModuleStats):
     extra_stats = [
@@ -168,7 +168,7 @@ class LearnedDropout(SubModuleStats):
         "active_dropout_percent",
     ]
 
-    def __init__(self, embed_dim, context_size, config):
+    def __init__(self, embed_dim, context_size, config, use_dropout_entropy_in_loss, use_dropout_l1_norm_in_loss):
         super().__init__()
         self.embed_dim = embed_dim
         self.context_size = context_size
@@ -195,10 +195,10 @@ class LearnedDropout(SubModuleStats):
         )
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
         self.dropout_entropy_context = (
-            nullcontext() if config.use_dropout_entropy_in_loss else torch.no_grad()
+            nullcontext() if use_dropout_entropy_in_loss else torch.no_grad()
         )
         self.dropout_l1_norm_context = (
-            nullcontext() if config.use_dropout_l1_norm_in_loss else torch.no_grad()
+            nullcontext() if use_dropout_l1_norm_in_loss else torch.no_grad()
         )
         self.entropy_fn = (
             self.canonical_entropy
@@ -264,16 +264,6 @@ class LearnedDropout(SubModuleStats):
         dropout_mask = 0.5 * torch.cos(dropout_logits + self.shift) + 0.5
 
         if self.config.rounding_type:
-            if (
-                self.training
-                and self.config.profile_dropout_mask
-                and self.is_last_minibatch
-            ):
-                wandb.log(
-                    {self.module_name + ".pre-rounding_mask": dropout_mask},
-                    commit=False,
-                )
-
             if self.config.rounding_type == RoundingType.SIGMOID:
                 dropout_mask = torch.sigmoid(
                     self.config.sigmoid_slope * (dropout_mask - 0.5)
@@ -323,7 +313,7 @@ class FeedForward(nn.Module):
         )
         if use_learned_dropout:
             self.dropout = LearnedDropout(
-                config.n_embed, config.context_size, config.learned_dropout_config
+                config.n_embed, config.context_size, config.learned_dropout_config, config.use_dropout_entropy_in_loss, config.use_dropout_l1_norm_in_loss
             )
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
@@ -367,8 +357,8 @@ class AttentionDropoutTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
 
-        learned_config_start_layer = config.learned_dropout_config.start_layer
-        learned_config_end_layer = config.learned_dropout_config.end_layer
+        learned_config_start_layer = config.start_layer
+        learned_config_end_layer = config.end_layer
 
         self.transformer_blocks = nn.Sequential(
             *[
@@ -462,21 +452,21 @@ class AttentionDropoutTransformer(BaseModel):
                 if self.need_new_coefficients:
                     self.dropout_entropy_coefficient = (
                         self.get_annealed_dropout_coefficient(
-                            self.config.learned_dropout_config.dropout_entropy_lambda
+                            self.config.dropout_entropy_lambda
                         )
                     )
                     self.dropout_l1_norm_coefficient = (
                         self.get_annealed_dropout_coefficient(
-                            self.config.learned_dropout_config.dropout_l1_norm_lambda
+                            self.config.dropout_l1_norm_lambda
                         )
                     )
                     self.need_new_coefficients = True
 
-                if self.config.learned_dropout_config.use_dropout_entropy_in_loss:
+                if self.config.use_dropout_entropy_in_loss:
                     additional_loss += (
                         self.dropout_entropy * self.dropout_entropy_coefficient
                     )
-                if self.config.learned_dropout_config.use_dropout_l1_norm_in_loss:
+                if self.config.use_dropout_l1_norm_in_loss:
                     additional_loss += (
                         self.dropout_l1_norm * self.dropout_l1_norm_coefficient
                     )
