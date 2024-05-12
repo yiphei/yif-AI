@@ -7,7 +7,7 @@ from utils.inference import predict_fn as base_predict_fn
 
 
 def model_fn(model_dir, file_name=None):
-    return base_model_fn(model_dir,FutureAttentionTransformer, file_name)
+    return base_model_fn(model_dir, FutureAttentionTransformer, file_name)
 
 
 def input_fn(input_data, content_type):
