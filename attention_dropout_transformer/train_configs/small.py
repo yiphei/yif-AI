@@ -21,7 +21,7 @@ ATTENTION_DROPOUT_CONFIG = {
     "n_head": 3,
     "use_canonical_entropy": False,
     "rounding_type": 1,
-    "sigmoid_slope": 100,
+    "sigmoid_scale": 100,
     "use_detached_x_in_dropout_mask": False,
 }
 
