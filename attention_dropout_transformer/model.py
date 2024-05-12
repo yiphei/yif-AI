@@ -58,7 +58,7 @@ class AttentionDropoutConfig:
     n_head: int
     softmax_dim: int = 1
     rounding_type: Optional[Union[RoundingType, int]] = None
-    sigmoid_slope: Optional[float] = None
+    sigmoid_scale: Optional[float] = None
     shift_init: float = torch.pi / 2
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
@@ -70,13 +70,13 @@ class AttentionDropoutConfig:
         if type(self.rounding_type) == int:
             self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
 
-        if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_slope is not None:
+        if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_scale is not None:
             raise ValueError(
                 "sigmoid_slope can only be set if rounding_type is SIGMOID"
             )
 
-        if self.rounding_type == RoundingType.SIGMOID and self.sigmoid_slope is None:
-            self.sigmoid_slope = 60
+        if self.rounding_type == RoundingType.SIGMOID and self.sigmoid_scale is None:
+            self.sigmoid_scale = 60
 
 
 @dataclass
@@ -262,7 +262,7 @@ class AttentionDropout(SubModuleStats):
         if self.config.rounding_type:
             if self.config.rounding_type == RoundingType.SIGMOID:
                 dropout_mask = torch.sigmoid(
-                    self.config.sigmoid_slope * (dropout_mask - 0.5)
+                    self.config.sigmoid_scale * (dropout_mask - 0.5)
                 )
             elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
