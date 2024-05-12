@@ -298,8 +298,6 @@ class FeedForward(nn.Module):
         use_attention_dropout=False,
     ):
         super().__init__()
-        self.module_name = None
-        self.config = config
         self.linear = nn.Linear(
             config.n_embed, config.n_embed * 4, bias=config.use_bias
         )
@@ -330,7 +328,7 @@ class TransformerBlock(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
-        use_learned_dropout=False,
+        use_attention_dropout=False,
     ):
         super().__init__()
         self.multi_attn_head = MultiAttentionHead(
@@ -341,7 +339,7 @@ class TransformerBlock(nn.Module):
             config.dropout_rate,
             True,
         )
-        self.feed_forward = FeedForward(config, use_learned_dropout)
+        self.feed_forward = FeedForward(config, use_attention_dropout)
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
