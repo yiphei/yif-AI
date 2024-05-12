@@ -387,12 +387,8 @@ class AttentionDropoutTransformer(BaseModel):
                     p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
                 )
 
-        self.register_buffer(
-            "dropout_entropy_lambda", torch.empty(0), persistent=False
-        )
-        self.register_buffer(
-            "dropout_l1_norm_lambda", torch.empty(0), persistent=False
-        )
+        self.register_buffer("dropout_entropy_lambda", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_l1_norm_lambda", torch.empty(0), persistent=False)
 
     def get_dropout_lambda(self, lambda_config, device):
         if lambda_config is None:
@@ -410,8 +406,8 @@ class AttentionDropoutTransformer(BaseModel):
                 np.exp(lambda_config.exp_coefficient * self.training_step) + intersect,
                 lambda_config.max_lambda,
             ),
-            device = device,
-            dtype = torch.float32  # need to set explicitly otherwise MPS will complain that it's float64
+            device=device,
+            dtype=torch.float32,  # need to set explicitly otherwise MPS will complain that it's float64
         )
 
     def forward(self, x, targets=None):
@@ -437,15 +433,11 @@ class AttentionDropoutTransformer(BaseModel):
             if self.training:
                 self.aggregate_sub_module_stats()
                 if self.is_first_minibatch:
-                    self.dropout_entropy_lambda = (
-                        self.get_dropout_lambda(
-                            self.config.dropout_entropy_lambda, device
-                        )
+                    self.dropout_entropy_lambda = self.get_dropout_lambda(
+                        self.config.dropout_entropy_lambda, device
                     )
-                    self.dropout_l1_norm_lambda = (
-                        self.get_dropout_lambda(
-                            self.config.dropout_l1_norm_lambda, device
-                        )
+                    self.dropout_l1_norm_lambda = self.get_dropout_lambda(
+                        self.config.dropout_l1_norm_lambda, device
                     )
 
                 if self.config.use_dropout_entropy_in_loss:
