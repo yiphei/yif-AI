@@ -56,12 +56,6 @@ def model_fn(model_dir, model_cls, file_name=None):
             os.path.join(model_dir, file_name or "ckpt.pt"), map_location=device
         )
 
-    # Had a bug that saved model_dict as a tuple instead of a dict, so old saved models
-    # will run into this issue
-    if type(model_dict) is tuple:
-        print("Model_dict is a tuple but expected a dict")
-        model_dict = model_dict[0]
-
     model = model_cls.init_from_checkpoint(model_dict)
     model.eval()
     model.to(device)
