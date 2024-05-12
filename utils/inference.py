@@ -60,7 +60,8 @@ def model_fn(model_dir, model_cls, file_name=None):
     model.eval()
     model.to(device)
     model_dict = None
-    model = torch.compile(model)
+    if torch.cuda.is_available():
+        model = torch.compile(model)
     return model
 
 
