@@ -85,7 +85,7 @@ class AttentionDropoutConfig:
 class ModelConfig(BaseModelConfig):
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
-    start_layer: int
+    start_layer: int  # layer at which to start using attention dropout
     attention_dropout_config: AttentionDropoutConfig
     end_layer: Optional[int] = None
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
