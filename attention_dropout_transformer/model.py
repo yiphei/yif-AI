@@ -18,7 +18,7 @@ from utils.transformer_modules import (BaseModel, LayerNorm,
 class RegularizingLambdaConfig:
     min_lambda: float = None
     max_lambda: float = 1.0
-    coefficient: float = None
+    exp_coefficient: float = None
 
     def __post_init__(self):
         assert self.max_lambda > 0
@@ -26,11 +26,11 @@ class RegularizingLambdaConfig:
         if self.min_lambda is not None:
             self.min_lambda >= 0
             assert self.min_lambda < self.max_lambda
-            assert self.coefficient is not None
+            assert self.exp_coefficient is not None
 
-        if self.coefficient is not None:
-            assert self.coefficient < 1
-            slope_1_step = np.log(1 / self.coefficient) * (1 / self.coefficient)
+        if self.exp_coefficient is not None:
+            assert self.exp_coefficient < 1
+            slope_1_step = np.log(1 / self.exp_coefficient) * (1 / self.exp_coefficient)
             print(f"STEP at which slope is 1: {slope_1_step}")
 
 
@@ -394,12 +394,12 @@ class AttentionDropoutTransformer(BaseModel):
             "dropout_l1_norm_coefficient", torch.empty(0), persistent=False
         )
 
-    def get_annealed_dropout_coefficient(self, lambda_config):
+    def get_annealed_dropout_coefficient(self, lambda_config, device):
         if lambda_config is None:
-            return torch.empty(0)
+            return torch.empty(0, device=device)
 
-        if lambda_config.coefficient is None:
-            return torch.tensor(lambda_config.max_lambda)
+        if lambda_config.exp_coefficient is None:
+            return torch.tensor(lambda_config.max_lambda, device=device)
 
         assert self.training_step is not None
         intersect = (
@@ -407,9 +407,11 @@ class AttentionDropoutTransformer(BaseModel):
         )
         return torch.tensor(
             min(
-                np.exp(lambda_config.coefficient * self.training_step) + intersect,
+                np.exp(lambda_config.exp_coefficient * self.training_step) + intersect,
                 lambda_config.max_lambda,
-            )
+            ),
+            device = device,
+            dtype = torch.float32  # need to set explicitly otherwise MPS will complain that it's float64
         )
 
     def forward(self, x, targets=None):
@@ -437,12 +439,12 @@ class AttentionDropoutTransformer(BaseModel):
                 if self.is_first_minibatch:
                     self.dropout_entropy_coefficient = (
                         self.get_annealed_dropout_coefficient(
-                            self.config.dropout_entropy_lambda
+                            self.config.dropout_entropy_lambda, device
                         )
                     )
                     self.dropout_l1_norm_coefficient = (
                         self.get_annealed_dropout_coefficient(
-                            self.config.dropout_l1_norm_lambda
+                            self.config.dropout_l1_norm_lambda, device
                         )
                     )
 

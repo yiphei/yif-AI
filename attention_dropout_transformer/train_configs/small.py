@@ -12,6 +12,7 @@ USE_DROPOUT_ENTROPY_IN_LOSS = True
 USE_DROPOUT_L1_NORM_IN_LOSS = False
 DROPOUT_ENTROPY_LAMBDA = {
     "max_lambda": 1,
+    "exp_coefficient": 0.001,
 }
 ATTENTION_DROPOUT_CONFIG = {
     "use_bias": False,
