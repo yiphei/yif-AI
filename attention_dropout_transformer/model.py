@@ -234,8 +234,8 @@ class AttentionDropout(SubModuleStats):
         return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
 
     def alternate_entropy(self, dropout_mask):
-        # the alternate entropy has the peak above 0.5, while the canonical one has
-        # it below 0.5. In theory, this should be better for achieving both low entropy
+        # the alternate entropy has the peak at > 0.5, while the canonical one has
+        # it < 0.5. In theory, this should be better for achieving both low entropy
         # and low l1 norm because there is more curvature towards 0.
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
