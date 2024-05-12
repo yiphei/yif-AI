@@ -388,13 +388,13 @@ class AttentionDropoutTransformer(BaseModel):
                 )
 
         self.register_buffer(
-            "dropout_entropy_coefficient", torch.empty(0), persistent=False
+            "dropout_entropy_lambda", torch.empty(0), persistent=False
         )
         self.register_buffer(
-            "dropout_l1_norm_coefficient", torch.empty(0), persistent=False
+            "dropout_l1_norm_lambda", torch.empty(0), persistent=False
         )
 
-    def get_annealed_dropout_coefficient(self, lambda_config, device):
+    def get_dropout_lambda(self, lambda_config, device):
         if lambda_config is None:
             return torch.empty(0, device=device)
 
@@ -437,24 +437,24 @@ class AttentionDropoutTransformer(BaseModel):
             if self.training:
                 self.aggregate_sub_module_stats()
                 if self.is_first_minibatch:
-                    self.dropout_entropy_coefficient = (
-                        self.get_annealed_dropout_coefficient(
+                    self.dropout_entropy_lambda = (
+                        self.get_dropout_lambda(
                             self.config.dropout_entropy_lambda, device
                         )
                     )
-                    self.dropout_l1_norm_coefficient = (
-                        self.get_annealed_dropout_coefficient(
+                    self.dropout_l1_norm_lambda = (
+                        self.get_dropout_lambda(
                             self.config.dropout_l1_norm_lambda, device
                         )
                     )
 
                 if self.config.use_dropout_entropy_in_loss:
                     additional_loss += (
-                        self.dropout_entropy * self.dropout_entropy_coefficient
+                        self.dropout_entropy * self.dropout_entropy_lambda
                     )
                 if self.config.use_dropout_l1_norm_in_loss:
                     additional_loss += (
-                        self.dropout_l1_norm * self.dropout_l1_norm_coefficient
+                        self.dropout_l1_norm * self.dropout_l1_norm_lambda
                     )
 
             loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
