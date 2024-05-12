@@ -249,16 +249,16 @@ class AttentionDropout(SubModuleStats):
         v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
 
         if self.config.softmax_dim == 1:
-            dropout_logits = F.scaled_dot_product_attention(
+            dropout_values = F.scaled_dot_product_attention(
                 q, k, v, attn_mask=None, is_causal=True
             )
         else:
             attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
-            dropout_logits = causal_attn @ v
+            dropout_values = causal_attn @ v
 
-        dropout_logits = dropout_logits.transpose(1, 2).contiguous().view(B, T, C)
-        dropout_mask = 0.5 * torch.cos(dropout_logits + self.shift) + 0.5
+        dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
+        dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
 
         if self.config.rounding_type:
             if self.config.rounding_type == RoundingType.SIGMOID:
