@@ -148,6 +148,8 @@ class BaseModel(nn.Module):
         self.is_first_minibatch = True
         self.is_master_process = is_master_process
 
+        non_extra_stats_buffer_names = self._buffers.keys()
+
         stat_to_module_class = {}
         for module in self.modules():
             if isinstance(module, SubModuleStats):
@@ -171,6 +173,8 @@ class BaseModel(nn.Module):
                 assert len(set(self.extra_stats) & set(sub_module_stats)) == 0
                 self.extra_stats.extend(sub_module_stats)
 
+        # Ensure that the extra stats are not already registered as buffers
+        assert len(set(self.extra_stats) & set(non_extra_stats_buffer_names)) == 0
         # It's faster to use keep stats on the same device, hence the buffer registration
         for stat in self.extra_stats:
             self.register_buffer(stat, torch.empty(0), persistent=False)
