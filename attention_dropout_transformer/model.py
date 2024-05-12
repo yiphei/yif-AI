@@ -30,8 +30,6 @@ class RegularizingLambdaConfig:
 
         if self.exp_coefficient is not None:
             assert self.exp_coefficient < 1
-            slope_1_step = np.log(1 / self.exp_coefficient) * (1 / self.exp_coefficient)
-            print(f"STEP at which slope is 1: {slope_1_step}")
 
 
 class RoundingType(str, Enum):
