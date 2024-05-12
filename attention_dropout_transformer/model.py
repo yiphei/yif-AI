@@ -361,7 +361,6 @@ class AttentionDropoutTransformer(BaseModel):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
-
         self.transformer_blocks = nn.Sequential(
             *[
                 TransformerBlock(
