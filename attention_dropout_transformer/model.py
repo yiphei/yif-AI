@@ -70,12 +70,12 @@ class AttentionDropoutConfig:
         if type(self.rounding_type) == int:
             self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
 
-        if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_slope:
+        if self.rounding_type != RoundingType.SIGMOID and self.sigmoid_slope is not None:
             raise ValueError(
                 "sigmoid_slope can only be set if rounding_type is SIGMOID"
             )
 
-        if self.rounding_type == RoundingType.SIGMOID and not self.sigmoid_slope:
+        if self.rounding_type == RoundingType.SIGMOID and self.sigmoid_slope is None:
             self.sigmoid_slope = 60
 
 
