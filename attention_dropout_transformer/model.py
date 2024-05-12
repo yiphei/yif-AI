@@ -392,7 +392,7 @@ class AttentionDropoutTransformer(BaseModel):
     def get_dropout_lambda(self, lambda_config, device):
         if lambda_config is None:
             return torch.empty(0, device=device)
-        
+
         if lambda_config.exp_coefficient is None:
             return torch.tensor(lambda_config.max_lambda, device=device)
 
