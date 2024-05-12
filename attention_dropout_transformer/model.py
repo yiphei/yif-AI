@@ -454,6 +454,8 @@ class AttentionDropoutTransformer(BaseModel):
             self.config.context_size,
         )
         flops_per_token = 6 * N + 12 * L * H * Q * T
+        
+        # this is contributed by the attention dropout
         flops_per_token += (
             (self.running_active_dropout_percent)
             * 12
