@@ -109,6 +109,7 @@ class ModelConfig(BaseModelConfig):
             and self.attention_dropout_config.rounding_type
             and self.attention_dropout_config.rounding_type in [2, 3]
         ):
+            # This is because dropout entropy is always zero with rounding_type 2 or 3
             raise ValueError(
                 "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
             )
