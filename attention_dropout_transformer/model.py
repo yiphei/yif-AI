@@ -170,10 +170,9 @@ class AttentionDropout(SubModuleStats):
         assert embed_dim % config.n_head == 0
         self.embed_dim = embed_dim
         self.context_size = context_size
-
         self.config = config
-
         self.head_size = embed_dim // config.n_head
+
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
@@ -182,15 +181,6 @@ class AttentionDropout(SubModuleStats):
         )
         self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
 
-        self.register_buffer(
-            "tril",
-            torch.tril(
-                torch.ones(context_size, context_size).view(
-                    1, 1, context_size, context_size
-                )
-            ),
-        )
-        self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
         self.dropout_entropy_context = (
             nullcontext() if use_dropout_entropy_in_loss else torch.no_grad()
         )
@@ -202,6 +192,16 @@ class AttentionDropout(SubModuleStats):
             if config.use_canonical_entropy
             else self.alternate_entropy
         )
+        self.register_buffer(
+            "tril",
+            torch.tril(
+                torch.ones(context_size, context_size).view(
+                    1, 1, context_size, context_size
+                )
+            ),
+        )
+
+        self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
 
     def update_stats(self, dropout_mask):
         with self.dropout_entropy_context:
