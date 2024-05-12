@@ -474,3 +474,11 @@ class AttentionDropoutTransformer(BaseModel):
         flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
         flops_achieved = flops_per_iter * (1.0 / dt)  # per second
         return flops_achieved
+
+    def dump_extra_stats(self):
+        extra_stats = super().dump_extra_stats()
+        if self.dropout_entropy_lambda.nelement() != 0:
+            extra_stats["dropout_entropy_lambda"] = self.dropout_entropy_lambda.item()
+        if self.dropout_l1_norm_lambda.nelement() != 0:
+            extra_stats["dropout_l1_norm_lambda"] = self.dropout_l1_norm_lambda.item()
+        return extra_stats
