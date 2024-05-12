@@ -1,10 +1,11 @@
 import argparse
-from utils.inference import predict_fn, SampleConfig
 import os
 
+from utils.inference import SampleConfig, predict_fn
+
+
 def parse_arguments():
-    parser = argparse.ArgumentParser(
-    )
+    parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str)
     parser.add_argument("--max_tokens", type=int)
     args = parser.parse_args()
@@ -19,4 +20,3 @@ def sample(model_fn):
     model = model_fn(model_dir, model_filename)
     predictions = predict_fn(SAMPLE_CONFIG, model)
     print(predictions)
-

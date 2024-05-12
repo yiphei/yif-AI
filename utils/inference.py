@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import tiktoken
 import torch
 
+
 def get_default_device():
     if torch.cuda.is_available():
         return "cuda"
