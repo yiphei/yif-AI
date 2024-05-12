@@ -55,11 +55,11 @@ class RoundingType(str, Enum):
 @dataclass
 class AttentionDropoutConfig:
     use_bias: bool
+    n_head: int
     softmax_dim: int = 1
     rounding_type: Optional[Union[RoundingType, int]] = None
     sigmoid_slope: Optional[float] = None
     shift_init: float = torch.pi / 2
-    n_heads: int = 1
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
 
@@ -166,13 +166,13 @@ class AttentionDropout(SubModuleStats):
         use_dropout_l1_norm_in_loss,
     ):
         super().__init__()
-        assert embed_dim % config.n_heads == 0
+        assert embed_dim % config.n_head == 0
         self.embed_dim = embed_dim
         self.context_size = context_size
 
         self.config = config
 
-        self.head_size = embed_dim // config.n_heads
+        self.head_size = embed_dim // config.n_head
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
@@ -243,9 +243,9 @@ class AttentionDropout(SubModuleStats):
 
         B, T, C = dropout_x.shape
         q, k, v = self.batch_attn_weights(dropout_x).split(self.embed_dim, dim=2)
-        k = k.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
-        q = q.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
-        v = v.view(B, T, self.config.n_heads, self.head_size).transpose(1, 2)
+        k = k.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
+        q = q.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
+        v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
 
         if self.config.softmax_dim == 1:
             dropout_logits = F.scaled_dot_product_attention(
