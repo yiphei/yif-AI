@@ -3,6 +3,8 @@ import json
 import os
 from contextlib import nullcontext
 from dataclasses import dataclass, field
+import numpy as np
+import random
 
 import tiktoken
 import torch
@@ -84,7 +86,9 @@ def predict_fn(input_data: SampleConfig, model):
     Generate model predictions.
     """
     torch.manual_seed(input_data.seed)
-    torch.cuda.manual_seed(input_data.seed)
+    np.random.seed(input_data.seed)
+    random.seed(input_data.seed)
+    
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
     device_type = (
