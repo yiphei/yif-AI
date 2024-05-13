@@ -20,6 +20,24 @@ parameters:
                 value: 10
             dropout_rate:
                 values: [0, 0.1, 0.2, 0.3]
+            order_type:
+                value: 1
+            add_ln_before_decoder_ff:
+                values: [True, False]
+            add_pos_embed:
+                value: False
+            sub_pos_embed:
+                value: 1
+            cross_attn_config:
+                parameters:
+                    n_head:
+                        value: 10
+                    use_bias:
+                        value: False
+            use_ln_on_encoder_out:
+                value: False
+            encoder_embed_loss_type:
+                value: 1
     batch_size: 
         value: 50
     train_steps: 
