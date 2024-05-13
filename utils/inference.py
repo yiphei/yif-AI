@@ -1,10 +1,7 @@
 # This exists for Sagemaker to load the model and run inference.
 import json
 import os
-from contextlib import nullcontext
 from dataclasses import dataclass, field
-import numpy as np
-import random
 
 import tiktoken
 import torch

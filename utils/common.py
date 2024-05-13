@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import random
-from contextlib import ExitStack, contextmanager, nullcontext
+from contextlib import contextmanager, nullcontext
 
 def get_default_device():
     if torch.cuda.is_available():

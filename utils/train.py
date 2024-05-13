@@ -5,11 +5,10 @@ import logging
 import math
 import os
 import pickle
-import random
 import subprocess
 import sys
 import time
-from contextlib import ExitStack, contextmanager, nullcontext
+from contextlib import ExitStack, contextmanager
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from distutils.util import strtobool
@@ -18,7 +17,6 @@ from pathlib import Path
 from typing import Optional
 
 import boto3
-import numpy as np
 import torch
 from torch.distributed import destroy_process_group, init_process_group
 from torch.utils.data import DataLoader
