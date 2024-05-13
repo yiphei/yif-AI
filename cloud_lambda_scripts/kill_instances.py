@@ -28,7 +28,11 @@ if __name__ == "__main__":
         raise Exception()
 
     instances = response.json()["data"]
-    instance_ids = [instance["id"] for instance in instances if (args.name is None or instance.get("name", None) == args.name)]
+    instance_ids = [
+        instance["id"]
+        for instance in instances
+        if (args.name is None or instance.get("name", None) == args.name)
+    ]
 
     url = "https://cloud.lambdalabs.com/api/v1/instance-operations/terminate"
     data = {
