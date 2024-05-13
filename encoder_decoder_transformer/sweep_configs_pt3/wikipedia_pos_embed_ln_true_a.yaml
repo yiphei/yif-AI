@@ -1,5 +1,5 @@
 program: encoder_decoder_transformer/training_script.py
-name: wikipedia_loss_2_a
+name: wikipedia_pos_embed_ln_true_a
 project: encoder_decoder_transformer
 method: grid
 metric:
@@ -23,7 +23,7 @@ parameters:
             order_type:
                 value: 1
             add_ln_before_decoder_ff:
-                value: False
+                value: True
             add_pos_embed:
                 value: True
             sub_pos_embed:
