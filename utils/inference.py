@@ -103,7 +103,7 @@ def predict_fn(input_data: SampleConfig, model):
     predictions = []
     # run generation
     with torch.no_grad():
-        with ctx:
+        with ctx():
             for _ in range(input_data.n_samples):
                 y = model.generate(x, input_data.max_tokens)
                 predictions.append(decode(y[0].tolist()))
