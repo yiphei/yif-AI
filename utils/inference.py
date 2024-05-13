@@ -8,14 +8,7 @@ import random
 
 import tiktoken
 import torch
-
-
-def get_default_device():
-    if torch.cuda.is_available():
-        return "cuda"
-    # NB: "mps" introduces non-deterministic behavior, despite explicitly setting random seeds.
-    return "mps" if torch.backends.mps.is_available() else "cpu"
-
+from utils.common import get_default_device, set_random_seed, create_autocast_context
 
 @dataclass
 class SampleConfig:
@@ -85,9 +78,7 @@ def predict_fn(input_data: SampleConfig, model):
     """
     Generate model predictions.
     """
-    torch.manual_seed(input_data.seed)
-    np.random.seed(input_data.seed)
-    random.seed(input_data.seed)
+    set_random_seed(input_data.seed)
     
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
@@ -99,11 +90,8 @@ def predict_fn(input_data: SampleConfig, model):
         "bfloat16": torch.bfloat16,
         "float16": torch.float16,
     }[input_data.dtype]
-    ctx = (
-        nullcontext()
-        if device_type == "cpu"
-        else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
-    )
+
+    ctx = create_autocast_context(device_type, ptdtype)
 
     enc = tiktoken.get_encoding("gpt2")
     encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})

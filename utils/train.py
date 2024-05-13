@@ -25,6 +25,7 @@ from torch.utils.data import DataLoader
 
 import wandb
 from utils.data_loading import MapLocalDataset
+from utils.common import get_default_device, set_random_seed, create_autocast_context
 
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
@@ -40,13 +41,6 @@ class PlatformType(str, Enum):
 
     def __str__(self):
         return self.value
-
-
-def get_default_device():
-    if torch.cuda.is_available():
-        return "cuda"
-    # NB: "mps" introduces non-deterministic behavior, despite explicitly setting random seeds.
-    return "mps" if torch.backends.mps.is_available() else "cpu"
 
 
 @dataclass
@@ -259,20 +253,6 @@ def broadcast_object(obj, local_rank, device, src_rank=0):
     return obj
 
 
-def create_autocast_context(device_type, ptdtype):
-    @contextmanager
-    def autocast_context():
-        ctx = (
-            nullcontext()
-            if device_type == "cpu"
-            else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
-        )
-        with ctx:
-            yield
-
-    return autocast_context
-
-
 def create_training_step_context(starting_training_step, model):
     @contextmanager
     def training_step_context(training_step, is_first_minibatch, is_last_minibatch):
@@ -406,9 +386,7 @@ def _train(
             ckpt_file_path = os.path.join(current_checkpoint_path, "ckpt.pt")
 
     # seed_offset allows for distributed training data
-    torch.manual_seed(TRAIN_CONFIG.random_seed + seed_offset)
-    np.random.seed(TRAIN_CONFIG.random_seed + seed_offset)
-    random.seed(TRAIN_CONFIG.random_seed + seed_offset)
+    set_random_seed(TRAIN_CONFIG.random_seed + seed_offset)
 
     # From https://github.com/karpathy/nanoGPT/blob/master/train.py
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
