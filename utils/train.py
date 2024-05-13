@@ -543,7 +543,7 @@ def _train(
             or iter_num == (TRAIN_CONFIG.train_steps - 1)
         ) and is_master_process:
             (
-                (train_accuracy, val_accuracy),
+                (train_accuracy_loss, val_accuracy_loss),
                 (train_loss, val_loss),
                 (new_train_iter, new_val_iter),
             ) = estimate_loss(
@@ -569,9 +569,9 @@ def _train(
             if args.profile:
                 wandb.log(
                     {
-                        "est_train_accuracy": train_accuracy,
+                        "est_train_accuracy_loss": train_accuracy_loss,
                         "est_train_loss": train_loss,
-                        "est_val_accuracy": val_accuracy,
+                        "est_val_accuracy_loss": val_accuracy_loss,
                         "est_val_loss": val_loss,
                         "est_lr": lr,
                         "est_step": iter_num / TRAIN_CONFIG.est_interval - 1,
