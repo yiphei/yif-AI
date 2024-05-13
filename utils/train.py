@@ -22,8 +22,9 @@ from torch.distributed import destroy_process_group, init_process_group
 from torch.utils.data import DataLoader
 
 import wandb
+from utils.common import (create_autocast_context, get_default_device,
+                          set_random_seed)
 from utils.data_loading import MapLocalDataset
-from utils.common import get_default_device, set_random_seed, create_autocast_context
 
 
 # This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them

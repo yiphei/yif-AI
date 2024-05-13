@@ -5,7 +5,10 @@ from dataclasses import dataclass, field
 
 import tiktoken
 import torch
-from utils.common import get_default_device, set_random_seed, create_autocast_context
+
+from utils.common import (create_autocast_context, get_default_device,
+                          set_random_seed)
+
 
 @dataclass
 class SampleConfig:
@@ -76,7 +79,7 @@ def predict_fn(input_data: SampleConfig, model):
     Generate model predictions.
     """
     set_random_seed(input_data.seed)
-    
+
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
     device_type = (
