@@ -13,22 +13,18 @@ early_terminate:
 parameters:
     model_config:
         parameters:
-            bias:
+            use_bias:
                 value: False
             context_size:
-                values: [200, 300, 400]
+                values: 200
             n_embed: 
-                values: [200, 220, 240]
+                values: 200
             n_layer: 
-                values: [4, 5, 6]
+                value: 10
             n_head: 
-                values: [4, 5]
+                value: 10
             dropout_rate:
-                value: 0.3
-            learned_dropout_layers:
                 value: 0
-            use_learned_dropout:
-                value: False
     batch_size: 
         value: 50
     train_steps: 
