@@ -35,7 +35,7 @@ parameters:
                     use_bias:
                         value: False
             use_ln_on_encoder_out:
-                value: False
+                value: null
             encoder_embed_loss_type:
                 value: 1
     batch_size: 
