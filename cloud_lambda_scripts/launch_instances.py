@@ -11,6 +11,7 @@ if __name__ == "__main__":
     parser.add_argument("--quantity", type=int, default=1)
     parser.add_argument("--region", type=str, default="us-west-1")
     parser.add_argument("--instance_type", type=str, default="gpu_1x_a10")
+    parser.add_argument("--name", type=str, default=None)
     args = parser.parse_args()
 
     load_dotenv()
@@ -22,6 +23,8 @@ if __name__ == "__main__":
         "ssh_key_names": ["lambda"],
         "quantity": 1,
     }
+    if args.name is not None:
+        data["name"] = args.name
 
     headers = {"Content-Type": "application/json"}
 

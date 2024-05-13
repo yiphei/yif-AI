@@ -7,9 +7,7 @@ from requests.auth import HTTPBasicAuth
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--quantity", type=int, default=1)
-    parser.add_argument("--region", type=str, default="us-west-1")
-    parser.add_argument("--instance_type", type=str, default="gpu_1x_a10")
+    parser.add_argument("--name", type=str, default=None)
     args = parser.parse_args()
 
     load_dotenv()
@@ -30,7 +28,11 @@ if __name__ == "__main__":
         raise Exception()
 
     instances = response.json()["data"]
-    instance_ids = [instance["id"] for instance in instances]
+    instance_ids = [
+        instance["id"]
+        for instance in instances
+        if (args.name is None or instance.get("name", None) == args.name)
+    ]
 
     url = "https://cloud.lambdalabs.com/api/v1/instance-operations/terminate"
     data = {
