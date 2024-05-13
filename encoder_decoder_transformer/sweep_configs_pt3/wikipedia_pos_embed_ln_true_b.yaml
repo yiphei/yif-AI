@@ -35,13 +35,9 @@ parameters:
                     use_bias:
                         value: False
             use_ln_on_encoder_out:
-                values: [True, False]
+                value: null
             encoder_embed_loss_type:
-                values: [2,3,4]
-            encoder_embed_detach_type:
-                values: [1,2,3]
-            encoder_embed_ln_type:
-                values: [1,2,3]
+                value: 1
     batch_size: 
         value: 50
     train_steps: 
