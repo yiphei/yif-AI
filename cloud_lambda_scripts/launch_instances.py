@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("--region", type=str, default="us-west-1")
     parser.add_argument("--instance_type", type=str, default="gpu_1x_a10")
     parser.add_argument("--name", type=str, default=None)
+    parser.add_argument("--filesystem", type=str, default=None)
     args = parser.parse_args()
 
     load_dotenv()
@@ -25,6 +26,8 @@ if __name__ == "__main__":
     }
     if args.name is not None:
         data["name"] = args.name
+    if args.filesystem is not None:
+        data["file_system_names"] = [args.filesystem]
 
     headers = {"Content-Type": "application/json"}
 
