@@ -43,7 +43,7 @@ parameters:
             encoder_embed_ln_type:
                 values: [1,2]
             encoder_embed_loss_coeff:
-                values: [0.2, 0.5, 2, 4]
+                values: [0.25, 4]
     batch_size: 
         value: 50
     train_steps: 
