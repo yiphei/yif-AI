@@ -13,13 +13,13 @@ parameters:
             context_size:
                 value: 200
             n_embed: 
-                value: 200
+                value: 210
             n_layer: 
                 value: 10
             n_head: 
                 value: 10
             dropout_rate:
-                values: [0, 0.1, 0.2, 0.3]
+                value: 0
     batch_size: 
         value: 50
     train_steps: 

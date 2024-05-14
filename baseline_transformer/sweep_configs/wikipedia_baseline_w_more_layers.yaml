@@ -15,11 +15,11 @@ parameters:
             n_embed: 
                 value: 200
             n_layer: 
-                value: 10
+                value: 12
             n_head: 
                 value: 10
             dropout_rate:
-                values: [0, 0.1, 0.2, 0.3]
+                value: 0
     batch_size: 
         value: 50
     train_steps: 
