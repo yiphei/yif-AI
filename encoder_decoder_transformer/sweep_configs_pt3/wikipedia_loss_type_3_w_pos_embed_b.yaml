@@ -41,7 +41,7 @@ parameters:
             encoder_embed_detach_type:
                 value: 3
             encoder_embed_ln_type:
-                value: 2
+                value: 3
             encoder_embed_loss_coeff:
                 value: 4
     batch_size: 
