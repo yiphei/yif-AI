@@ -1,5 +1,5 @@
 program: encoder_decoder_transformer/training_script.py
-name: wikipedia_loss_type_3_w_pos_embed
+name: wikipedia_loss_type_3_w_pos_embed_b
 project: encoder_decoder_transformer
 method: grid
 metric:
@@ -25,7 +25,7 @@ parameters:
             add_ln_before_decoder_ff:
                 value: False
             add_pos_embed:
-                value: False
+                value: True
             sub_pos_embed:
                 value: 1
             cross_attn_config:
@@ -41,9 +41,9 @@ parameters:
             encoder_embed_detach_type:
                 value: 3
             encoder_embed_ln_type:
-                values: [2, 3]
+                value: 2
             encoder_embed_loss_coeff:
-                values: [1.5, 3, 6, 10]
+                value: 4
     batch_size: 
         value: 50
     train_steps: 
