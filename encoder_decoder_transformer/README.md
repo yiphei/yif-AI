@@ -34,7 +34,7 @@ The parallelization simply has the following as a single layer that's stacked N 
 This layer haves two inputs, one for the encoder and decoder, and two outputs, one for the encoder and decoder. The decoder and encoder latent representation interact only at the second attention block on the decoder side. Or, stated in pseudo-code, it is
 
 ```
-def encoder_decoder_layer(x_encoder,x_decoder):
+def encoder_decoder_layer(encoder_x, decoder_x):
     encoder_x = encoder_x + encoder_multi_attn_head(
         encoder_layer_norm_1(encoder_x)
     )
@@ -50,9 +50,26 @@ def encoder_decoder_layer(x_encoder,x_decoder):
     return encoder_x, decoder_x
 ```
 
+The first decoder_x is obtained from a feed forward layer on the model input embedding.
+
 ### Encoder loss
 
-In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, we end up with two outputs, one from the encoder and one from decoder. The loss over the decoder output constitutes the canonical loss function, but the presence of a encoder output permits something. In this case, it was used to update the token and positional embedding. The idea here is similar to weight tying of the output layer with token embedding. Weigh tying both 1) increases update frequencies and magnitude and 2) kinda compresses an entire forward pass into embedding weights, thus permitting hidden layers to do more complex representation. The same 1) and 2) can be achieved with the encoder loss described as following. Given the original embedding ${E}$ (token + positional) that is the input to the first hidden layer, you calculate the cumulative average along the token dimension (i.e. T dimension). Finally, you calculate an affinity score between the cumulative average and the encoder output. Stated more formally, you have
+In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, we end up with two outputs, one from the encoder and one from decoder. The loss over the decoder output constitutes the canonical loss function, but the presence of a encoder output permits something. In this case, it was used to update the token and positional embedding. The idea here is similar to weight tying of the output layer with token embedding. Weigh tying both 1) increases update frequencies and magnitude and 2) kinda compresses an entire forward pass into embedding weights, thus permitting hidden layers to do more complex representation. The same 1) and 2) can be achieved with the encoder loss described as following. Given the original embedding ${E}$ (token + positional) that is the input to the first hidden layer, you calculate the cumulative average along the token dimension (i.e. T dimension). Finally, you calculate an dis-affinity score between the cumulative average and the encoder output, and use that as the encoder loss. Stated more formally, you have
+
+$$
+out_{enc} \coloneqq \text{encoder output of the last layer} \\
+E \coloneqq \text{model input embedding, comprising of token and positional embedding} \\
+E_{avg\_sum} = CumAvg(E)\quad \text{where}\quad E_{i,j} = CumAvg(E_{1:i,j}) = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
+encoder\_loss\ = disaffinity\_score(out_{enc}, E_{avg\_sum})
+$$
+
+Two disaffinity scores are experimented. One is euclidian distance, and the other is cosine similarity. Cosine similarity needs to be normalize for 0 to represent the most similarity. So the encoder loss with euclidian distance is just
+
+$$encoder\_loss\ = \|out_{enc} - E_{avg\_sum} \|_2$$
+
+and the encoder loss with cosine similarity is
+
+$$encoder\_loss\ = 1- \frac{cosine\_similarity(out_{enc}, E_{avg\_sum}) + 1}{2}$$
 
 #### Additional LearnedDropout hyperparameters
 
