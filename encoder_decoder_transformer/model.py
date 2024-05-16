@@ -120,12 +120,12 @@ class CrossAttentionConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    order_type: Union[OrderType, int]
-    add_ln_before_decoder_ff: bool
     add_pos_embed: bool
     sub_pos_embed: Union[SubPosEmbedType, int]
     cross_attn_config: CrossAttentionConfig
     use_ln_on_encoder_out: Optional[bool] = None
+    add_ln_before_decoder_ff: bool = False
+    order_type: Union[OrderType, int] = OrderType.ORIGINAL
     encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = (
         EncoderEmbedLossType.NONE
     )
