@@ -11,7 +11,7 @@ In a encoder-decoder model, this dual nature is separated. The encoder handles g
 
 ## Architecture
 
-At the high level, the architecture re-implements the canonical encoder-decoder model but in a parallel way. Furthemore, novel components were added to exploit the dual & paralle encoder-decoder representation.
+At the high level, the architecture re-implements the canonical encoder-decoder model but in a parallel way. Furthemore, novel components were added to exploit the dual & parallel encoder-decoder representation.
 
 ### Encoder-Decoder
 
