@@ -11,7 +11,7 @@ In a encoder-decoder model, the dual nature of latent representation is separate
 
 ## Architecture
 
-At the high level, the architecture re-implements the canonical encoder-decoder model in a parallel way. But novel components were added to exploit the dual encoder-decoder representation.
+At the high level, the architecture re-implements the canonical encoder-decoder model but in a parallel way. Furthemore, novel components were added to exploit the dual & paralle encoder-decoder representation.
 
 ### Encoder-Decoder
 
@@ -20,11 +20,11 @@ The canonical encoder-decoder model looks roughly like this
 <figure>
     <img src="assets/diagram.png"
          alt="diagram">
-    <figcaption><em>From the Attention is All You Need paper. The modern encoder-decoder is largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward.</em></figcaption>
+    <figcaption><em>From the Attention is All You Need paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward blocks.</em></figcaption>
 </figure>
 
 
-The parallelization simply has the following as a single layer that's stacked N times.
+The parallelization simply has the following as a single layer that's stacked $N$ times.
 
 <figure>
     <img src="assets/new_diagram.png"
@@ -33,15 +33,17 @@ The parallelization simply has the following as a single layer that's stacked N 
 </figure>
 
 
-This layer haves two inputs, one for the encoder and decoder, and two outputs, one for the encoder and decoder. The decoder and encoder latent representation interact only at the second attention block on the decoder side. Or, stated in pseudo-code, it is
+This layer haves two inputs, one for the encoder and decoder, and two outputs, one for the encoder and decoder. The decoder and encoder latent representations interact only at the second attention block on the decoder side. For a better exposition, this is the pseudocode
 
 ```
-def encoder_decoder_layer(encoder_x, decoder_x):
+def encoder_decoder_layer_forward(encoder_x, decoder_x):
+    # encoder block
     encoder_x = encoder_x + encoder_multi_attn_head(
         encoder_layer_norm_1(encoder_x)
     )
     encoder_x = encoder_x + encoder_feed_forward(encoder_layer_norm_2(encoder_x))
-
+    
+    # decoder block
     decoder_x = decoder_x + decoder_multi_attn_head(
         decoder_layer_norm_1(decoder_x)
     )
@@ -52,7 +54,7 @@ def encoder_decoder_layer(encoder_x, decoder_x):
     return encoder_x, decoder_x
 ```
 
-The first decoder_x is obtained from a feed forward layer on the model input embedding.
+The `decoder_x` input of the first layer is obtained from a feed forward layer on the model input embedding.
 
 ### Encoder loss
 
