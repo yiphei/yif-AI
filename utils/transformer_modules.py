@@ -193,6 +193,7 @@ class BaseModel(nn.Module):
         elif isinstance(module, (nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
+    @torch.compiler.disable() # I get KeyErrors on buffers when the model is compiled
     def aggregate_sub_module_stats(self):
         if self.sub_module_extra_stats is None:
             return
