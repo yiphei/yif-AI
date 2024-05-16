@@ -24,7 +24,7 @@ The canonical encoder-decoder model looks roughly like this
 </figure>
 
 
-The parallelization simply has the following as a single layer that's stacked $N$ times.
+The parallelized implementation simply has the following as a single layer that's stacked $N$ times.
 
 <figure>
     <img src="assets/new_diagram.png"
@@ -33,7 +33,7 @@ The parallelization simply has the following as a single layer that's stacked $N
 </figure>
 
 
-This layer haves two inputs, one for the encoder and decoder, and two outputs, one for the encoder and decoder. The decoder and encoder latent representations interact only at the second attention block on the decoder side. For a better exposition, this is the pseudocode
+This new combined layer has two inputs, one for the encoder and decoder, and two outputs, one for the encoder and decoder. The decoder and encoder latent representations interact only at the second attention block on the decoder side. Stated in pseudocode, it becomes
 
 ```
 def encoder_decoder_layer_forward(encoder_x, decoder_x):
