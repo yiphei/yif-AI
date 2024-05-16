@@ -71,7 +71,7 @@ and the encoder loss with cosine similarity is
 
 $$encoder\_loss\ = 1- \frac{cosine\_similarity(out_{enc}, E_{avg\_sum}) + 1}{2}$$
 
-#### Additional LearnedDropout hyperparameters
+#### Positional loss in decoder
 
 TODO
 
