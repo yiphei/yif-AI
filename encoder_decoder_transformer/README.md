@@ -21,7 +21,34 @@ The canonical encoder-decoder model looks roughly like this
     <figcaption><em>From the Attention is All You Need paper. The modern encoder-decoder is largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward.</em></figcaption>
 </figure>
 
-The parallelization sim
+
+The parallelization simply has the following as a single layer that's stacked N times.
+
+<figure>
+    <img src="assets/new_diagram.png"
+         alt="diagram">
+    <figcaption><em>Just like the one before, Add & Norm should be moved to before each block.</em></figcaption>
+</figure>
+
+
+This layer haves two inputs, one for the encoder and decoder, and two outputs, one for the encoder and decoder. The decoder and encoder latent representation interact only at the second attention block on the decoder side. Or, stated in pseudo-code, it is
+
+```
+def encoder_decoder_layer(x_encoder,x_decoder):
+    encoder_x = encoder_x + encoder_multi_attn_head(
+        encoder_layer_norm_1(encoder_x)
+    )
+    encoder_x = encoder_x + encoder_feed_forward(encoder_layer_norm_2(encoder_x))
+
+    decoder_x = decoder_x + decoder_multi_attn_head(
+        decoder_layer_norm_1(decoder_x)
+    )
+    decoder_x = decoder_x + cross_multi_attn_head(
+        encoder_cross_layer_norm(encoder_x), decoder_cross_layer_norm(decoder_x)
+    )
+    decoder_x = decoder_x + decoder_feed_forward(decoder_layer_norm_2(decoder_x))
+    return encoder_x, decoder_x
+```
 
 ### Penalty terms
 
