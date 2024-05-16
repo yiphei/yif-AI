@@ -1,35 +1,27 @@
-# Learned Dropout [WIP readme]
+# Parallel Encoder-Decoder model [WIP readme]
 > NB: LaTeX is optimized for Github's Markdown. 
 
-Current SOTA LLMs have one frequent thing in common: they use Mixture of Experts (MoE). However, all MoE implementations require setting, in some form or other, a hyperparameter of how many experts to use, at pre-training time. This is limiting because it requires determining the hyperparamter value, which is usually found with a rather ad-hoc process. Ideally, the model itself learns the best number of experts. To this end, I created a new module that helps a model achieve MoE without the explicit constraint of number of experts.
+Current SOTA LLMs are all decoder-only models. Here, a new transformer variant is presented where encoder and decoder run in parallel, unlike the typical implementation where they are run serially (encoder first and decoder after). 
 
 ## Motivations
 
-MoE is not a new concept. In fact, a popular precursor to MoE was ensemble models. Both helped improve models' performance. Presently, notable models that use MoE include OpenAI GPT-4, Mixtral 8x7B, xAI Grok-1, and Google Gemini.
-
-What makes MoE so popular? First of all, at the intuitive level, it mimics how intelligence is organized in the real world. Across all scale levels, intelligence is specialized. For instance, at the societal level, intelligence specialization manifests in highly specialized modern economies. At the biological level, it has been known that the brain contains regions specialized in specific tasks. Empirically, MoE have demonstrated a range of benefits: cheaper training & inference, increased model capacity, more efficient parameters, and improved generalization.
-
-Now, all present MoE implementations require a hyperparameter that specifies how many experts to use per forward pass. This value is unchanged for inference. The goal of the new module introduced here is to remove this hyperparameter, permitting the model to learn the best number of experts per token type, not per forward pass. The “per token type” part is important because it means that two different tokens can have different numbers of experts being used.
-
-Before I proceed on this was implemented, I want to briefly review Dropout. Dropout is a very popular and simple training technique that regularizes the model training to be more robust against overfitting and thus yielding improved generalization. It simply works by randomly setting some weights of the model to zero, so they will be ignored during backprop. In doing so, Dropout essentially creates a different (transient) subgraph of the model on every forward pass. The final pre-trained model can then be understood as the ensemble of all the different subgraphs, each of which can be thought of an expert. Therefore, using Dropout is one way to indirectly get MoE. But again, you have to set a hyperparameter for the dropout rate, and Dropout is not activated at inference time.
-
-The new module borrows the Dropout idea but allows the model to learn the best weights to dropout. This new module remains active at inference time.
+The first motivation originates from the realization that the objective function of every token's latent representation at each layer is to predict the next token. This introduces a theoretical paradox when training (and inference later) is done in parallel. If the latent reprensation ${h_l}$ of token at time ${t}$ is trying to predict the next token at time ${t+1}$, then that latent representation shouldn't be very useful to the latent representation of token at time ${t+1}$ trying to predict token at time ${t+2}$. Yet, the attention mechanism makes the latent representation of ${t+1}$ attend to every latent representation of tokens at time $<{t+1}$. Now, we know that the earlier layers of a decoder-only transformer of are less focused on next-token prediction and more on just general understanding, so latent representation of earlier tokens at these layers should prove useful to later tokens. But it's reasonable to believe that they become less useful at later layers. Therefore, it would be nice to have some disentanglement: a latent representation more for general understanding and one more for next token prediction. This disentaglement exists in encoder-decoder models, with the encoder handling the understanding and decoder handling the next token prediction. But this is canonically implemented serially, leading to very deep models. Instead, the model presented here implements them in parallel.
 
 ## Architecture
 
-The architecture consists of a vanilla transformer architecture with the new **LearnedDropout** module applied instead of the regular one. The specific vanilla transformer implementation is largely borrowed from the awesome https://github.com/karpathy/nanoGPT/blob/master/model.py. The new module is applied in the same places as the regular dropout was.
+At the high level, the architecture re-implements the canonical encoder-decoder model in a parallel way. But novel components were added to exploit the dual encoder-decoder representation.
 
-### LearnedDropout (LD)
+### Encoder-Decoder
 
-At the high level, the LearnedDropout implementation computes a dropout mask $\mathbf{m}$ from the input $X$ and applies it onto the same input. The key part is how this dropout mask is computed. In the regular dropout module, the dropout mask $\mathbf{m}$ is simply a randomly generated tensor of zeroes and ones, with the number of zeroes determined by the dropout rate hyperparamter. In **LearnedDropout**, the mask is generated by a differentiable function that contains free parameters $\mathrm{A}$ and $\mathrm{B}$. More precisely, given a input token $X \in \mathbb{R}^{N}$, the dropout mask $\mathbf{m}$ for that token becomes
+The canonical encoder-decoder model looks roughly like this
 
-$$\mathbf{m} =  0.5 \cos(\mathrm{A} \odot X_{\text{detach}} + \mathrm{B}) + 0.5$$
+<figure>
+    <img src="assets/diagram.png"
+         alt="diagram">
+    <figcaption><em>From the Attention is All You Need paper. The modern encoder-decoder is largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward.</em></figcaption>
+</figure>
 
-where $\mathrm{A} \in \mathbb{R}^{N}$ and $\mathrm{B} \in \mathbb{R}^{N}$ are free parameters in the module that the model learns, and $X_{\text{detach}}$ is $X$ detached from the gradient graph so that $\mathrm{A}$ and $\mathrm{B}$ themselves dont affect $X$'s gradients. Once the mask is computed, you just apply it to $X$
-
-$$ X \leftarrow X \odot \mathbf{m}$$
-
-The two $0.5$ scalars in the cosine functions serve to bound the function domain to $[0,1]$, and the parameters $\mathrm{A}$ and $\mathrm{B}$ change the angular frequency and phase angle of the cosine function, respectively. 
+The parallelization sim
 
 ### Penalty terms
 
