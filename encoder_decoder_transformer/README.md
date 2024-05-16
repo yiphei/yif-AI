@@ -58,16 +58,16 @@ The `decoder_x` input of the first layer is obtained from a feed forward layer o
 
 ### Encoder loss
 
-In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, we end up with two outputs, one from the encoder and one from decoder. The loss over the decoder output constitutes the canonical loss function, but the presence of a encoder output permits something. In this case, it was used to update the token and positional embedding. The idea here is similar to weight tying of the output layer with token embedding. Weigh tying both 1) increases update frequencies and magnitude and 2) kinda compresses an entire forward pass into embedding weights, thus permitting hidden layers to do more complex representation. The same 1) and 2) can be achieved with the encoder loss described as following. Given the original embedding ${E}$ (token + positional) that is the input to the first hidden layer, you calculate the cumulative average along the token dimension (i.e. T dimension). Finally, you calculate an dis-affinity score between the cumulative average and the encoder output, and use that as the encoder loss. Stated more formally, you have
+In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, we end up with two outputs, one from the encoder and one from decoder. The loss over the decoder output constitutes the canonical loss function, but the presence of a encoder output permits another loss function. In this case, it was used to update the token and positional embedding. The idea here is similar to weight tying of the output layer with token embedding. Weigh tying both 1) increases update frequency & magnitude and 2) indirectly compresses an entire forward pass into embedding weights, thus permitting hidden layers to compute more complex representation. The same 1) and 2) can be achieved with the encoder loss described as follows. Given the original embedding ${E}$ (token + positional) that is the input to the first hidden layer, you calculate the cumulative average along the token dimension (i.e. T dimension). Finally, you calculate a disaffinity score between the cumulative average and the encoder output, and use that as the encoder loss. Stated more formally, you have
 
 $$
 out_{enc} \coloneqq \text{encoder output of the last layer} \\
-E \coloneqq \text{model input embedding, comprising of token and positional embedding} \\
-E_{avg\_sum} = CumAvg(E)\quad \text{where}\quad E_{i,j} = CumAvg(E_{1:i,j}) = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
+E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
+E_{avg\_sum} = CumAvg(E)\quad \text{where}\quad E_{avg\_sum_{i,j}} = CumAvg(E_{1:i,j}) = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
 encoder\_loss\ = disaffinity\_score(out_{enc}, E_{avg\_sum})
 $$
 
-Two disaffinity scores are experimented. One is euclidian distance, and the other is cosine similarity. Cosine similarity needs to be normalize for 0 to represent the most similarity. So the encoder loss with euclidian distance is just
+Two disaffinity scores are experimented. One is euclidian distance, and the other is cosine similarity. Cosine similarity needs to be normalized such that zero represents most similarity. So the encoder loss with euclidian distance is just
 
 $$encoder\_loss\ = \|out_{enc} - E_{avg\_sum} \|_2$$
 
