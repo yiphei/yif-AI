@@ -50,28 +50,9 @@ def encoder_decoder_layer(x_encoder,x_decoder):
     return encoder_x, decoder_x
 ```
 
-### Penalty terms
+### Encoder loss
 
-Two penalty terms are added to the loss function: dropout entropy $\mathrm{H}$ and dropout L1 norm ${L_1}$. The final loss function is
-
-$$ loss = cross\\_entropy(\theta, X, Y) + \mathrm{H}(\mathbf{m}) + L_1(\mathbf{m})$$
-
-Reasons for both are described below.
-
-#### Dropout entropy
-
-Dropout mask values in-between 0 and 1 just scale down the input, which is undesirable for many reasons, the chief one being it potentially causing vanishing gradients. Therefore, the model should be penalized for dropout mask values far from 0 and 1. The dropout mask entropy $\mathrm{H}$ does exactly that. The dropout mask entropy $\mathrm{H}$ applies Shannon's information entropy to the dropout mask
-$$\mathrm{H}(\mathbf{m}) =  \sum_{i}-\mathbf{m}_i\log_2\mathbf{m}_i $$
-
-This ensures that the dropout mask values are pushed as close as possible to $\\{0,1\\}$ since the function's global minima occur there (remember that $\mathbf{m}_i \in [0,1]$).
-
-#### Dropout L1 norm
-
-Intuitively, one should desire for fewer experts (i.e. more dropout) active per token. This intuition stems from the Occam's razor principle. Yet, solely adding learned dropout does not incentivize the model to favor more dropout. In fact, the opposite would happen because the loss function will incentivize the model to use less dropout (more experts, and thus more compute). The Dropout L1 norm serves to counter the otherwise degenerate tendency. The L1 norm ${L_1}$ is just the canonical function
-
-$$ L_1(\mathbf{m}) = |\mathbf{m}|_1$$
-
-which encourages more dropout (more zeroes, fewer ones).
+In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, we end up with two outputs, one from the encoder and one from decoder. The loss over the decoder output constitutes the canonical loss function, but the presence of a encoder output permits something. In this case, it was used to update the token and positional embedding. The idea here is similar to weight tying of the output layer with token embedding. Weigh tying both 1) increases update frequencies and magnitude and 2) kinda compresses an entire forward pass into embedding weights, thus permitting hidden layers to do more complex representation. The same 1) and 2) can be achieved with the encoder loss described as following. Given the original embedding ${E}$ (token + positional) that is the input to the first hidden layer, you calculate the cumulative average along the token dimension (i.e. T dimension). Finally, you calculate an affinity score between the cumulative average and the encoder output. Stated more formally, you have
 
 #### Additional LearnedDropout hyperparameters
 
