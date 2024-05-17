@@ -5,7 +5,9 @@ Decoder-only transformer models apply a causal mask to enable parallel training 
 
 ## Motivations
 
-TODO
+In the canonical decoder attention matrix, an upper-right triangular mask is applied to the respect temporal causality
+
+![sdasd](assets/matrix.png)
 
 ## Architecture
 
