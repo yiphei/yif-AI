@@ -35,6 +35,7 @@ class ModelConfig(BaseModelConfig):
     future_dim: int  # number of future tokens to attend to
     future_x_loss_type: Union[FutureXLossType, int]
     use_future_x_loss: bool = True
+    detach_future_x: Optional[bool] = None
     end_layer: Optional[int] = None
     future_x_loss_coeff: Optional[float] = None
 
@@ -67,6 +68,10 @@ class ModelConfig(BaseModelConfig):
         elif self.use_future_x_loss:
             self.future_x_loss_coeff = 1.0
 
+        if self.detach_future_x is None:
+            assert not self.use_future_x_loss
+        else:
+            assert self.use_future_x_loss
 
 class DynamicLinear(nn.Module):
     def __init__(self, head_dim, in_dim, out_dim, use_bias):
@@ -104,6 +109,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         dropout_rate,
         future_dim,
         future_x_loss_type,
+        detach_future_x,
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -113,6 +119,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.head_size = dim_in // n_head
         self.future_dim = future_dim
         self.future_x_loss_type = future_x_loss_type
+        self.detach_future_x = detach_future_x or False
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
         self.future_k_weights = DynamicLinear(
@@ -183,6 +190,8 @@ class FutureMultiAttentionHead(SubModuleStats):
                     0.0,
                 )
                 true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
+                if self.detach_future_x:
+                    true_future_x = true_future_x.detach()
 
         causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.future_dim, self.context_size - T)
@@ -254,6 +263,7 @@ class TransformerBlock(nn.Module):
                 config.dropout_rate,
                 config.future_dim,
                 config.future_x_loss_type,
+                config.detach_future_x,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
