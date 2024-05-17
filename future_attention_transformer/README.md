@@ -1,7 +1,7 @@
 # Future Attention Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
 
-Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. But that wastes half of the attention matrix. What if you could use the full attention matrix while respecting the temporal causality? The model presented demonstrates a way to do it.
+Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. But that wastes half of the attention matrix. What if you could use the full attention matrix while respecting the temporal causality? The model presented here demonstrates a way to do it.
 
 ## Motivations
 
