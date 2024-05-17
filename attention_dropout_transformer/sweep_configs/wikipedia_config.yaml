@@ -35,7 +35,7 @@ parameters:
                     n_head:
                         value: 10
                     rounding_type:
-                        values: [null, 1, 2]
+                        values: [null, 1, 2, 3]
                     shift_init:
                         values: [0,1.57079632,3.14159265]
                     use_canonical_entropy:
