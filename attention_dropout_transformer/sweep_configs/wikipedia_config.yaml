@@ -21,13 +21,13 @@ parameters:
             dropout_rate:
                 value: 0
             start_layer:
-                value: 10
+                value: 6
             end_layer:
-                value: 10
+                value: 6
             use_dropout_entropy_in_loss:
                 value: True
             use_dropout_l1_norm_in_loss:
-                value: True
+                value: False
             attention_dropout_config:
                 parameters:
                     use_bias:
