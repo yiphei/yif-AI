@@ -389,6 +389,7 @@ class AttentionDropoutTransformer(BaseModel):
         self.register_buffer("dropout_entropy_lambda", torch.empty(0), persistent=False)
         self.register_buffer("dropout_l1_norm_lambda", torch.empty(0), persistent=False)
 
+    @torch.compiler.disable() # without this, torch.compile keeps recompiling this function. It's caused by self.training_step changing too frequently
     def get_dropout_lambda(self, lambda_config, device):
         if lambda_config is None:
             return torch.empty(0, device=device)
