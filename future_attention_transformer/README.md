@@ -17,7 +17,7 @@ However, it seems wasteful to throw away so much information. Instead, we can as
 
 ## Architecture
 
-At the high-level, the architecture is just the canonical decoder-only transformer but with a modified multi attention head block that also predicts the upper right triangle's output contribution. Finally, an attention loss is computed for every $out_{mask}$ and that loss is added to the final model loss.
+At the high-level, the architecture is just the canonical decoder-only transformer but with a modified multi attention head block that also predicts the contribution from the masked part of the attention matrix. Finally, an attention loss is computed for every $out_{mask}$, which is added to the final model loss.
 
 ### Future Attention Head
 
