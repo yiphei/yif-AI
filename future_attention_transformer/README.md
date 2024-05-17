@@ -13,7 +13,7 @@ and an upper-right triangular mask is applied on it to respect temporal causalit
 
 ![sdasd](assets/matrix_3.png)
 
-However, it seems wasteful to throw away so much information. Instead, we can ask the model to "predict" the masked upper right triangle part of the attention by having it compute the output contribution from it. In other words, asumming that $out_{encoder}$ is the output of attention block if no mask were applied to the attention matrix and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{mask} = out_{encoder} - out_{decoder}$. Once $out_{mask}$ is computed, its addition to $out_{decoder}$ becomes the final output of the attention head. Then, we can calculate an attention loss on $out_{mask}$ since we know the true $out_{mask}$, which is added to the model's final loss.
+However, it seems wasteful to throw away so much information. Instead, we can ask the model to "predict" the masked upper right triangle part of the attention by having it compute the output contribution from it. In other words, asumming that $out_{encoder}$ is the output of the attention operation if no mask were applied to the attention matrix and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{mask} = out_{encoder} - out_{decoder}$. Once $out_{mask}$ is computed, its addition to $out_{decoder}$ becomes the final output of the attention operation. Then, we can also calculate an attention loss on $out_{mask}$ since we know the true $out_{mask}$. At the end of the forwad pass, all attention losses are aggregated and added to the model's final loss.
 
 ## Architecture
 
