@@ -1,7 +1,7 @@
 # Future Attention Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
 
-Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. But that wastes half of the attention matrix. What if you could use the upper-right triangle while respecting the temporal causality? The model presented here takes advantage of this observation.
+Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. But that wastes half of the attention matrix. What if you could use the full attention matrix while respecting the temporal causality? The model presented demonstrates a way to do it.
 
 ## Motivations
 
@@ -13,11 +13,11 @@ and an upper-right triangular mask is applied on it to respect temporal causalit
 
 ![sdasd](assets/matrix_3.png)
 
-But it seems wasteful to throw away so much information. So we can ask the model to also predict the upper right triangle, whose true value we do have.
+However, it seems wasteful to throw away so much information. Instead, we can ask the model to "predict" the masked upper right triangle part of the attention by having it compute the output contribution from it. In other words, asumming that $out_{encoder}$ is the output of attention block if no mask were applied to the attention matrix and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{mask} = out_{encoder} - out_{decoder}$. Once $out_{mask}$ is computed, its addition to $out_{decoder}$ becomes the final output of the attention head. Then, we can calculate an attention loss on $out_{mask}$ since we know the true $out_{mask}$, which is added to the model's final loss.
 
 ## Architecture
 
-At the high-level, the architecture is just the canonical decoder-only transformer but with changes to the multi attention head block also trying to compute the upper right triangle. Finally, an attention loss is computed for every attention matrix and that loss is added to the final model loss.
+At the high-level, the architecture is just the canonical decoder-only transformer but with a modified multi attention head block that also predicts the upper right triangle. Finally, an attention loss is computed for every predicted attention matrix and that loss is added to the final model loss.
 
 ### Multi Attention Head
 
