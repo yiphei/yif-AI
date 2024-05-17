@@ -1,4 +1,4 @@
-# Parallel Encoder-Decoder model [WIP readme]
+# Parallel Encoder-Decoder Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
 
 Current SOTA LLMs are all decoder-only models. Here, a new encoder-decoder transformer variant is presented where encoder and decoder run in parallel, unlike the typical implementation where they run serially (encoder first and decoder after).
