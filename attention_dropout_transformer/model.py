@@ -263,6 +263,9 @@ class AttentionDropout(SubModuleStats):
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
         dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
 
+        if self.training:
+            self.update_stats(dropout_mask)
+
         if self.config.rounding_type:
             if self.config.rounding_type == RoundingType.SIGMOID:
                 dropout_mask = torch.sigmoid(
@@ -286,9 +289,6 @@ class AttentionDropout(SubModuleStats):
                 dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
                     dtype=torch.float16
                 )
-
-        if self.training:
-            self.update_stats(dropout_mask)
 
         new_x = x * dropout_mask
         return new_x
