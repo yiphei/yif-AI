@@ -57,11 +57,6 @@ class ModelConfig(BaseModelConfig):
             raise ValueError("end_layer must be <= n_layer and >= 1")
 
         assert 1 <= self.future_dim <= (self.context_size - 1)
-
-        if not self.use_future_x_loss and self.future_x_loss_coeff is not None:
-            raise ValueError(
-                "future_x_loss_coeff must be None if use_future_x_loss is False"
-            )
  
         assert self.future_x_loss_coeff > 0
 
