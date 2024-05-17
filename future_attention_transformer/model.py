@@ -37,7 +37,7 @@ class ModelConfig(BaseModelConfig):
     use_future_x_loss: bool = True
     detach_future_x: Optional[bool] = None
     end_layer: Optional[int] = None
-    future_x_loss_coeff: Optional[float] = None
+    future_x_loss_coeff: Optional[float] = 1.0
 
     def __post_init__(self):
         if type(self.future_x_loss_type) == int:
@@ -62,11 +62,8 @@ class ModelConfig(BaseModelConfig):
             raise ValueError(
                 "future_x_loss_coeff must be None if use_future_x_loss is False"
             )
-
-        if self.future_x_loss_coeff is not None:
-            assert self.future_x_loss_coeff > 0
-        elif self.use_future_x_loss:
-            self.future_x_loss_coeff = 1.0
+ 
+        assert self.future_x_loss_coeff > 0
 
         if self.detach_future_x is None:
             assert not self.use_future_x_loss
