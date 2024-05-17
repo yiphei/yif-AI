@@ -32,6 +32,8 @@ parameters:
                 value: True
             future_x_loss_coeff:
                 values: [1, 2, 0.5]
+            detach_future_x:
+                value: False
     batch_size: 
         value: 50
     train_steps: 
