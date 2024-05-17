@@ -73,6 +73,7 @@ class ModelConfig(BaseModelConfig):
         else:
             assert self.use_future_x_loss
 
+
 class DynamicLinear(nn.Module):
     def __init__(self, head_dim, in_dim, out_dim, use_bias):
         super().__init__()
