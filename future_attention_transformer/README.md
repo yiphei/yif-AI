@@ -21,9 +21,9 @@ At the high-level, the architecture is just the canonical decoder-only transform
 
 ### Multi Attention Head
 
-In the regular attention head, attention works by computing $Q$, $K$, and $V$ tensors. In order to predict the upper right triangle, we need $K_{future}$ and $V_{future}$. Then, you compute a future attention matrix $Attn_{future} = Q \cdot K_{future}$ and a future attention out $out_{future} = Attn_{future} \cdot  V_{future}$, then the final output is $out = out_{present} + out_{future}$ where $out_{present}$ is just the normal output.
+In the regular attention head, attention works by computing $Q$, $K$, and $V$ tensors. In order to predict $out_{mask}$, we need $K_{mask}$ and $V_{mask}$. There are many ways to obtain these two but the easier way is to have $K_{mask}$ and $V_{mask}$ as model parameters, not computed tensors as $Q$, $K$, and $V$. Then, you compute a "future" attention matrix $Attn_{future} = Q \cdot K_{future}$. Afterwards, compute the full attention matrix $Attn_{full} = Attn_{decoder} + Attn_{future}$, where $Attn_{decoder}$ is just the regular decoder-only masked attention (note that $Attn_{decoder} + Attn_{future}$ is not precise because there are padding operations to have the shapes match. Please view the code as it is hard to explain verbally). Perform the softmax on $Attn_{full}$ to get $AttnSoftmax_{full}$ and separate $AttnSoftmax_{full}$ into its the individual contributions from $AttnSoftmax_{decoder}$ and $AttnSoftmax_{mask}$, where $AttnSoftmax_{decoder}$ is just the regular attention softmax that you would get from decoder attention. Finally, compute $out_{decoder}= AttnSoftmax_{decoder} \cdot V$ and $out_{mask}= AttnSoftmax_{mask} \cdot V_{future}$ and get the final output $out = out_{decoder} + out_{mask}$. 
 
-Then, the attention loss is computed with $out_{future}$ and the true out future, which can be trivially computed.
+The attention loss is computed with respect to $out_{mask}$ and the true $out_{mask}$, which can be trivially computed.
 
 ## Analysis/experiments
 
