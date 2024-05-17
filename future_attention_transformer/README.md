@@ -29,6 +29,12 @@ The attention loss is computed with respect to $out_{mask}$ and the true $out_{m
 
 TODO
 
+## Next steps
+
+Some improvements to look forward to:
+- Have $K_{mask}$ and $V_{mask}$ be computed from the tokens, instead of being free parameters, in an parameter efficient way.
+- Explore other ways to compute the attention loss.
+
 ## Conclusions
 
 TODO
