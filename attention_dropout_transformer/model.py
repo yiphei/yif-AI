@@ -177,10 +177,7 @@ class AttentionDropout(SubModuleStats):
         self.head_size = embed_dim // config.n_head
 
         self.batch_attn_weights = nn.Linear(
-            embed_dim, embed_dim * 3, bias=config.use_bias
-        )
-        self.shift = nn.Parameter(
-            torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
+            embed_dim, embed_dim * 4, bias=config.use_bias
         )
         self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
 
@@ -246,22 +243,25 @@ class AttentionDropout(SubModuleStats):
         dropout_x = x.detach() if self.config.use_detached_x_in_dropout_mask else x
 
         B, T, C = dropout_x.shape
-        q, k, v = self.batch_attn_weights(dropout_x).split(self.embed_dim, dim=2)
+        q, k, v, s = self.batch_attn_weights(dropout_x).split(self.embed_dim, dim=2)
         k = k.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
+        s = s.view(B, T, self.config.n_head, self.head_size).transpose(1, 2) + torch.pi
 
         if self.config.softmax_dim == 1:
             dropout_values = F.scaled_dot_product_attention(
                 q, k, v, attn_mask=None, is_causal=True
             )
+            dropout_values += s
         else:
             attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
             causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
             dropout_values = causal_attn @ v
+            dropout_values += s
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
-        dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
+        dropout_mask = 0.5 * torch.cos(dropout_values) + 0.5
 
         if self.training:
             self.update_stats(dropout_mask)
