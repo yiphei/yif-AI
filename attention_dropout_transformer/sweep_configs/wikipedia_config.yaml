@@ -30,6 +30,8 @@ parameters:
                 value: False
             attention_dropout_config:
                 parameters:
+                    softmax_dim:
+                        value: 1
                     use_bias:
                         value: False
                     n_head:
