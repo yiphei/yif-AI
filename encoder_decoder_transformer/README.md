@@ -81,7 +81,13 @@ TODO
 
 ## Analysis/experiments
 
-TODO
+The MSE encoder loss did better than cosine similarity.
+
+![val loss](assets/val_loss.svg)
+
+![val loss](assets/train_loss.svg)
+
+![val loss](assets/encoder_loss.svg)
 
 ## Next steps
 
