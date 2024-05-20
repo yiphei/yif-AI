@@ -36,10 +36,10 @@ All training runs below were trained on a wikipedia dataset for 9k steps on a si
     <img src="assets/future_loss.svg" alt="Image 2" style="width: 45%;"/>
 </div>
 
-|   | Train loss | Val loss | Encoder loss |
+|   | Train loss | Val loss | Future Attention loss |
 |---|----------|----------|----------|
 | **with cosine-dissimilarity future attention loss** | 2.954 | **3.408** | 0.2478 |
-| **with MSE future attention loss** | **2.953** | 3.411 | 0.1618 |
+| **with MSE future attention loss** | **2.953** | 3.411 | 0.1635 |
 
 
 ## Next steps
