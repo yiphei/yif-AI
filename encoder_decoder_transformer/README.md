@@ -107,6 +107,19 @@ Also tried to add pos embed to decoder
 |---|----------|----------|----------|
 | **add_pos_embed_to_decoder=True** | 2.981 | 3.439 | 3.656e-9 |
 | **add_pos_embed_to_decoder=False** | 2.99 | 3.435 | 4.471e-9 |
+
+But compared to a baseline, it doesn not outperform it.
+
+<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+  <img src="assets/baseline_val_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/baseline_train_loss.svg" alt="Image 2" style="width: 45%;"/>
+</div>
+
+|   | Train loss | Val loss |
+|---|----------|----------|
+| **encoder-decoder transformer** | 2.981 | 3.439 |
+| **baseline** | 2.934 | 3.449 |
+
 ## Next steps
 
 There are some improvements to be made:
