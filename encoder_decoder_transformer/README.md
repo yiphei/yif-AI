@@ -93,6 +93,7 @@ The MSE encoder loss did better than cosine similarity when trained on a wikiped
 |---|----------|----------|----------|
 | **with cosine-dissimilarity encoder loss** | 2.984 | 3.445 | 8.285e-9 |
 | **with MSE encoder loss** | 2.981 | 3.439 | 3.656e-9 |
+| **with no encoder loss** | 2.997 | 3.449 | N/A |
 
 ## Next steps
 
