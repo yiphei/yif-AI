@@ -81,7 +81,7 @@ TODO
 
 ## Analysis/experiments
 
-The MSE encoder loss did better than cosine similarity when trained on a wikipedia dataset for 9k steps.
+The MSE encoder loss did better than cosine similarity when trained on a wikipedia dataset for 9k steps. Both types of encoder loss did better than without it.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/val_loss.svg" alt="Image 1" style="width: 45%;"/>
