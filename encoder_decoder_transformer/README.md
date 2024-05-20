@@ -83,11 +83,11 @@ TODO
 
 The MSE encoder loss did better than cosine similarity.
 
-![val loss](assets/val_loss.svg)
-
-![val loss](assets/train_loss.svg)
-
-![val loss](assets/encoder_loss.svg)
+<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+  <img src="assets/val_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/train_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/encoder_loss.svg" alt="Image 2" style="width: 45%;"/>
+</div>
 
 ## Next steps
 
