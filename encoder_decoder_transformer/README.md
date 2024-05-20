@@ -92,7 +92,7 @@ The MSE encoder loss did better than cosine similarity when trained on a wikiped
 |   | Train loss | Val loss | Encoder loss |
 |---|----------|----------|----------|
 | **with cosine-dissimilarity encoder loss** | 2.984 | 3.445 | 8.285e-9 |
-| **with MSE encoder loss** | 2.981 | 3.439 | 3.656e-9 |
+| **with MSE encoder loss** | **2.981** | **3.439** | 3.656e-9 |
 | **with no encoder loss** | 2.997 | 3.449 | N/A |
 
 Also tried to add pos embed to decoder
@@ -105,10 +105,10 @@ Also tried to add pos embed to decoder
 
 |   | Train loss | Val loss | Encoder loss |
 |---|----------|----------|----------|
-| **add_pos_embed_to_decoder=True** | 2.981 | 3.439 | 3.656e-9 |
-| **add_pos_embed_to_decoder=False** | 2.99 | 3.435 | 4.471e-9 |
+| **add_pos_embed_to_decoder=True** | **2.981** | 3.439 | 3.656e-9 |
+| **add_pos_embed_to_decoder=False** | 2.99 | **3.435** | 4.471e-9 |
 
-But compared to a baseline, it doesn not outperform it.
+But compared to a baseline, it doesn not outperform it in train loss, but it did outperform it in validation loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/baseline_val_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -117,8 +117,8 @@ But compared to a baseline, it doesn not outperform it.
 
 |   | Train loss | Val loss |
 |---|----------|----------|
-| **encoder-decoder transformer** | 2.981 | 3.439 |
-| **baseline** | 2.934 | 3.449 |
+| **encoder-decoder transformer** | 2.981 | **3.439** |
+| **baseline** | **2.934** | 3.449 |
 
 ## Next steps
 
