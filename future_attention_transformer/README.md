@@ -30,6 +30,17 @@ The attention loss is computed with respect to $out_{mask}$ and the true $out_{m
 All training runs below were trained on a wikipedia dataset for 9k steps on a single A100 GPU.
 
 
+<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+  <img src="assets/train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/future_loss.svg" alt="Image 2" style="width: 45%;"/>
+</div>
+
+|   | Train loss | Val loss | Encoder loss |
+|---|----------|----------|----------|
+| **with cosine-dissimilarity future attention loss** | 2.954 | 3.411 | 0.1618 |
+| **with MSE future attention loss** | **2.953** | **3.408** | 0.2472 |
+
 
 ## Next steps
 
