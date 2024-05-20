@@ -110,7 +110,7 @@ Another thing that was tried was adding the positional embedding of the next tok
 | **add_pos_embed_to_decoder=True** | **2.981** | 3.439 | 3.656e-9 |
 | **add_pos_embed_to_decoder=False** | 2.99 | **3.435** | 4.471e-9 |
 
-But compared to a baseline, it doesn not outperform it in train loss, but it did outperform it in validation loss.
+But compared to a baseline, it doesn not outperform it in train loss, but it did outperform it in validation loss. Both complete in the same amount of time.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/baseline_val_loss.svg" alt="Image 1" style="width: 45%;"/>
