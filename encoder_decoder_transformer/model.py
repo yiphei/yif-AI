@@ -120,7 +120,7 @@ class CrossAttentionConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    cross_attn_config: CrossAttentionConfig
+    cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = True
     sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.NO
     use_ln_on_encoder_out: Optional[bool] = True
@@ -130,7 +130,7 @@ class ModelConfig(BaseModelConfig):
         EncoderEmbedLossType.MSE
     )
     encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = EncoderEmbedDetachType.FINAL
-    encoder_embed_loss_coeff: Optional[float] = None
+    encoder_embed_loss_coeff: Optional[float] = 0.25
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = EncoderEmbedLayerNormType.INIT
 
     def __post_init__(self):
@@ -167,6 +167,8 @@ class ModelConfig(BaseModelConfig):
 
         if type(self.cross_attn_config) == dict:
             self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
+        if self.cross_attn_config is None:
+            self.cross_attn_config = CrossAttentionConfig(use_bias=self.use_bias, n_head=self.n_head * 2)
 
 
 class CrossMultiAttentionHead(nn.Module):
