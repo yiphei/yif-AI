@@ -115,10 +115,10 @@ But compared to a baseline, it doesn not outperform it in train loss, but it did
   <img src="assets/baseline_train_loss.svg" alt="Image 2" style="width: 45%;"/>
 </div>
 
-|   | Train loss | Val loss |
-|---|----------|----------|
-| **encoder-decoder transformer** | 2.981 | **3.439** |
-| **baseline** | **2.934** | 3.449 |
+|   | Train loss | Val loss | Size (params) |
+|---|----------|----------|----------|
+| **encoder-decoder transformer** | 2.981 | **3.439** | 15,698,400 |
+| **baseline** | **2.934** | 3.449 | 15,850,380 |
 
 ## Next steps
 
