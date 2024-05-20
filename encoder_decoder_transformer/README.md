@@ -106,7 +106,7 @@ Also tried to add pos embed to decoder
 |   | Train loss | Val loss | Encoder loss |
 |---|----------|----------|----------|
 | **add_pos_embed_to_decoder=True** | 2.981 | 3.439 | 3.656e-9 |
-| **add_pos_embed_to_decoder=True** | 2.99 | 3.435 | 4.417e-9 |
+| **add_pos_embed_to_decoder=True** | 2.99 | 3.435 | 4.471e-9 |
 ## Next steps
 
 There are some improvements to be made:
