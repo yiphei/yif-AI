@@ -89,6 +89,11 @@ The MSE encoder loss did better than cosine similarity.
     <img src="assets/encoder_loss.svg" alt="Image 2" style="width: 45%;"/>
 </div>
 
+|   | Train loss | Val loss | Encoder loss |
+|---|----------|----------|----------|
+| **with cosine-dissimilarity encoder loss** | 2.984 | 3.445 | 8.285e-9 |
+| **with MSE encoder loss** | 2.981 | 3.439 | 3.656e-9 |
+
 ## Next steps
 
 There are some improvements to be made:
