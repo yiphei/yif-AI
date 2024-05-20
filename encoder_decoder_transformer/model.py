@@ -120,6 +120,7 @@ class CrossAttentionConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
+    # The default values below are the best ones
     cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = True
     sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.NO
