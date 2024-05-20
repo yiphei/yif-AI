@@ -27,7 +27,9 @@ The attention loss is computed with respect to $out_{mask}$ and the true $out_{m
 
 ## Analysis/experiments
 
-TODO
+All training runs below were trained on a wikipedia dataset for 9k steps on a single A100 GPU.
+
+
 
 ## Next steps
 
