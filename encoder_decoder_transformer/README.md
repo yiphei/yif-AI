@@ -81,7 +81,9 @@ TODO
 
 ## Analysis/experiments
 
-The MSE encoder loss did better than cosine similarity when trained on a wikipedia dataset for 9k steps. Both types of encoder loss did better than without it.
+All training runs below were trained on a wikipedia dataset for 9k steps on a single A100 GPU.
+
+The MSE encoder loss did better than cosine similarity. Both types of encoder loss did better than without it.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/val_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -95,7 +97,7 @@ The MSE encoder loss did better than cosine similarity when trained on a wikiped
 | **with MSE encoder loss** | **2.981** | **3.439** | 3.656e-9 |
 | **with no encoder loss** | 2.997 | 3.449 | N/A |
 
-Also tried to add pos embed to decoder
+Another thing that was tried was adding the positional embedding of the next token to the decoder embedding. This proved to be helpful to train loss but detrimental to val loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/pos_val_loss.svg" alt="Image 1" style="width: 45%;"/>
