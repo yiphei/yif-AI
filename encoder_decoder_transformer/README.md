@@ -13,7 +13,7 @@ In a encoder-decoder model, this dual nature is intrinsically separated. The enc
 
 At the high level, the architecture re-implements the canonical encoder-decoder model but in a parallel way. Furthemore, novel components were added to exploit the dual & parallel encoder-decoder representation.
 
-### Encoder-Decoder
+### Encoder-Decoder layer
 
 The canonical encoder-decoder model looks roughly like this
 
