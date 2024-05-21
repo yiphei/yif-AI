@@ -101,7 +101,7 @@ def forward(self, x, targets):
 
 All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU.
 
-The MSE encoder loss did better than cosine similarity. Both types of encoder loss did better than without it.
+The MSE encoder loss did better than cosine dissimilarity. Both types of encoder loss did better than without it.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/val_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -115,7 +115,7 @@ The MSE encoder loss did better than cosine similarity. Both types of encoder lo
 | **with MSE encoder loss** | **2.981** | **3.439** | 3.656e-9 |
 | **with no encoder loss** | 2.997 | 3.449 | N/A |
 
-Another thing that was tried was adding the positional embedding of the next token to the decoder embedding. This proved to be helpful to train loss but detrimental to val loss.
+Adding the positional embedding of the next tokens to the encoder helped the train loss but was to the detriment of val loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/pos_val_loss.svg" alt="Image 1" style="width: 45%;"/>
