@@ -7,7 +7,9 @@ Decoder-only transformer models apply a causal mask to enable parallel training 
 
 In the canonical decoder's multi attention head, an attention matrix is calculated for every head
 
-<img src="assets/matrix_2.png" alt="sdasd" width="400">
+<div style="text-align: center;">
+  <img src="assets/matrix_2.png" alt="sdasd" width="400">
+</div>
 
 and an upper-right triangular mask is applied on it to respect temporal causality.
 
