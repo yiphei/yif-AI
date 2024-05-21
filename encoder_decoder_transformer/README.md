@@ -115,7 +115,7 @@ The MSE encoder loss did better than cosine dissimilarity. Both types of encoder
 | **with MSE encoder loss** | **2.981** | **3.439** | 3.656e-9 |
 | **with no encoder loss** | 2.997 | 3.449 | N/A |
 
-Adding the positional embedding of the next tokens to the encoder helped the train loss but was to the detriment of val loss.
+Adding the positional embedding of the next tokens to the encoder helped the train loss but was to the detriment of validation loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/pos_val_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -128,7 +128,7 @@ Adding the positional embedding of the next tokens to the encoder helped the tra
 | **add_pos_embed_to_decoder=True** | **2.981** | 3.439 | 3.656e-9 |
 | **add_pos_embed_to_decoder=False** | 2.99 | **3.435** | 4.471e-9 |
 
-But compared to a baseline, it doesn not outperform it in train loss, but it did outperform it in validation loss. Both complete in the same amount of time.
+Compared to a canonical decoder-only transformer model (baseline), it outperformed it in validation loss but underformed in train loss. Both complete in the same amount of time with the same memory bandwith.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/baseline_val_loss.svg" alt="Image 1" style="width: 45%;"/>
