@@ -20,7 +20,7 @@ The canonical encoder-decoder model looks roughly like this
 <div align="center">
   <img src="assets/diagram.png" alt="diagram" width="500">
   <br>
-  <em>From the Attention is All You Need paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward blocks.</em>
+  <em>From the <strong>Attention is All You Need</strong> paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward blocks.</em>
 </div>
 
 
