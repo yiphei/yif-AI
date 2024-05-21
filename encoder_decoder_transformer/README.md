@@ -119,7 +119,7 @@ The MSE encoder loss did better than cosine dissimilarity. Both types of encoder
 | **with MSE encoder loss** | **2.981** | **3.439** | 3.656e-9 |
 | **with no encoder loss** | 2.997 | 3.449 | N/A |
 
-Adding the positional embedding of the next tokens to the encoder helped the train loss but was detrimental of validation loss.
+Adding the positional embedding of the next tokens to the decoder helped the train loss but was detrimental of validation loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/pos_val_loss.svg" alt="Image 1" style="width: 45%;"/>
