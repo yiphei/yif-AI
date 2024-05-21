@@ -92,6 +92,8 @@ def forward(self, x, targets):
     encoder_x = encoder_embed
 
     decoder_x = self.decoder_feed_forward(encoder_x)
+
+    # this is the novel part
     decoder_x += self.positional_embedding(
         torch.arange(
             start=1, end=x.shape[1] + 1, dtype=torch.long
