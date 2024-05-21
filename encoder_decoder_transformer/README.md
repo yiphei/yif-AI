@@ -128,7 +128,7 @@ Adding the positional embedding of the next tokens to the encoder helped the tra
 | **add_pos_embed_to_decoder=True** | **2.981** | 3.439 | 3.656e-9 |
 | **add_pos_embed_to_decoder=False** | 2.99 | **3.435** | 4.471e-9 |
 
-Compared to a canonical decoder-only transformer model (baseline), it outperformed it in validation loss but underformed in train loss. Both complete in the same amount of time with the same memory bandwith.
+Compared to a canonical decoder-only transformer model (baseline), it outperformed it in validation loss but underformed in train loss. Both completed in the same amount of time with the same memory demands.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/baseline_val_loss.svg" alt="Image 1" style="width: 45%;"/>
