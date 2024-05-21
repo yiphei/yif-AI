@@ -65,7 +65,7 @@ $$
 \begin{aligned}
 & out_{enc} \coloneqq \text{encoder output (from the last layer)} \\
 & E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
-& E_{avg_sum} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{avg\_sum_{(i,j)}} = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
+& E_{avgsum} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{avgsum_{(i,j)}} = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
 & encoder\_loss\ = disaffinity\_score(out_{enc}, E_{avg\_sum})
 \end{aligned}
 $$
