@@ -29,6 +29,7 @@ The attention loss is computed with respect to $out_{mask}$ and the true $out_{m
 
 All training runs below were trained on a wikipedia dataset for 9k steps on a single A100 GPU.
 
+Cosine-dissimilarity future attention loss performed better.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -41,6 +42,21 @@ All training runs below were trained on a wikipedia dataset for 9k steps on a si
 | **with cosine-dissimilarity future attention loss** | 2.954 | **3.408** | 0.2478 |
 | **with MSE future attention loss** | **2.953** | 3.411 | 0.1635 |
 
+
+Higher future dim performed better.
+
+<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+  <img src="assets/dim_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/dim_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/dim_future_loss.svg" alt="Image 2" style="width: 45%;"/>
+</div>
+
+|   | Train loss | Val loss | Future Attention loss |
+|---|----------|----------|----------|
+| **with future_dim = 50** | 2.96 | 3.413 | 0.2665 |
+| **with future_dim = 100** | 9.957 | 3.412 | 0.2559 |
+| **with future_dim = 150** | 2.957 | 3.415 | 0.2574 |
+| **with future_dim = 199** | 2.954 | 3.408 | 0.249 |
 
 ## Next steps
 
