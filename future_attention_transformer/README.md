@@ -58,6 +58,19 @@ Higher future dim performed better.
 | **with future_dim = 150** | 2.957 | 3.415 | 0.2574 |
 | **with future_dim = 199** | **2.954** | **3.408** | 0.249 |
 
+Baseline comparison
+
+<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+  <img src="assets/base_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/base_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+</div>
+
+|   | Train loss | Val loss |
+|---|----------|----------|
+| **future attention transformer** | 2.954 | **3.408** |
+| **baseline** | **2.934** | 3.449 |
+
+
 ## Next steps
 
 Some improvements to look forward to:
