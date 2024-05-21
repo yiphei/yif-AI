@@ -62,10 +62,12 @@ The `encoder_x` input to the first layer is just the input embedding $E$ (token 
 In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, we end up with two outputs, one from the encoder and one from decoder. The loss over the decoder output constitutes the canonical loss function extant in decoder-only models, but the presence of a encoder output permits another loss function. In this implementation, it is used to update the token and positional embedding. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying both 1) increases update frequency & magnitude of embedding weights and 2) better compresses the entire forward pass into embedding weights, thus permitting hidden layers to compute more complex representation. The same 1) and 2) can be achieved with the encoder loss described as follows. Given the original input embedding ${E}$ (token + positional), which is also the encoder input to the first hidden layer, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
 
 $$
-out_{enc} \coloneqq \text{encoder output (from the last layer)} \\
-E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
-E_{avg\_sum} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{avg\_sum_{(i,j)}} = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
-encoder\_loss\ = disaffinity\_score(out_{enc}, E_{avg\_sum})
+\begin{aligned}
+& out_{enc} \coloneqq \text{encoder output (from the last layer)} \\
+& E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
+& E_{avg\_sum} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{avg\_sum_{(i,j)}} = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
+& encoder\_loss\ = disaffinity\_score(out_{enc}, E_{avg\_sum})
+\end{aligned}
 $$
 
 Two disaffinity scores are experimented. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the encoder loss with euclidian distance is just
