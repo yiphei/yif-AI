@@ -17,11 +17,11 @@ At the high level, the architecture re-implements the canonical encoder-decoder 
 
 The canonical encoder-decoder model looks roughly like this
 
-<figure style="text-align: center;">
-    <img src="assets/diagram.png"
-         alt="diagram">
-    <figcaption style="display: inline-block; text-align: center;"><em>From the Attention is All You Need paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward blocks.</em></figcaption>
-</figure>
+<div align="center">
+  <img src="assets/diagram.png" alt="diagram">
+  <br>
+  <em>From the Attention is All You Need paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward blocks.</em>
+</div>
 
 
 The parallelized implementation simply has the following as a single layer that's stacked $N$ times.
