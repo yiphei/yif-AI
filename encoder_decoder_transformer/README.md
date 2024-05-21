@@ -72,11 +72,11 @@ $$
 
 Two disaffinity scores are experimented. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the encoder loss with euclidian distance is just
 
-$$encoder\_loss\ = MSE(out_{enc}, E_{avg\_sum})$$
+$$encoder\\\_loss = MSE(out_{enc}, E_{avg\\\_sum})$$
 
 and the encoder loss with cosine dissimilarity is
 
-$$encoder\_loss\ = 1- \frac{cosine\_similarity(out_{enc}, E_{avg\_sum}) + 1}{2}$$
+$$encoder\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1}{2}$$
 
 #### Positional embedding in decoder
 
