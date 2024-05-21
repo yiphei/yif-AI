@@ -149,7 +149,7 @@ Compared to a canonical decoder-only transformer model (baseline), it outperform
 These are some improvements to look forward to:
 - instead of the encoder and decoder having equal depth, it would be better for the model to learn what depth is best for either and at which layer should the decoder start (the encoder should always start from the beginning)
 - instead of MSE and cosine dissimilarity, some other disaffinity score should be experimented with
-- the cumulative embedding average $E_{avg\_sum}$ assumes equal contribution from every preceding token, so a different aggregation might be better (maybe convolution?)
+- the cumulative embedding average $E_{avg\\\_sum}$ assumes equal contribution from every preceding token, so a different aggregation might be better (maybe convolution?)
 - the first $x_{decoder}$ is initialized with a feed forward layer on $E$. Ideally, the decoder would have its own embeddings, but that would add too many parameters. A different way to initialize $x_{decoder}$ should be explored
 
 ## Conclusions
