@@ -38,13 +38,13 @@ This new combined layer has two inputs, one for the encoder and decoder, and two
 
 ```
 def encoder_decoder_layer_forward(encoder_x, decoder_x):
-    # encoder block
+    # encoder part
     encoder_x = encoder_x + encoder_multi_attn_head(
         encoder_layer_norm_1(encoder_x)
     )
     encoder_x = encoder_x + encoder_feed_forward(encoder_layer_norm_2(encoder_x))
     
-    # decoder block
+    # decoder part
     decoder_x = decoder_x + decoder_multi_attn_head(
         decoder_layer_norm_1(decoder_x)
     )
