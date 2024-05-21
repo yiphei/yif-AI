@@ -56,7 +56,7 @@ Higher future dim performed better.
 | **with future_dim = 50** | 2.96 | 3.413 | 0.2665 |
 | **with future_dim = 100** | 2.957 | 3.412 | 0.2559 |
 | **with future_dim = 150** | 2.957 | 3.415 | 0.2574 |
-| **with future_dim = 199** | 2.954 | 3.408 | 0.249 |
+| **with future_dim = 199** | **2.954** | **3.408** | 0.249 |
 
 ## Next steps
 
