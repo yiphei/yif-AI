@@ -33,9 +33,9 @@ class FutureXLossType(str, Enum):
 class ModelConfig(BaseModelConfig):
     start_layer: int  # layer at which to start using future attention
     future_dim: int  # number of future tokens to attend to
-    future_x_loss_type: Union[FutureXLossType, int]
+    future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
     use_future_x_loss: bool = True
-    detach_future_x: Optional[bool] = None
+    detach_future_x: Optional[bool] = False
     end_layer: Optional[int] = None
     future_x_loss_coeff: Optional[float] = 1.0
 
