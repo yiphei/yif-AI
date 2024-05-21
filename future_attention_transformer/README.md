@@ -7,11 +7,11 @@ Decoder-only transformer models apply a causal mask to enable parallel training 
 
 In the canonical decoder's multi attention head, an attention matrix is calculated for every head
 
-![sdasd](assets/matrix_2.png)
+<img src="assets/matrix_2.png" alt="sdasd" width="400">
 
 and an upper-right triangular mask is applied on it to respect temporal causality.
 
-![sdasd](assets/matrix_3.png)
+<img src="assets/matrix_3.png" alt="sdasd" width="400">
 
 However, it seems wasteful to throw away so much information. Instead, we can ask the model to "predict" the masked upper right triangle of the attention matrix by having it compute the output contribution from it. In other words, asumming that $out_{full}$ is the output of the attention operation if no mask were applied to the attention matrix (also known as $out_{encoder}$) and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{mask} = out_{full/encoder} - out_{decoder}$. Once that is computed, we return the final output of the attention operation as $out_{mask} + out_{decoder}$. Moreover, we can calculate an attention loss on $out_{mask}$ since we know the true $out_{mask}$. This attention loss is then aggregated over all heads and added to the model's final loss.
 
