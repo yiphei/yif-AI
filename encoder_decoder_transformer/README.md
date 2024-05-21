@@ -99,7 +99,7 @@ def forward(self, x, targets):
 ```
 ## Analysis/experiments
 
-All training runs below were trained on a wikipedia dataset for 9k steps on a single A100 GPU.
+All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU.
 
 The MSE encoder loss did better than cosine similarity. Both types of encoder loss did better than without it.
 
