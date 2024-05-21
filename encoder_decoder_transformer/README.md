@@ -20,7 +20,7 @@ The canonical encoder-decoder model looks roughly like this
 <div align="center">
   <img src="assets/diagram.png" alt="diagram" width="500">
   <br>
-  <em>From the <strong>Attention is All You Need</strong> paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of <strong>Add & Norm</strong> to before attention and feed forward blocks.</em>
+  <em>From the <strong>Attention is All You Need</strong> paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of <strong>Norm</strong> to before attention and feed forward blocks.</em>
 </div>
 <br>
 
@@ -30,7 +30,7 @@ The parallelized implementation simply has the following as a single layer that'
     <img src="assets/new_diagram.png"
          alt="diagram" width="500">
     <br>
-    <em>Just like the one before, <strong>Add & Norm</strong> should be moved to before each block.</em>
+    <em>Just like the one before, <strong>Norm</strong> should be moved to before each block.</em>
 </div>
 <br>
 
