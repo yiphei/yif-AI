@@ -22,8 +22,7 @@ The canonical encoder-decoder model looks roughly like this
   <br>
   <em>From the <strong>Attention is All You Need</strong> paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward blocks.</em>
 </div>
-
-
+<br>
 The parallelized implementation simply has the following as a single layer that's stacked $N$ times.
 
 <figure>
