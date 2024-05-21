@@ -20,17 +20,18 @@ The canonical encoder-decoder model looks roughly like this
 <div align="center">
   <img src="assets/diagram.png" alt="diagram" width="500">
   <br>
-  <em>From the <strong>Attention is All You Need</strong> paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of Add & Norm component to before attention and feed forward blocks.</em>
+  <em>From the <strong>Attention is All You Need</strong> paper. The modern encoder-decoder remains largely the same as the one above, with the major difference being the relocation of <strong>Add & Norm</strong> to before attention and feed forward blocks.</em>
 </div>
 <br>
 The parallelized implementation simply has the following as a single layer that's stacked $N$ times.
 
-<figure>
+<div align="center">
     <img src="assets/new_diagram.png"
-         alt="diagram">
-    <figcaption><em>Just like the one before, Add & Norm should be moved to before each block.</em></figcaption>
-</figure>
-
+         alt="diagram" width="500">
+    <br>
+    <em>Just like the one before, <strong>Add & Norm</strong> should be moved to before each block.</em>
+</div>
+<br>
 
 This new combined layer has two inputs, one for the encoder and decoder, and two outputs, one for the encoder and decoder. The decoder and encoder latent representations interact only at the second attention block on the decoder side. Stated in pseudocode, it becomes
 
