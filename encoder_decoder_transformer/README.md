@@ -76,10 +76,27 @@ and the encoder loss with cosine dissimilarity is
 
 $$encoder\_loss\ = 1- \frac{cosine\_similarity(out_{enc}, E_{avg\_sum}) + 1}{2}$$
 
-#### Positional loss in decoder
+#### Positional embedding in decoder
 
-TODO
+A small addition that proved useful is adding the positional embedding of the next tokens to the output of the feed forward on the input embeddings. In pseudocode, it becomes
+```
+# this is the forward of the model
+def forward(self, x, targets):
+    token_embed = self.token_embedding(x)
+    pos_embed = self.positional_embedding(
+        torch.arange(x.shape[1], dtype=torch.long)
+    )
+    encoder_embed = token_embed + pos_embed
+    encoder_x = encoder_embed
 
+    decoder_x = self.decoder_feed_forward(encoder_x)
+    decoder_x += self.positional_embedding(
+        torch.arange(
+            start=1, end=x.shape[1] + 1, dtype=torch.long
+        )
+    )
+    ...
+```
 ## Analysis/experiments
 
 All training runs below were trained on a wikipedia dataset for 9k steps on a single A100 GPU.
