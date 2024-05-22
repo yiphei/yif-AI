@@ -70,7 +70,7 @@ $$
 \end{aligned}
 $$
 
-Two disaffinity scores are experimented. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the encoder loss with euclidian distance is just
+Two disaffinity scores are experimented. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the encoder loss with MSE is just
 
 $$encoder\\\_loss = MSE(out_{enc}, E_{avg\\\_sum})$$
 

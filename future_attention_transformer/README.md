@@ -29,7 +29,13 @@ At the high-level, the architecture is just the canonical decoder-only transform
 
 In the regular attention head, attention works by computing $Q$, $K$, and $V$ tensors. That continues to be the case here. $out_{decoder}$ is just the output of the cannonical attention operation with a masked attention matrix. In parallel, the model also computes $out_{mask}$. To do so, we need $K_{mask}$ and $V_{mask}$. There are many ways to obtain these two but the easier way is to have $K_{mask}$ and $V_{mask}$ as model parameters, not computed tensors like $Q$, $K$, and $V$. Then, you compute a "future" attention matrix $Attn_{future} = Q \cdot K_{future}$. Afterwards, compute the full attention matrix $Attn_{full} = Attn_{decoder} + Attn_{future}$, where $Attn_{decoder}$ is just the regular decoder-only masked attention (note that $Attn_{decoder} + Attn_{future}$ is not precise because there are padding operations to have the shapes match. Please view the code as it is hard to explain verbally). Perform the softmax on $Attn_{full}$ to get $AttnSoftmax_{full}$ and separate $AttnSoftmax_{full}$ into the individual contributions $AttnSoftmax_{decoder}$ and $AttnSoftmax_{mask}$, where $AttnSoftmax_{decoder}$ is just the regular attention softmax that you would get from decoder attention. Finally, compute $out_{decoder}= AttnSoftmax_{decoder} \cdot V$ and $out_{mask}= AttnSoftmax_{mask} \cdot V_{future}$ and get the final output $out = out_{decoder} + out_{mask}$. 
 
-The attention loss is computed with respect to $out_{mask}$ and the true $out_{mask}$, which can be trivially computed.
+The future attention loss is computed with respect to $out_{mask}$ and the true $out_{mask}$. Two types of loss are experimented. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the future attention loss with MSE is just
+
+$$encoder\\\_loss = MSE(out_{enc}, E_{avg\\\_sum})$$
+
+and with cosine dissimilarity is
+
+$$encoder\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1}{2}$$
 
 ## Analysis/experiments
 
