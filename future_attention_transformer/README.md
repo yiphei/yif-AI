@@ -1,7 +1,7 @@
 # Future Attention Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
 
-Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. But that wastes half of the attention matrix. Also, it also creates an imbalance in compute. More compute is performed on the later tokens than earlier ones. What if you could use the full attention matrix while respecting the temporal causality? The model presented here demonstrates a way to do it.
+Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. This creates an imbalance in compute per context length and throws away good signal. The model presented here demonstrates a way to remedy these two issues.
 
 ## Motivations
 
@@ -17,7 +17,9 @@ and an upper-right triangular mask is applied on it to respect temporal causalit
   <img src="assets/matrix_3.png" alt="sdasd" width="400">
 </div>
 
-However, it seems wasteful to throw away so much information. Instead, we can ask the model to "predict" the masked upper right triangle of the attention matrix by having it compute the output contribution from it. In other words, asumming that $out_{full}$ is the output of the attention operation if no mask were applied to the attention matrix (also known as $out_{encoder}$) and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{mask} = out_{full/encoder} - out_{decoder}$. Once that is computed, we return the final output of the attention operation as $out_{mask} + out_{decoder}$. Moreover, we can calculate an attention loss on $out_{mask}$ since we know the true $out_{mask}$. This attention loss is then aggregated over all heads and added to the model's final loss.
+This is necessary to permit parallel training because you don't want the model to cheat by exposing it the answers. However, it creates two issues. First, it creates an imbalance of compute per token: bigger contexts have more compute. This is not bad per se but the benefit of imposing this by design is not obvious. Second, the masked part of the attention matrix contains good signal on the affinity of earlier tokens to later tokens.
+
+We can ask the model to indirectly "predict" the masked upper right triangle of the attention matrix by having it compute the output contribution from it. In other words, asumming that $out_{full}$ is the output of the attention operation if no mask were applied to the attention matrix (also known as $out_{encoder}$) and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{mask} = out_{full/encoder} - out_{decoder}$. Once that is computed, we return the final output of the attention operation as $out_{mask} + out_{decoder}$. Moreover, we can calculate an attention loss on $out_{mask}$ since we know the true $out_{mask}$. This attention loss is then aggregated over all heads and added to the model's final loss.
 
 ## Architecture
 
