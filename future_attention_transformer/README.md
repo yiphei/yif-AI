@@ -31,11 +31,11 @@ In the regular attention head, attention works by computing $Q$, $K$, and $V$ te
 
 The future attention loss is computed with respect to $out_{mask}$ and the true $out_{mask}$. Two types of loss are experimented. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the future attention loss with MSE is just
 
-$$encoder\\\_loss = MSE(out_{enc}, E_{avg\\\_sum})$$
+$$future\\\_attn\\\_loss = MSE(out_{mask}, out_true)$$
 
 and with cosine dissimilarity is
 
-$$encoder\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1}{2}$$
+$$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{mask}, out_true) + 1}{2}$$
 
 ## Analysis/experiments
 
