@@ -55,8 +55,7 @@ First, the two types of future attention loss were compared. Cosine-dissimilarit
 | **with MSE future attention loss** | **2.953** | 3.411 | 0.1635 |
 
 
-
-Higher future dim performed better.
+Future dim is how far in the future each token should predict via the attention matrix. The higher the future dim, the father in the future each token tries to predict (though the cumulative distance of future dim + local context cannot exceed max context, at least in the current implementation). Naturally, one would expect that the bigger future dim is, the better. And that did prove to be true by experiments. The highest future dim of 199 performed the best. Note that the max context size was 200, so the max future dim is 199.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/dim_train_loss.svg" alt="Image 1" style="width: 45%;"/>
