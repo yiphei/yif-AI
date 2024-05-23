@@ -70,7 +70,7 @@ Future dim is how far in the future each token should predict via the attention 
 | **with future_dim = 150** | 2.957 | 3.415 | 0.2574 |
 | **with future_dim = 199** | **2.954** | **3.408** | 0.249 |
 
-Baseline comparison
+Compared to a canonical decoder-only transformer (baseline), it outperformed it in validation loss but underformed in train loss. [TO CONFIRM] Both completed in the similar amount of time with the similar memory demands. [TO CONFIRM] The baseline did have more parameters because it was hard to exactly match the new model's.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/base_train_loss.svg" alt="Image 1" style="width: 45%;"/>
