@@ -41,7 +41,7 @@ $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{mask}, out_{mask}^
 
 All training runs below were trained on a wikipedia dataset for 9k steps on a single A100 GPU.
 
-Cosine-dissimilarity future attention loss performed better.
+First, the two types of future attention loss were compared. Cosine-dissimilarity did better in validation loss while MSE did better in train loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -53,6 +53,7 @@ Cosine-dissimilarity future attention loss performed better.
 |---|----------|----------|----------|
 | **with cosine-dissimilarity future attention loss** | 2.954 | **3.408** | 0.2478 |
 | **with MSE future attention loss** | **2.953** | 3.411 | 0.1635 |
+
 
 
 Higher future dim performed better.
