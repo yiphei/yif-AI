@@ -55,7 +55,7 @@ def encoder_decoder_layer_forward(encoder_x, decoder_x):
     return encoder_x, decoder_x
 ```
 
-The `encoder_x` input to the first layer is just the input embedding $E$ (token + positional), no different than decoder-only models. The `decoder_x` input to the first layer is obtained from a feed forward on $E$.
+The `encoder_x` input to the first layer is just the input embedding $E$ (token + positional), no different than decoder-only transformer. The `decoder_x` input to the first layer is obtained from a feed forward on $E$.
 
 ### Encoder loss
 
