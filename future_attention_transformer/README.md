@@ -87,9 +87,9 @@ Compared to a canonical decoder-only transformer (baseline), it outperformed it 
 
 ## Next steps
 
-Some improvements to look forward to:
-- Have $K_{future}$ and $V_{future}$ be computed from the tokens, instead of being free parameters, in an parameter efficient way.
-- Explore other ways to compute the attention loss.
+These are some improvements to look forward to:
+- Have $K_{future}$ and $V_{future}$ be computed tokens (just like $Q$, $K$, and $V$) – instead of being free parameters – and in an parameter efficient way
+- Explore other ways to compute the future attention loss
 
 ## Conclusions
 
