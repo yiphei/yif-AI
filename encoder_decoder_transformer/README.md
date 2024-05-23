@@ -80,27 +80,23 @@ $$encoder\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1
 
 #### Positional embedding in decoder
 
-A small addition that proved useful is adding the positional embedding of the next tokens to the output of the feed forward on the input embeddings. In pseudocode, it becomes
+A small addition that proved useful is adding the positional embedding of the next tokens (the ones to be predicted) to `decoder_x` before the first hidden layer. In pseudocode, it becomes
 ```
 # this is the forward of the model
 def forward(self, x, targets):
-    token_embed = self.token_embedding(x)
-    pos_embed = self.positional_embedding(
-        torch.arange(x.shape[1], dtype=torch.long)
-    )
-    encoder_embed = token_embed + pos_embed
-    encoder_x = encoder_embed
+    ...
 
-    decoder_x = self.decoder_feed_forward(encoder_x)
-
-    # this is the novel part
     decoder_x += self.positional_embedding(
         torch.arange(
             start=1, end=x.shape[1] + 1, dtype=torch.long
         )
     )
+    
+    # beginning of hidden layers
     ...
 ```
+
+Naturally, the positional embeddings would have to be initialized to have `context_size + 1` indices.
 ## Analysis/experiments
 
 All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU.
