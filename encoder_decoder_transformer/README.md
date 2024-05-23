@@ -15,7 +15,7 @@ At the high level, the architecture re-implements the canonical encoder-decoder 
 
 ### Encoder-Decoder layer
 
-The canonical encoder-decoder model looks roughly like this
+The canonical encoder-decoder transformer first runs the encoder and then the decoder, serially. It looks roughly like this
 
 <div align="center">
   <img src="assets/diagram.png" alt="diagram" width="500">
