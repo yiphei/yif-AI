@@ -127,12 +127,14 @@ class ModelConfig(BaseModelConfig):
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     order_type: Union[OrderType, int] = OrderType.ORIGINAL
-    encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = (
-        EncoderEmbedLossType.MSE
+    encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
+    encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = (
+        EncoderEmbedDetachType.FINAL
     )
-    encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = EncoderEmbedDetachType.FINAL
     encoder_embed_loss_coeff: Optional[float] = 0.25
-    encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = EncoderEmbedLayerNormType.INIT
+    encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
+        EncoderEmbedLayerNormType.INIT
+    )
 
     def __post_init__(self):
         if type(self.order_type) == int:
@@ -150,7 +152,9 @@ class ModelConfig(BaseModelConfig):
                 self.encoder_embed_ln_type
             )
         if type(self.sub_pos_embed_to_decoder) == int:
-            self.sub_pos_embed_to_decoder = SubPosEmbedType.get_type_from_int(self.sub_pos_embed_to_decoder)
+            self.sub_pos_embed_to_decoder = SubPosEmbedType.get_type_from_int(
+                self.sub_pos_embed_to_decoder
+            )
 
         if self.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
             if self.encoder_embed_loss_coeff is None:
@@ -169,7 +173,9 @@ class ModelConfig(BaseModelConfig):
         if type(self.cross_attn_config) == dict:
             self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
         if self.cross_attn_config is None:
-            self.cross_attn_config = CrossAttentionConfig(use_bias=self.use_bias, n_head=self.n_head * 2)
+            self.cross_attn_config = CrossAttentionConfig(
+                use_bias=self.use_bias, n_head=self.n_head * 2
+            )
 
 
 class CrossMultiAttentionHead(nn.Module):
@@ -296,7 +302,10 @@ class EncoderDecoderTransformer(BaseModel):
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         positional_embedding_size = config.context_size
-        if config.add_pos_embed_to_decoder or self.config.sub_pos_embed_to_decoder != SubPosEmbedType.NO:
+        if (
+            config.add_pos_embed_to_decoder
+            or self.config.sub_pos_embed_to_decoder != SubPosEmbedType.NO
+        ):
             positional_embedding_size += 1
         self.positional_embedding = nn.Embedding(
             positional_embedding_size, config.n_embed
