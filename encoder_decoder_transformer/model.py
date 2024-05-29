@@ -229,14 +229,14 @@ class TransformerBlock(nn.Module):
             config.dropout_rate,
             True,
         )
-        self.decoder_multi_attn_head = MultiAttentionHead(
-            config.n_embed,
-            config.n_head,
-            config.use_bias,
-            config.context_size,
-            config.dropout_rate,
-            True,
-        )
+        # self.decoder_multi_attn_head = MultiAttentionHead(
+        #     config.n_embed,
+        #     config.n_head,
+        #     config.use_bias,
+        #     config.context_size,
+        #     config.dropout_rate,
+        #     True,
+        # )
         self.cross_multi_attn_head = CrossMultiAttentionHead(
             config.n_embed,
             config.cross_attn_config.n_head,
@@ -261,7 +261,7 @@ class TransformerBlock(nn.Module):
         self.encoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.encoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-        self.decoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
+        # self.decoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, encoder_x, decoder_x):
@@ -270,9 +270,9 @@ class TransformerBlock(nn.Module):
         )
         encoder_x = encoder_x + self.encoder_feed_forward(self.encoder_ln2(encoder_x))
         if self.order_type == OrderType.ORIGINAL:
-            decoder_x = decoder_x + self.decoder_multi_attn_head(
-                self.decoder_ln1(decoder_x)
-            )
+            # decoder_x = decoder_x + self.decoder_multi_attn_head(
+            #     self.decoder_ln1(decoder_x)
+            # )
             decoder_x = decoder_x + self.cross_multi_attn_head(
                 self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
             )
