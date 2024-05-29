@@ -137,7 +137,7 @@ Compared to a canonical decoder-only transformer (baseline), it outperformed it 
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **encoder-decoder transformer** [(config)](#encoder-decoder-transformer) | 2.981 | **3.439** | 15,698,400 |
+| **parallel encoder-decoder transformer** [(config)](#parallel-encoder-decoder-transformer) | 2.981 | **3.439** | 15,698,400 |
 | **baseline** [(config)](#baseline) | **2.934** | 3.449 | 15,850,380 |
 
 ## Next steps
@@ -312,5 +312,5 @@ TODO
  'lr_decay_iters': 700000,
  'gradient_accumulation_steps': 16}
 ```
-#### "encoder-decoder transformer"
+#### "parallel encoder-decoder transformer"
 #### "baseline"
