@@ -147,6 +147,7 @@ These are some improvements to look forward to:
 - instead of MSE and cosine dissimilarity, some other disaffinity score should be experimented with
 - the cumulative embedding average $E_{avg\\\_sum}$ assumes equal contribution from every preceding token, so a different aggregation might be better (maybe convolution?)
 - the first `decoder_x` is initialized with a feed forward layer on $E$. Ideally, the decoder would have its own embeddings, but that would add too many parameters. A different way to initialize `decoder_x` should be explored
+- try bigger models, at least GPT-2 size
 
 ## Conclusions
 TODO
