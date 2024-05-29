@@ -125,8 +125,8 @@ Adding the positional embedding of the next tokens to the decoder helped the tra
 
 |   | Train loss | Val loss | Encoder loss |
 |---|----------|----------|----------|
-| **add_pos_embed_to_decoder=True** [(config)](#add_pos_embed_to_decoder=True) | **2.981** | 3.439 | 3.656e-9 |
-| **add_pos_embed_to_decoder=False** [(config)](#add_pos_embed_to_decoder=False) | 2.99 | **3.435** | 4.471e-9 |
+| **add_pos_embed_to_decoder=True** [(config)](#add_pos_embed_to_decodertrue) | **2.981** | 3.439 | 3.656e-9 |
+| **add_pos_embed_to_decoder=False** [(config)](#add_pos_embed_to_decoderfalse) | 2.99 | **3.435** | 4.471e-9 |
 
 Compared to a canonical decoder-only transformer (baseline), it outperformed it in validation loss but underformed in train loss. Both completed in the similar amount of time with the similar memory demands. The baseline did have more parameters because it was hard to exactly match the new model's.
 
