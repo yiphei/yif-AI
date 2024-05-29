@@ -111,8 +111,8 @@ The MSE encoder loss did better than cosine dissimilarity. Both types of encoder
 
 |   | Train loss | Val loss | Encoder loss |
 |---|----------|----------|----------|
-| **with cosine-dissimilarity encoder loss** | 2.984 | 3.445 | 8.285e-9 |
-| **with MSE encoder loss** | **2.981** | **3.439** | 3.656e-9 |
+| **with cosine-dissimilarity encoder loss** [(config)](#cosine) | 2.984 | 3.445 | 8.285e-9 |
+| **with MSE encoder loss** [(config)](#mse) | **2.981** | **3.439** | 3.656e-9 |
 | **with no encoder loss** | 2.997 | 3.449 | N/A |
 
 Adding the positional embedding of the next tokens to the decoder helped the train loss but was detrimental to validation loss.
@@ -149,5 +149,58 @@ These are some improvements to look forward to:
 - the first `decoder_x` is initialized with a feed forward layer on $E$. Ideally, the decoder would have its own embeddings, but that would add too many parameters. A different way to initialize `decoder_x` should be explored
 
 ## Conclusions
-
 TODO
+
+---
+## Appendix
+### Run configs
+<a id="cosine"></a>
+#### "with cosine-dissimilarity encoder loss"
+```
+configs here
+sd
+asd
+as
+da
+sd
+a
+sd
+as
+d
+asd
+a
+sd
+as
+da
+sd
+asd
+a
+sda
+sd
+
+
+```
+<a id="mse"></a>
+#### "with MSE encoder loss"
+```
+configs here
+sd
+asd
+as
+da
+sd
+a
+sd
+as
+d
+asd
+a
+sd
+as
+da
+sd
+asd
+a
+sda
+sd
+```
