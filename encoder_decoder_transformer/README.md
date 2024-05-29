@@ -104,9 +104,9 @@ All training runs below were done on a wikipedia dataset for 9k steps on a singl
 The MSE encoder loss did better than cosine dissimilarity. Both types of encoder loss did better than without it.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
-  <img src="assets/val_loss.svg" alt="Image 1" style="width: 45%;"/>
-  <img src="assets/train_loss.svg" alt="Image 2" style="width: 45%;"/>
-    <img src="assets/encoder_loss.svg" alt="Image 2" style="width: 45%;"/>
+  <img src="assets/g_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/g_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/g_encoder_loss.svg" alt="Image 2" style="width: 45%;"/>
 </div>
 
 |   | Train loss | Val loss | Encoder loss |
