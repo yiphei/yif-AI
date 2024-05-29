@@ -111,9 +111,9 @@ The MSE encoder loss did better than cosine dissimilarity. Both types of encoder
 
 |   | Train loss | Val loss | Encoder loss |
 |---|----------|----------|----------|
-| **with cosine-dissimilarity encoder loss** [(config)](#cosine) | 2.984 | 3.445 | 8.285e-9 |
-| **with MSE encoder loss** [(config)](#mse) | **2.981** | **3.439** | 3.656e-9 |
-| **with no encoder loss** | 2.997 | 3.449 | N/A |
+| **with cosine-dissimilarity encoder loss** [(config)](#with-cosine-dissimilarity-encoder-loss) | 2.984 | 3.445 | 8.285e-9 |
+| **with MSE encoder loss** [(config)](#with-mse-encoder-loss) | **2.981** | **3.439** | 3.656e-9 |
+| **with no encoder loss** [(config)](#with-no-encoder-loss) | 2.997 | 3.449 | N/A |
 
 Adding the positional embedding of the next tokens to the decoder helped the train loss but was detrimental to validation loss.
 
@@ -125,8 +125,8 @@ Adding the positional embedding of the next tokens to the decoder helped the tra
 
 |   | Train loss | Val loss | Encoder loss |
 |---|----------|----------|----------|
-| **add_pos_embed_to_decoder=True** | **2.981** | 3.439 | 3.656e-9 |
-| **add_pos_embed_to_decoder=False** | 2.99 | **3.435** | 4.471e-9 |
+| **add_pos_embed_to_decoder=True** [(config)](#add_pos_embed_to_decoder=True) | **2.981** | 3.439 | 3.656e-9 |
+| **add_pos_embed_to_decoder=False** [(config)](#add_pos_embed_to_decoder=False) | 2.99 | **3.435** | 4.471e-9 |
 
 Compared to a canonical decoder-only transformer (baseline), it outperformed it in validation loss but underformed in train loss. Both completed in the similar amount of time with the similar memory demands. The baseline did have more parameters because it was hard to exactly match the new model's.
 
@@ -137,8 +137,8 @@ Compared to a canonical decoder-only transformer (baseline), it outperformed it 
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **encoder-decoder transformer** | 2.981 | **3.439** | 15,698,400 |
-| **baseline** | **2.934** | 3.449 | 15,850,380 |
+| **encoder-decoder transformer** [(config)](#encoder-decoder-transformer) | 2.981 | **3.439** | 15,698,400 |
+| **baseline** [(config)](#baseline) | **2.934** | 3.449 | 15,850,380 |
 
 ## Next steps
 
@@ -154,53 +154,12 @@ TODO
 ---
 ## Appendix
 ### Run configs
-<a id="cosine"></a>
 #### "with cosine-dissimilarity encoder loss"
-```
-configs here
-sd
-asd
-as
-da
-sd
-a
-sd
-as
-d
-asd
-a
-sd
-as
-da
-sd
-asd
-a
-sda
-sd
-
-
-```
-<a id="mse"></a>
 #### "with MSE encoder loss"
-```
-configs here
-sd
-asd
-as
-da
-sd
-a
-sd
-as
-d
-asd
-a
-sd
-as
-da
-sd
-asd
-a
-sda
-sd
-```
+#### "with no encoder loss"
+
+#### "add_pos_embed_to_decoder=True"
+#### "add_pos_embed_to_decoder=False"
+
+#### "encoder-decoder transformer"
+#### "baseline"
