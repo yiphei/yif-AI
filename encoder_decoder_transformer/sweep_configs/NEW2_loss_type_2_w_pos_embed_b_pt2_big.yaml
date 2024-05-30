@@ -1,5 +1,5 @@
 program: encoder_decoder_transformer/training_script.py
-name: NEW2_loss_type_2_w_pos_embed_b_pt2
+name: NEW2_loss_type_2_w_pos_embed_b_pt2_big
 project: encoder_decoder_transformer
 method: grid
 metric:
@@ -15,7 +15,7 @@ parameters:
             n_embed: 
                 value: 190
             n_layer: 
-                value: 7
+                value: 8
             n_head: 
                 value: 10
             dropout_rate:
