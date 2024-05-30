@@ -9,7 +9,7 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
-                                       MultiAttentionHead)
+                                       TransformerBlock)
 
 
 class OrderType(str, Enum):
@@ -214,39 +214,17 @@ class CrossMultiAttentionHead(nn.Module):
         return new_decoder_x
 
 
-class TransformerBlock(nn.Module):
+class DecoderTransformerBlock(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
     ):
         super().__init__()
         self.order_type = config.order_type
-        self.encoder_multi_attn_head = MultiAttentionHead(
-            config.n_embed,
-            config.n_head,
-            config.use_bias,
-            config.context_size,
-            config.dropout_rate,
-            True,
-        )
-        # self.decoder_multi_attn_head = MultiAttentionHead(
-        #     config.n_embed,
-        #     config.n_head,
-        #     config.use_bias,
-        #     config.context_size,
-        #     config.dropout_rate,
-        #     True,
-        # )
         self.cross_multi_attn_head = CrossMultiAttentionHead(
             config.n_embed,
             config.cross_attn_config.n_head,
             config.cross_attn_config.use_bias,
-            config.dropout_rate,
-        )
-
-        self.encoder_feed_forward = FeedForward(
-            config.n_embed,
-            config.use_bias,
             config.dropout_rate,
         )
         self.decoder_feed_forward = FeedForward(
@@ -258,30 +236,16 @@ class TransformerBlock(nn.Module):
         self.encoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        self.encoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
-        self.encoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
-
-        # self.decoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, encoder_x, decoder_x):
-        encoder_x = encoder_x + self.encoder_multi_attn_head(
-            self.encoder_ln1(encoder_x)
-        )
-        encoder_x = encoder_x + self.encoder_feed_forward(self.encoder_ln2(encoder_x))
         if self.order_type == OrderType.ORIGINAL:
-            # decoder_x = decoder_x + self.decoder_multi_attn_head(
-            #     self.decoder_ln1(decoder_x)
-            # )
             decoder_x = decoder_x + self.cross_multi_attn_head(
                 self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
             )
         elif self.order_type == OrderType.ALT:
             decoder_x = decoder_x + self.cross_multi_attn_head(
                 self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
-            )
-            decoder_x = decoder_x + self.decoder_multi_attn_head(
-                self.decoder_ln1(decoder_x)
             )
         else:
             raise ValueError("Invalid order type")
@@ -318,9 +282,22 @@ class EncoderDecoderTransformer(BaseModel):
         )
 
         self.dropout = nn.Dropout(config.dropout_rate)
-        self.transformer_blocks = nn.ModuleList(
-            [
+        self.encoder_transformer_blocks = nn.Sequential(
+            *[
                 TransformerBlock(
+                    config.n_embed,
+                    config.n_head,
+                    config.use_bias,
+                    config.context_size,
+                    config.dropout_rate,
+                    config.use_flash,
+                )
+                for _ in range(config.n_layer)
+            ]
+        )
+        self.decoder_transformer_blocks = nn.ModuleList(
+            [
+                DecoderTransformerBlock(
                     config,
                 )
                 for _ in range(config.n_layer)
@@ -368,7 +345,9 @@ class EncoderDecoderTransformer(BaseModel):
                 )
             )
 
-        for transformer_block in self.transformer_blocks:
+        encoder_x = self.encoder_transformer_blocks(encoder_x)
+
+        for transformer_block in self.decoder_transformer_blocks:
             encoder_x, decoder_x = transformer_block(encoder_x, decoder_x)
 
         encoder_out = encoder_x
