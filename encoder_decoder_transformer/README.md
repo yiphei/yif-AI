@@ -5,13 +5,13 @@ Current SOTA LLMs are all decoder-only models. Here, a new encoder-decoder trans
 
 ## Motivations
 
-The largest motivation originates from the paradox posed by the atttention mechanism attending latent representation of prior tokens when they are solely optimized for next token prediction. More concretely, if the latent representation $\mathbf{h}^{l}\_{t}$ of token $\mathbf{x}\_{t}$ is trying to predict the next token $\mathbf{x}\_{t+1}$, then $\mathbf{h}^{l}\_{t}$ shouldn't be **entirely** useful to the latent representation $\mathbf{h}^{l}\_{t+1}$ of the next token (and any $\mathbf{h}^{l}\_{z}$ where $z > t$), which is trying to predict $\mathbf{x}\_{t+2}$. Yet, the attention mechanism makes $\mathbf{h}^{l}\_{t}$ attend to the entire $\mathbf{h}^{l}\_{z}$ (though with different weightings) where $z < t$. Now, we know empirically that the earlier layers of a decoder-only transformer are less focused on next-token prediction and more on just general understanding, so latent representation of earlier tokens at these layers are indeed more useful to later tokens. Though there is a singular objective function (next token prediction), the attention mechanism implitictly introduces another one: general (contextual) understanding. However, there is reason to conjecture that they become less useful at later layers as latent representation becomes increasingly attuned to next token prediction. Plausibly, attending to prior tokens at these layers could hurt performance. Therefore, it's worth exploring if separating this dual latent representation could improve performance.
+The largest motivation originates from the paradox posed by the attention mechanism attending latent representation of prior tokens when they are solely optimized for next token prediction. More concretely, if the latent representation $\mathbf{h}^{l}\_{t}$ of token $\mathbf{x}\_{t}$ is trying to predict the next token $\mathbf{x}\_{t+1}$, then $\mathbf{h}^{l}\_{t}$ shouldn't be **entirely** useful to the latent representation $\mathbf{h}^{l}\_{t+1}$ of the next token (and any $\mathbf{h}^{l}\_{z}$ where $z > t$), which is trying to predict $\mathbf{x}\_{t+2}$. Yet, the attention mechanism makes $\mathbf{h}^{l}\_{t}$ attend to the entire $\mathbf{h}^{l}\_{z}$ (though with different weightings) where $z < t$. Now, we know empirically that the earlier layers of a decoder-only transformer are less focused on next-token prediction and more on just general understanding, so the latent representation of earlier tokens at these layers is indeed more useful to later tokens. Though there is a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. However, there is reason to conjecture that they become less useful at later layers as latent representation becomes increasingly attuned to next token prediction. Plausibly, attending to prior tokens at these layers could hurt performance. Therefore, it's worth exploring if separating this dual latent representation could improve performance.
 
-In a encoder-decoder model, this dual nature is intrinsically separated. The encoder handles general understanding and decoder handles prediction. These run serially in the canonical implementation. Instead, the model presented here implements them in parallel. The parallel implementation also permits an additional loss on the encoder output.
+In an encoder-decoder model, this dual nature is intrinsically separated. The encoder handles general understanding and the decoder handles prediction. These run serially in the canonical implementation. Instead, the model presented here implements them in parallel. The parallel implementation also permits an additional loss on the encoder output.
 
 ## Architecture
 
-At the high level, the architecture re-implements the canonical encoder-decoder model but in a parallel way. Furthemore, novel components were added to exploit the dual & parallel encoder-decoder representation.
+At the high level, the architecture re-implements the canonical encoder-decoder model but in a parallel way. Furthermore, novel components were added to exploit the dual & parallel encoder-decoder representation.
 
 ### Encoder-Decoder layer
 
@@ -59,7 +59,7 @@ The `encoder_x` input to the first layer is just the input embedding $E$ (token 
 
 ### Encoder loss
 
-In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, we end up with two outputs, one from the encoder and one from decoder. The loss over the decoder output constitutes the canonical loss function extant in decoder-only models, but the presence of a encoder output permits another loss function. In this implementation, it is used to update the token and positional embedding. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representation. The same effect can be achieved (in addition to output layer weight tying) with the encoder loss described as follows. Given the original input embedding ${E}$, which is also the encoder input to the first hidden layer, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
+In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, we end up with two outputs, one from the encoder and one from the decoder. The loss over the decoder output constitutes the canonical loss function extant in decoder-only models, but the presence of an encoder output permits another loss function. In this implementation, it is used to update the token and positional embedding. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved (in addition to output layer weight tying) with the encoder loss described as follows. Given the original input embedding ${E}$, which is also the encoder input to the first hidden layer, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
 
 $$
 \begin{aligned}
@@ -70,7 +70,7 @@ $$
 \end{aligned}
 $$
 
-Two disaffinity scores are experimented. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the encoder loss with MSE is just
+Two disaffinity scores are experimented with. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the encoder loss with MSE is just
 
 $$encoder\\\_loss = MSE(out_{enc}, E_{avg\\\_sum})$$
 
@@ -128,7 +128,7 @@ Adding the positional embedding of the next tokens to the decoder helped the tra
 | **add_pos_embed_to_decoder=True** [(config)](#add_pos_embed_to_decodertrue) | **2.981** | 3.439 | 3.656e-9 |
 | **add_pos_embed_to_decoder=False** [(config)](#add_pos_embed_to_decoderfalse) | 2.99 | **3.435** | 4.471e-9 |
 
-Compared to a canonical decoder-only transformer (baseline), the new model outperformed it in validation loss but underformed in train loss. Both completed in a similar amount of time with similar memory demands. The baseline did have more parameters because it was hard to exactly match the new model's.
+Compared to a canonical decoder-only transformer (baseline), the new model outperformed it in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands. The baseline did have more parameters because it was hard to exactly match the new model's.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/g_final_train.svg" alt="Image 1" style="width: 45%;"/>
@@ -144,7 +144,7 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 
 These are some improvements to look forward to:
 - instead of the encoder and decoder having equal depth, it would be better for the model to learn what depth is best for either 
-- instead of MSE and cosine dissimilarity, some other disaffinity score should be experimented with
+- instead of MSE and cosine dissimilarity, some other disaffinity scores should be experimented with
 - the cumulative embedding average $E_{avg\\\_sum}$ assumes equal contribution from every preceding token, so a different aggregation might be better (maybe convolution?)
 - the first `decoder_x` is initialized with a feed forward layer on $E$. Ideally, the decoder would have its own embeddings, but that would add too many parameters. A different way to initialize `decoder_x` should be explored
 - try bigger models, at least GPT-2 size
