@@ -9,7 +9,7 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
-                                       TransformerBlock)
+                                       MultiAttentionHead, TransformerBlock)
 
 
 class OrderType(str, Enum):
@@ -221,6 +221,14 @@ class DecoderTransformerBlock(nn.Module):
     ):
         super().__init__()
         self.order_type = config.order_type
+        self.decoder_multi_attn_head = MultiAttentionHead(
+            config.n_embed,
+            config.n_head,
+            config.use_bias,
+            config.context_size,
+            config.dropout_rate,
+            True,
+        )
         self.cross_multi_attn_head = CrossMultiAttentionHead(
             config.n_embed,
             config.cross_attn_config.n_head,
@@ -236,10 +244,14 @@ class DecoderTransformerBlock(nn.Module):
         self.encoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
 
+        self.decoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, encoder_x, decoder_x):
         if self.order_type == OrderType.ORIGINAL:
+            decoder_x = decoder_x + self.decoder_multi_attn_head(
+                self.decoder_ln1(decoder_x)
+            )
             decoder_x = decoder_x + self.cross_multi_attn_head(
                 self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
             )
