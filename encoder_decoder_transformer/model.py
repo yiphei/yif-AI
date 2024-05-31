@@ -345,7 +345,9 @@ class EncoderDecoderTransformer(BaseModel):
         encoder_embed = self.dropout(encoder_embed)
         encoder_x = encoder_embed
 
-        decoder_x = encoder_embed
+        encoder_x = self.encoder_transformer_blocks(encoder_x)
+
+        decoder_x = encoder_x
         if self.config.add_ln_before_decoder_ff:
             decoder_x = self.ffd_ln(decoder_x)
         decoder_x = self.decoder_feed_forward(decoder_x)
@@ -356,8 +358,6 @@ class EncoderDecoderTransformer(BaseModel):
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
                 )
             )
-
-        encoder_x = self.encoder_transformer_blocks(encoder_x)
 
         for transformer_block in self.decoder_transformer_blocks:
             encoder_x, decoder_x = transformer_block(encoder_x, decoder_x)
