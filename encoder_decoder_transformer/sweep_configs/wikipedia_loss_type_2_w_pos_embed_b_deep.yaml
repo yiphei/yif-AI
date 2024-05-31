@@ -1,5 +1,5 @@
 program: encoder_decoder_transformer/training_script.py
-name: wikipedia_loss_type_2_w_pos_embed_b_deep
+name: SERIAL_loss_type_2_w_pos_embed_b_deep_no_cross_attn_and_decoder_init
 project: encoder_decoder_transformer
 method: grid
 metric:
@@ -13,7 +13,7 @@ parameters:
             context_size:
                 value: 200
             n_embed: 
-                value: 150
+                value: 160
             n_layer: 
                 value: 13
             n_head: 

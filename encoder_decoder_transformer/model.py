@@ -229,20 +229,20 @@ class DecoderTransformerBlock(nn.Module):
             config.dropout_rate,
             True,
         )
-        self.cross_multi_attn_head = CrossMultiAttentionHead(
-            config.n_embed,
-            config.cross_attn_config.n_head,
-            config.cross_attn_config.use_bias,
-            config.dropout_rate,
-        )
+        # self.cross_multi_attn_head = CrossMultiAttentionHead(
+        #     config.n_embed,
+        #     config.cross_attn_config.n_head,
+        #     config.cross_attn_config.use_bias,
+        #     config.dropout_rate,
+        # )
         self.decoder_feed_forward = FeedForward(
             config.n_embed,
             config.use_bias,
             config.dropout_rate,
         )
 
-        self.encoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
-        self.decoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
+        # self.encoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
+        # self.decoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
 
         self.decoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
@@ -252,9 +252,9 @@ class DecoderTransformerBlock(nn.Module):
             decoder_x = decoder_x + self.decoder_multi_attn_head(
                 self.decoder_ln1(decoder_x)
             )
-            decoder_x = decoder_x + self.cross_multi_attn_head(
-                self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
-            )
+            # decoder_x = decoder_x + self.cross_multi_attn_head(
+            #     self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
+            # )
         elif self.order_type == OrderType.ALT:
             decoder_x = decoder_x + self.cross_multi_attn_head(
                 self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
@@ -289,9 +289,9 @@ class EncoderDecoderTransformer(BaseModel):
 
         if config.add_ln_before_decoder_ff:
             self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
-        self.decoder_feed_forward = nn.Linear(
-            config.n_embed, config.n_embed, bias=config.use_bias
-        )
+        # self.decoder_feed_forward = nn.Linear(
+        #     config.n_embed, config.n_embed, bias=config.use_bias
+        # )
 
         self.dropout = nn.Dropout(config.dropout_rate)
         self.encoder_transformer_blocks = nn.Sequential(
@@ -348,16 +348,16 @@ class EncoderDecoderTransformer(BaseModel):
         encoder_x = self.encoder_transformer_blocks(encoder_x)
 
         decoder_x = encoder_x
-        if self.config.add_ln_before_decoder_ff:
-            decoder_x = self.ffd_ln(decoder_x)
-        decoder_x = self.decoder_feed_forward(decoder_x)
+        # if self.config.add_ln_before_decoder_ff:
+        #     decoder_x = self.ffd_ln(decoder_x)
+        # decoder_x = self.decoder_feed_forward(decoder_x)
 
-        if self.config.add_pos_embed_to_decoder:
-            decoder_x += self.positional_embedding(
-                torch.arange(
-                    start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
-                )
-            )
+        # if self.config.add_pos_embed_to_decoder:
+        #     decoder_x += self.positional_embedding(
+        #         torch.arange(
+        #             start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
+        #         )
+        #     )
 
         for transformer_block in self.decoder_transformer_blocks:
             encoder_x, decoder_x = transformer_block(encoder_x, decoder_x)
