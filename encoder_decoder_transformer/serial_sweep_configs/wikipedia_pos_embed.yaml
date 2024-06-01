@@ -24,9 +24,9 @@ parameters:
                 value: 1
             add_ln_before_decoder_ff:
                 value: False
-            add_pos_embed:
+            add_pos_embed_to_decoder:
                 values: [True,False]
-            sub_pos_embed:
+            sub_pos_embed_to_decoder:
                 values: [1,2,3]
             cross_attn_config:
                 parameters:
