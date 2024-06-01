@@ -42,6 +42,8 @@ parameters:
                 values: [1,2,3]
             encoder_embed_ln_type:
                 values: [1,2,3]
+            encoder_embed_loss_coeff:
+                value: 1
     batch_size: 
         value: 50
     train_steps: 
