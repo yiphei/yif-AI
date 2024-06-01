@@ -1,0 +1,64 @@
+program: encoder_decoder_transformer/training_script.py
+name: wikipedia_loss_type_2_w_pos_embed_b_deep
+project: encoder_decoder_transformer
+method: grid
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            use_bias:
+                value: False
+            context_size:
+                value: 200
+            n_embed: 
+                value: 150
+            n_layer: 
+                value: 13
+            n_head: 
+                value: 5
+            dropout_rate:
+                value: 0
+            order_type:
+                value: 1
+            add_ln_before_decoder_ff:
+                value: False
+            add_pos_embed_to_decoder:
+                value: True
+            sub_pos_embed_to_decoder:
+                value: 1
+            cross_attn_config:
+                parameters:
+                    n_head:
+                        value: 10
+                    use_bias:
+                        value: False
+            use_ln_on_encoder_out:
+                value: True
+            encoder_embed_loss_type:
+                value: 2
+            encoder_embed_detach_type:
+                value: 3
+            encoder_embed_ln_type:
+                value: 2
+            encoder_embed_loss_coeff:
+                values: [0.25, 0.5, 0.75]
+    batch_size: 
+        value: 50
+    train_steps: 
+        value: 9000
+    lr: 
+        value: 9e-4
+    warmup_iters:
+        value: 300
+    min_lr: 
+        value: 9e-5
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: 
+        value: 700000
+    est_interval: 
+        value: 500
+    est_steps: 
+        value: 200

@@ -10,5 +10,5 @@ if __name__ == "__main__":
     train(
         EncoderDecoderTransformer,
         "encoder_decoder_transformer/",
-        "encoder_decoder_transformer",
+        "serial_encoder_decoder_transformer",
     )
