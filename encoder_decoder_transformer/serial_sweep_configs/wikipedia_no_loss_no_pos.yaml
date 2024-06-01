@@ -1,5 +1,5 @@
 program: encoder_decoder_transformer/training_script.py
-name: SERIAL_nothing_deep_init_after
+name: wikipedia_no_loss_no_pos
 project: serial_encoder_decoder_transformer
 method: grid
 metric:
