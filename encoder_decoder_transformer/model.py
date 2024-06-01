@@ -259,6 +259,9 @@ class DecoderTransformerBlock(nn.Module):
             decoder_x = decoder_x + self.cross_multi_attn_head(
                 self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
             )
+            decoder_x = decoder_x + self.decoder_multi_attn_head(
+                self.decoder_ln1(decoder_x)
+            )
         else:
             raise ValueError("Invalid order type")
 
