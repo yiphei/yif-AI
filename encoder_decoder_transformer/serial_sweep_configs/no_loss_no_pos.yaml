@@ -1,6 +1,6 @@
 program: encoder_decoder_transformer/training_script.py
-name: SERIAL2_loss_type_2_w_pos_embed_b_deep_more_heads
-project: encoder_decoder_transformer
+name: SERIAL_nothing_deep_init_after
+project: serial_encoder_decoder_transformer
 method: grid
 metric:
   goal: minimize
@@ -17,7 +17,7 @@ parameters:
             n_layer: 
                 value: 13
             n_head: 
-                value: 10
+                value: 5
             dropout_rate:
                 value: 0
             order_type:
@@ -25,7 +25,7 @@ parameters:
             add_ln_before_decoder_ff:
                 value: False
             add_pos_embed_to_decoder:
-                value: True
+                value: False
             sub_pos_embed_to_decoder:
                 value: 1
             cross_attn_config:
@@ -35,15 +35,15 @@ parameters:
                     use_bias:
                         value: False
             use_ln_on_encoder_out:
-                value: True
+                value: null
             encoder_embed_loss_type:
-                value: 2
+                value: 1
             encoder_embed_detach_type:
-                value: 3
+                value: null
             encoder_embed_ln_type:
-                value: 2
+                value: null
             encoder_embed_loss_coeff:
-                values: [0.25, 0.5, 0.75]
+                value: null
     batch_size: 
         value: 50
     train_steps: 

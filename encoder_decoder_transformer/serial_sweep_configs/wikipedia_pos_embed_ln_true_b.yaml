@@ -1,6 +1,6 @@
 program: encoder_decoder_transformer/training_script.py
 name: wikipedia_pos_embed_ln_true_b
-project: encoder_decoder_transformer
+project: serial_encoder_decoder_transformer
 method: grid
 metric:
   goal: minimize
