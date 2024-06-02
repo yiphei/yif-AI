@@ -145,7 +145,6 @@ class ModelConfig(BaseModelConfig):
         encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
             before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
     """
-    # The default values below are the best ones
     cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = False
     sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
