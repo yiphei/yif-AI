@@ -120,11 +120,11 @@ class CrossAttentionConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    """The default field values are the suggested ones for the best performance. 
+    """The default field values are the suggested ones for the best performance.
     Fine-tuning encoder_embed_loss_coeff may improve performance.
 
     Args:
-        cross_attn_config: config for the cross-attention head layer. 
+        cross_attn_config: config for the cross-attention head layer.
         add_pos_embed_to_decoder: adds the "next" positional embedding to the decoder input.
             Experiments showed that this was detrimental, so False is better.
         sub_pos_embed_to_decoder: substracts the "next" positional embedding from the
@@ -145,6 +145,7 @@ class ModelConfig(BaseModelConfig):
         encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
             before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
     """
+
     cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = False
     sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
