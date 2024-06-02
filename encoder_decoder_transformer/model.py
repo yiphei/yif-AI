@@ -122,8 +122,8 @@ class CrossAttentionConfig:
 class ModelConfig(BaseModelConfig):
     # The default values below are the best ones
     cross_attn_config: CrossAttentionConfig = None
-    add_pos_embed_to_decoder: bool = True
-    sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.NO
+    add_pos_embed_to_decoder: bool = False
+    sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     order_type: Union[OrderType, int] = OrderType.ORIGINAL
@@ -131,7 +131,7 @@ class ModelConfig(BaseModelConfig):
     encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = (
         EncoderEmbedDetachType.FINAL
     )
-    encoder_embed_loss_coeff: Optional[float] = 0.25
+    encoder_embed_loss_coeff: Optional[float] = 1
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
         EncoderEmbedLayerNormType.INIT
     )
