@@ -9,7 +9,7 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
-                                       MultiAttentionHead)
+                                       MultiAttentionHead, TransformerBlock)
 
 
 class OrderType(str, Enum):
@@ -120,10 +120,34 @@ class CrossAttentionConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    # The default values below are the best ones
+    """The default field values are the suggested ones for the best performance. 
+    Fine-tuning encoder_embed_loss_coeff may improve performance.
+
+    Args:
+        cross_attn_config: config for the cross-attention head layer. 
+        add_pos_embed_to_decoder: adds the "next" positional embedding to the decoder input.
+            Experiments showed that this was detrimental, so False is better.
+        sub_pos_embed_to_decoder: substracts the "next" positional embedding from the
+            decoder output, right before the output layer. Experiments showed benefits,
+            and the best value is SubPosEmbedType.YES_NO_LN.
+        use_ln_on_encoder_out: applies layer normalization on the encoder output.
+            True performed better.
+        add_ln_before_decoder_ff: applies layer normalization on decoder input.
+            False performed better.
+        order_type: the order of attention operations in decoder transformer blocks.
+            OrderType.ORIGINAL performed better.
+        encoder_embed_loss_type: the type of loss applied to the encoder output.
+            EncoderEmbedLossType.MSE performed better.
+        encoder_embed_detach_type: the type of tensor detachment applied to the encoder embed
+            before computing the encoder loss. EncoderEmbedDetachType.FINAL performed better.
+        encoder_embed_loss_coeff: a scaling coefficient for the encoder loss. This may be
+            fine-tuned for best performance.
+        encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
+            before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
+    """
     cross_attn_config: CrossAttentionConfig = None
-    add_pos_embed_to_decoder: bool = True
-    sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.NO
+    add_pos_embed_to_decoder: bool = False
+    sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     order_type: Union[OrderType, int] = OrderType.ORIGINAL
@@ -131,7 +155,7 @@ class ModelConfig(BaseModelConfig):
     encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = (
         EncoderEmbedDetachType.FINAL
     )
-    encoder_embed_loss_coeff: Optional[float] = 0.25
+    encoder_embed_loss_coeff: Optional[float] = 1
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
         EncoderEmbedLayerNormType.INIT
     )
@@ -214,21 +238,13 @@ class CrossMultiAttentionHead(nn.Module):
         return new_decoder_x
 
 
-class TransformerBlock(nn.Module):
+class DecoderTransformerBlock(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
     ):
         super().__init__()
         self.order_type = config.order_type
-        self.encoder_multi_attn_head = MultiAttentionHead(
-            config.n_embed,
-            config.n_head,
-            config.use_bias,
-            config.context_size,
-            config.dropout_rate,
-            True,
-        )
         self.decoder_multi_attn_head = MultiAttentionHead(
             config.n_embed,
             config.n_head,
@@ -243,12 +259,6 @@ class TransformerBlock(nn.Module):
             config.cross_attn_config.use_bias,
             config.dropout_rate,
         )
-
-        self.encoder_feed_forward = FeedForward(
-            config.n_embed,
-            config.use_bias,
-            config.dropout_rate,
-        )
         self.decoder_feed_forward = FeedForward(
             config.n_embed,
             config.use_bias,
@@ -258,17 +268,10 @@ class TransformerBlock(nn.Module):
         self.encoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        self.encoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
-        self.encoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
-
         self.decoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, encoder_x, decoder_x):
-        encoder_x = encoder_x + self.encoder_multi_attn_head(
-            self.encoder_ln1(encoder_x)
-        )
-        encoder_x = encoder_x + self.encoder_feed_forward(self.encoder_ln2(encoder_x))
         if self.order_type == OrderType.ORIGINAL:
             decoder_x = decoder_x + self.decoder_multi_attn_head(
                 self.decoder_ln1(decoder_x)
@@ -287,7 +290,7 @@ class TransformerBlock(nn.Module):
             raise ValueError("Invalid order type")
 
         decoder_x = decoder_x + self.decoder_feed_forward(self.decoder_ln2(decoder_x))
-        return encoder_x, decoder_x
+        return decoder_x
 
 
 class EncoderDecoderTransformer(BaseModel):
@@ -318,9 +321,22 @@ class EncoderDecoderTransformer(BaseModel):
         )
 
         self.dropout = nn.Dropout(config.dropout_rate)
-        self.transformer_blocks = nn.ModuleList(
-            [
+        self.encoder_transformer_blocks = nn.Sequential(
+            *[
                 TransformerBlock(
+                    config.n_embed,
+                    config.n_head,
+                    config.use_bias,
+                    config.context_size,
+                    config.dropout_rate,
+                    config.use_flash,
+                )
+                for _ in range(config.n_layer)
+            ]
+        )
+        self.decoder_transformer_blocks = nn.ModuleList(
+            [
+                DecoderTransformerBlock(
                     config,
                 )
                 for _ in range(config.n_layer)
@@ -356,7 +372,9 @@ class EncoderDecoderTransformer(BaseModel):
         encoder_embed = self.dropout(encoder_embed)
         encoder_x = encoder_embed
 
-        decoder_x = encoder_embed
+        encoder_out = self.encoder_transformer_blocks(encoder_x)
+
+        decoder_x = encoder_out
         if self.config.add_ln_before_decoder_ff:
             decoder_x = self.ffd_ln(decoder_x)
         decoder_x = self.decoder_feed_forward(decoder_x)
@@ -368,10 +386,9 @@ class EncoderDecoderTransformer(BaseModel):
                 )
             )
 
-        for transformer_block in self.transformer_blocks:
-            encoder_x, decoder_x = transformer_block(encoder_x, decoder_x)
+        for transformer_block in self.decoder_transformer_blocks:
+            decoder_x = transformer_block(encoder_out, decoder_x)
 
-        encoder_out = encoder_x
         decoder_out = self.ln(decoder_x)
 
         if (
