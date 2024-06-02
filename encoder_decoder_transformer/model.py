@@ -120,8 +120,8 @@ class CrossAttentionConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    """The default field values are the suggested ones. Fine-tuning some of them may
-    improve performance.
+    """The default field values are the suggested ones for the best performance. 
+    Fine-tuning encoder_embed_loss_coeff may improve performance.
 
     Args:
         cross_attn_config: config for the cross-attention head layer. 
@@ -142,8 +142,8 @@ class ModelConfig(BaseModelConfig):
             before computing the encoder loss. EncoderEmbedDetachType.FINAL performed better.
         encoder_embed_loss_coeff: a scaling coefficient for the encoder loss. This may be
             fine-tuned for best performance.
-        encoder_embed_ln_type: the type of layer normalization applied to the encoder embed.
-            EncoderEmbedLayerNormType.INIT performed better.
+        encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
+            before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
     """
     # The default values below are the best ones
     cross_attn_config: CrossAttentionConfig = None
