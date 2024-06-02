@@ -120,26 +120,26 @@ class CrossAttentionConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    """The default values below are the suggested ones. Fine-tuning some of them may
+    """The default field values are the suggested ones. Fine-tuning some of them may
     improve performance.
 
     Args:
         cross_attn_config: config for the cross-attention head layer. 
-        add_pos_embed_to_decoder: adds the "next" positional embedding to the decoder.
+        add_pos_embed_to_decoder: adds the "next" positional embedding to the decoder input.
             Experiments showed that this was detrimental, so False is better.
         sub_pos_embed_to_decoder: substracts the "next" positional embedding from the
             decoder output, right before the output layer. Experiments showed benefits,
             and the best value is SubPosEmbedType.YES_NO_LN.
         use_ln_on_encoder_out: applies layer normalization on the encoder output.
             True performed better.
-        add_ln_before_decoder_ff: applies layer normalization before decoder initialization.
+        add_ln_before_decoder_ff: applies layer normalization on decoder input.
             False performed better.
         order_type: the order of attention operations in decoder transformer blocks.
             OrderType.ORIGINAL performed better.
         encoder_embed_loss_type: the type of loss applied to the encoder output.
             EncoderEmbedLossType.MSE performed better.
-        encoder_embed_detach_type: the type of tensor detach applied to the encoder embed.
-            EncoderEmbedDetachType.FINAL performed better.
+        encoder_embed_detach_type: the type of tensor detachment applied to the encoder embed
+            before computing the encoder loss. EncoderEmbedDetachType.FINAL performed better.
         encoder_embed_loss_coeff: a scaling coefficient for the encoder loss. This may be
             fine-tuned for best performance.
         encoder_embed_ln_type: the type of layer normalization applied to the encoder embed.
