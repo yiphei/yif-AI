@@ -266,7 +266,7 @@ class DecoderTransformerBlock(nn.Module):
             raise ValueError("Invalid order type")
 
         decoder_x = decoder_x + self.decoder_feed_forward(self.decoder_ln2(decoder_x))
-        return encoder_x, decoder_x
+        return decoder_x
 
 
 class EncoderDecoderTransformer(BaseModel):
@@ -348,9 +348,9 @@ class EncoderDecoderTransformer(BaseModel):
         encoder_embed = self.dropout(encoder_embed)
         encoder_x = encoder_embed
 
-        encoder_x = self.encoder_transformer_blocks(encoder_x)
+        encoder_out = self.encoder_transformer_blocks(encoder_x)
 
-        decoder_x = encoder_x
+        decoder_x = encoder_out
         if self.config.add_ln_before_decoder_ff:
             decoder_x = self.ffd_ln(decoder_x)
         decoder_x = self.decoder_feed_forward(decoder_x)
@@ -363,9 +363,8 @@ class EncoderDecoderTransformer(BaseModel):
             )
 
         for transformer_block in self.decoder_transformer_blocks:
-            encoder_x, decoder_x = transformer_block(encoder_x, decoder_x)
+            decoder_x = transformer_block(encoder_out, decoder_x)
 
-        encoder_out = encoder_x
         decoder_out = self.ln(decoder_x)
 
         if (
