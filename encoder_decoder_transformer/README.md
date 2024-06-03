@@ -1,13 +1,13 @@
 # Auto-regressive Encoder-Decoder Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
 
-Current SOTA LLMs are all decoder-only models. Here, a new auto-regressive encoder-decoder transformer is presented that outperforms the canonical dencoder-only transformer.
+Current SOTA LLMs are all decoder-only models. Here, a new end-to-end auto-regressive encoder-decoder transformer is presented that outperforms the canonical dencoder-only transformer.
 
 ## Motivations
 
-Though transformer models have a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. Indeed, there is empirical evidence that the earlier layers of a model focus more on understanding linguistic features and the later layers more on task-specific features and thus more on prediction. In a decoder-only transformer, the model learns when to switch from understanding to predicting. In a encoder-decoder model, it is more imposed by design: the encoder does a unmasked attention on the input text and the decoder has to continuosly attend to the encoder's output. Therefore, the encoder focuses more on local understanding and the decoder more on prediction.
+Though transformer models have a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. Indeed, there is empirical evidence that the earlier layers of a model focus more on understanding linguistic features and the later layers more on task-specific features and thus more on prediction. In a decoder-only transformer, the model learns when to switch from understanding to predicting. In a encoder-decoder model, it is more imposed by design: the encoder generates an output and the decoder has to continuosly attend to the encoder output. Therefore, the encoder focuses more on local understanding and the decoder more on prediction.
 
-The canonical enoder-decoder transformer is used for sequence-to-sequence tasks, like machine translation. Instead, the model here is used auto-regressively (both for the encoder and decoder). This, along with novel components described in sections that follow, beats the baseline of a decoder-only transformer.
+The canonical enoder-decoder transformer is used for sequence-to-sequence tasks, like machine translation. Instead, the model here is used auto-regressively end-to-end. This, along with novel components described in sections that follow, beats the baseline of a decoder-only transformer.
 
 ## Architecture
 
@@ -59,7 +59,7 @@ $$encoder\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1
 
 ### Positional embedding substraction
 
-Before the output layer, positional embedding of the "next tokens" are subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, you increase update frequency & magnitude of positional weights. When coupled with token embedding weight tying, this should improve the contrast between token and positional embedding.
+Before the output layer, positional embedding of the "next tokens" are subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, you increase update frequency & magnitude of positional weights. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding.
 
 ## Analysis/experiments
 
