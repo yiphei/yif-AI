@@ -1,21 +1,21 @@
-# Parallel Encoder-Decoder Transformer [WIP readme]
+# Auto-regressive Encoder-Decoder Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
 
-Current SOTA LLMs are all decoder-only models. Here, a new encoder-decoder transformer variant is presented where encoder and decoder run in parallel, unlike the canonical implementation where they run serially (encoder first and decoder after).
+Current SOTA LLMs are all decoder-only models. Here, a new auto-regressive encoder-decoder transformer is presented that outperforms the canonical dencoder-only transformer.
 
 ## Motivations
 
-The largest motivation originates from the paradox posed by the attention mechanism attending latent representation of prior tokens when they are solely optimized for next token prediction. More concretely, if the latent representation $\mathbf{h}^{l}\_{t}$ of token $\mathbf{x}\_{t}$ is trying to predict the next token $\mathbf{x}\_{t+1}$, then $\mathbf{h}^{l}\_{t}$ shouldn't be **entirely** useful to the latent representation $\mathbf{h}^{l}\_{t+1}$ of the next token (and any $\mathbf{h}^{l}\_{z}$ where $z > t$), which is trying to predict $\mathbf{x}\_{t+2}$. Yet, the attention mechanism makes $\mathbf{h}^{l}\_{t}$ attend to the entire $\mathbf{h}^{l}\_{z}$ (though with different weightings) where $z < t$. Now, we know empirically that the earlier layers of a decoder-only transformer are less focused on next-token prediction and more on just general understanding, so the latent representation of earlier tokens at these layers is indeed more useful to later tokens. Though there is a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. However, there is reason to conjecture that they become less useful at later layers as latent representation becomes increasingly attuned to next token prediction. Plausibly, attending to prior tokens at these layers could hurt performance. Therefore, it's worth exploring if separating this dual latent representation could improve performance.
+Though transformer models have a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. Indeed, there is empirical evidence that the earlier layers of a model focus more on understanding linguistic features and the later layers more on task-specific features and thus more on prediction. In a decoder-only transformer, the model learns when to switch from understanding to predicting. In a encoder-decoder model, it is more imposed by design: the encoder does a unmasked attention on the input text and the decoder has to continuosly attend to the encoder's output. Therefore, the encoder focuses more on local understanding and the decoder more on prediction.
 
-In an encoder-decoder model, this dual nature is intrinsically separated. The encoder handles general understanding and the decoder handles prediction. These run serially in the canonical implementation. Instead, the model presented here implements them in parallel. The parallel implementation also permits an additional loss on the encoder output.
+The canonical enoder-decoder transformer is used for sequence-to-sequence tasks, like machine translation. Instead, the model here is used auto-regressively (both for the encoder and decoder). This, along with novel components described in sections that follow, beats the baseline of a decoder-only transformer.
 
 ## Architecture
 
-At the high level, the architecture re-implements the canonical encoder-decoder model but in a parallel way. Furthermore, novel components were added to exploit the dual & parallel encoder-decoder representation.
+At the high level, the architecture re-implements the canonical encoder-decoder model but for auto-regressive language generation. Furthermore, an additional "encoder" loss and a positional embedding operation are added and demonstrate improved performance.
 
-### Encoder-Decoder layer
+### Encoder-Decoder
 
-The canonical encoder-decoder transformer first runs the encoder and then the decoder, serially. It looks roughly like this
+In the canonical encoder-decoder transformer, the encoder runs once on an input, and then the decoder runs auto-regressively on its own ouput while attending to the encoder output. It looks like this
 
 <div align="center">
   <img src="assets/diagram.png" alt="diagram" width="500">
@@ -24,7 +24,7 @@ The canonical encoder-decoder transformer first runs the encoder and then the de
 </div>
 <br>
 
-The parallelized implementation simply has the following as a single layer that's stacked $N$ times.
+To use this architecture for an end-to-end auto-regressive task, the encoder and decoder run together serially. The encoder generates an output and the decoder generates the next token while attending to the encoder output. Then, the input is updated with the ouput and fed back to the model, which reruns the encoder and decoder. To make this work, the encoder attention has to be masked. Visually, the entire model looks like this
 
 <div align="center">
     <img src="assets/new_diagram.png"
@@ -34,36 +34,15 @@ The parallelized implementation simply has the following as a single layer that'
 </div>
 <br>
 
-This new combined layer has two inputs, one for the encoder and decoder, and two outputs, one for the encoder and decoder. The decoder and encoder latent representations interact only at the second attention block on the decoder side. Stated in pseudocode, it becomes
-
-```
-def encoder_decoder_layer_forward(encoder_x, decoder_x):
-    # encoder part
-    encoder_x = encoder_x + encoder_multi_attn_head(
-        encoder_layer_norm_1(encoder_x)
-    )
-    encoder_x = encoder_x + encoder_feed_forward(encoder_layer_norm_2(encoder_x))
-    
-    # decoder part
-    decoder_x = decoder_x + decoder_multi_attn_head(
-        decoder_layer_norm_1(decoder_x)
-    )
-    decoder_x = decoder_x + cross_multi_attn_head(
-        encoder_cross_layer_norm(encoder_x), decoder_cross_layer_norm(decoder_x)
-    )
-    decoder_x = decoder_x + decoder_feed_forward(decoder_layer_norm_2(decoder_x))
-    return encoder_x, decoder_x
-```
-
-The `encoder_x` input to the first layer is just the input embedding $E$ (token + positional), no different than decoder-only transformer. The `decoder_x` input to the first layer is obtained from a feed forward on $E$.
+Another way to think about it is this. It takes a regular decoder-only model with $L$ layers and makes the last $L_{decoder}$ layers do both self-attention and cross-attention on the output of the first $L_{encoder}$ layers.
 
 ### Encoder loss
 
-In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, we end up with two outputs, one from the encoder and one from the decoder. The loss over the decoder output constitutes the canonical loss function extant in decoder-only models, but the presence of an encoder output permits another loss function. In this implementation, it is used to update the token and positional embedding. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved (in addition to output layer weight tying) with the encoder loss described as follows. Given the original input embedding ${E}$, which is also the encoder input to the first hidden layer, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
+In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss on the encoder is introduced. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved (in addition to output layer weight tying) with the encoder loss described as follows. Given the original input embedding ${E}$, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
 
 $$
 \begin{aligned}
-& out_{enc} \coloneqq \text{encoder output (from the last layer)} \\
+& out_{enc} \coloneqq \text{encoder output} \\
 & E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
 & E_{avg\\\_sum} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{avg\\\_sum_{(i,j)}} = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
 & encoder\\\_loss = disaffinity\\\_score(out_{enc}, E_{avg\\\_sum})
@@ -78,25 +57,10 @@ and the encoder loss with cosine dissimilarity is
 
 $$encoder\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1}{2}$$
 
-#### Positional embedding in decoder
+### Positional embedding substraction
 
-A small addition that proved useful is adding the positional embedding of the next tokens (the ones to be predicted) to `decoder_x` before the first hidden layer. In pseudocode, it becomes
-```
-# this is the forward of the model
-def forward(self, x, targets):
-    ...
+Before the output layer, positional embedding of the "next tokens" are subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, you increase update frequency & magnitude of positional weights. When coupled with token embedding weight tying, this should improve the contrast between token and positional embedding.
 
-    decoder_x += self.positional_embedding(
-        torch.arange(
-            start=1, end=x.shape[1] + 1, dtype=torch.long
-        )
-    )
-    
-    # beginning of hidden layers
-    ...
-```
-
-Naturally, the positional embeddings would have to be initialized to have `context_size + 1` indices.
 ## Analysis/experiments
 
 All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU.
