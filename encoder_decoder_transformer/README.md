@@ -77,7 +77,7 @@ The MSE encoder loss did better than cosine dissimilarity. Both types of encoder
 |---|----------|----------|----------|
 | **with cosine-dissimilarity encoder loss** [(config)](#with-cosine-dissimilarity-encoder-loss) | **2.993** | 3.387 | 8.564e-9 |
 | **with MSE encoder loss** [(config)](#with-mse-encoder-loss) | 2.998 | **3.385** | 4.138e-9 |
-| **with no encoder loss** [(config)](#with-no-encoder-loss) | 3.043 | 3.413 | N/A |
+| **no encoder loss and no pos sub** [(config)](#no-encoder-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
 
 Adding the positional embedding of the next tokens to the decoder helped the train loss but was detrimental to validation loss.
 
@@ -183,7 +183,7 @@ TODO
  'lr_decay_iters': 700000,
  'gradient_accumulation_steps': 16}
  ```
-#### "with no encoder loss"
+#### "no encoder loss and no pos sub"
 ```
 {'lr': 0.0009,
  'beta1': 0.9,
