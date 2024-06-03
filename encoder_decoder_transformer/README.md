@@ -82,15 +82,14 @@ The MSE encoder loss did better than cosine dissimilarity. Both types of encoder
 Adding the positional embedding of the next tokens to the decoder helped the train loss but was detrimental to validation loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
-  <img src="assets/g_pos_train.svg" alt="Image 1" style="width: 45%;"/>
-  <img src="assets/g_pos_val.svg" alt="Image 2" style="width: 45%;"/>
-    <img src="assets/g_pos_encoder.svg" alt="Image 2" style="width: 45%;"/>
+  <img src="assets/pos_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/pos_val_loss.svg" alt="Image 2" style="width: 45%;"/>
 </div>
 
 |   | Train loss | Val loss | Encoder loss |
 |---|----------|----------|----------|
-| **add_pos_embed_to_decoder=True** [(config)](#add_pos_embed_to_decodertrue) | **2.981** | 3.439 | 3.656e-9 |
-| **add_pos_embed_to_decoder=False** [(config)](#add_pos_embed_to_decoderfalse) | 2.99 | **3.435** | 4.471e-9 |
+| **with pos embed sub** [(config)](#with-pos-embed-sub) | **2.979** | **3.381** | N/A |
+| **no encoder loss and no pos sub** [(config)](#no-encoder-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
 
 Compared to a canonical decoder-only transformer (baseline), the new model outperformed it in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands. The baseline did have more parameters because it was hard to exactly match the new model's.
 
@@ -216,7 +215,7 @@ TODO
  'gradient_accumulation_steps': 16}
  ```
 
-#### "add_pos_embed_to_decoder=True"
+#### "with pos embed sub"
 ```
 {'lr': 0.0009,
  'beta1': 0.9,
@@ -228,53 +227,21 @@ TODO
  'train_steps': 9000,
  'est_interval': 500,
  'model_config': {'n_head': 5,
-                  'n_embed': 200,
-                  'n_layer': 5,
+                  'n_embed': 150,
+                  'n_layer': 13,
                   'use_bias': False,
                   'order_type': 1,
                   'context_size': 200,
                   'dropout_rate': 0,
-                  'add_pos_embed_to_decoder': True,
-                  'sub_pos_embed_to_decoder': 1,
                   'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'encoder_embed_ln_type': 2,
-                  'use_ln_on_encoder_out': True,
-                  'encoder_embed_loss_type': 2,
+                  'encoder_embed_ln_type': None,
+                  'use_ln_on_encoder_out': None,
+                  'encoder_embed_loss_type': 1,
                   'add_ln_before_decoder_ff': False,
-                  'encoder_embed_loss_coeff': 0.25,
-                  'encoder_embed_detach_type': 3},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
-```
-#### "add_pos_embed_to_decoder=False"
-```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 200,
-                  'n_layer': 5,
-                  'use_bias': False,
-                  'order_type': 1,
-                  'context_size': 200,
-                  'dropout_rate': 0,
                   'add_pos_embed_to_decoder': False,
-                  'sub_pos_embed_to_decoder': 1,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'encoder_embed_ln_type': 2,
-                  'use_ln_on_encoder_out': True,
-                  'encoder_embed_loss_type': 2,
-                  'add_ln_before_decoder_ff': False,
-                  'encoder_embed_loss_coeff': 0.25,
-                  'encoder_embed_detach_type': 3},
+                  'encoder_embed_loss_coeff': None,
+                  'sub_pos_embed_to_decoder': 2,
+                  'encoder_embed_detach_type': None},
  'warmup_iters': 300,
  'weight_decay': 0.1,
  'lr_decay_iters': 700000,
