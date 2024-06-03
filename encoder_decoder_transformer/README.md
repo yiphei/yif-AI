@@ -39,7 +39,7 @@ Another way to think about it is this. It takes a regular decoder-only model wit
 For simplicity, the model has an equal number of encoder and decoder layers.
 ### Encoder loss
 
-In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss on the encoder is introduced. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved on token weights (in addition to output layer weight tying) **and on positional weights** with the encoder loss described as follows. Given the original input embedding ${E}$, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
+In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss on the encoder is introduced in addition to the regular loss. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved on token weights (in addition to output layer weight tying) **and on positional weights** with the encoder loss described as follows. Given the original input embedding ${E}$, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
 
 $$
 \begin{aligned}
@@ -60,7 +60,7 @@ $$encoder\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1
 
 ### Positional embedding subtraction
 
-Before the output layer, the positional embedding of the "next tokens" are subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, you increase update frequency & magnitude of positional weights. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
+Before the (decoder) output layer, the positional embedding of the "next tokens" are subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, you increase update frequency & magnitude of positional weights. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
 
 ## Analysis/experiments
 
@@ -131,9 +131,9 @@ These are some further things to look forward to:
 
 ## Conclusions
 
-Even the vanilla [no encoder loss and no pos sub](#no-encoder-loss-and-no-pos-sub) outperformed the baseline in validation loss. This probably means that cross-attention on encoder output is enough for better performance. When coupled with encoder loss and positional embedding subtraction, performance improved even more.
+Even the vanilla [no encoder loss and no pos sub](#no-encoder-loss-and-no-pos-sub) outperformed the baseline in validation loss. This probably means that cross-attention on encoder output is enough for better performance (or at least prevents overfitting). When coupled with encoder loss and positional embedding subtraction, performance improved even more.
 
-More informative, it would be very interesting to inspect the effect of encoder loss and positional embedding subtraction on token and positional embeddings. Perhaps interesting relationships can be observed between token and positional embedding. Furthermore, positional embedding subtraction should work even for decoder-only transformers.
+More informative, it would be very interesting to inspect the effect of encoder loss and positional embedding subtraction on token and positional embeddings. Perhaps interesting relationships can be observed between token and positional embedding. Furthermore, positional embedding subtraction should work even for decoder-only transformers, and experiments should validate this.
 
 Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
