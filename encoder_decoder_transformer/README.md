@@ -70,7 +70,7 @@ The MSE encoder loss did better than cosine dissimilarity. Both types of encoder
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
   <img src="assets/e_val_loss.svg" alt="Image 2" style="width: 45%;"/>
-    <img src="assets/e_encoder_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/e_encoder_loss_2.svg" alt="Image 2" style="width: 45%;"/>
 </div>
 
 |   | Train loss | Val loss | Encoder loss |
