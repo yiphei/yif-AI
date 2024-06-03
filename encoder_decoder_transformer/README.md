@@ -68,16 +68,16 @@ All training runs below were done on a wikipedia dataset for 9k steps on a singl
 The MSE encoder loss did better than cosine dissimilarity. Both types of encoder loss did better than without it.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
-  <img src="assets/g_train_loss.svg" alt="Image 1" style="width: 45%;"/>
-  <img src="assets/g_val_loss.svg" alt="Image 2" style="width: 45%;"/>
-    <img src="assets/g_encoder_loss.svg" alt="Image 2" style="width: 45%;"/>
+  <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/e_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/e_encoder_loss.svg" alt="Image 2" style="width: 45%;"/>
 </div>
 
 |   | Train loss | Val loss | Encoder loss |
 |---|----------|----------|----------|
-| **with cosine-dissimilarity encoder loss** [(config)](#with-cosine-dissimilarity-encoder-loss) | 2.984 | 3.445 | 8.285e-9 |
-| **with MSE encoder loss** [(config)](#with-mse-encoder-loss) | **2.981** | **3.439** | 3.656e-9 |
-| **with no encoder loss** [(config)](#with-no-encoder-loss) | 2.997 | 3.449 | N/A |
+| **with cosine-dissimilarity encoder loss** [(config)](#with-cosine-dissimilarity-encoder-loss) | **2.993** | 3.387 | 8.564e-9 |
+| **with MSE encoder loss** [(config)](#with-mse-encoder-loss) | 2.998 | **3.385** | 4.138e-9 |
+| **with no encoder loss** [(config)](#with-no-encoder-loss) | 3.043 | 3.413 | N/A |
 
 Adding the positional embedding of the next tokens to the decoder helped the train loss but was detrimental to validation loss.
 
