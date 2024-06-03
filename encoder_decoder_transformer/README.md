@@ -5,9 +5,9 @@ Current SOTA LLMs are all decoder-only models. Here, a new end-to-end auto-regre
 
 ## Motivations
 
-Though transformer models have a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. Indeed, there is empirical evidence that the earlier layers of a model focus more on understanding linguistic features and the later layers more on task-specific features and thus more on prediction. In a decoder-only transformer, the model learns when to switch from understanding to predicting. In a encoder-decoder model, it is more imposed by design: the encoder generates an output and the decoder has to continuosly attend to the encoder output. Therefore, the encoder focuses more on local understanding and the decoder more on prediction.
+Though transformer models have a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. Indeed, empirical evidence shows that the earlier layers of a model focus more on general linguistic features (when applied to language) and the later layers more on task-specific features and thus more on prediction. In a decoder-only transformer, the model learns when to switch from understanding to predicting. In a encoder-decoder model, it is more imposed by design: the encoder generates an output and the decoder has to continuosly attend to the encoder output. Therefore, the encoder focuses more on understanding and the decoder more on prediction.
 
-The canonical enoder-decoder transformer is used for sequence-to-sequence tasks, like machine translation. Instead, the model here is used auto-regressively end-to-end. This, along with novel components described in sections that follow, beats the baseline of a decoder-only transformer.
+The canonical enoder-decoder transformer is used for sequence-to-sequence tasks, like machine translation. Instead, the model here is used auto-regressively end-to-end. This, along with novel components described in sections that follow, beats – with fewer parameters – the baseline of a decoder-only transformer.
 
 ## Architecture
 
@@ -24,7 +24,7 @@ In the canonical encoder-decoder transformer, the encoder runs once on an input,
 </div>
 <br>
 
-To use this architecture for an end-to-end auto-regressive task, the encoder and decoder run together serially. The encoder generates an output and the decoder generates the next token while attending to the encoder output. Then, the input is updated with the new decoder ouput and fed back to the model, which reruns the encoder and decoder. To make this work, the encoder attention has to be masked. Visually, the entire model looks like this
+To use this architecture for an end-to-end auto-regressive task, the encoder and decoder are adapted to run together serially. The encoder generates an output and the decoder generates the next token while attending to the encoder output. When a new input is formed with the new decoder output, it gets fed back to the model, which reruns the encoder and decoder. To make this work, the encoder attention has to be masked. Visually, the new model looks like this
 
 <div align="center">
     <img src="assets/new_diagram.png"
