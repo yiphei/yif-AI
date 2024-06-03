@@ -97,7 +97,7 @@ Both together performed better
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/both_train_loss.svg" alt="Image 1" style="width: 45%;"/>
   <img src="assets/both_val_loss.svg" alt="Image 2" style="width: 45%;"/>
-    <img src="assets/both_encoder_loss_2.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/both_encoder_loss.svg" alt="Image 2" style="width: 45%;"/>
 </div>
 
 |   | Train loss | Val loss | Encoder loss |
