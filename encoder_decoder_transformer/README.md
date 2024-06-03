@@ -65,7 +65,7 @@ Before the output layer, positional embedding of the "next tokens" are subtracte
 
 All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU.
 
-The MSE encoder loss did better than cosine dissimilarity. Both types of encoder loss did better than without it.
+The MSE encoder loss performed than cosine dissimilarity in validation loss but worse in train loss. Both types of encoder loss did better than without it.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -79,7 +79,7 @@ The MSE encoder loss did better than cosine dissimilarity. Both types of encoder
 | **with MSE encoder loss** [(config)](#with-mse-encoder-loss) | 2.998 | **3.385** | 4.138e-9 |
 | **no encoder loss and no pos sub** [(config)](#no-encoder-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
 
-Adding the positional embedding of the next tokens to the decoder helped the train loss but was detrimental to validation loss.
+Adding the positional embedding subtraction strictly improved performance.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/pos_train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -92,7 +92,7 @@ Adding the positional embedding of the next tokens to the decoder helped the tra
 | **no encoder loss and no pos sub** [(config)](#no-encoder-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
 
 
-Both together performed better
+Combining MSE encoder loss and positional embedding subtraction improved validation loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/both_train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -106,7 +106,7 @@ Both together performed better
 | **with MSE encoder loss** [(config)](#with-mse-encoder-loss) | 2.998 | 3.385 | 4.138e-9 |
 | **with MSE encoder loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 4.673e-9 |
 
-Compared to a canonical decoder-only transformer (baseline), the new model outperformed it in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands. The baseline did have more parameters because it was hard to exactly match the new model's.
+Compared to a canonical decoder-only transformer (baseline), the new model outperformed it in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands. Also, the baseline had more parameters.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/f_train_loss.svg" alt="Image 1" style="width: 45%;"/>
