@@ -1,13 +1,13 @@
 # Auto-regressive Encoder-Decoder Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
 
-Current SOTA LLMs are all decoder-only models. Here, a new end-to-end auto-regressive encoder-decoder transformer is presented that outperforms, with fewer parameters, the canonical dencoder-only transformer.
+Current SOTA LLMs are all decoder-only models. Here, a new end-to-end auto-regressive encoder-decoder transformer is presented that outperforms, with fewer parameters, the canonical decoder-only transformer.
 
 ## Motivations
 
-Though transformer models have a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. Indeed, empirical evidence shows that the earlier layers of a model focus more on general linguistic features (when applied to language) and the later layers more on task-specific features and thus more on prediction. In a decoder-only transformer, the model learns when to switch from understanding to predicting. In a encoder-decoder model, it is more imposed by design: the encoder generates an output and the decoder has to continuosly attend to the encoder output. Therefore, the encoder focuses more on understanding and the decoder more on prediction.
+Though transformer models have a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. Indeed, empirical evidence shows that the earlier layers of a model focus more on general linguistic features (when applied to language) and the later layers more on task-specific features and thus more on prediction. In a decoder-only transformer, the model learns when to switch from understanding to predicting. In an encoder-decoder model, it is more imposed by design: the encoder generates an output and the decoder has to continuously attend to the encoder output. Therefore, the encoder focuses more on understanding, and the decoder more on prediction.
 
-The canonical enoder-decoder transformer is used for sequence-to-sequence tasks, like machine translation. Instead, the model here is used auto-regressively end-to-end. This, along with novel components described in sections that follow, beats – with fewer parameters – the baseline of a decoder-only transformer.
+The canonical encoder-decoder transformer is used for sequence-to-sequence tasks, like machine translation. Instead, the model here is used auto-regressively end-to-end. This, along with novel components described in sections that follow, beats – with fewer parameters – the baseline of a decoder-only transformer.
 
 ## Architecture
 
@@ -15,7 +15,7 @@ At the high level, the architecture re-implements the canonical encoder-decoder 
 
 ### Encoder-Decoder
 
-In the canonical encoder-decoder transformer, the encoder runs once on an input, and then the decoder runs auto-regressively on its own ouput while attending to the encoder output. It looks like this
+In the canonical encoder-decoder transformer, the encoder runs once on an input, and then the decoder runs auto-regressively on its own output while attending to the encoder output. It looks like this
 
 <div align="center">
   <img src="assets/diagram.png" alt="diagram" width="500">
@@ -24,7 +24,7 @@ In the canonical encoder-decoder transformer, the encoder runs once on an input,
 </div>
 <br>
 
-To use this architecture for an end-to-end auto-regressive task, the encoder and decoder are adapted to run together serially. The encoder generates an output and the decoder generates the next token while attending to the encoder output. When a new input is formed with the new decoder output, it gets fed back to the model, which reruns the encoder and decoder. To make this work, the encoder attention has to be masked. Visually, the new model looks like this
+To use this architecture for an end-to-end auto-regressive task, the encoder and decoder are adapted to run together serially. The encoder generates an output and the decoder generates the next token while attending to the encoder output. When a new input is formed with the new decoder output, it gets fed back to the model, which reruns the encoder and decoder. To make this work, the encoder's attention has to be masked. Visually, the new model looks like this
 
 <div align="center">
     <img src="assets/new_diagram.png"
@@ -36,7 +36,7 @@ To use this architecture for an end-to-end auto-regressive task, the encoder and
 
 Another way to think about it is this. It takes a regular decoder-only model with $L$ layers and makes the last $L_{decoder}$ layers do both self-attention and cross-attention on the output of the first $L_{encoder}$ layers.
 
-For simplicity, the model has the equal number of encoder and decoder layers.
+For simplicity, the model has an equal number of encoder and decoder layers.
 ### Encoder loss
 
 In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss on the encoder is introduced. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved on token weights (in addition to output layer weight tying) **and on positional weights** with the encoder loss described as follows. Given the original input embedding ${E}$, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
@@ -58,9 +58,9 @@ and the encoder loss with cosine dissimilarity is
 
 $$encoder\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1}{2}$$
 
-### Positional embedding substraction
+### Positional embedding subtraction
 
-Before the output layer, positional embedding of the "next tokens" are subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, you increase update frequency & magnitude of positional weights. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
+Before the output layer, the positional embedding of the "next tokens" are subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, you increase update frequency & magnitude of positional weights. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
 
 ## Analysis/experiments
 
@@ -133,7 +133,7 @@ These are some further things to look forward to:
 
 Even the vanilla [no encoder loss and no pos sub](#no-encoder-loss-and-no-pos-sub) outperformed the baseline in validation loss. This probably means that cross-attention on encoder output is enough for better performance. When coupled with encoder loss and positional embedding subtraction, performance improved even more.
 
-More informative, it would be very interesting to inspect the effect of encoder loss and positional embedding substraction on token and positional embeddings. Perhaps interesting relationships can be observed between token and positional embedding. Furthermore, positional embedding subtraction should work even for decoder-only transformer.
+More informative, it would be very interesting to inspect the effect of encoder loss and positional embedding subtraction on token and positional embeddings. Perhaps interesting relationships can be observed between token and positional embedding. Furthermore, positional embedding subtraction should work even for decoder-only transformers.
 
 Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
