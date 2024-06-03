@@ -36,6 +36,7 @@ To use this architecture for an end-to-end auto-regressive task, the encoder and
 
 Another way to think about it is this. It takes a regular decoder-only model with $L$ layers and makes the last $L_{decoder}$ layers do both self-attention and cross-attention on the output of the first $L_{encoder}$ layers.
 
+For simplicity, the model has the equal number of encoder and decoder layers.
 ### Encoder loss
 
 In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss on the encoder is introduced. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved on token weights (in addition to output layer weight tying) **and** on positional weights with the encoder loss described as follows. Given the original input embedding ${E}$, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
@@ -120,15 +121,21 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 
 ## Next steps
 
-These are some improvements to look forward to:
-- instead of the encoder and decoder having equal depth, it would be better for the model to learn what depth is best for either 
+These are some further things to look forward to:
+- experiment with unequal encoder and decoder layers, ideally allowing the model to learn it 
 - instead of MSE and cosine dissimilarity, some other disaffinity scores should be experimented with
 - the cumulative embedding average $E_{avg\\\_sum}$ assumes equal contribution from every preceding token, so a different aggregation might be better (maybe convolution?)
-- the first `decoder_x` is initialized with a feed forward layer on $E$. Ideally, the decoder would have its own embeddings, but that would add too many parameters. A different way to initialize `decoder_x` should be explored
 - try bigger models, at least GPT-2 size
+- run training for longer to observe long-term behavior
+- try different datasets
 
 ## Conclusions
-TODO
+
+Even the vanilla **no encoder loss and no pos sub** outperformed the baseline in validation loss. This probably means that cross-attention on encoder is enough to improve performance. When coupled with encoder loss and positional embedding subtraction, performance improved even more.
+
+Also, it would be very informative to inspect the effect of encoder loss and positional embedding substraction on token and positional embeddings. Perhaps interesting relationships could form between token and positional embedding. Furthermore, there is no reason to believe that positional embedding subtraction wouldn't be useful even to decoder-only transformer.
+
+Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation. 
 
 ---
 ## Appendix
