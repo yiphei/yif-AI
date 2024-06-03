@@ -131,11 +131,11 @@ These are some further things to look forward to:
 
 ## Conclusions
 
-Even the vanilla **no encoder loss and no pos sub** outperformed the baseline in validation loss. This probably means that cross-attention on encoder is enough to improve performance. When coupled with encoder loss and positional embedding subtraction, performance improved even more.
+Even the vanilla [no encoder loss and no pos sub](#no-encoder-loss-and-no-pos-sub) outperformed the baseline in validation loss. This probably means that cross-attention on encoder output is enough for better performance. When coupled with encoder loss and positional embedding subtraction, performance improved even more.
 
-Also, it would be very informative to inspect the effect of encoder loss and positional embedding substraction on token and positional embeddings. Perhaps interesting relationships could form between token and positional embedding. Furthermore, there is no reason to believe that positional embedding subtraction wouldn't be useful even to decoder-only transformer.
+More informative, it would be very interesting to inspect the effect of encoder loss and positional embedding substraction on token and positional embeddings. Perhaps interesting relationships can be observed between token and positional embedding. Furthermore, positional embedding subtraction should work even for decoder-only transformer.
 
-Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation. 
+Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
 ---
 ## Appendix
