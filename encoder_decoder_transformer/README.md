@@ -91,6 +91,21 @@ Adding the positional embedding of the next tokens to the decoder helped the tra
 | **with pos embed sub** [(config)](#with-pos-embed-sub) | **2.979** | **3.381** | N/A |
 | **no encoder loss and no pos sub** [(config)](#no-encoder-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
 
+
+Both together performed better
+
+<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+  <img src="assets/both_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/both_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/both_encoder_loss_2.svg" alt="Image 2" style="width: 45%;"/>
+</div>
+
+|   | Train loss | Val loss | Encoder loss |
+|---|----------|----------|----------|
+| **with pos embed sub** [(config)](#with-pos-embed-sub) | **2.979** | 3.381 | N/A |
+| **with MSE encoder loss** [(config)](#with-mse-encoder-loss) | 2.998 | 3.385 | 4.138e-9 |
+| **with MSE encoder loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 4.673e-9 |
+
 Compared to a canonical decoder-only transformer (baseline), the new model outperformed it in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands. The baseline did have more parameters because it was hard to exactly match the new model's.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
@@ -247,7 +262,7 @@ TODO
  'lr_decay_iters': 700000,
  'gradient_accumulation_steps': 16}
 ```
-#### "parallel encoder-decoder transformer"
+#### "with MSE encoder loss and pos sub"
 ```
 {'lr': 0.0009,
  'beta1': 0.9,
@@ -259,20 +274,20 @@ TODO
  'train_steps': 9000,
  'est_interval': 500,
  'model_config': {'n_head': 5,
-                  'n_embed': 200,
-                  'n_layer': 5,
+                  'n_embed': 150,
+                  'n_layer': 13,
                   'use_bias': False,
                   'order_type': 1,
                   'context_size': 200,
                   'dropout_rate': 0,
-                  'add_pos_embed_to_decoder': True,
-                  'sub_pos_embed_to_decoder': 1,
                   'cross_attn_config': {'n_head': 10, 'use_bias': False},
                   'encoder_embed_ln_type': 2,
                   'use_ln_on_encoder_out': True,
                   'encoder_embed_loss_type': 2,
                   'add_ln_before_decoder_ff': False,
-                  'encoder_embed_loss_coeff': 0.25,
+                  'add_pos_embed_to_decoder': False,
+                  'encoder_embed_loss_coeff': 8,
+                  'sub_pos_embed_to_decoder': 2,
                   'encoder_embed_detach_type': 3},
  'warmup_iters': 300,
  'weight_decay': 0.1,
