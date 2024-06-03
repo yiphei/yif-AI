@@ -65,7 +65,7 @@ Before the output layer, positional embedding of the "next tokens" are subtracte
 
 All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU.
 
-The MSE encoder loss performed than cosine dissimilarity in validation loss but worse in train loss. Both types of encoder loss did better than without it.
+The MSE encoder loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of encoder loss did better than without it.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -92,7 +92,7 @@ Adding the positional embedding subtraction strictly improved performance.
 | **no encoder loss and no pos sub** [(config)](#no-encoder-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
 
 
-Combining MSE encoder loss and positional embedding subtraction improved validation loss.
+Combining both MSE encoder loss and positional embedding subtraction improved validation loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/both_train_loss.svg" alt="Image 1" style="width: 45%;"/>
