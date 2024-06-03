@@ -60,7 +60,7 @@ Before the (decoder) output layer, the positional embedding of the "next tokens"
 
 <div align="center">
     <img src="assets/pos_diagram.svg"
-         alt="diagram">
+         alt="diagram" height="300">
 </div>
 <br>
 
