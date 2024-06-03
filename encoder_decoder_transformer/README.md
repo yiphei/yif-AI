@@ -26,7 +26,7 @@ To use this architecture for an end-to-end auto-regressive task, the encoder and
 
 <div align="center">
     <img src="assets/self_new_diagram.svg"
-         alt="diagram" width="500">
+         alt="diagram" height="800">
 </div>
 <br>
 
