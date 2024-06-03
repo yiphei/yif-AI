@@ -109,14 +109,14 @@ Both together performed better
 Compared to a canonical decoder-only transformer (baseline), the new model outperformed it in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands. The baseline did have more parameters because it was hard to exactly match the new model's.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
-  <img src="assets/g_final_train.svg" alt="Image 1" style="width: 45%;"/>
-  <img src="assets/g_final_val.svg" alt="Image 2" style="width: 45%;"/>
+  <img src="assets/f_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/f_val_loss.svg" alt="Image 2" style="width: 45%;"/>
 </div>
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **parallel encoder-decoder transformer** [(config)](#parallel-encoder-decoder-transformer) | 2.981 | **3.439** | 15,698,400 |
-| **baseline** [(config)](#baseline) | **2.934** | 3.449 | 15,850,380 |
+| **with MSE encoder loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
+| **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
 
 ## Next steps
 
@@ -306,8 +306,8 @@ TODO
  'train_steps': 9000,
  'est_interval': 500,
  'model_config': {'n_head': 10,
-                  'n_embed': 210,
-                  'n_layer': 10,
+                  'n_embed': 160,
+                  'n_layer': 26,
                   'use_bias': False,
                   'context_size': 200,
                   'dropout_rate': 0},
