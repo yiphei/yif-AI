@@ -123,6 +123,9 @@ class ModelConfig(BaseModelConfig):
     """The default field values are the suggested ones for the best performance.
     Fine-tuning encoder_embed_loss_coeff may improve performance.
 
+    NB: there are more hyperparameters here than described in the README. This is because
+        either they were found to be detrimental or were trivial additions.
+
     Args:
         cross_attn_config: config for the cross-attention head layer.
         add_pos_embed_to_decoder: adds the "next" positional embedding to the decoder input.
