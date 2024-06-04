@@ -135,7 +135,7 @@ To rule out size differences, two more baselines.
 | **with MSE encoder loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
 | **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
 | **smaller baseline** [(config)](#smaller-baseline) | 2.958 | 3.416 | 15,441,192 |
-| **0.2 dropout baseline** [(config)](#0.2-dropout-baseline) | 3.174 | 3.406 | 16,036,800 |
+| **0.2 dropout baseline** [(config)](#02-dropout-baseline) | 3.174 | 3.406 | 16,036,800 |
 
 ## Next steps
 
