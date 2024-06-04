@@ -132,6 +132,7 @@ These are some further things to look forward to:
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
 - try different datasets
+- dropout is known to improve validation loss, but it was not used here for simplicity. But the new architecture should also be tested with dropout
 
 ## Conclusions
 
