@@ -39,7 +39,7 @@ In the canonical decoder-encoder model, the loss function is evaluated over the 
 
 $$
 \begin{aligned}
-& out_{enc} \coloneqq \text{encoder output} \\
+& out_{enc} \coloneqq \text{encoder output (detached)} \\
 & E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
 & E_{avg\\\_sum} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{avg\\\_sum_{(i,j)}} = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
 & encoder\\\_loss = disaffinity\\\_score(out_{enc}, E_{avg\\\_sum})
