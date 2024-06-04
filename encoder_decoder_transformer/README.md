@@ -111,7 +111,7 @@ Combining both MSE encoder loss and positional embedding subtraction improved va
 | **with MSE encoder loss** [(config)](#with-mse-encoder-loss) | 2.998 | 3.385 | 4.138e-9 |
 | **with MSE encoder loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 4.673e-9 |
 
-Compared to a canonical decoder-only transformer (baseline), the new model outperformed it in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands. The baseline had more parameters, but the difference is small enough to diminish explanations for the new model's validation performance based purely on size difference.
+Compared to a canonical decoder-only transformer (baseline), the new model outperformed it in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands, but the baseline had more parameters.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/f_train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -123,7 +123,7 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 | **with MSE encoder loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
 | **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
 
-To rule out size differences, two more baselines.
+Two more baselines are compared: "smaller baseline" and "0.2 dropout baseline". "smaller baseline" is a baseline smaller than "with MSE encoder loss and pos sub". By outperforming it, the new model's better validation loss can't be attributed to its smaller size. "0.2 dropout baseline" is a baseline with 0.2 dropout. By outperforming it, the new model also demonstrates its superiority over dropout.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/ff_train_loss.svg" alt="Image 1" style="width: 45%;"/>
