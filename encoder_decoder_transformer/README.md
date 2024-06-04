@@ -64,7 +64,7 @@ Before the (decoder) output layer, the positional embedding of the "next tokens"
 </div>
 <br>
 
-## Analysis/experiments
+## Results
 
 All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU.
 
