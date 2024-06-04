@@ -66,7 +66,9 @@ Before the (decoder) output layer, the positional embedding of the "next tokens"
 
 ## Results
 
-All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU.
+> All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU, unless otherwise stated.
+> 
+> Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
 The MSE encoder loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of encoder loss did better than without it.
 
