@@ -56,7 +56,7 @@ $$encoder\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1
 
 ### Positional embedding subtraction
 
-Before the (decoder) output layer, the positional embedding of the "next tokens" are subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, you increase update frequency & magnitude of positional weights. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
+Before the (decoder) output layer, the positional embedding of the "next tokens" is subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, you increase update frequency & magnitude of positional weights. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
 
 <div align="center">
     <img src="assets/pos_diagram.svg"
