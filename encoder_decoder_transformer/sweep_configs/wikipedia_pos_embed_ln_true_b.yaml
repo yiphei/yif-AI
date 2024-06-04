@@ -1,6 +1,6 @@
 program: encoder_decoder_transformer/training_script.py
 name: wikipedia_pos_embed_ln_true_b
-project: encoder_decoder_transformer
+project: serial_encoder_decoder_transformer
 method: grid
 metric:
   goal: minimize
@@ -13,9 +13,9 @@ parameters:
             context_size:
                 value: 200
             n_embed: 
-                value: 200
+                value: 150
             n_layer: 
-                value: 5
+                value: 13
             n_head: 
                 value: 5
             dropout_rate:
@@ -24,9 +24,9 @@ parameters:
                 value: 1
             add_ln_before_decoder_ff:
                 value: True
-            add_pos_embed:
+            add_pos_embed_to_decoder:
                 value: False
-            sub_pos_embed:
+            sub_pos_embed_to_decoder:
                 value: 3
             cross_attn_config:
                 parameters:
@@ -38,6 +38,12 @@ parameters:
                 value: null
             encoder_embed_loss_type:
                 value: 1
+            encoder_embed_detach_type:
+                value: null
+            encoder_embed_ln_type:
+                value: null
+            encoder_embed_loss_coeff:
+                value: null
     batch_size: 
         value: 50
     train_steps: 
