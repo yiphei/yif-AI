@@ -134,8 +134,8 @@ To rule out size differences, two more baselines.
 |---|----------|----------|----------|
 | **with MSE encoder loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
 | **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
-| **smaller baseline** [(config)](#baseline) | 2.958 | 3.416 | 15,441,192 |
-| **0.2 dropout baseline** [(config)](#baseline) | 3.174 | 3.406 | 16,036,800 |
+| **smaller baseline** [(config)](#smaller-baseline) | 2.958 | 3.416 | 15,441,192 |
+| **0.2 dropout baseline** [(config)](#0.2-dropout-baseline) | 3.174 | 3.406 | 16,036,800 |
 
 ## Next steps
 
@@ -337,6 +337,50 @@ Alas, the principal limitation is my personal compute budget, so this project ca
                   'use_bias': False,
                   'context_size': 200,
                   'dropout_rate': 0},
+ 'warmup_iters': 300,
+ 'weight_decay': 0.1,
+ 'lr_decay_iters': 700000,
+ 'gradient_accumulation_steps': 16}
+```
+#### "smaller baseline"
+```
+{'lr': 0.0009,
+ 'beta1': 0.9,
+ 'beta2': 0.95,
+ 'min_lr': 9e-05,
+ 'decay_lr': True,
+ 'est_steps': 200,
+ 'batch_size': 50,
+ 'train_steps': 9000,
+ 'est_interval': 500,
+ 'model_config': {'n_head': 12,
+                  'n_embed': 156,
+                  'n_layer': 26,
+                  'use_bias': False,
+                  'context_size': 200,
+                  'dropout_rate': 0},
+ 'warmup_iters': 300,
+ 'weight_decay': 0.1,
+ 'lr_decay_iters': 700000,
+ 'gradient_accumulation_steps': 16}
+```
+#### "0.2 dropout baseline"
+```
+{'lr': 0.0009,
+ 'beta1': 0.9,
+ 'beta2': 0.95,
+ 'min_lr': 9e-05,
+ 'decay_lr': True,
+ 'est_steps': 200,
+ 'batch_size': 50,
+ 'train_steps': 9000,
+ 'est_interval': 500,
+ 'model_config': {'n_head': 10,
+                  'n_embed': 160,
+                  'n_layer': 26,
+                  'use_bias': False,
+                  'context_size': 200,
+                  'dropout_rate': 0.2},
  'warmup_iters': 300,
  'weight_decay': 0.1,
  'lr_decay_iters': 700000,
