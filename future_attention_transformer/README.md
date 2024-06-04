@@ -39,9 +39,11 @@ and with cosine dissimilarity is
 
 $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{future}, out_{future}^{*}) + 1}{2}$$
 
-## Analysis/experiments
+## Results
 
-All training runs below were trained on a wikipedia dataset for 9k steps on a single A100 GPU.
+> All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU, unless otherwise stated.
+> 
+> Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
 First, the two types of future attention loss were compared. Cosine-dissimilarity did better in validation loss while MSE did better in train loss.
 
