@@ -123,6 +123,20 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 | **with MSE encoder loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
 | **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
 
+To rule out size differences, two more baselines.
+
+<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+  <img src="assets/ff_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/ff_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+</div>
+
+|   | Train loss | Val loss | Size (params) |
+|---|----------|----------|----------|
+| **with MSE encoder loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
+| **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
+| **smaller baseline** [(config)](#baseline) | 2.958 | 3.416 | 15,441,192 |
+| **0.2 dropout baseline** [(config)](#baseline) | 3.174 | 3.406 | 16,036,800 |
+
 ## Next steps
 
 These are some further things to look forward to:
