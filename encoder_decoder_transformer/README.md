@@ -30,9 +30,9 @@ To use this architecture for an end-to-end auto-regressive task, the encoder and
 </div>
 <br>
 
-Another way to think about it is this. It takes a regular decoder-only model with $L$ layers and makes the last $L_{decoder}$ layers do both self-attention and cross-attention on the output of the first $L_{encoder}$ layers.
+Another way to think about it is this. It takes a regular decoder-only architecture with $L$ layers and makes the last $L_{decoder}$ layers do both self-attention and cross-attention on the output of the first $L_{encoder}$ layers.
 
-For simplicity, the model has an equal number of encoder and decoder layers.
+For simplicity, the new architecture consists of an equal number of encoder and decoder layers.
 ### Encoder loss
 
 In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss on the encoder is introduced in addition to the regular loss. The idea here is similar to weight tying the output layer with the token embedding. Weigh tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved on token weights (in addition to output layer weight tying) **and on positional weights** with the encoder loss described as follows. Given the original input embedding ${E}$, you calculate the cumulative average along the token dimension (i.e. T dimension). Then, the encoder loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally, you have
