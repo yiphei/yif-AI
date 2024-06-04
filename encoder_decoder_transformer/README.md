@@ -30,7 +30,7 @@ To use this architecture for an end-to-end auto-regressive task, the encoder and
 </div>
 <br>
 
-Another way to think about it is this. It takes a regular decoder-only architecture with $L$ layers and makes the last $L_{decoder}$ layers do both self-attention and cross-attention on the output of the first $L_{encoder}$ layers.
+Another way to think about it is this. It takes a regular decoder-only architecture with $L$ layers and makes the last $L_{decoder}$ layers do both self-attention and cross-attention on the output of the first $L_{encoder}$ layers. When transitioning from encoder to decoder, the input to the first decoder layer is a linear pass on the encoder output.
 
 For simplicity, the new architecture consists of an equal number of encoder and decoder layers.
 
