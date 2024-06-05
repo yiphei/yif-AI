@@ -226,7 +226,9 @@ class FutureMultiAttentionHead(SubModuleStats):
             0.0,
         )
         unpadded_future_attn = softmax_future_attn[:,indices]
-        v_future = up_future_mult @ self.v_weights
+        v_future = up_future @ self.v_weights
+        v_future = v_future.view(B, T, self.future_dim, self.n_head, self.head_size)
+        v_future = v_future.permute(0,3, 1, 2, 4)
         future_x = torch.einsum("bhtf,bhtfs->bhts", unpadded_future_attn, v_future)
 
         causal_x = softmax_causal_attn @ v
