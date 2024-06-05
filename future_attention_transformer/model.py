@@ -160,23 +160,24 @@ class FutureMultiAttentionHead(SubModuleStats):
                 diagonal=future_dim,
             ),
         )
-        self.register_buffer("indices", (torch.arange(self.future_dim).unsqueeze(
-            0
-        ) + torch.arange(1, context_size + 1).unsqueeze(1)).expand(self.n_head, context_size, self.future_dim)
+        self.register_buffer(
+            "indices",
+            (
+                torch.arange(self.future_dim).unsqueeze(0)
+                + torch.arange(1, context_size + 1).unsqueeze(1)
+            ).expand(self.n_head, context_size, self.future_dim),
         )
 
         inf_mask = torch.triu(
-                torch.ones(context_size, self.future_dim + context_size),
-                diagonal=self.future_dim +1,
-            )
-        padding = torch.zeros(
-            (self.context_size, self.future_dim + self.context_size)
-        ) 
-        padding = padding.masked_fill(
-            inf_mask == 1, float("-inf")
+            torch.ones(context_size, self.future_dim + context_size),
+            diagonal=self.future_dim + 1,
         )
-        padding = padding.expand(self.n_head, self.context_size, self.future_dim + self.context_size)
-        self.register_buffer("padding",padding )
+        padding = torch.zeros((self.context_size, self.future_dim + self.context_size))
+        padding = padding.masked_fill(inf_mask == 1, float("-inf"))
+        padding = padding.expand(
+            self.n_head, self.context_size, self.future_dim + self.context_size
+        )
+        self.register_buffer("padding", padding)
 
     def forward(self, x):
         B, T, C = x.shape
@@ -232,9 +233,15 @@ class FutureMultiAttentionHead(SubModuleStats):
 
         future_attention = torch.einsum("bhts,bhtfs->bhtf", q, k_future)
 
-        padding = self.padding[:, :T, :T + self.future_dim].expand(B, self.n_head, T, self.future_dim + T)
-        expanded_indices = self.indices[:,:T, :].expand(B, self.n_head, T, self.future_dim)
-        padded_future_attn = torch.scatter(padding,-1, expanded_indices, future_attention)
+        padding = self.padding[:, :T, : T + self.future_dim].expand(
+            B, self.n_head, T, self.future_dim + T
+        )
+        expanded_indices = self.indices[:, :T, :].expand(
+            B, self.n_head, T, self.future_dim
+        )
+        padded_future_attn = torch.scatter(
+            padding, -1, expanded_indices, future_attention
+        )
 
         full_attn = padded_causal_attn + padded_future_attn
 
@@ -273,7 +280,9 @@ class FutureMultiAttentionHead(SubModuleStats):
             if self.future_x_loss_type == FutureXLossType.MSE:
                 self.future_loss = F.mse_loss(adjusted_future_x, adjusted_true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(adjusted_future_x, adjusted_true_future_x, dim=-1)
+                cosine_sim = F.cosine_similarity(
+                    adjusted_future_x, adjusted_true_future_x, dim=-1
+                )
                 self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
 
         return new_x
