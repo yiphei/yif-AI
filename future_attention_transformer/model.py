@@ -204,14 +204,10 @@ class FutureMultiAttentionHead(SubModuleStats):
         else:
             padded_causal_attn = causal_attn
 
-        f = f.transpose(1,2) # B, E, T
-        up_future = self.up_future_conv(
-            f
-        )  # B, E, T * self.future_dim
-        up_future = up_future.transpose(1,2) # B, T * self.future_dim, E
-        k_future = (
-            self.k_weights(up_future)
-        )  # B, T * self.future_dim, E
+        f = f.transpose(1, 2)  # B, E, T
+        up_future = self.up_future_conv(f)  # B, E, T * self.future_dim
+        up_future = up_future.transpose(1, 2)  # B, T * self.future_dim, E
+        k_future = self.k_weights(up_future)  # B, T * self.future_dim, E
         k_future = k_future.view(B, T, self.future_dim, self.n_head, self.head_size)
         k_future = k_future.permute(
             0, 3, 1, 2, 4
