@@ -160,6 +160,15 @@ class FutureMultiAttentionHead(SubModuleStats):
                 diagonal=future_dim,
             ),
         )
+        self.register_buffer("indices", torch.arange(self.future_dim).unsqueeze(
+            0
+        ) + torch.arange(1, context_size + 1).unsqueeze(1)
+        )
+        max_col_indices = self.indices.max(dim=-1, keepdim=True).values
+        col_indices = torch.arange(self.context_size + self.future_dim).expand(
+            self.context_size, self.context_size + self.future_dim
+        )
+        self.register_buffer("mask", col_indices > max_col_indices)
 
     def forward(self, x):
         B, T, C = x.shape
@@ -214,21 +223,14 @@ class FutureMultiAttentionHead(SubModuleStats):
         )  # B, H, T, self.future_dim, self.head_size
 
         future_attention = torch.einsum("bhts,bhtfs->bhtf", q, k_future)
+        
         padding = torch.zeros(
             (B, self.n_head, T, self.future_dim + T), dtype=x.dtype, device=x.device
         )
-        indices = torch.arange(self.future_dim, device=x.device).unsqueeze(
-            0
-        ) + torch.arange(1, T + 1, device=x.device).unsqueeze(1)
-        expanded_indices = indices.expand(B, self.n_head, T, self.future_dim)
+        expanded_indices = self.indices[:T, :].expand(B, self.n_head, T, self.future_dim)
         padded_future_attn = padding.scatter_(-1, expanded_indices, future_attention)
 
-        max_col_indices = indices.max(dim=-1, keepdim=True).values
-        col_indices = torch.arange(padded_future_attn.size(-1), device=x.device).expand(
-            padded_future_attn.size(-2), padded_future_attn.size(-1)
-        )
-        mask = col_indices > max_col_indices
-        expanded_mask = mask.expand(
+        expanded_mask = self.mask[:T,:T + self.future_dim].expand(
             padded_future_attn.size(0),
             padded_future_attn.size(1),
             padded_future_attn.size(2),
