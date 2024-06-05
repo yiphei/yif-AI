@@ -160,9 +160,9 @@ class FutureMultiAttentionHead(SubModuleStats):
                 diagonal=future_dim,
             ),
         )
-        self.register_buffer("indices", torch.arange(self.future_dim).unsqueeze(
+        self.register_buffer("indices", (torch.arange(self.future_dim).unsqueeze(
             0
-        ) + torch.arange(1, context_size + 1).unsqueeze(1)
+        ) + torch.arange(1, context_size + 1).unsqueeze(1)).expand(self.n_head, context_size, self.future_dim)
         )
 
         inf_mask = torch.triu(
@@ -233,7 +233,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         future_attention = torch.einsum("bhts,bhtfs->bhtf", q, k_future)
 
         padding = self.padding[:, :T, :T + self.future_dim].expand(B, self.n_head, T, self.future_dim + T)
-        expanded_indices = self.indices[:T, :].expand(B, self.n_head, T, self.future_dim)
+        expanded_indices = self.indices[:,:T, :].expand(B, self.n_head, T, self.future_dim)
         padded_future_attn = torch.scatter(padding,-1, expanded_indices, future_attention)
 
         full_attn = padded_causal_attn + padded_future_attn
