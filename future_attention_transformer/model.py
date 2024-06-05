@@ -224,7 +224,7 @@ class FutureMultiAttentionHead(SubModuleStats):
 
         full_attn = padded_causal_attn + padded_future_attn
         full_attn = full_attn.masked_fill(
-            self.full_tril[:, :, :T, :T_w_future] == 0,
+            self.full_tril[:, :, :T, :] == 0,
             float("-inf"),
         )
         softmax_full_attn = F.softmax(full_attn, dim=-1)
