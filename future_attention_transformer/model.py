@@ -226,7 +226,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         indices = torch.arange(self.future_dim, device=x.device).unsqueeze(
             0
         ) + torch.arange(1, T + 1, device=x.device).unsqueeze(1)
-        indices = indices.unsqueeze(0).unsqueeze(0).expand(B, self.n_head, T, self.future_dim)
+        indices = indices.expand(B, self.n_head, T, self.future_dim)
         padded_future_attn = padding.scatter_(-1, indices, future_attention)
 
         max_col_indices = indices.max(dim=-1, keepdim=True).values
