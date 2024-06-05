@@ -118,9 +118,15 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.detach_future_x = detach_future_x or False
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 4, bias=use_bias)
-        self.k_weights = self.batch_attn_weights.weight[dim_in:dim_in*2, :].T
-        self.v_weights = self.batch_attn_weights.weight[dim_in*2:dim_in*3, :].T
-        self.up_future_conv = nn.ConvTranspose1d(in_channels=self.head_size, out_channels=self.head_size, kernel_size=self.future_dim, stride=self.future_dim, bias=use_bias)
+        self.k_weights = self.batch_attn_weights.weight[dim_in : dim_in * 2, :].T
+        self.v_weights = self.batch_attn_weights.weight[dim_in * 2 : dim_in * 3, :].T
+        self.up_future_conv = nn.ConvTranspose1d(
+            in_channels=self.head_size,
+            out_channels=self.head_size,
+            kernel_size=self.future_dim,
+            stride=self.future_dim,
+            bias=use_bias,
+        )
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
 
         self.dropout_1 = nn.Dropout(dropout_rate)
@@ -158,7 +164,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         B, T, C = x.shape
         T_w_future = min(T + self.future_dim, self.context_size)
 
-        q, k, v,f = self.batch_attn_weights(x).split(self.dim_in, dim=2)
+        q, k, v, f = self.batch_attn_weights(x).split(self.dim_in, dim=2)
         k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
@@ -196,16 +202,24 @@ class FutureMultiAttentionHead(SubModuleStats):
 
         adapted_f = f.transpose(2, 3).reshape(B * self.n_head, self.head_size, T)
         up_future = self.up_future_conv(adapted_f)
-        up_future = up_future.reshape(B, self.n_head, self.head_size, T, self.future_dim)
+        up_future = up_future.reshape(
+            B, self.n_head, self.head_size, T, self.future_dim
+        )
         up_future = up_future.permute(0, 3, 4, 1, 2)
-        up_future = up_future.reshape(B, T, self.future_dim, self.n_head * self.head_size)
+        up_future = up_future.reshape(
+            B, T, self.future_dim, self.n_head * self.head_size
+        )
         k_future = up_future @ self.k_weights
         k_future = k_future.view(B, T, self.future_dim, self.n_head, self.head_size)
-        k_future = k_future.permute(0,3, 1, 2, 4)
+        k_future = k_future.permute(0, 3, 1, 2, 4)
 
-        future_attention = torch.einsum("bhts,bhtfs->bhtf", q,k_future)
-        padding = torch.zeros((B, self.n_head, T, self.future_dim  + T), dtype=x.dtype, device=x.device)
-        indices = torch.arange(self.future_dim).unsqueeze(0) + torch.arange(1,T+1).unsqueeze(1)
+        future_attention = torch.einsum("bhts,bhtfs->bhtf", q, k_future)
+        padding = torch.zeros(
+            (B, self.n_head, T, self.future_dim + T), dtype=x.dtype, device=x.device
+        )
+        indices = torch.arange(self.future_dim).unsqueeze(0) + torch.arange(
+            1, T + 1
+        ).unsqueeze(1)
         padded_future_attn = padding.scatter_(1, indices, future_attention)
 
         full_attn = padded_causal_attn + padded_future_attn
@@ -225,10 +239,10 @@ class FutureMultiAttentionHead(SubModuleStats):
             self.future_tril[:, :, :T, : T_w_future - 1] != 0,
             0.0,
         )
-        unpadded_future_attn = softmax_future_attn[:,indices]
+        unpadded_future_attn = softmax_future_attn[:, indices]
         v_future = up_future @ self.v_weights
         v_future = v_future.view(B, T, self.future_dim, self.n_head, self.head_size)
-        v_future = v_future.permute(0,3, 1, 2, 4)
+        v_future = v_future.permute(0, 3, 1, 2, 4)
         future_x = torch.einsum("bhtf,bhtfs->bhts", unpadded_future_attn, v_future)
 
         causal_x = softmax_causal_attn @ v
