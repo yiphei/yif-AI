@@ -232,13 +232,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         expanded_indices = self.indices[:T, :].expand(B, self.n_head, T, self.future_dim)
         padded_future_attn = torch.scatter(padding,-1, expanded_indices, future_attention)
 
-        expanded_mask = self.mask[:T,:T + self.future_dim].expand(
-            padded_future_attn.size(0),
-            padded_future_attn.size(1),
-            padded_future_attn.size(2),
-            padded_future_attn.size(3),
-        )
-        padded_future_attn[expanded_mask] = float("-inf")
+        expanded_mask = self.mask[:T,:T + self.future_dim]
+        padded_future_attn[...,expanded_mask] = float("-inf")
 
         full_attn = padded_causal_attn + padded_future_attn
 
