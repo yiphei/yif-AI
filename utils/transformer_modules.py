@@ -186,7 +186,7 @@ class BaseModel(nn.Module):
         raise NotImplementedError
 
     def _init_weights(self, module):
-        if isinstance(module, nn.Linear):
+        if isinstance(module, (nn.Linear, nn.ConvTranspose1d)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
