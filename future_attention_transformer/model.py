@@ -223,17 +223,22 @@ class FutureMultiAttentionHead(SubModuleStats):
         padding = torch.zeros(
             (B, self.n_head, T, self.future_dim + T), dtype=x.dtype, device=x.device
         )
-        indices = torch.arange(self.future_dim, device=x.device).unsqueeze(0) + torch.arange(
-            1, T + 1, device=x.device
-        ).unsqueeze(1)
+        indices = torch.arange(self.future_dim, device=x.device).unsqueeze(
+            0
+        ) + torch.arange(1, T + 1, device=x.device).unsqueeze(1)
         indices = indices.unsqueeze(0).unsqueeze(0)
         padded_future_attn = padding.scatter_(0, indices, future_attention)
-        
+
         max_col_indices = indices.max(dim=-1, keepdim=True).values
-        comparison_indices = torch.arange(padded_future_attn.size(3), device=x.device).expand(padded_future_attn.size(2), padded_future_attn.size(3)).unsqueeze(0).unsqueeze(0)
-        mask = comparison_indices  > max_col_indices
+        comparison_indices = (
+            torch.arange(padded_future_attn.size(3), device=x.device)
+            .expand(padded_future_attn.size(2), padded_future_attn.size(3))
+            .unsqueeze(0)
+            .unsqueeze(0)
+        )
+        mask = comparison_indices > max_col_indices
         mask = mask.squeeze(0).squeeze(0)
-        padded_future_attn[:,:,mask] = float("-inf")
+        padded_future_attn[:, :, mask] = float("-inf")
 
         full_attn = padded_causal_attn + padded_future_attn
 
@@ -245,8 +250,12 @@ class FutureMultiAttentionHead(SubModuleStats):
             self.causal_tril[:, :, :T, :T] == 0, 0.0
         )
 
-        part_1 = softmax_full_attn[:, :, :T, :T].masked_fill(self.causal_tril[:, :, :T, :T] != 0, 0.0)
-        softmax_future_attn = torch.cat((part_1,softmax_full_attn[:, :, :T, T:]), dim=-1) 
+        part_1 = softmax_full_attn[:, :, :T, :T].masked_fill(
+            self.causal_tril[:, :, :T, :T] != 0, 0.0
+        )
+        softmax_future_attn = torch.cat(
+            (part_1, softmax_full_attn[:, :, :T, T:]), dim=-1
+        )
         expanded_indices = indices.expand(B, self.n_head, T, self.future_dim)
         unpadded_future_attn = torch.gather(softmax_future_attn, 3, expanded_indices)
 
