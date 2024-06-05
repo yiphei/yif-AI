@@ -59,8 +59,6 @@ class ModelConfig(BaseModelConfig):
         if self.end_layer > self.n_layer or self.end_layer < 1:
             raise ValueError("end_layer must be <= n_layer and >= 1")
 
-        assert 1 <= self.future_dim <= (self.context_size - 1)
-
         assert self.future_x_loss_coeff > 0
 
         if self.detach_future_x is None:
