@@ -200,7 +200,7 @@ class FutureMultiAttentionHead(SubModuleStats):
                     true_future_x = true_future_x.detach()
 
         causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
-        pad_size = T + self.future_dim
+        pad_size = self.future_dim
         if pad_size > 0:
             padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
         else:
@@ -226,6 +226,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         indices = torch.arange(self.future_dim, device=x.device).unsqueeze(0) + torch.arange(
             1, T + 1, device=x.device
         ).unsqueeze(1)
+        indices = indices.unsqueeze(0).unsqueeze(0)
         padded_future_attn = padding.scatter_(1, indices, future_attention)
 
         full_attn = padded_causal_attn + padded_future_attn
