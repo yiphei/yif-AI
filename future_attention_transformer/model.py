@@ -120,7 +120,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 4, bias=use_bias)
         self.k_weights = self.batch_attn_weights.weight[dim_in:dim_in*2, :].T
         self.v_weights = self.batch_attn_weights.weight[dim_in*2:dim_in*3, :].T
-        self.up_future_conv = nn.ConvTranspose1d(in_channels=self.head_size, out_channels=self.head_size, kernel_size=self.future_dim, stride=self.future_dim, bias=False)
+        self.up_future_conv = nn.ConvTranspose1d(in_channels=self.head_size, out_channels=self.head_size, kernel_size=self.future_dim, stride=self.future_dim, bias=use_bias)
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
 
         self.dropout_1 = nn.Dropout(dropout_rate)
@@ -194,11 +194,14 @@ class FutureMultiAttentionHead(SubModuleStats):
         else:
             padded_causal_attn = causal_attn
 
-        up_future = self.up_future_conv(k.transpose(2, 3).view(-1, self.head_size, T))
-        up_future = up_future.view(B, self.n_head, self.head_size, T* self.future_dim)
-        up_future = up_future.transpose(2, 3).view(B,self.n_head, T, self.future_dim, self.head_size)
-        up_future_mult = up_future.view(B, T, self.future_dim, self.head_size * self.n_head)
-        k_future = up_future_mult @ self.k_weights
+        adapted_f = f.transpose(2, 3).reshape(B * self.n_head, self.head_size, T)
+        up_future = self.up_future_conv(adapted_f)
+        up_future = up_future.reshape(B, self.n_head, self.head_size, T, self.future_dim)
+        up_future = up_future.permute(0, 3, 4, 1, 2)
+        up_future = up_future.reshape(B, T, self.future_dim, self.n_head * self.head_size)
+        k_future = up_future @ self.k_weights
+        k_future = k_future.view(B, T, self.future_dim, self.n_head, self.head_size)
+        k_future = k_future.permute(0,3, 1, 2, 4)
 
         future_attention = torch.einsum("bhts,bhtfs->bhtf", q,k_future)
         padding = torch.zeros((B, self.n_head, T, self.future_dim  + T), dtype=x.dtype, device=x.device)
