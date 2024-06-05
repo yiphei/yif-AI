@@ -118,8 +118,6 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.detach_future_x = detach_future_x or False
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 4, bias=use_bias)
-        self.k_weights = self.batch_attn_weights.weight[dim_in : dim_in * 2, :].T
-        self.v_weights = self.batch_attn_weights.weight[dim_in * 2 : dim_in * 3, :].T
         self.up_future_conv = nn.ConvTranspose1d(
             in_channels=self.head_size,
             out_channels=self.head_size,
@@ -159,6 +157,14 @@ class FutureMultiAttentionHead(SubModuleStats):
                 diagonal=future_dim,
             ),
         )
+
+    @property
+    def k_weights(self):
+        return self.batch_attn_weights.weight[self.dim_in : self.dim_in * 2, :].T
+
+    @property
+    def v_weights(self):
+        return self.batch_attn_weights.weight[self.dim_in * 2 : self.dim_in * 3, :].T
 
     def forward(self, x):
         B, T, C = x.shape
