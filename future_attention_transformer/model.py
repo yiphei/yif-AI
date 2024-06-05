@@ -206,8 +206,12 @@ class FutureMultiAttentionHead(SubModuleStats):
         else:
             padded_causal_attn = causal_attn
 
-        adapted_f = f.transpose(2, 3).reshape(B * self.n_head, self.head_size, T) # B * self.n_head, self.head_size, T
-        up_future = self.up_future_conv(adapted_f) # B * self.n_head, self.head_size, T * future_dim
+        adapted_f = f.transpose(2, 3).reshape(
+            B * self.n_head, self.head_size, T
+        )  # B * self.n_head, self.head_size, T
+        up_future = self.up_future_conv(
+            adapted_f
+        )  # B * self.n_head, self.head_size, T * future_dim
         up_future = up_future.reshape(
             B, self.n_head, self.head_size, T, self.future_dim
         )
@@ -215,9 +219,13 @@ class FutureMultiAttentionHead(SubModuleStats):
         up_future = up_future.reshape(
             B, T, self.future_dim, self.n_head * self.head_size
         )
-        k_future = up_future @ self.k_weights # B, T, self.future_dim, self.n_head * self.head_size
+        k_future = (
+            up_future @ self.k_weights
+        )  # B, T, self.future_dim, self.n_head * self.head_size
         k_future = k_future.view(B, T, self.future_dim, self.n_head, self.head_size)
-        k_future = k_future.permute(0, 3, 1, 2, 4) # B, H, T, self.future_dim, self.head_size
+        k_future = k_future.permute(
+            0, 3, 1, 2, 4
+        )  # B, H, T, self.future_dim, self.head_size
 
         future_attention = torch.einsum("bhts,bhtfs->bhtf", q, k_future)
         padding = torch.zeros(
@@ -230,9 +238,16 @@ class FutureMultiAttentionHead(SubModuleStats):
         padded_future_attn = padding.scatter_(-1, expanded_indices, future_attention)
 
         max_col_indices = indices.max(dim=-1, keepdim=True).values
-        col_indices = torch.arange(padded_future_attn.size(-1), device=x.device).expand(padded_future_attn.size(-2), padded_future_attn.size(-1))
+        col_indices = torch.arange(padded_future_attn.size(-1), device=x.device).expand(
+            padded_future_attn.size(-2), padded_future_attn.size(-1)
+        )
         mask = col_indices > max_col_indices
-        expanded_mask = mask.expand(padded_future_attn.size(0), padded_future_attn.size(1), padded_future_attn.size(2), padded_future_attn.size(3))
+        expanded_mask = mask.expand(
+            padded_future_attn.size(0),
+            padded_future_attn.size(1),
+            padded_future_attn.size(2),
+            padded_future_attn.size(3),
+        )
         padded_future_attn[expanded_mask] = float("-inf")
 
         full_attn = padded_causal_attn + padded_future_attn
