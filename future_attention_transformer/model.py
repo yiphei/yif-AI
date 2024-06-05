@@ -170,6 +170,10 @@ class FutureMultiAttentionHead(SubModuleStats):
         )
         self.register_buffer("mask", col_indices > max_col_indices)
 
+        self.register_buffer("padding",torch.zeros(
+            (self.n_head, self.context_size, self.future_dim + self.context_size)
+        ) )
+
     def forward(self, x):
         B, T, C = x.shape
         T_w_future = min(T + self.future_dim, self.context_size)
@@ -223,12 +227,10 @@ class FutureMultiAttentionHead(SubModuleStats):
         )  # B, H, T, self.future_dim, self.head_size
 
         future_attention = torch.einsum("bhts,bhtfs->bhtf", q, k_future)
-        
-        padding = torch.zeros(
-            (B, self.n_head, T, self.future_dim + T), dtype=x.dtype, device=x.device
-        )
+
+        padding = self.padding[:, :T, :T + self.future_dim].expand(B, self.n_head, T, self.future_dim + T)
         expanded_indices = self.indices[:T, :].expand(B, self.n_head, T, self.future_dim)
-        padded_future_attn = padding.scatter_(-1, expanded_indices, future_attention)
+        padded_future_attn = torch.scatter(padding,-1, expanded_indices, future_attention)
 
         expanded_mask = self.mask[:T,:T + self.future_dim].expand(
             padded_future_attn.size(0),
