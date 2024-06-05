@@ -227,13 +227,16 @@ class FutureMultiAttentionHead(SubModuleStats):
             1, T + 1, device=x.device
         ).unsqueeze(1)
         indices = indices.unsqueeze(0).unsqueeze(0)
-        padded_future_attn = padding.scatter_(1, indices, future_attention)
+        padded_future_attn = padding.scatter_(0, indices, future_attention)
+        
+        max_col_indices = indices.max(dim=-1, keepdim=True).values
+        comparison_indices = torch.arange(padded_future_attn.size(3), device=x.device).expand(padded_future_attn.size(2), padded_future_attn.size(3)).unsqueeze(0).unsqueeze(0)
+        mask = comparison_indices  > max_col_indices
+        mask = mask.squeeze(0).squeeze(0)
+        padded_future_attn[:,:,mask] = float("-inf")
 
         full_attn = padded_causal_attn + padded_future_attn
-        full_attn = full_attn.masked_fill(
-            self.full_tril[:, :, :T, :] == 0,
-            float("-inf"),
-        )
+
         softmax_full_attn = F.softmax(full_attn, dim=-1)
         softmax_full_attn = self.dropout_1(softmax_full_attn)
 
