@@ -217,8 +217,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         padding = torch.zeros(
             (B, self.n_head, T, self.future_dim + T), dtype=x.dtype, device=x.device
         )
-        indices = torch.arange(self.future_dim).unsqueeze(0) + torch.arange(
-            1, T + 1
+        indices = torch.arange(self.future_dim, device=x.device).unsqueeze(0) + torch.arange(
+            1, T + 1, device=x.device
         ).unsqueeze(1)
         padded_future_attn = padding.scatter_(1, indices, future_attention)
 
