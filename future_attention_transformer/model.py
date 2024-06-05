@@ -266,7 +266,6 @@ class FutureMultiAttentionHead(SubModuleStats):
         softmax_future_attn = torch.cat(
             (part_1, softmax_full_attn[:, :, :T, T:]), dim=-1
         )
-        expanded_indices = indices.expand(B, self.n_head, T, self.future_dim)
         unpadded_future_attn = torch.gather(softmax_future_attn, 3, expanded_indices)
 
         v_future = up_future @ self.v_weights
