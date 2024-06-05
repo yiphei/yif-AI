@@ -118,8 +118,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.detach_future_x = detach_future_x or False
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 4, bias=use_bias)
-        self.k_weights = self.batch_attn_weights.weight[dim_in:dim_in*2, :]
-        self.v_weights = self.batch_attn_weights.weight[dim_in*2:dim_in*3, :]
+        self.k_weights = self.batch_attn_weights.weight[dim_in:dim_in*2, :].T
+        self.v_weights = self.batch_attn_weights.weight[dim_in*2:dim_in*3, :].T
         self.up_future_conv = nn.ConvTranspose1d(in_channels=self.head_size, out_channels=self.head_size, kernel_size=self.future_dim, stride=self.future_dim, bias=False)
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
 
@@ -197,8 +197,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         up_future = self.up_future_conv(k.transpose(2, 3).view(-1, self.head_size, T))
         up_future = up_future.view(B, self.n_head, self.head_size, T* self.future_dim)
         up_future = up_future.transpose(2, 3).view(B,self.n_head, T, self.future_dim, self.head_size)
-        up_future_mult = 
-        k_future = up_future @ self.k_weights.T
+        up_future_mult = up_future.view(B, T, self.future_dim, self.head_size * self.n_head)
+        k_future = up_future_mult @ self.k_weights
 
         future_attention = torch.einsum("bhts,bhtfs->bhtf", q,k_future)
         padding = torch.zeros((B, self.n_head, T, self.future_dim  + T), dtype=x.dtype, device=x.device)
@@ -223,25 +223,10 @@ class FutureMultiAttentionHead(SubModuleStats):
             0.0,
         )
         unpadded_future_attn = softmax_future_attn[:,indices]
+        v_future = up_future_mult @ self.v_weights
+        future_x = torch.einsum("bhtf,bhtfs->bhts", unpadded_future_attn, v_future)
 
         causal_x = softmax_causal_attn @ v
-
-        k_future = self.v_future_conv(k.transpose(2, 3).view(-1, self.head_size, T))
-        k_future = k_future.view(B, self.n_head, self.head_size, T* self.future_dim)
-        k_future = k_future.transpose(2, 3).view(B,self.n_head, T, self.future_dim, self.head_size)
-        future_attention = torch.einsum("bhts,bhtfs->bhtf", q,k_future)
-        padding = torch.zeros((B, self.n_head, T, self.future_dim  + T), dtype=x.dtype, device=x.device)
-        indices = torch.arange(self.future_dim).unsqueeze(0) + torch.arange(1,T+1).unsqueeze(1)
-        padded_future_attn = padding.scatter_(1, indices, future_attention)
-
-
-        future_x = self.future_v_weights(
-            softmax_future_attn, max_in_size=T_w_future - 1
-        )
-
-
-
-
 
         new_x = causal_x + future_x
         new_x = new_x.transpose(1, 2).contiguous().view(B, T, C)
