@@ -68,6 +68,7 @@ class ModelConfig(BaseModelConfig):
         else:
             assert self.use_future_x_loss
 
+
 class FutureMultiAttentionHead(SubModuleStats):
     extra_stats = ["future_loss"]
 
