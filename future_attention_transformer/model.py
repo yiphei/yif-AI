@@ -253,13 +253,7 @@ class FutureMultiAttentionHead(SubModuleStats):
             self.causal_tril[:, :, :T, :T] == 0, 0.0
         )
 
-        part_1 = softmax_full_attn[:, :, :T, :T].masked_fill(
-            self.causal_tril[:, :, :T, :T] != 0, 0.0
-        )
-        softmax_future_attn = torch.cat(
-            (part_1, softmax_full_attn[:, :, :T, T:]), dim=-1
-        )
-        unpadded_future_attn = torch.gather(softmax_future_attn, 3, expanded_indices)
+        unpadded_future_attn = torch.gather(softmax_full_attn, 3, expanded_indices)
 
         v_future = self.v_weights(up_future)
         v_future = v_future.view(B, T, self.future_dim, self.n_head, self.head_size)
