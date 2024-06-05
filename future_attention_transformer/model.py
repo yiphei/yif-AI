@@ -68,31 +68,6 @@ class ModelConfig(BaseModelConfig):
         else:
             assert self.use_future_x_loss
 
-
-class DynamicLinear(nn.Module):
-    def __init__(self, head_dim, in_dim, out_dim, use_bias):
-        super().__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.weight = nn.Parameter(torch.randn(head_dim, in_dim, out_dim))
-        torch.nn.init.normal_(self.weight, mean=0.0, std=0.02)
-        self.bias = (
-            nn.Parameter(torch.zeros(head_dim, 1, out_dim)) if use_bias else None
-        )
-
-    def forward(self, x, max_in_size=None, max_out_size=None):
-        max_in_size = max_in_size or self.in_dim
-        max_out_size = max_out_size or self.out_dim
-
-        weight = self.weight[:, :max_in_size, :max_out_size]
-        bias = self.bias[:, :, :max_out_size] if self.bias is not None else None
-
-        x = x @ weight
-        if bias is not None:
-            x = x + bias
-        return x
-
-
 class FutureMultiAttentionHead(SubModuleStats):
     extra_stats = ["future_loss"]
 
