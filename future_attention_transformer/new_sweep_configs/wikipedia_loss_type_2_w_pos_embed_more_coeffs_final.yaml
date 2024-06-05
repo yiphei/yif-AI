@@ -15,35 +15,13 @@ parameters:
             n_embed: 
                 value: 150
             n_layer: 
-                value: 13
+                value: 26
             n_head: 
-                value: 5
+                value: 10
             dropout_rate:
                 value: 0
-            order_type:
-                value: 1
-            add_ln_before_decoder_ff:
-                value: False
-            add_pos_embed_to_decoder:
-                value: False
-            sub_pos_embed_to_decoder:
-                value: 2
-            cross_attn_config:
-                parameters:
-                    n_head:
-                        value: 10
-                    use_bias:
-                        value: False
-            use_ln_on_encoder_out:
-                value: True
-            encoder_embed_loss_type:
-                value: 2
-            encoder_embed_detach_type:
-                value: 3
-            encoder_embed_ln_type:
-                value: 2
-            encoder_embed_loss_coeff:
-                values: [0.12,0.25,0.5, 0.75, 1, 1.5, 2, 4, 8]
+            future_dim:
+                value: 100
     batch_size: 
         value: 50
     train_steps: 
