@@ -268,10 +268,12 @@ class FutureMultiAttentionHead(SubModuleStats):
         new_x = self.dropout_2(new_x)
 
         if self.training:
+            adjusted_future_x = future_x[:, :, :-1, :]
+            adjusted_true_future_x = true_future_x[:, :, :-1, :]
             if self.future_x_loss_type == FutureXLossType.MSE:
-                self.future_loss = F.mse_loss(future_x, true_future_x)
+                self.future_loss = F.mse_loss(adjusted_future_x, adjusted_true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(future_x, true_future_x, dim=-1)
+                cosine_sim = F.cosine_similarity(adjusted_future_x, adjusted_true_future_x, dim=-1)
                 self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
 
         return new_x
