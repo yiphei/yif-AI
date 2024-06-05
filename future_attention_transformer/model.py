@@ -160,15 +160,19 @@ class FutureMultiAttentionHead(SubModuleStats):
                 diagonal=future_dim,
             ),
         )
+        self.register_buffer(
+            "padded_future_tril",
+            torch.triu(
+                torch.ones(context_size, self.future_dim + context_size).view(
+                    1, 1, context_size, self.future_dim + context_size
+                ),
+                diagonal=self.future_dim +1,
+            ),
+        )
         self.register_buffer("indices", torch.arange(self.future_dim).unsqueeze(
             0
         ) + torch.arange(1, context_size + 1).unsqueeze(1)
         )
-        max_col_indices = self.indices.max(dim=-1, keepdim=True).values
-        col_indices = torch.arange(self.context_size + self.future_dim).expand(
-            self.context_size, self.context_size + self.future_dim
-        )
-        self.register_buffer("mask", col_indices > max_col_indices)
 
         self.register_buffer("padding",torch.zeros(
             (self.n_head, self.context_size, self.future_dim + self.context_size)
@@ -232,8 +236,9 @@ class FutureMultiAttentionHead(SubModuleStats):
         expanded_indices = self.indices[:T, :].expand(B, self.n_head, T, self.future_dim)
         padded_future_attn = torch.scatter(padding,-1, expanded_indices, future_attention)
 
-        expanded_mask = self.mask[:T,:T + self.future_dim]
-        padded_future_attn[...,expanded_mask] = float("-inf")
+        padded_future_attn = padded_future_attn.masked_fill(
+            self.padded_future_tril[:, :, :T, :T + self.future_dim] == 1, float("-inf")
+        )
 
         full_attn = padded_causal_attn + padded_future_attn
 
