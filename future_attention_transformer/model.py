@@ -213,6 +213,10 @@ class FutureMultiAttentionHead(SubModuleStats):
         expanded_indices = self.indices[:, :T, :].expand(
             B, self.n_head, T, self.future_dim
         )
+        # TODO: figure out a better solution for this. Currently, without this,
+        #       torch.compile complains that padding's dtype and future_attention's
+        #       dtype are different.
+        padding = padding.to(dtype=future_attention.dtype)
         padded_future_attn = torch.scatter(
             padding, -1, expanded_indices, future_attention
         )
