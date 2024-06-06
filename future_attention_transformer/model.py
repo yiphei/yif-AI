@@ -270,8 +270,10 @@ class FutureMultiAttentionHead(SubModuleStats):
                 )
                 self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
             elif self.future_x_loss_type == FutureXLossType.DOT_SUM:
-                dot_sum = ((adjusted_future_x * adjusted_true_future_x).sum(dim=-1) ** 2).mean()
-                self.future_loss = 1/dot_sum
+                dot_sum = (
+                    (adjusted_future_x * adjusted_true_future_x).sum(dim=-1) ** 2
+                ).mean()
+                self.future_loss = 1 / dot_sum
 
         return new_x
 
@@ -293,7 +295,7 @@ class TransformerBlock(nn.Module):
                 config.future_dim,
                 config.future_x_loss_type,
                 config.detach_future_x,
-                config.use_ln_on_up_future
+                config.use_ln_on_up_future,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
