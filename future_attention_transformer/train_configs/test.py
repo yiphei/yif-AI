@@ -1,11 +1,12 @@
 # ModelConfig
-CONTEXT_SIZE = 3
-N_EMBED = 4
+CONTEXT_SIZE = 4
+N_EMBED = 6
 N_LAYER = 3
 N_HEAD = 2
 USE_BIAS = False
 DROPOUT_RATE = 0
-FUTURE_DIM = 2
+FUTURE_DIM = 5
+use_ln_on_up_future = False
 
 # Training config
 BATCH_SIZE = 2  # 50 when run on 1x A10
