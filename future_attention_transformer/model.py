@@ -86,7 +86,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         future_x_loss_type,
         detach_future_x,
         use_ln_on_up_future,
-        separate_softmax
+        separate_softmax,
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -200,7 +200,7 @@ class FutureMultiAttentionHead(SubModuleStats):
                 if self.separate_softmax:
                     attn = attn[:, :, :, 1:]
                     true_attn = attn.masked_fill(
-                        self.future_tril[:, :, :T, :T_w_future-1] == 1,
+                        self.future_tril[:, :, :T, : T_w_future - 1] == 1,
                         float("-inf"),
                     )
                     true_future_attn = F.softmax(true_attn, dim=-1)
@@ -224,11 +224,13 @@ class FutureMultiAttentionHead(SubModuleStats):
                 true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
                 if self.detach_future_x:
                     true_future_x = true_future_x.detach()
-        
+
         future_attention = torch.einsum("bhts,bhtfs->bhtf", q, k_future)
 
         if self.separate_softmax:
-            causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, float("-inf"))
+            causal_attn = attn.masked_fill(
+                self.causal_tril[:, :, :T, :T] == 0, float("-inf")
+            )
 
             softmax_causal_attn = F.softmax(causal_attn, dim=-1)
             unpadded_future_attn = F.softmax(future_attention, dim=-1)
@@ -309,7 +311,7 @@ class TransformerBlock(nn.Module):
                 config.future_x_loss_type,
                 config.detach_future_x,
                 config.use_ln_on_up_future,
-                config.separate_softmax
+                config.separate_softmax,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
