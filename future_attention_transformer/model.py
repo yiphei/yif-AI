@@ -187,7 +187,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         v = self.v_weights(x)
         v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
-        v_future = self.v_weights(up_future) # B, T * self.future_dim, E
+        v_future = self.v_weights(up_future)  # B, T * self.future_dim, E
         v_future = v_future.view(B, T, self.future_dim, self.n_head, self.head_size)
         v_future = v_future.permute(0, 3, 1, 2, 4)
 
