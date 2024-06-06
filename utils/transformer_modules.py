@@ -10,9 +10,9 @@ from torch.nn import functional as F
 class LayerNorm(nn.Module):
     """From https://github.com/karpathy/nanoGPT/blob/master/model.py"""
 
-    def __init__(self, dim_in, use_bias):
+    def __init__(self, dim_in, use_bias, weight = None):
         super().__init__()
-        self.weight = nn.Parameter(torch.ones(dim_in))
+        self.weight = nn.Parameter(weight or torch.ones(dim_in))
         self.bias = nn.Parameter(torch.zeros(dim_in)) if use_bias else None
 
     def forward(self, input):
