@@ -15,6 +15,7 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
 class FutureXLossType(str, Enum):
     MSE = "MSE"
     COSINE_SIM = "COSINE_SIM"
+    DOT_SUM = "DOT_SUM"
 
     def __str__(self):
         return self.value
@@ -25,6 +26,8 @@ class FutureXLossType(str, Enum):
             return FutureXLossType.MSE
         elif num == 2:
             return FutureXLossType.COSINE_SIM
+        elif num == 3:
+            return FutureXLossType.DOT_SUM
         else:
             raise ValueError("Invalid future x loss number")
 
@@ -266,6 +269,9 @@ class FutureMultiAttentionHead(SubModuleStats):
                     adjusted_future_x, adjusted_true_future_x, dim=-1
                 )
                 self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
+            elif self.future_x_loss_type == FutureXLossType.DOT_SUM:
+                dot_sum = ((adjusted_future_x * adjusted_true_future_x).sum(dim=-1) ** 2).mean()
+                self.future_loss = 1/dot_sum
 
         return new_x
 
