@@ -29,7 +29,7 @@ parameters:
             use_ln_on_up_future:
                 values: [True, False]
             detach_future_x:
-                value: True
+                value: null
             future_x_loss_coeff:
                 value: 1
     batch_size: 
