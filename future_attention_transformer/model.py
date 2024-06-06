@@ -35,6 +35,7 @@ class ModelConfig(BaseModelConfig):
     future_dim: int = None  # number of future tokens to attend to
     future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
     use_future_x_loss: bool = True
+    use_ln_on_up_future: bool = False
     detach_future_x: Optional[bool] = False
     end_layer: Optional[int] = None
     future_x_loss_coeff: Optional[float] = 1.0
@@ -80,6 +81,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         future_dim,
         future_x_loss_type,
         detach_future_x,
+        use_ln_on_up_future,
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -90,10 +92,15 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.future_dim = future_dim
         self.future_x_loss_type = future_x_loss_type
         self.detach_future_x = detach_future_x or False
+        self.use_ln_on_up_future = use_ln_on_up_future
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 2, bias=use_bias)
         self.k_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
         self.v_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
+
+        self.ln = None
+        if use_ln_on_up_future:
+            self.ln = LayerNorm(dim_in, use_bias)
 
         self.up_future_conv = nn.ConvTranspose1d(
             in_channels=self.dim_in,
@@ -199,6 +206,9 @@ class FutureMultiAttentionHead(SubModuleStats):
         f = f.transpose(1, 2)  # B, E, T
         up_future = self.up_future_conv(f)  # B, E, T * self.future_dim
         up_future = up_future.transpose(1, 2)  # B, T * self.future_dim, E
+        if self.use_ln_on_up_future:
+            up_future = self.ln(up_future)
+
         k_future = self.k_weights(up_future)  # B, T * self.future_dim, E
         k_future = k_future.view(B, T, self.future_dim, self.n_head, self.head_size)
         k_future = k_future.permute(
@@ -277,6 +287,7 @@ class TransformerBlock(nn.Module):
                 config.future_dim,
                 config.future_x_loss_type,
                 config.detach_future_x,
+                config.use_ln_on_up_future
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
