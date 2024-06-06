@@ -200,11 +200,7 @@ class FutureMultiAttentionHead(SubModuleStats):
                     true_future_x = true_future_x.detach()
 
         causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
-        pad_size = self.future_dim
-        if pad_size > 0:
-            padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
-        else:
-            padded_causal_attn = causal_attn
+        padded_causal_attn = F.pad(causal_attn, (0, self.future_dim), "constant", 0)
 
         f = f.transpose(1, 2)  # B, E, T
         up_future = self.up_future_conv(f)  # B, E, T * self.future_dim
@@ -246,7 +242,7 @@ class FutureMultiAttentionHead(SubModuleStats):
 
         unpadded_future_attn = torch.gather(softmax_full_attn, 3, expanded_indices)
 
-        v_future = self.v_weights(up_future)
+        v_future = self.v_weights(up_future) # B, T * self.future_dim, E
         v_future = v_future.view(B, T, self.future_dim, self.n_head, self.head_size)
         v_future = v_future.permute(0, 3, 1, 2, 4)
         future_x = torch.einsum("bhtf,bhtfs->bhts", unpadded_future_attn, v_future)
