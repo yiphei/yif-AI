@@ -38,6 +38,7 @@ class ModelConfig(BaseModelConfig):
     future_dim: int = None  # number of future tokens to attend to
     future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
     use_future_x_loss: bool = True
+    separate_softmax: bool = False
     use_ln_on_up_future: bool = False
     detach_future_x: Optional[bool] = False
     end_layer: Optional[int] = None
@@ -85,6 +86,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         future_x_loss_type,
         detach_future_x,
         use_ln_on_up_future,
+        separate_softmax
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -96,6 +98,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.future_x_loss_type = future_x_loss_type
         self.detach_future_x = detach_future_x or False
         self.use_ln_on_up_future = use_ln_on_up_future
+        self.separate_softmax = separate_softmax
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 2, bias=use_bias)
         self.k_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
@@ -194,54 +197,71 @@ class FutureMultiAttentionHead(SubModuleStats):
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
         if self.training:
             with torch.no_grad():
-                true_attn = attn.masked_fill(
-                    self.full_tril[:, :, :T, :T_w_future] == 0,
-                    float("-inf"),
-                )
-                true_attn = F.softmax(true_attn, dim=-1)
-                true_future_attn = true_attn[:, :, :T, 1:]
-                true_future_attn = true_future_attn.masked_fill(
-                    self.future_tril[
-                        :,
-                        :,
-                        :T,
-                        : T_w_future - 1,
-                    ]
-                    != 0,
-                    0.0,
-                )
+                if self.separate_softmax:
+                    attn = attn[:, :, :, 1:]
+                    true_attn = attn.masked_fill(
+                        self.future_tril[:, :, :T, :T_w_future-1] == 1,
+                        float("-inf"),
+                    )
+                    true_future_attn = F.softmax(true_attn, dim=-1)
+                else:
+                    true_attn = attn.masked_fill(
+                        self.full_tril[:, :, :T, :T_w_future] == 0,
+                        float("-inf"),
+                    )
+                    true_attn = F.softmax(true_attn, dim=-1)
+                    true_future_attn = true_attn[:, :, :T, 1:]
+                    true_future_attn = true_future_attn.masked_fill(
+                        self.future_tril[
+                            :,
+                            :,
+                            :T,
+                            : T_w_future - 1,
+                        ]
+                        != 0,
+                        0.0,
+                    )
                 true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
                 if self.detach_future_x:
                     true_future_x = true_future_x.detach()
-
-        causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
-        padded_causal_attn = F.pad(causal_attn, (0, self.future_dim), "constant", 0)
-
+        
         future_attention = torch.einsum("bhts,bhtfs->bhtf", q, k_future)
-        padding = self.padding[:, :T, : T + self.future_dim].expand(
-            B, self.n_head, T, self.future_dim + T
-        )
-        expanded_indices = self.indices[:, :T, :].expand(
-            B, self.n_head, T, self.future_dim
-        )
-        # TODO: figure out a better solution for this. Currently, without this,
-        #       torch.compile complains that padding's dtype and future_attention's
-        #       dtype are different.
-        padding = padding.to(dtype=future_attention.dtype)
-        padded_future_attn = torch.scatter(
-            padding, -1, expanded_indices, future_attention
-        )
 
-        full_attn = padded_causal_attn + padded_future_attn
-        softmax_full_attn = F.softmax(full_attn, dim=-1)
-        softmax_full_attn = self.dropout_1(softmax_full_attn)
+        if self.separate_softmax:
+            causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, float("-inf"))
 
-        softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
-        softmax_causal_attn = softmax_causal_attn.masked_fill(
-            self.causal_tril[:, :, :T, :T] == 0, 0.0
-        )
+            softmax_causal_attn = F.softmax(causal_attn, dim=-1)
+            unpadded_future_attn = F.softmax(future_attention, dim=-1)
+            softmax_causal_attn = self.dropout_1(softmax_causal_attn)
+            unpadded_future_attn = self.dropout_1(unpadded_future_attn)
+        else:
+            causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
+            padded_causal_attn = F.pad(causal_attn, (0, self.future_dim), "constant", 0)
 
-        unpadded_future_attn = torch.gather(softmax_full_attn, 3, expanded_indices)
+            padding = self.padding[:, :T, : T + self.future_dim].expand(
+                B, self.n_head, T, self.future_dim + T
+            )
+            expanded_indices = self.indices[:, :T, :].expand(
+                B, self.n_head, T, self.future_dim
+            )
+            # TODO: figure out a better solution for this. Currently, without this,
+            #       torch.compile complains that padding's dtype and future_attention's
+            #       dtype are different.
+            padding = padding.to(dtype=future_attention.dtype)
+            padded_future_attn = torch.scatter(
+                padding, -1, expanded_indices, future_attention
+            )
+
+            full_attn = padded_causal_attn + padded_future_attn
+            softmax_full_attn = F.softmax(full_attn, dim=-1)
+            softmax_full_attn = self.dropout_1(softmax_full_attn)
+
+            softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
+            softmax_causal_attn = softmax_causal_attn.masked_fill(
+                self.causal_tril[:, :, :T, :T] == 0, 0.0
+            )
+
+            unpadded_future_attn = torch.gather(softmax_full_attn, 3, expanded_indices)
 
         causal_x = softmax_causal_attn @ v
         future_x = torch.einsum("bhtf,bhtfs->bhts", unpadded_future_attn, v_future)
@@ -289,6 +309,7 @@ class TransformerBlock(nn.Module):
                 config.future_x_loss_type,
                 config.detach_future_x,
                 config.use_ln_on_up_future,
+                config.separate_softmax
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
