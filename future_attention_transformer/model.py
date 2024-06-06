@@ -198,8 +198,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         if self.training:
             with torch.no_grad():
                 if self.separate_softmax:
-                    attn = attn[:, :, :, 1:]
-                    true_attn = attn.masked_fill(
+                    true_attn = attn[:, :, :, 1:]
+                    true_attn = true_attn.masked_fill(
                         self.future_tril[:, :, :T, : T_w_future - 1] == 1,
                         float("-inf"),
                     )
