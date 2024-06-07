@@ -324,19 +324,6 @@ class EncoderDecoderTransformer(BaseModel):
         )
 
         self.dropout = nn.Dropout(config.dropout_rate)
-        self.encoder_transformer_blocks = nn.Sequential(
-            *[
-                TransformerBlock(
-                    config.n_embed,
-                    config.n_head,
-                    config.use_bias,
-                    config.context_size,
-                    config.dropout_rate,
-                    config.use_flash,
-                )
-                for _ in range(config.n_layer)
-            ]
-        )
         self.decoder_transformer_blocks = nn.ModuleList(
             [
                 DecoderTransformerBlock(
@@ -373,26 +360,24 @@ class EncoderDecoderTransformer(BaseModel):
         )
         encoder_embed = token_embed + pos_embed
         encoder_embed = self.dropout(encoder_embed)
-        encoder_x = encoder_embed
+        present_x = encoder_embed
 
-        encoder_out = self.encoder_transformer_blocks(encoder_x)
-
-        decoder_x = encoder_out
+        future_x = present_x
         if self.config.add_ln_before_decoder_ff:
-            decoder_x = self.ffd_ln(decoder_x)
-        decoder_x = self.decoder_feed_forward(decoder_x)
+            future_x = self.ffd_ln(future_x)
+        future_x = self.decoder_feed_forward(future_x)
 
         if self.config.add_pos_embed_to_decoder:
-            decoder_x += self.positional_embedding(
+            future_x += self.positional_embedding(
                 torch.arange(
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
                 )
             )
 
         for transformer_block in self.decoder_transformer_blocks:
-            decoder_x = transformer_block(encoder_out, decoder_x)
+            present_x, future_x = transformer_block(present_x, future_x)
 
-        decoder_out = self.ln(decoder_x)
+        present_out = self.ln(present_x)
 
         if (
             self.training
@@ -444,19 +429,19 @@ class EncoderDecoderTransformer(BaseModel):
                 raise ValueError("Invalid token loss type")
 
         if self.config.sub_pos_embed_to_decoder != SubPosEmbedType.NO:
-            decoder_out = decoder_out - self.positional_embedding(
+            present_out = present_out - self.positional_embedding(
                 torch.arange(
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
                 )
             )
             if self.config.sub_pos_embed_to_decoder == SubPosEmbedType.YES_LN:
-                decoder_out = self.post_sub_pos_ln(decoder_out)
+                present_out = self.post_sub_pos_ln(present_out)
 
         if targets is None:
             loss = None
-            logits = self.output_layer(decoder_out[:, [-1], :])
+            logits = self.output_layer(present_out[:, [-1], :])
         else:
-            logits = self.output_layer(decoder_out)
+            logits = self.output_layer(present_out)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
