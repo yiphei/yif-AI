@@ -303,7 +303,7 @@ class EncoderDecoderTransformer(BaseModel):
             gamma = values.repeat(config.context_size - 2, 1)
             shift = torch.arange(config.context_size - 2).unsqueeze(1)
             gamma = gamma - shift
-            gamma = gamma.to(dtype=torch.float16)
+            gamma = gamma.to(dtype=torch.float32)
             gamma = gamma**-1
             mask = torch.tril(
                 torch.ones(config.context_size - 2, config.context_size - 2),
