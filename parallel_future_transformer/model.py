@@ -54,27 +54,6 @@ class EncoderEmbedLossType(str, Enum):
         else:
             raise ValueError("Invalid encoder embed loss type number")
 
-
-class EncoderEmbedDetachType(str, Enum):
-    NONE = "NONE"
-    INIT = "INIT"
-    FINAL = "FINAL"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return EncoderEmbedDetachType.NONE
-        elif num == 2:
-            return EncoderEmbedDetachType.INIT
-        elif num == 3:
-            return EncoderEmbedDetachType.FINAL
-        else:
-            raise ValueError("Invalid encoder embed detatch type number")
-
-
 class EncoderEmbedLayerNormType(str, Enum):
     NONE = "NONE"
     INIT = "INIT"
@@ -138,9 +117,6 @@ class ModelConfig(BaseModelConfig):
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
-    encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = (
-        EncoderEmbedDetachType.FINAL
-    )
     encoder_embed_loss_coeff: Optional[float] = 1
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
         EncoderEmbedLayerNormType.INIT
@@ -150,10 +126,6 @@ class ModelConfig(BaseModelConfig):
         if type(self.encoder_embed_loss_type) == int:
             self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(
                 self.encoder_embed_loss_type
-            )
-        if type(self.encoder_embed_detach_type) == int:
-            self.encoder_embed_detach_type = EncoderEmbedDetachType.get_type_from_int(
-                self.encoder_embed_detach_type
             )
         if type(self.encoder_embed_ln_type) == int:
             self.encoder_embed_ln_type = EncoderEmbedLayerNormType.get_type_from_int(
@@ -171,12 +143,10 @@ class ModelConfig(BaseModelConfig):
                 assert self.encoder_embed_loss_coeff > 0
             assert self.use_ln_on_encoder_out is not None
             assert self.encoder_embed_ln_type is not None
-            assert self.encoder_embed_detach_type is not None
         else:
             assert self.encoder_embed_loss_coeff is None
             assert self.use_ln_on_encoder_out is None
             assert self.encoder_embed_ln_type is None
-            assert self.encoder_embed_detach_type is None
 
         if type(self.cross_attn_config) == dict:
             self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
@@ -333,6 +303,7 @@ class EncoderDecoderTransformer(BaseModel):
             ]
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
+        self.future_ln = LayerNorm(config.n_embed, config.use_bias)
         if config.sub_pos_embed_to_decoder == SubPosEmbedType.YES_LN:
             self.post_sub_pos_ln = LayerNorm(config.n_embed, config.use_bias)
 
@@ -378,40 +349,40 @@ class EncoderDecoderTransformer(BaseModel):
             present_x, future_x = transformer_block(present_x, future_x)
 
         present_out = self.ln(present_x)
+        future_out = self.future_ln(future_x[:, :-2, :])
 
         if (
             self.training
             and self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
         ):
-            if self.config.encoder_embed_detach_type == EncoderEmbedDetachType.INIT:
-                encoder_embed = encoder_embed.detach()
-            elif self.config.encoder_embed_detach_type == EncoderEmbedDetachType.FINAL:
-                encoder_out = encoder_out.detach()
-
-            if self.config.use_ln_on_encoder_out:
-                encoder_out = self.encoder_out_ln(encoder_out)
-
-            if self.config.encoder_embed_ln_type == EncoderEmbedLayerNormType.INIT:
-                encoder_embed = self.encoder_embed_ln(encoder_embed)
-
-            cum_sum = torch.cumsum(encoder_embed, dim=-2)
-            avg_sum = cum_sum / torch.arange(
-                1, x.shape[1] + 1, dtype=torch.long, device=device
+            target_embed = encoder_embed[:, 2:,:]
+            reverse_target_embed = torch.flip(target_embed, dims=[-2])
+            target_cum_sum = torch.cumsum(reverse_target_embed, dim=-2)
+            target_avg_sum = target_cum_sum / torch.arange(
+                1, target_embed.shape[1] + 1, dtype=torch.long, device=device
             ).unsqueeze(0).unsqueeze(-1)
+            future_embed = torch.flip(target_avg_sum, dims=[-2])
 
-            if (
-                self.config.encoder_embed_ln_type
-                == EncoderEmbedLayerNormType.AVG_CUM_SUM
-            ):
-                avg_sum = self.encoder_embed_ln(avg_sum)
+
+            # if self.config.use_ln_on_encoder_out:
+            #     encoder_out = self.encoder_out_ln(encoder_out)
+
+            # if self.config.encoder_embed_ln_type == EncoderEmbedLayerNormType.INIT:
+            #     encoder_embed = self.encoder_embed_ln(encoder_embed)
+
+            # if (
+            #     self.config.encoder_embed_ln_type
+            #     == EncoderEmbedLayerNormType.AVG_CUM_SUM
+            # ):
+            #     avg_sum = self.encoder_embed_ln(avg_sum)
 
             if self.config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
-                self.encoder_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
+                self.encoder_loss = F.mse_loss(future_embed, future_out, reduction="mean")
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
                 )
             elif self.config.encoder_embed_loss_type == EncoderEmbedLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
+                cosine_sim = F.cosine_similarity(future_embed, future_out, dim=-1)
                 self.encoder_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
@@ -420,7 +391,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.encoder_embed_loss_type
                 == EncoderEmbedLossType.LOG_COSINE_SIM
             ):
-                cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
+                cosine_sim = F.cosine_similarity(future_embed, future_out, dim=-1)
                 self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
