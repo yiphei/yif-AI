@@ -70,6 +70,22 @@ class FutureEmbedType(str, Enum):
             return FutureEmbedType.DECAY_CUM_SUM
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
+        
+class FutureLossDetachType(str, Enum):
+    NO = "NO"
+    FUTURE_EMBED = "FUTURE_EMBED"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return FutureLossDetachType.NO
+        elif num == 2:
+            return FutureLossDetachType.FUTURE_EMBED
+        else:
+            raise ValueError("Invalid encoder embed layer norm type number")
 
 
 @dataclass
@@ -108,7 +124,7 @@ class ModelConfig(BaseModelConfig):
         encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
             before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
     """
-
+    future_loss_detach_type: Union[FutureLossDetachType, int]
     cross_attn_config: CrossAttentionConfig = None
     future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
     future_embed_type: Union[FutureEmbedType, int] = FutureEmbedType.DECAY_CUM_SUM
@@ -118,6 +134,10 @@ class ModelConfig(BaseModelConfig):
     )
 
     def __post_init__(self):
+        if type(self.future_loss_detach_type) == int:
+            self.future_loss_detach_type = FutureLossDetachType.get_type_from_int(
+                self.future_loss_detach_type
+            )
         if type(self.future_loss_type) == int:
             self.future_loss_type = FutureLossType.get_type_from_int(
                 self.future_loss_type
@@ -344,6 +364,10 @@ class EncoderDecoderTransformer(BaseModel):
             target_embed = present_embed[
                 :, 2:, :
             ]  # TODO: decide if subtract the pos embed
+
+            if self.config.future_loss_detach_type == FutureLossDetachType.FUTURE_EMBED:
+                target_embed = target_embed.detach()
+
             if self.config.future_embed_ln_type == FutureEmbedLayerNormType.INIT:
                 target_embed = self.future_embed_ln(target_embed)
 
