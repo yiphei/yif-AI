@@ -92,7 +92,6 @@ class ModelConfig(BaseModelConfig):
     """
 
     cross_attn_config: CrossAttentionConfig = None
-    use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
     future_loss_coeff: Optional[float] = 1
@@ -115,11 +114,9 @@ class ModelConfig(BaseModelConfig):
                 self.future_loss_coeff = 1.0
             else:
                 assert self.future_loss_coeff > 0
-            assert self.use_ln_on_encoder_out is not None
             assert self.encoder_embed_ln_type is not None
         else:
             assert self.future_loss_coeff is None
-            assert self.use_ln_on_encoder_out is None
             assert self.encoder_embed_ln_type is None
 
         if type(self.cross_attn_config) == dict:
@@ -256,8 +253,7 @@ class EncoderDecoderTransformer(BaseModel):
             positional_embedding_size, config.n_embed
         )
 
-        if config.add_ln_before_decoder_ff:
-            self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
+
         self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
         )
@@ -271,7 +267,7 @@ class EncoderDecoderTransformer(BaseModel):
                 for _ in range(config.n_layer)
             ]
         )
-        self.ln = LayerNorm(config.n_embed, config.use_bias)
+        self.present_ln = LayerNorm(config.n_embed, config.use_bias)
         self.future_ln = LayerNorm(config.n_embed, config.use_bias)
 
         if self.config.use_ln_on_encoder_out:
@@ -296,45 +292,30 @@ class EncoderDecoderTransformer(BaseModel):
         pos_embed = self.positional_embedding(
             torch.arange(x.shape[1], dtype=torch.long, device=device)
         )
-        encoder_embed = token_embed + pos_embed
-        encoder_embed = self.dropout(encoder_embed)
-        present_x = encoder_embed
+        present_embed = token_embed + pos_embed
+        present_embed = self.dropout(present_embed)
+        present_x = present_embed
 
         future_x = present_x
-        if self.config.add_ln_before_decoder_ff:
-            future_x = self.ffd_ln(future_x)
         future_x = self.decoder_feed_forward(future_x)
 
         for transformer_block in self.decoder_transformer_blocks:
             present_x, future_x = transformer_block(present_x, future_x)
 
-        present_out = self.ln(present_x)
+        present_out = self.present_ln(present_x)
         future_out = self.future_ln(future_x[:, :-2, :])
 
         if (
             self.training
             and self.config.future_loss_type != FutureLossType.NONE
         ):
-            target_embed = encoder_embed[:, 2:,:]
+            target_embed = present_embed[:, 2:,:] # TODO: decide if subtract the pos embed
             reverse_target_embed = torch.flip(target_embed, dims=[-2])
             target_cum_sum = torch.cumsum(reverse_target_embed, dim=-2)
             target_avg_sum = target_cum_sum / torch.arange(
                 1, target_embed.shape[1] + 1, dtype=torch.long, device=device
-            ).unsqueeze(0).unsqueeze(-1)
+            ).unsqueeze(0).unsqueeze(-1) # TODO: decide on different weighting
             future_embed = torch.flip(target_avg_sum, dims=[-2])
-
-
-            # if self.config.use_ln_on_encoder_out:
-            #     encoder_out = self.encoder_out_ln(encoder_out)
-
-            # if self.config.encoder_embed_ln_type == EncoderEmbedLayerNormType.INIT:
-            #     encoder_embed = self.encoder_embed_ln(encoder_embed)
-
-            # if (
-            #     self.config.encoder_embed_ln_type
-            #     == EncoderEmbedLayerNormType.AVG_CUM_SUM
-            # ):
-            #     avg_sum = self.encoder_embed_ln(avg_sum)
 
             if self.config.future_loss_type == FutureLossType.MSE:
                 self.future_loss = F.mse_loss(future_embed, future_out, reduction="mean")
