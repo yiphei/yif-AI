@@ -53,7 +53,8 @@ class FutureEmbedLayerNormType(str, Enum):
             return FutureEmbedLayerNormType.AVG_CUM_SUM
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
-        
+
+
 class FutureEmbedType(str, Enum):
     AVG_CUM_SUM = "AVG_CUM_SUM"
     DECAY_CUM_SUM = "DECAY_CUM_SUM"
@@ -298,15 +299,16 @@ class EncoderDecoderTransformer(BaseModel):
         self.token_embedding.weight = self.output_layer.weight  # weight tying
 
         if config.future_embed_type == FutureEmbedType.DECAY_CUM_SUM:
-            values = torch.arange(1, config.context_size -1).unsqueeze(0)
-            gamma = values.repeat(config.context_size-2, 1)
-            shift = torch.arange(config.context_size-2).unsqueeze(1)
+            values = torch.arange(1, config.context_size - 1).unsqueeze(0)
+            gamma = values.repeat(config.context_size - 2, 1)
+            shift = torch.arange(config.context_size - 2).unsqueeze(1)
             gamma = gamma - shift
             gamma = gamma.to(dtype=torch.float16)
-            gamma = gamma ** -1
+            gamma = gamma**-1
             mask = torch.tril(
-                                torch.ones(config.context_size-2, config.context_size-2), diagonal=-1
-                            )
+                torch.ones(config.context_size - 2, config.context_size - 2),
+                diagonal=-1,
+            )
             gamma = gamma.masked_fill(mask == 1, 0)
             self.register_buffer("gamma", gamma)
 
