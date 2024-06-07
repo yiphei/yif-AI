@@ -296,6 +296,19 @@ class EncoderDecoderTransformer(BaseModel):
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
         self.token_embedding.weight = self.output_layer.weight  # weight tying
+
+        if config.future_embed_type == FutureEmbedType.DECAY_CUM_SUM:
+            values = torch.arange(1, config.context_size -1).unsqueeze(0)
+            gamma = values.repeat(config.context_size-2, 1)
+            shift = torch.arange(config.context_size-2).unsqueeze(1)
+            gamma = gamma - shift
+            gamma = gamma.to(dtype=torch.float16)
+            gamma = gamma ** -1
+            mask = torch.tril(
+                                torch.ones(config.context_size-2, config.context_size-2), diagonal=-1
+                            )
+            self.gamma = gamma.masked_fill(mask == 1, 0)
+
         self.apply(self._init_weights)
 
         # scale residual projections
@@ -341,8 +354,7 @@ class EncoderDecoderTransformer(BaseModel):
                 )  # TODO: decide on different weighting
                 future_embed = torch.flip(target_avg_sum, dims=[-2])
             elif self.config.future_embed_type == FutureEmbedType.DECAY_CUM_SUM:
-                pass
-
+                future_embed = self.gamma @ target_embed
 
             if self.config.future_embed_ln_type == FutureEmbedLayerNormType.AVG_CUM_SUM:
                 future_embed = self.future_embed_ln(future_embed)
