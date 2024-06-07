@@ -53,6 +53,22 @@ class FutureEmbedLayerNormType(str, Enum):
             return FutureEmbedLayerNormType.AVG_CUM_SUM
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
+        
+class FutureEmbedType(str, Enum):
+    AVG_CUM_SUM = "AVG_CUM_SUM"
+    DECAY_CUM_SUM = "DECAY_CUM_SUM"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return FutureEmbedType.AVG_CUM_SUM
+        elif num == 2:
+            return FutureEmbedType.DECAY_CUM_SUM
+        else:
+            raise ValueError("Invalid encoder embed layer norm type number")
 
 
 @dataclass
@@ -94,6 +110,7 @@ class ModelConfig(BaseModelConfig):
 
     cross_attn_config: CrossAttentionConfig = None
     future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
+    future_embed_type: Union[FutureEmbedType, int] = FutureEmbedType.AVG_CUM_SUM
     future_loss_coeff: Optional[float] = 1
     future_embed_ln_type: Optional[Union[FutureEmbedLayerNormType, int]] = (
         FutureEmbedLayerNormType.INIT
@@ -107,6 +124,10 @@ class ModelConfig(BaseModelConfig):
         if type(self.future_embed_ln_type) == int:
             self.future_embed_ln_type = FutureEmbedLayerNormType.get_type_from_int(
                 self.future_embed_ln_type
+            )
+        if type(self.future_embed_type) == int:
+            self.future_embed_type = FutureEmbedType.get_type_from_int(
+                self.future_embed_type
             )
 
         if self.future_loss_type != FutureLossType.NONE:
@@ -310,14 +331,18 @@ class EncoderDecoderTransformer(BaseModel):
             if self.config.future_embed_ln_type == FutureEmbedLayerNormType.INIT:
                 target_embed = self.future_embed_ln(target_embed)
 
-            reverse_target_embed = torch.flip(target_embed, dims=[-2])
-            target_cum_sum = torch.cumsum(reverse_target_embed, dim=-2)
-            target_avg_sum = target_cum_sum / torch.arange(
-                1, target_embed.shape[1] + 1, dtype=torch.long, device=device
-            ).unsqueeze(0).unsqueeze(
-                -1
-            )  # TODO: decide on different weighting
-            future_embed = torch.flip(target_avg_sum, dims=[-2])
+            if self.config.future_embed_type == FutureEmbedType.AVG_CUM_SUM:
+                reverse_target_embed = torch.flip(target_embed, dims=[-2])
+                target_cum_sum = torch.cumsum(reverse_target_embed, dim=-2)
+                target_avg_sum = target_cum_sum / torch.arange(
+                    1, target_embed.shape[1] + 1, dtype=torch.long, device=device
+                ).unsqueeze(0).unsqueeze(
+                    -1
+                )  # TODO: decide on different weighting
+                future_embed = torch.flip(target_avg_sum, dims=[-2])
+            elif self.config.future_embed_type == FutureEmbedType.DECAY_CUM_SUM:
+                pass
+
 
             if self.config.future_embed_ln_type == FutureEmbedLayerNormType.AVG_CUM_SUM:
                 future_embed = self.future_embed_ln(future_embed)
