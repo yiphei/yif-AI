@@ -144,13 +144,13 @@ class CrossMultiAttentionHead(nn.Module):
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
         self.dropout_2 = nn.Dropout(dropout_rate)
 
-    def forward(self, encoder_x, decoder_x):
-        B, T, C = encoder_x.shape
-        k, v = self.k_v_weights(encoder_x).split(self.dim_in, dim=2)
+    def forward(self, kv_x, q_x):
+        B, T, C = kv_x.shape
+        k, v = self.k_v_weights(kv_x).split(self.dim_in, dim=2)
         k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
-        q = self.q_weights(decoder_x)
+        q = self.q_weights(q_x)
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
         out = F.scaled_dot_product_attention(
@@ -160,10 +160,10 @@ class CrossMultiAttentionHead(nn.Module):
         out = (
             out.transpose(1, 2).contiguous().view(B, T, C)
         )  # B,H,T,S -> B,T,H,S -> B,T,C
-        new_decoder_x = self.residual_proj(out)
-        new_decoder_x = self.dropout_2(new_decoder_x)
+        new_q_x = self.residual_proj(out)
+        new_q_x = self.dropout_2(new_q_x)
 
-        return new_decoder_x
+        return new_q_x
 
 
 class DecoderTransformerBlock(nn.Module):
