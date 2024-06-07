@@ -34,6 +34,8 @@ parameters:
                 value: 1
             future_embed_ln_type:
                 values: [1,2,3]
+            future_loss_detach_type:
+                value: 1
     batch_size: 
         value: 50
     train_steps: 
