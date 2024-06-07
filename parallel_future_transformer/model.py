@@ -12,23 +12,6 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, TransformerBlock)
 
 
-class OrderType(str, Enum):
-    ORIGINAL = "ORIGINAL"
-    ALT = "ALT"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return OrderType.ORIGINAL
-        elif num == 2:
-            return OrderType.ALT
-        else:
-            raise ValueError("Invalid order type number")
-
-
 class SubPosEmbedType(str, Enum):
     NO = "NO"
     YES_NO_LN = "YES_NO_LN"
@@ -154,7 +137,6 @@ class ModelConfig(BaseModelConfig):
     sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
-    order_type: Union[OrderType, int] = OrderType.ORIGINAL
     encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
     encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = (
         EncoderEmbedDetachType.FINAL
@@ -165,8 +147,6 @@ class ModelConfig(BaseModelConfig):
     )
 
     def __post_init__(self):
-        if type(self.order_type) == int:
-            self.order_type = OrderType.get_type_from_int(self.order_type)
         if type(self.encoder_embed_loss_type) == int:
             self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(
                 self.encoder_embed_loss_type
@@ -248,8 +228,7 @@ class DecoderTransformerBlock(nn.Module):
         config: ModelConfig,
     ):
         super().__init__()
-        self.order_type = config.order_type
-        self.decoder_multi_attn_head = MultiAttentionHead(
+        self.present_multi_attn_head = MultiAttentionHead(
             config.n_embed,
             config.n_head,
             config.use_bias,
@@ -257,44 +236,64 @@ class DecoderTransformerBlock(nn.Module):
             config.dropout_rate,
             True,
         )
-        self.cross_multi_attn_head = CrossMultiAttentionHead(
+        self.future_multi_attn_head = MultiAttentionHead(
+            config.n_embed,
+            config.n_head,
+            config.use_bias,
+            config.context_size,
+            config.dropout_rate,
+            True,
+        )
+
+        self.present_cross_future_attn = CrossMultiAttentionHead(
             config.n_embed,
             config.cross_attn_config.n_head,
             config.cross_attn_config.use_bias,
             config.dropout_rate,
         )
-        self.decoder_feed_forward = FeedForward(
+        self.future_cross_present_attn = CrossMultiAttentionHead(
+            config.n_embed,
+            config.cross_attn_config.n_head,
+            config.cross_attn_config.use_bias,
+            config.dropout_rate,
+        )
+
+        self.present_feed_forward = FeedForward(
+            config.n_embed,
+            config.use_bias,
+            config.dropout_rate,
+        )
+        self.future_feed_forward = FeedForward(
             config.n_embed,
             config.use_bias,
             config.dropout_rate,
         )
 
-        self.encoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
-        self.decoder_cross_ln = LayerNorm(config.n_embed, config.use_bias)
+        self.present_cross_ln = LayerNorm(config.n_embed, config.use_bias)
+        self.future_cross_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        self.decoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
-        self.decoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
+        self.present_ln1 = LayerNorm(config.n_embed, config.use_bias)
+        self.present_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, encoder_x, decoder_x):
-        if self.order_type == OrderType.ORIGINAL:
-            decoder_x = decoder_x + self.decoder_multi_attn_head(
-                self.decoder_ln1(decoder_x)
-            )
-            decoder_x = decoder_x + self.cross_multi_attn_head(
-                self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
-            )
-        elif self.order_type == OrderType.ALT:
-            decoder_x = decoder_x + self.cross_multi_attn_head(
-                self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
-            )
-            decoder_x = decoder_x + self.decoder_multi_attn_head(
-                self.decoder_ln1(decoder_x)
-            )
-        else:
-            raise ValueError("Invalid order type")
+        self.future_ln1 = LayerNorm(config.n_embed, config.use_bias)
+        self.future_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-        decoder_x = decoder_x + self.decoder_feed_forward(self.decoder_ln2(decoder_x))
-        return decoder_x
+    def forward(self, present_x, future_x):
+        present_x = present_x + self.present_multi_attn_head(
+            self.present_ln1(present_x)
+        )
+        future_x = future_x + self.future_multi_attn_head(
+            self.future_ln1(future_x)
+        )
+
+        cross_present_x = self.present_cross_ln(present_x)
+        cross_future_x = self.future_cross_ln(future_x)
+        future_x = future_x + self.future_cross_present_attn(cross_present_x, cross_future_x)
+        present_x = present_x + self.present_cross_future_attn(cross_future_x, cross_present_x)
+
+        present_x = present_x + self.present_feed_forward(self.present_ln2(present_x))
+        future_x = future_x + self.future_feed_forward(self.future_ln2(future_x))
+        return present_x, future_x
 
 
 class EncoderDecoderTransformer(BaseModel):
