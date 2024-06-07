@@ -110,7 +110,7 @@ class ModelConfig(BaseModelConfig):
 
     cross_attn_config: CrossAttentionConfig = None
     future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
-    future_embed_type: Union[FutureEmbedType, int] = FutureEmbedType.AVG_CUM_SUM
+    future_embed_type: Union[FutureEmbedType, int] = FutureEmbedType.DECAY_CUM_SUM
     future_loss_coeff: Optional[float] = 1
     future_embed_ln_type: Optional[Union[FutureEmbedLayerNormType, int]] = (
         FutureEmbedLayerNormType.INIT
@@ -307,7 +307,8 @@ class EncoderDecoderTransformer(BaseModel):
             mask = torch.tril(
                                 torch.ones(config.context_size-2, config.context_size-2), diagonal=-1
                             )
-            self.gamma = gamma.masked_fill(mask == 1, 0)
+            gamma = gamma.masked_fill(mask == 1, 0)
+            self.register_buffer("gamma", gamma)
 
         self.apply(self._init_weights)
 
