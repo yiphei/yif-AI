@@ -9,30 +9,10 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
-                                       MultiAttentionHead, TransformerBlock)
+                                       MultiAttentionHead)
 
 
-class SubPosEmbedType(str, Enum):
-    NO = "NO"
-    YES_NO_LN = "YES_NO_LN"
-    YES_LN = "YES_LN"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return SubPosEmbedType.NO
-        elif num == 2:
-            return SubPosEmbedType.YES_NO_LN
-        elif num == 3:
-            return SubPosEmbedType.YES_LN
-        else:
-            raise ValueError("Invalid sub pos embed type number")
-
-
-class EncoderEmbedLossType(str, Enum):
+class FutureLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
     COSINE_SIM = "CONSINE_SIM"
@@ -44,13 +24,13 @@ class EncoderEmbedLossType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return EncoderEmbedLossType.NONE
+            return FutureLossType.NONE
         elif num == 2:
-            return EncoderEmbedLossType.MSE
+            return FutureLossType.MSE
         elif num == 3:
-            return EncoderEmbedLossType.COSINE_SIM
+            return FutureLossType.COSINE_SIM
         elif num == 4:
-            return EncoderEmbedLossType.LOG_COSINE_SIM
+            return FutureLossType.LOG_COSINE_SIM
         else:
             raise ValueError("Invalid encoder embed loss type number")
 
@@ -112,39 +92,33 @@ class ModelConfig(BaseModelConfig):
     """
 
     cross_attn_config: CrossAttentionConfig = None
-    add_pos_embed_to_decoder: bool = False
-    sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
-    encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
-    encoder_embed_loss_coeff: Optional[float] = 1
+    future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
+    future_loss_coeff: Optional[float] = 1
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
         EncoderEmbedLayerNormType.INIT
     )
 
     def __post_init__(self):
-        if type(self.encoder_embed_loss_type) == int:
-            self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(
-                self.encoder_embed_loss_type
+        if type(self.future_loss_type) == int:
+            self.future_loss_type = FutureLossType.get_type_from_int(
+                self.future_loss_type
             )
         if type(self.encoder_embed_ln_type) == int:
             self.encoder_embed_ln_type = EncoderEmbedLayerNormType.get_type_from_int(
                 self.encoder_embed_ln_type
             )
-        if type(self.sub_pos_embed_to_decoder) == int:
-            self.sub_pos_embed_to_decoder = SubPosEmbedType.get_type_from_int(
-                self.sub_pos_embed_to_decoder
-            )
 
-        if self.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
-            if self.encoder_embed_loss_coeff is None:
-                self.encoder_embed_loss_coeff = 1.0
+        if self.future_loss_type != FutureLossType.NONE:
+            if self.future_loss_coeff is None:
+                self.future_loss_coeff = 1.0
             else:
-                assert self.encoder_embed_loss_coeff > 0
+                assert self.future_loss_coeff > 0
             assert self.use_ln_on_encoder_out is not None
             assert self.encoder_embed_ln_type is not None
         else:
-            assert self.encoder_embed_loss_coeff is None
+            assert self.future_loss_coeff is None
             assert self.use_ln_on_encoder_out is None
             assert self.encoder_embed_ln_type is None
 
@@ -268,7 +242,7 @@ class DecoderTransformerBlock(nn.Module):
 
 class EncoderDecoderTransformer(BaseModel):
     model_config_cls = ModelConfig
-    extra_stats = ["encoder_loss", "scaled_encoder_loss"]
+    extra_stats = ["future_loss", "scaled_future_loss"]
 
     def _init_model(self, config: ModelConfig):
         assert (
@@ -278,11 +252,6 @@ class EncoderDecoderTransformer(BaseModel):
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         positional_embedding_size = config.context_size
-        if (
-            config.add_pos_embed_to_decoder
-            or self.config.sub_pos_embed_to_decoder != SubPosEmbedType.NO
-        ):
-            positional_embedding_size += 1
         self.positional_embedding = nn.Embedding(
             positional_embedding_size, config.n_embed
         )
@@ -304,8 +273,6 @@ class EncoderDecoderTransformer(BaseModel):
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
         self.future_ln = LayerNorm(config.n_embed, config.use_bias)
-        if config.sub_pos_embed_to_decoder == SubPosEmbedType.YES_LN:
-            self.post_sub_pos_ln = LayerNorm(config.n_embed, config.use_bias)
 
         if self.config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
@@ -338,13 +305,6 @@ class EncoderDecoderTransformer(BaseModel):
             future_x = self.ffd_ln(future_x)
         future_x = self.decoder_feed_forward(future_x)
 
-        if self.config.add_pos_embed_to_decoder:
-            future_x += self.positional_embedding(
-                torch.arange(
-                    start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
-                )
-            )
-
         for transformer_block in self.decoder_transformer_blocks:
             present_x, future_x = transformer_block(present_x, future_x)
 
@@ -353,7 +313,7 @@ class EncoderDecoderTransformer(BaseModel):
 
         if (
             self.training
-            and self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
+            and self.config.future_loss_type != FutureLossType.NONE
         ):
             target_embed = encoder_embed[:, 2:,:]
             reverse_target_embed = torch.flip(target_embed, dims=[-2])
@@ -376,37 +336,28 @@ class EncoderDecoderTransformer(BaseModel):
             # ):
             #     avg_sum = self.encoder_embed_ln(avg_sum)
 
-            if self.config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
-                self.encoder_loss = F.mse_loss(future_embed, future_out, reduction="mean")
-                self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_embed_loss_coeff
+            if self.config.future_loss_type == FutureLossType.MSE:
+                self.future_loss = F.mse_loss(future_embed, future_out, reduction="mean")
+                self.scaled_future_loss = (
+                    self.future_loss * self.config.future_loss_coeff
                 )
-            elif self.config.encoder_embed_loss_type == EncoderEmbedLossType.COSINE_SIM:
+            elif self.config.future_loss_type == FutureLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_embed, future_out, dim=-1)
-                self.encoder_loss = (1 - (cosine_sim + 1) / 2).mean()
-                self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_embed_loss_coeff
+                self.future_loss = (1 - (cosine_sim + 1) / 2).mean()
+                self.scaled_future_loss = (
+                    self.future_loss * self.config.future_loss_coeff
                 )
             elif (
-                self.config.encoder_embed_loss_type
-                == EncoderEmbedLossType.LOG_COSINE_SIM
+                self.config.future_loss_type
+                == FutureLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(future_embed, future_out, dim=-1)
-                self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
-                self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_embed_loss_coeff
+                self.future_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
+                self.scaled_future_loss = (
+                    self.future_loss * self.config.future_loss_coeff
                 )
             else:
                 raise ValueError("Invalid token loss type")
-
-        if self.config.sub_pos_embed_to_decoder != SubPosEmbedType.NO:
-            present_out = present_out - self.positional_embedding(
-                torch.arange(
-                    start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
-                )
-            )
-            if self.config.sub_pos_embed_to_decoder == SubPosEmbedType.YES_LN:
-                present_out = self.post_sub_pos_ln(present_out)
 
         if targets is None:
             loss = None
@@ -416,8 +367,8 @@ class EncoderDecoderTransformer(BaseModel):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
-            if self.training and self.scaled_encoder_loss.numel() != 0:
-                loss += self.scaled_encoder_loss
+            if self.training and self.scaled_future_loss.numel() != 0:
+                loss += self.scaled_future_loss
 
         return (logits, loss)
 
