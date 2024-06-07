@@ -70,7 +70,8 @@ class FutureEmbedType(str, Enum):
             return FutureEmbedType.DECAY_CUM_SUM
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
-        
+
+
 class FutureLossDetachType(str, Enum):
     NO = "NO"
     FUTURE_EMBED = "FUTURE_EMBED"
@@ -124,6 +125,7 @@ class ModelConfig(BaseModelConfig):
         encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
             before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
     """
+
     future_loss_detach_type: Union[FutureLossDetachType, int]
     cross_attn_config: CrossAttentionConfig = None
     future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
