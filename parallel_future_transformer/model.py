@@ -34,6 +34,7 @@ class FutureLossType(str, Enum):
         else:
             raise ValueError("Invalid encoder embed loss type number")
 
+
 class FutureEmbedLayerNormType(str, Enum):
     NONE = "NONE"
     INIT = "INIT"
@@ -223,14 +224,16 @@ class DecoderTransformerBlock(nn.Module):
         present_x = present_x + self.present_multi_attn_head(
             self.present_ln1(present_x)
         )
-        future_x = future_x + self.future_multi_attn_head(
-            self.future_ln1(future_x)
-        )
+        future_x = future_x + self.future_multi_attn_head(self.future_ln1(future_x))
 
         cross_present_x = self.present_cross_ln(present_x)
         cross_future_x = self.future_cross_ln(future_x)
-        future_x = future_x + self.future_cross_present_attn(cross_present_x, cross_future_x)
-        present_x = present_x + self.present_cross_future_attn(cross_future_x, cross_present_x)
+        future_x = future_x + self.future_cross_present_attn(
+            cross_present_x, cross_future_x
+        )
+        present_x = present_x + self.present_cross_future_attn(
+            cross_future_x, cross_present_x
+        )
 
         present_x = present_x + self.present_feed_forward(self.present_ln2(present_x))
         future_x = future_x + self.future_feed_forward(self.future_ln2(future_x))
@@ -252,7 +255,6 @@ class EncoderDecoderTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(
             positional_embedding_size, config.n_embed
         )
-
 
         self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
@@ -303,11 +305,10 @@ class EncoderDecoderTransformer(BaseModel):
         present_out = self.present_ln(present_x)
         future_out = self.future_ln(future_x[:, :-2, :])
 
-        if (
-            self.training
-            and self.config.future_loss_type != FutureLossType.NONE
-        ):
-            target_embed = present_embed[:, 2:,:] # TODO: decide if subtract the pos embed
+        if self.training and self.config.future_loss_type != FutureLossType.NONE:
+            target_embed = present_embed[
+                :, 2:, :
+            ]  # TODO: decide if subtract the pos embed
             if self.config.future_embed_ln_type == FutureEmbedLayerNormType.INIT:
                 target_embed = self.future_embed_ln(target_embed)
 
@@ -315,14 +316,18 @@ class EncoderDecoderTransformer(BaseModel):
             target_cum_sum = torch.cumsum(reverse_target_embed, dim=-2)
             target_avg_sum = target_cum_sum / torch.arange(
                 1, target_embed.shape[1] + 1, dtype=torch.long, device=device
-            ).unsqueeze(0).unsqueeze(-1) # TODO: decide on different weighting
+            ).unsqueeze(0).unsqueeze(
+                -1
+            )  # TODO: decide on different weighting
             future_embed = torch.flip(target_avg_sum, dims=[-2])
 
             if self.config.future_embed_ln_type == FutureEmbedLayerNormType.AVG_CUM_SUM:
                 future_embed = self.future_embed_ln(future_embed)
 
             if self.config.future_loss_type == FutureLossType.MSE:
-                self.future_loss = F.mse_loss(future_embed, future_out, reduction="mean")
+                self.future_loss = F.mse_loss(
+                    future_embed, future_out, reduction="mean"
+                )
                 self.scaled_future_loss = (
                     self.future_loss * self.config.future_loss_coeff
                 )
@@ -332,10 +337,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.scaled_future_loss = (
                     self.future_loss * self.config.future_loss_coeff
                 )
-            elif (
-                self.config.future_loss_type
-                == FutureLossType.LOG_COSINE_SIM
-            ):
+            elif self.config.future_loss_type == FutureLossType.LOG_COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_embed, future_out, dim=-1)
                 self.future_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_future_loss = (
