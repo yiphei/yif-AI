@@ -93,7 +93,6 @@ class ModelConfig(BaseModelConfig):
     """
 
     cross_attn_config: CrossAttentionConfig = None
-    add_ln_before_decoder_ff: bool = False
     future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
     future_loss_coeff: Optional[float] = 1
     future_embed_ln_type: Optional[Union[FutureEmbedLayerNormType, int]] = (
@@ -160,7 +159,6 @@ class CrossMultiAttentionHead(nn.Module):
         )  # B,H,T,S -> B,T,H,S -> B,T,C
         new_q_x = self.residual_proj(out)
         new_q_x = self.dropout_2(new_q_x)
-
         return new_q_x
 
 
@@ -256,12 +254,12 @@ class EncoderDecoderTransformer(BaseModel):
             positional_embedding_size, config.n_embed
         )
 
-        self.decoder_feed_forward = nn.Linear(
+        self.future_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
         )
 
         self.dropout = nn.Dropout(config.dropout_rate)
-        self.decoder_transformer_blocks = nn.ModuleList(
+        self.transformer_blocks = nn.ModuleList(
             [
                 DecoderTransformerBlock(
                     config,
@@ -297,9 +295,9 @@ class EncoderDecoderTransformer(BaseModel):
         present_x = present_embed
 
         future_x = present_x
-        future_x = self.decoder_feed_forward(future_x)
+        future_x = self.future_feed_forward(future_x)
 
-        for transformer_block in self.decoder_transformer_blocks:
+        for transformer_block in self.transformer_blocks:
             present_x, future_x = transformer_block(present_x, future_x)
 
         present_out = self.present_ln(present_x)
