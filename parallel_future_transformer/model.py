@@ -91,6 +91,7 @@ class ModelConfig(BaseModelConfig):
         encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
             before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
     """
+
     future_size: int
     future_loss_detach_type: Union[FutureLossDetachType, int]
     cross_attn_config: CrossAttentionConfig = None
@@ -244,9 +245,7 @@ class DecoderTransformerBlock(nn.Module):
         future_x = future_x + self.future_cross_present_attn(
             cross_present_x, cross_future_x
         )
-        next_x = next_x + self.next_cross_present_attn(
-            cross_present_x, cross_next_x
-        )
+        next_x = next_x + self.next_cross_present_attn(cross_present_x, cross_next_x)
 
         present_x = present_x + self.present_feed_forward(self.present_ln2(present_x))
         next_x = next_x + self.next_feed_forward(self.next_ln2(next_x))
@@ -318,9 +317,9 @@ class EncoderDecoderTransformer(BaseModel):
         for transformer_block in self.transformer_blocks:
             present_x, next_x, future_x = transformer_block(present_x, next_x, future_x)
 
-        present_out = self.present_ln(present_x[:, self.config.future_size + 1:, :])
+        present_out = self.present_ln(present_x[:, self.config.future_size + 1 :, :])
         next_out = self.next_ln(next_x)
-        future_out = self.future_ln(future_x[:, :-(self.config.future_size + 1), :])
+        future_out = self.future_ln(future_x[:, : -(self.config.future_size + 1), :])
 
         if self.training and self.config.future_loss_type != FutureLossType.NONE:
             if self.config.future_loss_detach_type == FutureLossDetachType.FUTURE:
@@ -329,9 +328,7 @@ class EncoderDecoderTransformer(BaseModel):
                 present_out = present_out.detach()
 
             if self.config.future_loss_type == FutureLossType.MSE:
-                self.future_loss = F.mse_loss(
-                    present_out, future_out, reduction="mean"
-                )
+                self.future_loss = F.mse_loss(present_out, future_out, reduction="mean")
                 self.scaled_future_loss = (
                     self.future_loss * self.config.future_loss_coeff
                 )
