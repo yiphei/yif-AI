@@ -99,6 +99,7 @@ class ModelConfig(BaseModelConfig):
     future_loss_coeff: Optional[float] = 1
 
     def __post_init__(self):
+        assert 0 < self.future_size < self.context_size-1
         if type(self.future_loss_detach_type) == int:
             self.future_loss_detach_type = FutureLossDetachType.get_type_from_int(
                 self.future_loss_detach_type
