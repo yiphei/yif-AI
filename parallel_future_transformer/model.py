@@ -220,6 +220,14 @@ class DecoderTransformerBlock(nn.Module):
             config.dropout_rate,
             True,
         )
+        self.next_multi_attn_head = MultiAttentionHead(
+            config.n_embed,
+            config.n_head,
+            config.use_bias,
+            config.context_size,
+            config.dropout_rate,
+            True,
+        )
         self.future_multi_attn_head = MultiAttentionHead(
             config.n_embed,
             config.n_head,
@@ -229,7 +237,7 @@ class DecoderTransformerBlock(nn.Module):
             True,
         )
 
-        self.present_cross_future_attn = CrossMultiAttentionHead(
+        self.next_cross_present_attn = CrossMultiAttentionHead(
             config.n_embed,
             config.cross_attn_config.n_head,
             config.cross_attn_config.use_bias,
@@ -247,6 +255,11 @@ class DecoderTransformerBlock(nn.Module):
             config.use_bias,
             config.dropout_rate,
         )
+        self.next_feed_forward = FeedForward(
+            config.n_embed,
+            config.use_bias,
+            config.dropout_rate,
+        )
         self.future_feed_forward = FeedForward(
             config.n_embed,
             config.use_bias,
@@ -254,30 +267,37 @@ class DecoderTransformerBlock(nn.Module):
         )
 
         self.present_cross_ln = LayerNorm(config.n_embed, config.use_bias)
+        self.next_cross_ln = LayerNorm(config.n_embed, config.use_bias)
         self.future_cross_ln = LayerNorm(config.n_embed, config.use_bias)
 
         self.present_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.present_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
+        self.next_ln1 = LayerNorm(config.n_embed, config.use_bias)
+        self.next_ln2 = LayerNorm(config.n_embed, config.use_bias)
+
         self.future_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.future_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, present_x, future_x):
+    def forward(self, present_x, next_x, future_x):
         present_x = present_x + self.present_multi_attn_head(
             self.present_ln1(present_x)
         )
+        next_x = next_x + self.next_multi_attn_head(self.next_ln1(next_x))
         future_x = future_x + self.future_multi_attn_head(self.future_ln1(future_x))
 
         cross_present_x = self.present_cross_ln(present_x)
+        cross_next_x = self.next_cross_ln(next_x)
         cross_future_x = self.future_cross_ln(future_x)
         future_x = future_x + self.future_cross_present_attn(
             cross_present_x, cross_future_x
         )
-        present_x = present_x + self.present_cross_future_attn(
-            cross_future_x, cross_present_x
+        next_x = next_x + self.next_cross_present_attn(
+            cross_present_x, cross_next_x
         )
 
         present_x = present_x + self.present_feed_forward(self.present_ln2(present_x))
+        next_x = next_x + self.next_feed_forward(self.next_ln2(next_x))
         future_x = future_x + self.future_feed_forward(self.future_ln2(future_x))
         return present_x, future_x
 
