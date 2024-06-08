@@ -388,9 +388,9 @@ class EncoderDecoderTransformer(BaseModel):
         future_out = self.future_ln(future_x[:, :-(self.config.future_size + 1), :])
 
         if self.training and self.config.future_loss_type != FutureLossType.NONE:
-            target_embed = present_embed[
-                :, 2:, :
-            ]  # TODO: decide if subtract the pos embed
+            # target_embed = present_embed[
+            #     :, 2:, :
+            # ]  # TODO: decide if subtract the pos embed
 
             if self.config.future_loss_detach_type == FutureLossDetachType.FUTURE_EMBED:
                 target_embed = target_embed.detach()
