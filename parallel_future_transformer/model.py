@@ -257,7 +257,9 @@ class DecoderTransformerBlock(nn.Module):
         )
         next_x = next_x + self.next_cross_present_attn(cross_present_x, cross_next_x)
 
-        next_x = next_x + self.next_cross_future_attn(self.future_cross_ln_2(future_x), self.next_cross_ln_2(next_x))
+        next_x = next_x + self.next_cross_future_attn(
+            self.future_cross_ln_2(future_x), self.next_cross_ln_2(next_x)
+        )
 
         present_x = present_x + self.present_feed_forward(self.present_ln2(present_x))
         next_x = next_x + self.next_feed_forward(self.next_ln2(next_x))
