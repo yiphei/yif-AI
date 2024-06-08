@@ -160,6 +160,65 @@ class CrossMultiAttentionHead(nn.Module):
         return new_q_x
 
 
+class DoubleCrossMultiAttentionHead(nn.Module):
+    def __init__(self, dim_in, n_head, use_bias, dropout_rate=0):
+        super().__init__()
+        assert dim_in % n_head == 0
+        self.dim_in = dim_in
+        self.n_head = n_head
+        self.head_size = dim_in // n_head
+        self.dropout_rate = dropout_rate
+
+        self.first_x_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
+        self.second_x_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
+        self.residual_proj_1 = nn.Linear(dim_in, dim_in, bias=use_bias)
+        self.residual_proj_2 = nn.Linear(dim_in, dim_in, bias=use_bias)
+        self.dropout_1 = nn.Dropout(dropout_rate)
+        self.dropout_2 = nn.Dropout(dropout_rate)
+
+    def forward(self, first_x, second_x):
+        B, T, C = first_x.shape
+        
+        q_1, k_1, v_1 = self.first_x_weights(first_x).split(self.dim_in, dim=2)
+        q_1 = q_1.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        k_1 = k_1.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        v_1 = v_1.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+
+        q_2, k_2, v_2 = self.second_x_weights(second_x).split(self.dim_in, dim=2)
+        q_2 = q_2.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        k_2 = k_2.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        v_2 = v_2.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+
+        out_1_self = F.scaled_dot_product_attention(
+            q_1, k_1, v_1, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
+        )
+        out_1_cross = F.scaled_dot_product_attention(
+            q_1, k_2, v_2, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
+        )
+        out_1 = out_1_self + out_1_cross
+
+        out_2_self = F.scaled_dot_product_attention(
+            q_2, k_2, v_2, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
+        )
+        out_2_cross = F.scaled_dot_product_attention(
+            q_2, k_1, v_1, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
+        )
+        out_2 = out_2_self + out_2_cross
+
+        out_1 = (
+            out_1.transpose(1, 2).contiguous().view(B, T, C)
+        )  # B,H,T,S -> B,T,H,S -> B,T,C
+        out_2 = (
+            out_2.transpose(1, 2).contiguous().view(B, T, C)
+        )  # B,H,T,S -> B,T,H,S -> B,T,C
+
+        out_1 = self.residual_proj_1(out_1)
+        out_2 = self.residual_proj_2(out_2)
+
+        out_1 = self.dropout_1(out_1)
+        out_2 = self.dropout_2(out_2)
+        return out_1, out_2
+
 class DecoderTransformerBlock(nn.Module):
     def __init__(
         self,
@@ -167,22 +226,6 @@ class DecoderTransformerBlock(nn.Module):
     ):
         super().__init__()
         self.present_multi_attn_head = MultiAttentionHead(
-            config.n_embed,
-            config.n_head,
-            config.use_bias,
-            config.context_size,
-            config.dropout_rate,
-            True,
-        )
-        self.next_multi_attn_head = MultiAttentionHead(
-            config.n_embed,
-            config.n_head,
-            config.use_bias,
-            config.context_size,
-            config.dropout_rate,
-            True,
-        )
-        self.future_multi_attn_head = MultiAttentionHead(
             config.n_embed,
             config.n_head,
             config.use_bias,
@@ -203,7 +246,7 @@ class DecoderTransformerBlock(nn.Module):
             config.cross_attn_config.use_bias,
             config.dropout_rate,
         )
-        self.next_cross_future_attn = CrossMultiAttentionHead(
+        self.double_cross_attn = DoubleCrossMultiAttentionHead(
             config.n_embed,
             config.cross_attn_config.n_head,
             config.cross_attn_config.use_bias,
@@ -230,9 +273,6 @@ class DecoderTransformerBlock(nn.Module):
         self.next_cross_ln = LayerNorm(config.n_embed, config.use_bias)
         self.future_cross_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        self.next_cross_ln_2 = LayerNorm(config.n_embed, config.use_bias)
-        self.future_cross_ln_2 = LayerNorm(config.n_embed, config.use_bias)
-
         self.present_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.present_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
@@ -246,8 +286,7 @@ class DecoderTransformerBlock(nn.Module):
         present_x = present_x + self.present_multi_attn_head(
             self.present_ln1(present_x)
         )
-        next_x = next_x + self.next_multi_attn_head(self.next_ln1(next_x))
-        future_x = future_x + self.future_multi_attn_head(self.future_ln1(future_x))
+        present_x = present_x + self.present_feed_forward(self.present_ln2(present_x))
 
         cross_present_x = self.present_cross_ln(present_x)
         cross_next_x = self.next_cross_ln(next_x)
@@ -257,11 +296,10 @@ class DecoderTransformerBlock(nn.Module):
         )
         next_x = next_x + self.next_cross_present_attn(cross_present_x, cross_next_x)
 
-        next_x = next_x + self.next_cross_future_attn(
-            self.future_cross_ln_2(future_x), self.next_cross_ln_2(next_x)
-        )
+        new_next_x, new_future_x = self.double_cross_attn(self.next_ln1(next_x), self.future_ln1(future_x))
+        next_x = next_x + new_next_x
+        future_x = future_x + new_future_x
 
-        present_x = present_x + self.present_feed_forward(self.present_ln2(present_x))
         next_x = next_x + self.next_feed_forward(self.next_ln2(next_x))
         future_x = future_x + self.future_feed_forward(self.future_ln2(future_x))
         return present_x, next_x, future_x
