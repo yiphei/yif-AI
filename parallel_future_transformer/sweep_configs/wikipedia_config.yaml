@@ -27,7 +27,7 @@ parameters:
                     use_bias:
                         value: False
             future_size:
-                values: [2, 5, 10, 20, 50]
+                values: [2, 4, 8, 16, 32, 64]
             future_loss_detach_type:
                 value: 1
             future_loss_type:
