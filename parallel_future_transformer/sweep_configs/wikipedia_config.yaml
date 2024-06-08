@@ -1,6 +1,6 @@
 program: parallel_future_transformer/training_script.py
 name: wikipedia_config
-project: parallel_future_transformer
+project: three_times_transformer
 method: grid
 metric:
   goal: minimize
@@ -13,7 +13,7 @@ parameters:
             context_size:
                 value: 200
             n_embed: 
-                value: 115
+                value: 100
             n_layer: 
                 value: 26
             n_head: 
@@ -26,15 +26,13 @@ parameters:
                         value: 5
                     use_bias:
                         value: False
+            future_size:
+                values: [2, 5, 10, 20, 50]
+            future_loss_detach_type:
+                value: 1
             future_loss_type:
                 values: [2,3,4]
-            future_embed_type:
-                values: [1,2]
             future_loss_coeff:
-                value: 1
-            future_embed_ln_type:
-                values: [1,2,3]
-            future_loss_detach_type:
                 value: 1
     batch_size: 
         value: 50
