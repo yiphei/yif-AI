@@ -125,7 +125,7 @@ class ModelConfig(BaseModelConfig):
         encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
             before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
     """
-
+    future_size: int
     future_loss_detach_type: Union[FutureLossDetachType, int]
     cross_attn_config: CrossAttentionConfig = None
     future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
@@ -383,9 +383,9 @@ class EncoderDecoderTransformer(BaseModel):
         for transformer_block in self.transformer_blocks:
             present_x, next_x, future_x = transformer_block(present_x, next_x, future_x)
 
-        present_out = self.present_ln(present_x)
+        present_out = self.present_ln(present_x[:, self.config.future_size + 1:, :])
         next_out = self.next_ln(next_x)
-        future_out = self.future_ln(future_x[:, :-2, :])
+        future_out = self.future_ln(future_x[:, :-(self.config.future_size + 1), :])
 
         if self.training and self.config.future_loss_type != FutureLossType.NONE:
             target_embed = present_embed[
@@ -398,36 +398,36 @@ class EncoderDecoderTransformer(BaseModel):
             if self.config.future_embed_ln_type == FutureEmbedLayerNormType.INIT:
                 target_embed = self.future_embed_ln(target_embed)
 
-            if self.config.future_embed_type == FutureEmbedType.AVG_CUM_SUM:
-                reverse_target_embed = torch.flip(target_embed, dims=[-2])
-                target_cum_sum = torch.cumsum(reverse_target_embed, dim=-2)
-                target_avg_sum = target_cum_sum / torch.arange(
-                    1, target_embed.shape[1] + 1, dtype=torch.long, device=device
-                ).unsqueeze(0).unsqueeze(
-                    -1
-                )  # TODO: decide on different weighting
-                future_embed = torch.flip(target_avg_sum, dims=[-2])
-            elif self.config.future_embed_type == FutureEmbedType.DECAY_CUM_SUM:
-                future_embed = self.gamma @ target_embed
+            # if self.config.future_embed_type == FutureEmbedType.AVG_CUM_SUM:
+            #     reverse_target_embed = torch.flip(target_embed, dims=[-2])
+            #     target_cum_sum = torch.cumsum(reverse_target_embed, dim=-2)
+            #     target_avg_sum = target_cum_sum / torch.arange(
+            #         1, target_embed.shape[1] + 1, dtype=torch.long, device=device
+            #     ).unsqueeze(0).unsqueeze(
+            #         -1
+            #     )  # TODO: decide on different weighting
+            #     future_embed = torch.flip(target_avg_sum, dims=[-2])
+            # elif self.config.future_embed_type == FutureEmbedType.DECAY_CUM_SUM:
+            #     future_embed = self.gamma @ target_embed
 
-            if self.config.future_embed_ln_type == FutureEmbedLayerNormType.AVG_CUM_SUM:
-                future_embed = self.future_embed_ln(future_embed)
+            # if self.config.future_embed_ln_type == FutureEmbedLayerNormType.AVG_CUM_SUM:
+            #     future_embed = self.future_embed_ln(future_embed)
 
             if self.config.future_loss_type == FutureLossType.MSE:
                 self.future_loss = F.mse_loss(
-                    future_embed, future_out, reduction="mean"
+                    present_out, future_out, reduction="mean"
                 )
                 self.scaled_future_loss = (
                     self.future_loss * self.config.future_loss_coeff
                 )
             elif self.config.future_loss_type == FutureLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(future_embed, future_out, dim=-1)
+                cosine_sim = F.cosine_similarity(present_out, future_out, dim=-1)
                 self.future_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_future_loss = (
                     self.future_loss * self.config.future_loss_coeff
                 )
             elif self.config.future_loss_type == FutureLossType.LOG_COSINE_SIM:
-                cosine_sim = F.cosine_similarity(future_embed, future_out, dim=-1)
+                cosine_sim = F.cosine_similarity(present_out, future_out, dim=-1)
                 self.future_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_future_loss = (
                     self.future_loss * self.config.future_loss_coeff
