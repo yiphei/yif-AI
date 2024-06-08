@@ -13,9 +13,9 @@ parameters:
             context_size:
                 value: 200
             n_embed: 
-                value: 95
+                value: 100
             n_layer: 
-                value: 27
+                value: 26
             n_head: 
                 value: 5
             dropout_rate:
