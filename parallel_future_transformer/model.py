@@ -37,7 +37,8 @@ class FutureLossType(str, Enum):
 
 class FutureLossDetachType(str, Enum):
     NO = "NO"
-    FUTURE_EMBED = "FUTURE_EMBED"
+    FUTURE = "FUTURE"
+    PRESENT = "PRESENT"
 
     def __str__(self):
         return self.value
@@ -47,7 +48,9 @@ class FutureLossDetachType(str, Enum):
         if num == 1:
             return FutureLossDetachType.NO
         elif num == 2:
-            return FutureLossDetachType.FUTURE_EMBED
+            return FutureLossDetachType.FUTURE
+        elif num == 3:
+            return FutureLossDetachType.PRESENT
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
 
@@ -320,8 +323,10 @@ class EncoderDecoderTransformer(BaseModel):
         future_out = self.future_ln(future_x[:, :-(self.config.future_size + 1), :])
 
         if self.training and self.config.future_loss_type != FutureLossType.NONE:
-            if self.config.future_loss_detach_type == FutureLossDetachType.FUTURE_EMBED:
-                target_embed = target_embed.detach()
+            if self.config.future_loss_detach_type == FutureLossDetachType.FUTURE:
+                future_out = future_out.detach()
+            elif self.config.future_loss_detach_type == FutureLossDetachType.PRESENT:
+                present_out = present_out.detach()
 
             if self.config.future_loss_type == FutureLossType.MSE:
                 self.future_loss = F.mse_loss(
