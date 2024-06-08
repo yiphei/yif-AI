@@ -200,6 +200,7 @@ class DoubleCrossMultiAttentionHead(nn.Module):
         out_2_self = F.scaled_dot_product_attention(
             q_2, k_2, v_2, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
         )
+        # TODO: is this cross attention needed?
         out_2_cross = F.scaled_dot_product_attention(
             q_2, k_1, v_1, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
         )
