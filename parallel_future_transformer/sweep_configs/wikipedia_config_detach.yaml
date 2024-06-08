@@ -1,6 +1,6 @@
 program: parallel_future_transformer/training_script.py
 name: wikipedia_config_detach
-project: three_times_transformer
+project: v2_three_times_transformer
 method: grid
 metric:
   goal: minimize

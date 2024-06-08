@@ -10,5 +10,5 @@ if __name__ == "__main__":
     train(
         EncoderDecoderTransformer,
         "parallel_future_transformer/",
-        "three_times_transformer",
+        "v2_three_times_transformer",
     )
