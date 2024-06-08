@@ -203,6 +203,12 @@ class DecoderTransformerBlock(nn.Module):
             config.cross_attn_config.use_bias,
             config.dropout_rate,
         )
+        self.next_cross_future_attn = CrossMultiAttentionHead(
+            config.n_embed,
+            config.cross_attn_config.n_head,
+            config.cross_attn_config.use_bias,
+            config.dropout_rate,
+        )
 
         self.present_feed_forward = FeedForward(
             config.n_embed,
@@ -223,6 +229,9 @@ class DecoderTransformerBlock(nn.Module):
         self.present_cross_ln = LayerNorm(config.n_embed, config.use_bias)
         self.next_cross_ln = LayerNorm(config.n_embed, config.use_bias)
         self.future_cross_ln = LayerNorm(config.n_embed, config.use_bias)
+
+        self.next_cross_ln_2 = LayerNorm(config.n_embed, config.use_bias)
+        self.future_cross_ln_2 = LayerNorm(config.n_embed, config.use_bias)
 
         self.present_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.present_ln2 = LayerNorm(config.n_embed, config.use_bias)
@@ -247,6 +256,8 @@ class DecoderTransformerBlock(nn.Module):
             cross_present_x, cross_future_x
         )
         next_x = next_x + self.next_cross_present_attn(cross_present_x, cross_next_x)
+
+        next_x = next_x + self.next_cross_future_attn(self.future_cross_ln_2(future_x), self.next_cross_ln_2(next_x))
 
         present_x = present_x + self.present_feed_forward(self.present_ln2(present_x))
         next_x = next_x + self.next_feed_forward(self.next_ln2(next_x))
