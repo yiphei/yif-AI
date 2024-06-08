@@ -299,7 +299,7 @@ class DecoderTransformerBlock(nn.Module):
         present_x = present_x + self.present_feed_forward(self.present_ln2(present_x))
         next_x = next_x + self.next_feed_forward(self.next_ln2(next_x))
         future_x = future_x + self.future_feed_forward(self.future_ln2(future_x))
-        return present_x, future_x
+        return present_x, next_x, future_x
 
 
 class EncoderDecoderTransformer(BaseModel):
