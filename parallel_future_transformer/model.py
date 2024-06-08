@@ -321,6 +321,9 @@ class EncoderDecoderTransformer(BaseModel):
         self.future_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
         )
+        self.next_feed_forward = nn.Linear(
+            config.n_embed, config.n_embed, bias=config.use_bias
+        )
 
         self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.ModuleList(
@@ -332,6 +335,7 @@ class EncoderDecoderTransformer(BaseModel):
             ]
         )
         self.present_ln = LayerNorm(config.n_embed, config.use_bias)
+        self.next_ln = LayerNorm(config.n_embed, config.use_bias)
         self.future_ln = LayerNorm(config.n_embed, config.use_bias)
 
         if self.config.future_embed_ln_type != FutureEmbedLayerNormType.NONE:
@@ -373,13 +377,14 @@ class EncoderDecoderTransformer(BaseModel):
         present_embed = self.dropout(present_embed)
         present_x = present_embed
 
-        future_x = present_x
-        future_x = self.future_feed_forward(future_x)
+        future_x = self.future_feed_forward(present_x)
+        next_x = self.next_feed_forward(present_x)
 
         for transformer_block in self.transformer_blocks:
-            present_x, future_x = transformer_block(present_x, future_x)
+            present_x, next_x, future_x = transformer_block(present_x, next_x, future_x)
 
         present_out = self.present_ln(present_x)
+        next_out = self.next_ln(next_x)
         future_out = self.future_ln(future_x[:, :-2, :])
 
         if self.training and self.config.future_loss_type != FutureLossType.NONE:
@@ -432,9 +437,9 @@ class EncoderDecoderTransformer(BaseModel):
 
         if targets is None:
             loss = None
-            logits = self.output_layer(present_out[:, [-1], :])
+            logits = self.output_layer(next_out[:, [-1], :])
         else:
-            logits = self.output_layer(present_out)
+            logits = self.output_layer(next_out)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
