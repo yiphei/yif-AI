@@ -35,43 +35,6 @@ class FutureLossType(str, Enum):
             raise ValueError("Invalid encoder embed loss type number")
 
 
-class FutureEmbedLayerNormType(str, Enum):
-    NONE = "NONE"
-    INIT = "INIT"
-    AVG_CUM_SUM = "AVG_CUM_SUM"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return FutureEmbedLayerNormType.NONE
-        elif num == 2:
-            return FutureEmbedLayerNormType.INIT
-        elif num == 3:
-            return FutureEmbedLayerNormType.AVG_CUM_SUM
-        else:
-            raise ValueError("Invalid encoder embed layer norm type number")
-
-
-class FutureEmbedType(str, Enum):
-    AVG_CUM_SUM = "AVG_CUM_SUM"
-    DECAY_CUM_SUM = "DECAY_CUM_SUM"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return FutureEmbedType.AVG_CUM_SUM
-        elif num == 2:
-            return FutureEmbedType.DECAY_CUM_SUM
-        else:
-            raise ValueError("Invalid encoder embed layer norm type number")
-
-
 class FutureLossDetachType(str, Enum):
     NO = "NO"
     FUTURE_EMBED = "FUTURE_EMBED"
@@ -129,11 +92,7 @@ class ModelConfig(BaseModelConfig):
     future_loss_detach_type: Union[FutureLossDetachType, int]
     cross_attn_config: CrossAttentionConfig = None
     future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
-    future_embed_type: Union[FutureEmbedType, int] = FutureEmbedType.DECAY_CUM_SUM
     future_loss_coeff: Optional[float] = 1
-    future_embed_ln_type: Optional[Union[FutureEmbedLayerNormType, int]] = (
-        FutureEmbedLayerNormType.INIT
-    )
 
     def __post_init__(self):
         if type(self.future_loss_detach_type) == int:
@@ -144,24 +103,14 @@ class ModelConfig(BaseModelConfig):
             self.future_loss_type = FutureLossType.get_type_from_int(
                 self.future_loss_type
             )
-        if type(self.future_embed_ln_type) == int:
-            self.future_embed_ln_type = FutureEmbedLayerNormType.get_type_from_int(
-                self.future_embed_ln_type
-            )
-        if type(self.future_embed_type) == int:
-            self.future_embed_type = FutureEmbedType.get_type_from_int(
-                self.future_embed_type
-            )
 
         if self.future_loss_type != FutureLossType.NONE:
             if self.future_loss_coeff is None:
                 self.future_loss_coeff = 1.0
             else:
                 assert self.future_loss_coeff > 0
-            assert self.future_embed_ln_type is not None
         else:
             assert self.future_loss_coeff is None
-            assert self.future_embed_ln_type is None
 
         if type(self.cross_attn_config) == dict:
             self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
@@ -338,25 +287,8 @@ class EncoderDecoderTransformer(BaseModel):
         self.next_ln = LayerNorm(config.n_embed, config.use_bias)
         self.future_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        if self.config.future_embed_ln_type != FutureEmbedLayerNormType.NONE:
-            self.future_embed_ln = LayerNorm(config.n_embed, True)
-
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
         self.token_embedding.weight = self.output_layer.weight  # weight tying
-
-        if config.future_embed_type == FutureEmbedType.DECAY_CUM_SUM:
-            values = torch.arange(1, config.context_size - 1).unsqueeze(0)
-            gamma = values.repeat(config.context_size - 2, 1)
-            shift = torch.arange(config.context_size - 2).unsqueeze(1)
-            gamma = gamma - shift
-            gamma = gamma.to(dtype=torch.float32)
-            gamma = gamma**-1
-            mask = torch.tril(
-                torch.ones(config.context_size - 2, config.context_size - 2),
-                diagonal=-1,
-            )
-            gamma = gamma.masked_fill(mask == 1, 0)
-            self.register_buffer("gamma", gamma)
 
         self.apply(self._init_weights)
 
@@ -388,30 +320,8 @@ class EncoderDecoderTransformer(BaseModel):
         future_out = self.future_ln(future_x[:, :-(self.config.future_size + 1), :])
 
         if self.training and self.config.future_loss_type != FutureLossType.NONE:
-            # target_embed = present_embed[
-            #     :, 2:, :
-            # ]  # TODO: decide if subtract the pos embed
-
             if self.config.future_loss_detach_type == FutureLossDetachType.FUTURE_EMBED:
                 target_embed = target_embed.detach()
-
-            if self.config.future_embed_ln_type == FutureEmbedLayerNormType.INIT:
-                target_embed = self.future_embed_ln(target_embed)
-
-            # if self.config.future_embed_type == FutureEmbedType.AVG_CUM_SUM:
-            #     reverse_target_embed = torch.flip(target_embed, dims=[-2])
-            #     target_cum_sum = torch.cumsum(reverse_target_embed, dim=-2)
-            #     target_avg_sum = target_cum_sum / torch.arange(
-            #         1, target_embed.shape[1] + 1, dtype=torch.long, device=device
-            #     ).unsqueeze(0).unsqueeze(
-            #         -1
-            #     )  # TODO: decide on different weighting
-            #     future_embed = torch.flip(target_avg_sum, dims=[-2])
-            # elif self.config.future_embed_type == FutureEmbedType.DECAY_CUM_SUM:
-            #     future_embed = self.gamma @ target_embed
-
-            # if self.config.future_embed_ln_type == FutureEmbedLayerNormType.AVG_CUM_SUM:
-            #     future_embed = self.future_embed_ln(future_embed)
 
             if self.config.future_loss_type == FutureLossType.MSE:
                 self.future_loss = F.mse_loss(
