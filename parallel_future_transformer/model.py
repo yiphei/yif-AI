@@ -93,7 +93,7 @@ class ModelConfig(BaseModelConfig):
     """
 
     future_size: int
-    future_loss_detach_type: Union[FutureLossDetachType, int]
+    future_loss_detach_type: Union[FutureLossDetachType, int] = FutureLossDetachType.NO
     cross_attn_config: CrossAttentionConfig = None
     future_loss_type: Union[FutureLossType, int] = FutureLossType.MSE
     future_loss_coeff: Optional[float] = 1

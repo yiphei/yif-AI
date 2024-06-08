@@ -5,6 +5,7 @@ N_LAYER = 3
 N_HEAD = 3
 USE_BIAS = False
 DROPOUT_RATE = 0
+future_size = 4
 
 # Training config
 BATCH_SIZE = 15  # 50 when run on 1x A10
