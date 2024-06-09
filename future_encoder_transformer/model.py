@@ -172,6 +172,11 @@ class ModelConfig(BaseModelConfig):
     def __post_init__(self):
         assert 0 < self.future_size < self.context_size - 1
 
+        if type(self.future_aggregation_type) == int:
+            self.future_aggregation_type = FutureAggregationType.get_type_from_int(
+                self.future_aggregation_type
+            )
+
         if type(self.encoder_embed_loss_type) == int:
             self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(
                 self.encoder_embed_loss_type
