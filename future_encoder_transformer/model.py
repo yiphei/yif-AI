@@ -359,23 +359,36 @@ class EncoderDecoderTransformer(BaseModel):
 
         if self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
             if self.config.future_aggregation_type == FutureAggregationType.DECAY:
-                values = torch.arange(1, config.context_size + 1 - self.config.future_size).unsqueeze(0)
+                values = torch.arange(
+                    1, config.context_size + 1 - self.config.future_size
+                ).unsqueeze(0)
                 gamma = values.repeat(config.context_size - self.config.future_size, 1)
-                shift = torch.arange(config.context_size - self.config.future_size).unsqueeze(1)
+                shift = torch.arange(
+                    config.context_size - self.config.future_size
+                ).unsqueeze(1)
                 gamma = gamma - shift
                 gamma = gamma.to(dtype=torch.float32)
                 gamma = gamma**-1
             elif self.config.future_aggregation_type == FutureAggregationType.AVG:
                 gamma = torch.full(
-                    (config.context_size - self.config.future_size, config.context_size - self.config.future_size),
+                    (
+                        config.context_size - self.config.future_size,
+                        config.context_size - self.config.future_size,
+                    ),
                     1 / (self.config.future_size + 1),
                 )
             mask = torch.tril(
-                torch.ones(config.context_size - self.config.future_size, config.context_size - self.config.future_size),
+                torch.ones(
+                    config.context_size - self.config.future_size,
+                    config.context_size - self.config.future_size,
+                ),
                 diagonal=-1,
             )
             mask += torch.triu(
-                torch.ones(config.context_size - self.config.future_size, config.context_size - self.config.future_size),
+                torch.ones(
+                    config.context_size - self.config.future_size,
+                    config.context_size - self.config.future_size,
+                ),
                 diagonal=self.config.future_size + 1,
             )
             gamma = gamma.masked_fill(mask == 1, 0)
