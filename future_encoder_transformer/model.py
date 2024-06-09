@@ -356,9 +356,15 @@ class EncoderDecoderTransformer(BaseModel):
 
         if self.config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
-        if self.config.encoder_embed_ln_type in [EncoderEmbedLayerNormType.INIT, EncoderEmbedLayerNormType.BOTH]:
+        if self.config.encoder_embed_ln_type in [
+            EncoderEmbedLayerNormType.INIT,
+            EncoderEmbedLayerNormType.BOTH,
+        ]:
             self.encoder_embed_ln_1 = LayerNorm(config.n_embed, True)
-        elif self.config.encoder_embed_ln_type in [EncoderEmbedLayerNormType.AVG_CUM_SUM, EncoderEmbedLayerNormType.BOTH]:
+        elif self.config.encoder_embed_ln_type in [
+            EncoderEmbedLayerNormType.AVG_CUM_SUM,
+            EncoderEmbedLayerNormType.BOTH,
+        ]:
             self.encoder_embed_ln_2 = LayerNorm(config.n_embed, True)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
@@ -454,7 +460,10 @@ class EncoderDecoderTransformer(BaseModel):
             if self.config.use_ln_on_encoder_out:
                 encoder_out = self.encoder_out_ln(encoder_out)
 
-            if self.config.encoder_embed_ln_type in [EncoderEmbedLayerNormType.INIT, EncoderEmbedLayerNormType.BOTH]:
+            if self.config.encoder_embed_ln_type in [
+                EncoderEmbedLayerNormType.INIT,
+                EncoderEmbedLayerNormType.BOTH,
+            ]:
                 encoder_embed = self.encoder_embed_ln_1(encoder_embed)
 
             future_embed = encoder_embed[:, 1:, :]
@@ -471,10 +480,10 @@ class EncoderDecoderTransformer(BaseModel):
                 ).unsqueeze(0).unsqueeze(-1)
                 future_embed = future_embed / 2 + past_embed / 2
 
-            if (
-                self.config.encoder_embed_ln_type
-                in [EncoderEmbedLayerNormType.AVG_CUM_SUM, EncoderEmbedLayerNormType.BOTH]
-            ):
+            if self.config.encoder_embed_ln_type in [
+                EncoderEmbedLayerNormType.AVG_CUM_SUM,
+                EncoderEmbedLayerNormType.BOTH,
+            ]:
                 future_embed = self.encoder_embed_ln_2(future_embed)
 
             if self.config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
