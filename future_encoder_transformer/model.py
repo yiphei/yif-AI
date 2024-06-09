@@ -57,8 +57,8 @@ class EncoderLossDetachType(str, Enum):
 
 class EncoderEmbedLayerNormType(str, Enum):
     NONE = "NONE"
-    INIT = "INIT"
-    AVG_CUM_SUM = "AVG_CUM_SUM"
+    PRE_AGGR = "PRE_AGGR"
+    POST_AGGR = "POST_AGGR"
     BOTH = "BOTH"
 
     def __str__(self):
@@ -69,9 +69,9 @@ class EncoderEmbedLayerNormType(str, Enum):
         if num == 1:
             return EncoderEmbedLayerNormType.NONE
         elif num == 2:
-            return EncoderEmbedLayerNormType.INIT
+            return EncoderEmbedLayerNormType.PRE_AGGR
         elif num == 3:
-            return EncoderEmbedLayerNormType.AVG_CUM_SUM
+            return EncoderEmbedLayerNormType.POST_AGGR
         elif num == 4:
             return EncoderEmbedLayerNormType.BOTH
         else:
@@ -145,7 +145,7 @@ class ModelConfig(BaseModelConfig):
     )
     encoder_embed_loss_coeff: Optional[float] = 1
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
-        EncoderEmbedLayerNormType.INIT
+        EncoderEmbedLayerNormType.PRE_AGGR
     )
     future_aggregation_type: Optional[Union[FutureAggregationType, int]] = (
         FutureAggregationType.DECAY
@@ -323,12 +323,12 @@ class EncoderDecoderTransformer(BaseModel):
         if self.config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
         if self.config.encoder_embed_ln_type in [
-            EncoderEmbedLayerNormType.INIT,
+            EncoderEmbedLayerNormType.PRE_AGGR,
             EncoderEmbedLayerNormType.BOTH,
         ]:
             self.encoder_embed_ln_1 = LayerNorm(config.n_embed, True)
         if self.config.encoder_embed_ln_type in [
-            EncoderEmbedLayerNormType.AVG_CUM_SUM,
+            EncoderEmbedLayerNormType.POST_AGGR,
             EncoderEmbedLayerNormType.BOTH,
         ]:
             self.encoder_embed_ln_2 = LayerNorm(config.n_embed, True)
@@ -420,7 +420,7 @@ class EncoderDecoderTransformer(BaseModel):
                 encoder_out = self.encoder_out_ln(encoder_out)
 
             if self.config.encoder_embed_ln_type in [
-                EncoderEmbedLayerNormType.INIT,
+                EncoderEmbedLayerNormType.PRE_AGGR,
                 EncoderEmbedLayerNormType.BOTH,
             ]:
                 encoder_embed = self.encoder_embed_ln_1(encoder_embed)
@@ -440,7 +440,7 @@ class EncoderDecoderTransformer(BaseModel):
                 future_embed = future_embed / 2 + past_embed / 2
 
             if self.config.encoder_embed_ln_type in [
-                EncoderEmbedLayerNormType.AVG_CUM_SUM,
+                EncoderEmbedLayerNormType.POST_AGGR,
                 EncoderEmbedLayerNormType.BOTH,
             ]:
                 future_embed = self.encoder_embed_ln_2(future_embed)
