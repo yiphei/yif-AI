@@ -12,22 +12,6 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, TransformerBlock)
 
 
-class OrderType(str, Enum):
-    ORIGINAL = "ORIGINAL"
-    ALT = "ALT"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return OrderType.ORIGINAL
-        elif num == 2:
-            return OrderType.ALT
-        else:
-            raise ValueError("Invalid order type number")
-
 
 class SubPosEmbedType(str, Enum):
     NO = "NO"
@@ -176,7 +160,6 @@ class ModelConfig(BaseModelConfig):
     sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
-    order_type: Union[OrderType, int] = OrderType.ORIGINAL
     encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
     encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = (
         EncoderEmbedDetachType.FINAL
@@ -189,8 +172,6 @@ class ModelConfig(BaseModelConfig):
     def __post_init__(self):
         assert 0 < self.future_size < self.context_size - 1
 
-        if type(self.order_type) == int:
-            self.order_type = OrderType.get_type_from_int(self.order_type)
         if type(self.encoder_embed_loss_type) == int:
             self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(
                 self.encoder_embed_loss_type
@@ -272,7 +253,6 @@ class DecoderTransformerBlock(nn.Module):
         config: ModelConfig,
     ):
         super().__init__()
-        self.order_type = config.order_type
         self.decoder_multi_attn_head = MultiAttentionHead(
             config.n_embed,
             config.n_head,
@@ -300,22 +280,12 @@ class DecoderTransformerBlock(nn.Module):
         self.decoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, encoder_x, decoder_x):
-        if self.order_type == OrderType.ORIGINAL:
-            decoder_x = decoder_x + self.decoder_multi_attn_head(
-                self.decoder_ln1(decoder_x)
-            )
-            decoder_x = decoder_x + self.cross_multi_attn_head(
-                self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
-            )
-        elif self.order_type == OrderType.ALT:
-            decoder_x = decoder_x + self.cross_multi_attn_head(
-                self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
-            )
-            decoder_x = decoder_x + self.decoder_multi_attn_head(
-                self.decoder_ln1(decoder_x)
-            )
-        else:
-            raise ValueError("Invalid order type")
+        decoder_x = decoder_x + self.decoder_multi_attn_head(
+            self.decoder_ln1(decoder_x)
+        )
+        decoder_x = decoder_x + self.cross_multi_attn_head(
+            self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
+        )
 
         decoder_x = decoder_x + self.decoder_feed_forward(self.decoder_ln2(decoder_x))
         return decoder_x
