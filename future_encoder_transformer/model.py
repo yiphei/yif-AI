@@ -111,6 +111,22 @@ class EncoderEmbedLayerNormType(str, Enum):
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
 
+class FutureAggregationType(str, Enum):
+    AVG = "AVG"
+    DECAY = "DECAY"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return FutureAggregationType.AVG
+        elif num == 2:
+            return FutureAggregationType.DECAY
+        else:
+            raise ValueError("Invalid encoder embed layer norm type number")
+
 
 @dataclass
 class CrossAttentionConfig:
@@ -150,6 +166,7 @@ class ModelConfig(BaseModelConfig):
     """
     future_size: int
     include_past: bool
+    future_aggregation_type: Union[FutureAggregationType, int] = FutureAggregationType.DECAY
     cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = False
     sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
@@ -362,12 +379,15 @@ class EncoderDecoderTransformer(BaseModel):
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
-        values = torch.arange(1, config.context_size - 1).unsqueeze(0)
-        gamma = values.repeat(config.context_size - 2, 1)
-        shift = torch.arange(config.context_size - 2).unsqueeze(1)
-        gamma = gamma - shift
-        gamma = gamma.to(dtype=torch.float32)
-        gamma = gamma**-1
+        if self.config.future_aggregation_type == FutureAggregationType.DECAY:
+            values = torch.arange(1, config.context_size - 1).unsqueeze(0)
+            gamma = values.repeat(config.context_size - 2, 1)
+            shift = torch.arange(config.context_size - 2).unsqueeze(1)
+            gamma = gamma - shift
+            gamma = gamma.to(dtype=torch.float32)
+            gamma = gamma**-1
+        elif self.config.future_aggregation_type == FutureAggregationType.AVG:
+            gamma = torch.full((config.context_size - 2, config.context_size - 2), 1/self.config.future_size)
         mask = torch.tril(
             torch.ones(config.context_size - 2, config.context_size - 2),
             diagonal=-1,
@@ -432,19 +452,23 @@ class EncoderDecoderTransformer(BaseModel):
                 1, x.shape[1] + 1, dtype=torch.long, device=device
             ).unsqueeze(0).unsqueeze(-1)
 
+            future_embed = encoder_embed[:, 2:, :]
+            future_embed = self.gamma @ future_embed
+            future_embed = future_embed + avg_sum
+
             if (
                 self.config.encoder_embed_ln_type
                 == EncoderEmbedLayerNormType.AVG_CUM_SUM
             ):
-                avg_sum = self.encoder_embed_ln(avg_sum)
+                future_embed = self.encoder_embed_ln(future_embed)
 
             if self.config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
-                self.encoder_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
+                self.encoder_loss = F.mse_loss(future_embed, encoder_out, reduction="mean")
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
                 )
             elif self.config.encoder_embed_loss_type == EncoderEmbedLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
+                cosine_sim = F.cosine_similarity(future_embed, encoder_out, dim=-1)
                 self.encoder_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
@@ -453,7 +477,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.encoder_embed_loss_type
                 == EncoderEmbedLossType.LOG_COSINE_SIM
             ):
-                cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
+                cosine_sim = F.cosine_similarity(future_embed, encoder_out, dim=-1)
                 self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
