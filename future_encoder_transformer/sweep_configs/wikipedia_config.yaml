@@ -40,7 +40,7 @@ parameters:
                 values: [2,3]
             encoder_embed_ln_type:
                 values: [2,3,4]
-            encoder_embed_loss_coeff:
+            encoder_loss_coeff:
                 value: 1
             future_aggregation_type:
                 values: [1,2]

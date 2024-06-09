@@ -114,7 +114,7 @@ class ModelConfig(BaseModelConfig):
     encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
         EncoderLossDetachType.ENCODER_OUT
     )
-    encoder_embed_loss_coeff: Optional[float] = 1
+    encoder_loss_coeff: Optional[float] = 1
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
         EncoderEmbedLayerNormType.PRE_AGGR
     )
@@ -143,16 +143,16 @@ class ModelConfig(BaseModelConfig):
             )
 
         if self.encoder_loss_type != EncoderLossType.NONE:
-            if self.encoder_embed_loss_coeff is None:
-                self.encoder_embed_loss_coeff = 1.0
+            if self.encoder_loss_coeff is None:
+                self.encoder_loss_coeff = 1.0
             else:
-                assert self.encoder_embed_loss_coeff > 0
+                assert self.encoder_loss_coeff > 0
             assert self.use_ln_on_encoder_out is not None
             assert self.encoder_embed_ln_type is not None
             assert self.encoder_loss_detach_type is not None
             assert self.future_aggregation_type is not None
         else:
-            assert self.encoder_embed_loss_coeff is None
+            assert self.encoder_loss_coeff is None
             assert self.use_ln_on_encoder_out is None
             assert self.encoder_embed_ln_type is None
             assert self.encoder_loss_detach_type is None
@@ -422,19 +422,19 @@ class EncoderDecoderTransformer(BaseModel):
                     future_embed, encoder_out, reduction="mean"
                 )
                 self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_embed_loss_coeff
+                    self.encoder_loss * self.config.encoder_loss_coeff
                 )
             elif self.config.encoder_loss_type == EncoderLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_embed, encoder_out, dim=-1)
                 self.encoder_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_embed_loss_coeff
+                    self.encoder_loss * self.config.encoder_loss_coeff
                 )
             elif self.config.encoder_loss_type == EncoderLossType.LOG_COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_embed, encoder_out, dim=-1)
                 self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_embed_loss_coeff
+                    self.encoder_loss * self.config.encoder_loss_coeff
                 )
             else:
                 raise ValueError("Invalid token loss type")
