@@ -468,8 +468,8 @@ class EncoderDecoderTransformer(BaseModel):
                     == PresentEmbedNormalizationType.CONTEXT_SIZE
                 ):
                     future_embed = (
-                        future_embed / self.future_normalization_weights
-                        + present_embed / self.present_normalization_weights
+                        future_embed * self.future_normalization_weights
+                        + present_embed * self.present_normalization_weights
                     )
             if self.config.encoder_embed_ln_type in [
                 EncoderEmbedLayerNormType.POST_AGGR,
