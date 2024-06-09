@@ -447,14 +447,14 @@ class EncoderDecoderTransformer(BaseModel):
             if self.config.encoder_embed_ln_type == EncoderEmbedLayerNormType.INIT:
                 encoder_embed = self.encoder_embed_ln(encoder_embed)
 
-            cum_sum = torch.cumsum(encoder_embed, dim=-2)
-            avg_sum = cum_sum / torch.arange(
-                1, x.shape[1] + 1, dtype=torch.long, device=device
-            ).unsqueeze(0).unsqueeze(-1)
-
             future_embed = encoder_embed[:, 2:, :]
             future_embed = self.gamma @ future_embed
-            future_embed = future_embed + avg_sum
+            if self.config.include_past:
+                cum_sum = torch.cumsum(encoder_embed[:, :-2, :], dim=-2)
+                past_embed = cum_sum / torch.arange(
+                    1, x.shape[1] + 1, dtype=torch.long, device=device
+                ).unsqueeze(0).unsqueeze(-1)
+                future_embed = future_embed/2 + past_embed/2
 
             if (
                 self.config.encoder_embed_ln_type
