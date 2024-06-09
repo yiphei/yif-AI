@@ -144,8 +144,10 @@ class ModelConfig(BaseModelConfig):
     def __post_init__(self):
         assert 0 < self.future_context_size < self.context_size - 1
         if type(self.present_embed_normalization_type) == int:
-            self.present_embed_normalization_type = PresentEmbedNormalizationType.get_type_from_int(
-                self.present_embed_normalization_type
+            self.present_embed_normalization_type = (
+                PresentEmbedNormalizationType.get_type_from_int(
+                    self.present_embed_normalization_type
+                )
             )
         if type(self.future_aggregation_type) == int:
             self.future_aggregation_type = FutureAggregationType.get_type_from_int(
@@ -378,7 +380,7 @@ class EncoderDecoderTransformer(BaseModel):
                     dtype=torch.float32,
                 )
                 future_normalization_weights = torch.full(
-                    (self.future_1_dim,), self.actual_future_window, dtype = torch.float32
+                    (self.future_1_dim,), self.actual_future_window, dtype=torch.float32
                 )
                 normalization_sum = torch.arange(
                     1 + self.actual_future_window,
