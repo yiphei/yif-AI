@@ -111,6 +111,7 @@ class EncoderEmbedLayerNormType(str, Enum):
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
 
+
 class FutureAggregationType(str, Enum):
     AVG = "AVG"
     DECAY = "DECAY"
@@ -164,9 +165,12 @@ class ModelConfig(BaseModelConfig):
         encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
             before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
     """
+
     future_size: int
     include_past: bool
-    future_aggregation_type: Union[FutureAggregationType, int] = FutureAggregationType.DECAY
+    future_aggregation_type: Union[FutureAggregationType, int] = (
+        FutureAggregationType.DECAY
+    )
     cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = False
     sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
@@ -387,12 +391,18 @@ class EncoderDecoderTransformer(BaseModel):
             gamma = gamma.to(dtype=torch.float32)
             gamma = gamma**-1
         elif self.config.future_aggregation_type == FutureAggregationType.AVG:
-            gamma = torch.full((config.context_size - 2, config.context_size - 2), 1/self.config.future_size)
+            gamma = torch.full(
+                (config.context_size - 2, config.context_size - 2),
+                1 / self.config.future_size,
+            )
         mask = torch.tril(
             torch.ones(config.context_size - 2, config.context_size - 2),
             diagonal=-1,
         )
-        mask += torch.triu(torch.ones(config.context_size - 2, config.context_size - 2), diagonal=self.config.future_size)
+        mask += torch.triu(
+            torch.ones(config.context_size - 2, config.context_size - 2),
+            diagonal=self.config.future_size,
+        )
         gamma = gamma.masked_fill(mask == 1, 0)
         self.register_buffer("gamma", gamma)
 
@@ -454,7 +464,7 @@ class EncoderDecoderTransformer(BaseModel):
                 past_embed = cum_sum / torch.arange(
                     1, x.shape[1] + 1, dtype=torch.long, device=device
                 ).unsqueeze(0).unsqueeze(-1)
-                future_embed = future_embed/2 + past_embed/2
+                future_embed = future_embed / 2 + past_embed / 2
 
             if (
                 self.config.encoder_embed_ln_type
@@ -463,7 +473,9 @@ class EncoderDecoderTransformer(BaseModel):
                 future_embed = self.encoder_embed_ln(future_embed)
 
             if self.config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
-                self.encoder_loss = F.mse_loss(future_embed, encoder_out, reduction="mean")
+                self.encoder_loss = F.mse_loss(
+                    future_embed, encoder_out, reduction="mean"
+                )
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
                 )
