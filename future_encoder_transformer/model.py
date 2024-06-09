@@ -79,6 +79,7 @@ class EncoderEmbedLayerNormType(str, Enum):
     NONE = "NONE"
     INIT = "INIT"
     AVG_CUM_SUM = "AVG_CUM_SUM"
+    BOTH = "BOTH"
 
     def __str__(self):
         return self.value
@@ -91,6 +92,8 @@ class EncoderEmbedLayerNormType(str, Enum):
             return EncoderEmbedLayerNormType.INIT
         elif num == 3:
             return EncoderEmbedLayerNormType.AVG_CUM_SUM
+        elif num == 4:
+            return EncoderEmbedLayerNormType.BOTH
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
 
@@ -353,8 +356,10 @@ class EncoderDecoderTransformer(BaseModel):
 
         if self.config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
-        if self.config.encoder_embed_ln_type != EncoderEmbedLayerNormType.NONE:
-            self.encoder_embed_ln = LayerNorm(config.n_embed, True)
+        if self.config.encoder_embed_ln_type in [EncoderEmbedLayerNormType.INIT, EncoderEmbedLayerNormType.BOTH]:
+            self.encoder_embed_ln_1 = LayerNorm(config.n_embed, True)
+        elif self.config.encoder_embed_ln_type in [EncoderEmbedLayerNormType.AVG_CUM_SUM, EncoderEmbedLayerNormType.BOTH]:
+            self.encoder_embed_ln_2 = LayerNorm(config.n_embed, True)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
         self.token_embedding.weight = self.output_layer.weight  # weight tying
@@ -449,8 +454,8 @@ class EncoderDecoderTransformer(BaseModel):
             if self.config.use_ln_on_encoder_out:
                 encoder_out = self.encoder_out_ln(encoder_out)
 
-            if self.config.encoder_embed_ln_type == EncoderEmbedLayerNormType.INIT:
-                encoder_embed = self.encoder_embed_ln(encoder_embed)
+            if self.config.encoder_embed_ln_type in [EncoderEmbedLayerNormType.INIT, EncoderEmbedLayerNormType.BOTH]:
+                encoder_embed = self.encoder_embed_ln_1(encoder_embed)
 
             future_embed = encoder_embed[:, 1:, :]
             future_embed = self.gamma @ future_embed
@@ -468,9 +473,9 @@ class EncoderDecoderTransformer(BaseModel):
 
             if (
                 self.config.encoder_embed_ln_type
-                == EncoderEmbedLayerNormType.AVG_CUM_SUM
+                in [EncoderEmbedLayerNormType.AVG_CUM_SUM, EncoderEmbedLayerNormType.BOTH]
             ):
-                future_embed = self.encoder_embed_ln(future_embed)
+                future_embed = self.encoder_embed_ln_2(future_embed)
 
             if self.config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
                 self.encoder_loss = F.mse_loss(
