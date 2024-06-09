@@ -103,35 +103,6 @@ class CrossAttentionConfig:
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    """The default field values are the suggested ones for the best performance.
-    Fine-tuning encoder_embed_loss_coeff may improve performance.
-
-    NB: there are more hyperparameters here than described in the README. This is because
-        either they were found to be detrimental or were trivial additions.
-
-    Args:
-        cross_attn_config: config for the cross-attention head layer.
-        add_pos_embed_to_decoder: adds the "next" positional embedding to the decoder input.
-            Experiments showed that this was detrimental, so False is better.
-        sub_pos_embed_to_decoder: substracts the "next" positional embedding from the
-            decoder output, right before the output layer. Experiments showed benefits,
-            and the best value is SubPosEmbedType.YES_NO_LN.
-        use_ln_on_encoder_out: applies layer normalization on the encoder output.
-            True performed better.
-        add_ln_before_decoder_ff: applies layer normalization on decoder input.
-            False performed better.
-        order_type: the order of attention operations in decoder transformer blocks.
-            OrderType.ORIGINAL performed better.
-        encoder_embed_loss_type: the type of loss applied to the encoder output.
-            EncoderEmbedLossType.MSE performed better.
-        encoder_embed_detach_type: the type of tensor detachment applied to the encoder embed
-            before computing the encoder loss. EncoderEmbedDetachType.FINAL performed better.
-        encoder_embed_loss_coeff: a scaling coefficient for the encoder loss. This may be
-            fine-tuned for best performance.
-        encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
-            before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
-    """
-
     future_context_size: (
         int  # this is the size of the future context beyond the next token
     )
@@ -286,9 +257,7 @@ class EncoderDecoderTransformer(BaseModel):
         self.config = config
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
-        self.positional_embedding = nn.Embedding(
-            config.context_size, config.n_embed
-        )
+        self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
 
         if config.add_ln_before_decoder_ff:
             self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
@@ -406,14 +375,17 @@ class EncoderDecoderTransformer(BaseModel):
 
         decoder_out = self.ln(decoder_x)
 
-        if (
-            self.training
-            and self.config.encoder_loss_type != EncoderLossType.NONE
-        ):
+        if self.training and self.config.encoder_loss_type != EncoderLossType.NONE:
             encoder_out = encoder_out[:, : -self.actual_future_window, :]
-            if self.config.encoder_loss_detach_type == EncoderLossDetachType.ENCODER_EMBED:
+            if (
+                self.config.encoder_loss_detach_type
+                == EncoderLossDetachType.ENCODER_EMBED
+            ):
                 encoder_embed = encoder_embed.detach()
-            elif self.config.encoder_loss_detach_type == EncoderLossDetachType.ENCODER_OUT:
+            elif (
+                self.config.encoder_loss_detach_type
+                == EncoderLossDetachType.ENCODER_OUT
+            ):
                 encoder_out = encoder_out.detach()
 
             if self.config.use_ln_on_encoder_out:
@@ -458,10 +430,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
                 )
-            elif (
-                self.config.encoder_loss_type
-                == EncoderLossType.LOG_COSINE_SIM
-            ):
+            elif self.config.encoder_loss_type == EncoderLossType.LOG_COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_embed, encoder_out, dim=-1)
                 self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_encoder_loss = (
