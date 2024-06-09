@@ -358,28 +358,29 @@ class EncoderDecoderTransformer(BaseModel):
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
-        if self.config.future_aggregation_type == FutureAggregationType.DECAY:
-            values = torch.arange(1, config.context_size - 1).unsqueeze(0)
-            gamma = values.repeat(config.context_size - 2, 1)
-            shift = torch.arange(config.context_size - 2).unsqueeze(1)
-            gamma = gamma - shift
-            gamma = gamma.to(dtype=torch.float32)
-            gamma = gamma**-1
-        elif self.config.future_aggregation_type == FutureAggregationType.AVG:
-            gamma = torch.full(
-                (config.context_size - 2, config.context_size - 2),
-                1 / self.config.future_size,
+        if self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
+            if self.config.future_aggregation_type == FutureAggregationType.DECAY:
+                values = torch.arange(1, config.context_size - 1).unsqueeze(0)
+                gamma = values.repeat(config.context_size - 2, 1)
+                shift = torch.arange(config.context_size - 2).unsqueeze(1)
+                gamma = gamma - shift
+                gamma = gamma.to(dtype=torch.float32)
+                gamma = gamma**-1
+            elif self.config.future_aggregation_type == FutureAggregationType.AVG:
+                gamma = torch.full(
+                    (config.context_size - 2, config.context_size - 2),
+                    1 / self.config.future_size,
+                )
+            mask = torch.tril(
+                torch.ones(config.context_size - 2, config.context_size - 2),
+                diagonal=-1,
             )
-        mask = torch.tril(
-            torch.ones(config.context_size - 2, config.context_size - 2),
-            diagonal=-1,
-        )
-        mask += torch.triu(
-            torch.ones(config.context_size - 2, config.context_size - 2),
-            diagonal=self.config.future_size,
-        )
-        gamma = gamma.masked_fill(mask == 1, 0)
-        self.register_buffer("gamma", gamma)
+            mask += torch.triu(
+                torch.ones(config.context_size - 2, config.context_size - 2),
+                diagonal=self.config.future_size,
+            )
+            gamma = gamma.masked_fill(mask == 1, 0)
+            self.register_buffer("gamma", gamma)
 
         # scale residual projections
         for pn, p in self.named_parameters():
