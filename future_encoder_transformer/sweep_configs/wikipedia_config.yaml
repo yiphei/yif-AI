@@ -34,7 +34,7 @@ parameters:
                 value: True
             add_ln_before_decoder_ff:
                 value: False
-            encoder_embed_loss_type:
+            encoder_loss_type:
                 values: [2,3]
             encoder_loss_detach_type:
                 values: [2,3]

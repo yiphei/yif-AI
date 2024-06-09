@@ -12,7 +12,7 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, TransformerBlock)
 
 
-class EncoderEmbedLossType(str, Enum):
+class EncoderLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
     COSINE_SIM = "CONSINE_SIM"
@@ -24,13 +24,13 @@ class EncoderEmbedLossType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return EncoderEmbedLossType.NONE
+            return EncoderLossType.NONE
         elif num == 2:
-            return EncoderEmbedLossType.MSE
+            return EncoderLossType.MSE
         elif num == 3:
-            return EncoderEmbedLossType.COSINE_SIM
+            return EncoderLossType.COSINE_SIM
         elif num == 4:
-            return EncoderEmbedLossType.LOG_COSINE_SIM
+            return EncoderLossType.LOG_COSINE_SIM
         else:
             raise ValueError("Invalid encoder embed loss type number")
 
@@ -139,7 +139,7 @@ class ModelConfig(BaseModelConfig):
     cross_attn_config: CrossAttentionConfig = None
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
-    encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
+    encoder_loss_type: Union[EncoderLossType, int] = EncoderLossType.MSE
     encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
         EncoderLossDetachType.ENCODER_OUT
     )
@@ -158,9 +158,9 @@ class ModelConfig(BaseModelConfig):
             self.future_aggregation_type = FutureAggregationType.get_type_from_int(
                 self.future_aggregation_type
             )
-        if type(self.encoder_embed_loss_type) == int:
-            self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(
-                self.encoder_embed_loss_type
+        if type(self.encoder_loss_type) == int:
+            self.encoder_loss_type = EncoderLossType.get_type_from_int(
+                self.encoder_loss_type
             )
         if type(self.encoder_loss_detach_type) == int:
             self.encoder_loss_detach_type = EncoderLossDetachType.get_type_from_int(
@@ -171,7 +171,7 @@ class ModelConfig(BaseModelConfig):
                 self.encoder_embed_ln_type
             )
 
-        if self.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
+        if self.encoder_loss_type != EncoderLossType.NONE:
             if self.encoder_embed_loss_coeff is None:
                 self.encoder_embed_loss_coeff = 1.0
             else:
@@ -337,7 +337,7 @@ class EncoderDecoderTransformer(BaseModel):
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
-        if self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
+        if self.config.encoder_loss_type != EncoderLossType.NONE:
             # this is how many future contexts can be used
             self.future_1_dim = (
                 config.context_size - self.config.future_context_size - 1
@@ -408,7 +408,7 @@ class EncoderDecoderTransformer(BaseModel):
 
         if (
             self.training
-            and self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
+            and self.config.encoder_loss_type != EncoderLossType.NONE
         ):
             encoder_out = encoder_out[:, : -self.actual_future_window, :]
             if self.config.encoder_loss_detach_type == EncoderLossDetachType.ENCODER_EMBED:
@@ -445,22 +445,22 @@ class EncoderDecoderTransformer(BaseModel):
             ]:
                 future_embed = self.encoder_embed_ln_2(future_embed)
 
-            if self.config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
+            if self.config.encoder_loss_type == EncoderLossType.MSE:
                 self.encoder_loss = F.mse_loss(
                     future_embed, encoder_out, reduction="mean"
                 )
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
                 )
-            elif self.config.encoder_embed_loss_type == EncoderEmbedLossType.COSINE_SIM:
+            elif self.config.encoder_loss_type == EncoderLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_embed, encoder_out, dim=-1)
                 self.encoder_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_embed_loss_coeff
                 )
             elif (
-                self.config.encoder_embed_loss_type
-                == EncoderEmbedLossType.LOG_COSINE_SIM
+                self.config.encoder_loss_type
+                == EncoderLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(future_embed, encoder_out, dim=-1)
                 self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
