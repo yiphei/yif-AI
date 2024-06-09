@@ -106,7 +106,7 @@ class ModelConfig(BaseModelConfig):
     future_context_size: (
         int  # this is the size of the future context beyond the next token
     )
-    include_past: bool
+    include_present_context_in_embed: bool
     cross_attn_config: CrossAttentionConfig = None
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
@@ -398,17 +398,17 @@ class EncoderDecoderTransformer(BaseModel):
                 encoder_embed = self.encoder_embed_ln_1(encoder_embed)
 
             future_embed = self.gamma @ encoder_embed[:, 1:, :]
-            if self.config.include_past:
+            if self.config.include_present_context_in_embed:
                 cum_sum = torch.cumsum(
                     encoder_embed[:, : -self.actual_future_window, :], dim=-2
                 )
-                past_embed = cum_sum / torch.arange(
+                present_embed = cum_sum / torch.arange(
                     1,
                     cum_sum.shape[1] + 1,
                     dtype=torch.long,
                     device=device,
                 ).unsqueeze(0).unsqueeze(-1)
-                future_embed = future_embed / 2 + past_embed / 2
+                future_embed = future_embed / 2 + present_embed / 2
 
             if self.config.encoder_embed_ln_type in [
                 EncoderEmbedLayerNormType.POST_AGGR,

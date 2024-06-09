@@ -22,7 +22,7 @@ parameters:
                 value: 0
             future_context_size:
                 values: [2, 5, 10]
-            include_past:
+            include_present_context_in_embed:
                 value: True
             cross_attn_config:
                 parameters:
