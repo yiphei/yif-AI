@@ -149,7 +149,9 @@ class ModelConfig(BaseModelConfig):
             before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
     """
 
-    future_context_size: int # this is the size of the future context beyond the next token
+    future_context_size: (
+        int  # this is the size of the future context beyond the next token
+    )
     include_past: bool
     cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = False
@@ -360,18 +362,16 @@ class EncoderDecoderTransformer(BaseModel):
 
         if self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
             # this is how many future contexts can be used
-            self.future_1_dim = config.context_size - self.config.future_context_size - 1
+            self.future_1_dim = (
+                config.context_size - self.config.future_context_size - 1
+            )
             # this is the total future context including the next token
             self.future_2_dim = config.context_size - 1
             self.actual_future_window = self.config.future_context_size + 1
             if self.config.future_aggregation_type == FutureAggregationType.DECAY:
                 values = torch.arange(1, config.context_size).unsqueeze(0)
-                gamma = values.repeat(
-                    self.future_1_dim, 1
-                )
-                shift = torch.arange(
-                    self.future_1_dim
-                ).unsqueeze(1)
+                gamma = values.repeat(self.future_1_dim, 1)
+                shift = torch.arange(self.future_1_dim).unsqueeze(1)
                 gamma = gamma - shift
                 gamma = gamma.to(dtype=torch.float32)
                 gamma = gamma**-1
