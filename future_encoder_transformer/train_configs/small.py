@@ -6,7 +6,7 @@ N_HEAD = 3
 USE_BIAS = False
 DROPOUT_RATE = 0
 future_context_size = 5
-include_past = True
+include_present_context_in_embed = True
 
 # Training config
 BATCH_SIZE = 15  # 50 when run on 1x A10
