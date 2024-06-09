@@ -151,9 +151,6 @@ class ModelConfig(BaseModelConfig):
 
     future_size: int
     include_past: bool
-    future_aggregation_type: Union[FutureAggregationType, int] = (
-        FutureAggregationType.DECAY
-    )
     cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = False
     sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.NO
@@ -167,6 +164,9 @@ class ModelConfig(BaseModelConfig):
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
         EncoderEmbedLayerNormType.INIT
     )
+    future_aggregation_type: Optional[Union[FutureAggregationType, int]] = (
+        FutureAggregationType.DECAY
+    )
 
     def __post_init__(self):
         assert 0 < self.future_size < self.context_size - 1
@@ -175,7 +175,6 @@ class ModelConfig(BaseModelConfig):
             self.future_aggregation_type = FutureAggregationType.get_type_from_int(
                 self.future_aggregation_type
             )
-
         if type(self.encoder_embed_loss_type) == int:
             self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(
                 self.encoder_embed_loss_type
@@ -201,11 +200,13 @@ class ModelConfig(BaseModelConfig):
             assert self.use_ln_on_encoder_out is not None
             assert self.encoder_embed_ln_type is not None
             assert self.encoder_embed_detach_type is not None
+            assert self.future_aggregation_type is not None
         else:
             assert self.encoder_embed_loss_coeff is None
             assert self.use_ln_on_encoder_out is None
             assert self.encoder_embed_ln_type is None
             assert self.encoder_embed_detach_type is None
+            assert self.future_aggregation_type is None
 
         if type(self.cross_attn_config) == dict:
             self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
