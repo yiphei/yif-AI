@@ -21,9 +21,9 @@ parameters:
             dropout_rate:
                 value: 0
             future_context_size:
-                values: [2, 5, 10, 20]
+                values: [2, 5, 10]
             include_past:
-                values: [True, False]
+                value: True
             cross_attn_config:
                 parameters:
                     n_head:
