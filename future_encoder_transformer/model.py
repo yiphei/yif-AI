@@ -363,6 +363,7 @@ class EncoderDecoderTransformer(BaseModel):
             self.future_1_dim = config.context_size - self.config.future_context_size - 1
             # this is the total future context including the next token
             self.future_2_dim = config.context_size - 1
+            self.actual_future_window = self.config.future_context_size + 1
             if self.config.future_aggregation_type == FutureAggregationType.DECAY:
                 values = torch.arange(1, config.context_size).unsqueeze(0)
                 gamma = values.repeat(
@@ -380,7 +381,7 @@ class EncoderDecoderTransformer(BaseModel):
                         self.future_1_dim,
                         self.future_2_dim,
                     ),
-                    1 / (self.config.future_context_size + 1),
+                    1 / (self.actual_future_window),
                 )
             mask = torch.tril(
                 torch.ones(
@@ -394,7 +395,7 @@ class EncoderDecoderTransformer(BaseModel):
                     self.future_1_dim,
                     self.future_2_dim,
                 ),
-                diagonal=self.config.future_context_size + 1,
+                diagonal=self.actual_future_window,
             )
             gamma = gamma.masked_fill(mask == 1, 0)
             self.register_buffer("gamma", gamma)
@@ -439,7 +440,7 @@ class EncoderDecoderTransformer(BaseModel):
             self.training
             and self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
         ):
-            encoder_out = encoder_out[:, : -(self.config.future_context_size + 1), :]
+            encoder_out = encoder_out[:, : -self.actual_future_window, :]
             if self.config.encoder_embed_detach_type == EncoderEmbedDetachType.INIT:
                 encoder_embed = encoder_embed.detach()
             elif self.config.encoder_embed_detach_type == EncoderEmbedDetachType.FINAL:
@@ -455,7 +456,7 @@ class EncoderDecoderTransformer(BaseModel):
             future_embed = self.gamma @ future_embed
             if self.config.include_past:
                 cum_sum = torch.cumsum(
-                    encoder_embed[:, : -(self.config.future_context_size + 1), :], dim=-2
+                    encoder_embed[:, : -self.actual_future_window, :], dim=-2
                 )
                 past_embed = cum_sum / torch.arange(
                     1,
