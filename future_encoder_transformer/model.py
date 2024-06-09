@@ -335,14 +335,14 @@ class EncoderDecoderTransformer(BaseModel):
                     self.future_2_dim,
                 ),
                 diagonal=-1,
-            )
-            mask += torch.triu(
+            ) + torch.triu(
                 torch.ones(
                     self.future_1_dim,
                     self.future_2_dim,
                 ),
                 diagonal=self.actual_future_window,
             )
+
             gamma = gamma.masked_fill(mask == 1, 0)
             self.register_buffer("gamma", gamma)
 
