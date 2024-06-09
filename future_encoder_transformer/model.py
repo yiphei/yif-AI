@@ -12,7 +12,6 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, TransformerBlock)
 
 
-
 class SubPosEmbedType(str, Enum):
     NO = "NO"
     YES_NO_LN = "YES_NO_LN"
@@ -422,7 +421,7 @@ class EncoderDecoderTransformer(BaseModel):
             self.training
             and self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
         ):
-            encoder_out = encoder_out[:, : - (self.config.future_size + 1) , :]
+            encoder_out = encoder_out[:, : -(self.config.future_size + 1), :]
             if self.config.encoder_embed_detach_type == EncoderEmbedDetachType.INIT:
                 encoder_embed = encoder_embed.detach()
             elif self.config.encoder_embed_detach_type == EncoderEmbedDetachType.FINAL:
@@ -434,12 +433,17 @@ class EncoderDecoderTransformer(BaseModel):
             if self.config.encoder_embed_ln_type == EncoderEmbedLayerNormType.INIT:
                 encoder_embed = self.encoder_embed_ln(encoder_embed)
 
-            future_embed = encoder_embed[:, (self.config.future_size + 1):, :]
+            future_embed = encoder_embed[:, (self.config.future_size + 1) :, :]
             future_embed = self.gamma @ future_embed
             if self.config.include_past:
-                cum_sum = torch.cumsum(encoder_embed[:, :-(self.config.future_size + 1), :], dim=-2)
+                cum_sum = torch.cumsum(
+                    encoder_embed[:, : -(self.config.future_size + 1), :], dim=-2
+                )
                 past_embed = cum_sum / torch.arange(
-                    1, x.shape[1] -self.config.future_size-1, dtype=torch.long, device=device
+                    1,
+                    x.shape[1] - self.config.future_size - 1,
+                    dtype=torch.long,
+                    device=device,
                 ).unsqueeze(0).unsqueeze(-1)
                 future_embed = future_embed / 2 + past_embed / 2
 
