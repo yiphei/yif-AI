@@ -397,8 +397,7 @@ class EncoderDecoderTransformer(BaseModel):
             ]:
                 encoder_embed = self.encoder_embed_ln_1(encoder_embed)
 
-            future_embed = encoder_embed[:, 1:, :]
-            future_embed = self.gamma @ future_embed
+            future_embed = self.gamma @ encoder_embed[:, 1:, :]
             if self.config.include_past:
                 cum_sum = torch.cumsum(
                     encoder_embed[:, : -self.actual_future_window, :], dim=-2
