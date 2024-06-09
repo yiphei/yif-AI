@@ -12,26 +12,6 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, TransformerBlock)
 
 
-class SubPosEmbedType(str, Enum):
-    NO = "NO"
-    YES_NO_LN = "YES_NO_LN"
-    YES_LN = "YES_LN"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return SubPosEmbedType.NO
-        elif num == 2:
-            return SubPosEmbedType.YES_NO_LN
-        elif num == 3:
-            return SubPosEmbedType.YES_LN
-        else:
-            raise ValueError("Invalid sub pos embed type number")
-
-
 class EncoderEmbedLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
@@ -157,8 +137,6 @@ class ModelConfig(BaseModelConfig):
     )
     include_past: bool
     cross_attn_config: CrossAttentionConfig = None
-    add_pos_embed_to_decoder: bool = False
-    sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.NO
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
@@ -191,10 +169,6 @@ class ModelConfig(BaseModelConfig):
         if type(self.encoder_embed_ln_type) == int:
             self.encoder_embed_ln_type = EncoderEmbedLayerNormType.get_type_from_int(
                 self.encoder_embed_ln_type
-            )
-        if type(self.sub_pos_embed_to_decoder) == int:
-            self.sub_pos_embed_to_decoder = SubPosEmbedType.get_type_from_int(
-                self.sub_pos_embed_to_decoder
             )
 
         if self.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
@@ -312,14 +286,8 @@ class EncoderDecoderTransformer(BaseModel):
         self.config = config
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
-        positional_embedding_size = config.context_size
-        if (
-            config.add_pos_embed_to_decoder
-            or self.config.sub_pos_embed_to_decoder != SubPosEmbedType.NO
-        ):
-            positional_embedding_size += 1
         self.positional_embedding = nn.Embedding(
-            positional_embedding_size, config.n_embed
+            config.context_size, config.n_embed
         )
 
         if config.add_ln_before_decoder_ff:
@@ -351,8 +319,6 @@ class EncoderDecoderTransformer(BaseModel):
             ]
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
-        if config.sub_pos_embed_to_decoder == SubPosEmbedType.YES_LN:
-            self.post_sub_pos_ln = LayerNorm(config.n_embed, config.use_bias)
 
         if self.config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
@@ -435,13 +401,6 @@ class EncoderDecoderTransformer(BaseModel):
             decoder_x = self.ffd_ln(decoder_x)
         decoder_x = self.decoder_feed_forward(decoder_x)
 
-        if self.config.add_pos_embed_to_decoder:
-            decoder_x += self.positional_embedding(
-                torch.arange(
-                    start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
-                )
-            )
-
         for transformer_block in self.decoder_transformer_blocks:
             decoder_x = transformer_block(encoder_out, decoder_x)
 
@@ -510,15 +469,6 @@ class EncoderDecoderTransformer(BaseModel):
                 )
             else:
                 raise ValueError("Invalid token loss type")
-
-        if self.config.sub_pos_embed_to_decoder != SubPosEmbedType.NO:
-            decoder_out = decoder_out - self.positional_embedding(
-                torch.arange(
-                    start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
-                )
-            )
-            if self.config.sub_pos_embed_to_decoder == SubPosEmbedType.YES_LN:
-                decoder_out = self.post_sub_pos_ln(decoder_out)
 
         if targets is None:
             loss = None
