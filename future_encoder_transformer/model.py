@@ -327,7 +327,7 @@ class EncoderDecoderTransformer(BaseModel):
             EncoderEmbedLayerNormType.BOTH,
         ]:
             self.encoder_embed_ln_1 = LayerNorm(config.n_embed, True)
-        elif self.config.encoder_embed_ln_type in [
+        if self.config.encoder_embed_ln_type in [
             EncoderEmbedLayerNormType.AVG_CUM_SUM,
             EncoderEmbedLayerNormType.BOTH,
         ]:
