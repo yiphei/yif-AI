@@ -157,7 +157,7 @@ class ModelConfig(BaseModelConfig):
     )
     cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = False
-    sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
+    sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.NO
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
