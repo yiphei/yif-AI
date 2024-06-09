@@ -22,8 +22,8 @@ parameters:
                 value: 0
             future_context_size:
                 values: [2, 5, 10]
-            include_present_context_in_embed:
-                value: True
+            present_embed_normalization_type:
+                value: 1
             cross_attn_config:
                 parameters:
                     n_head:

@@ -101,12 +101,28 @@ class CrossAttentionConfig:
     n_head: int
 
 
+class PresentEmbedNormalizationType(str, Enum):
+    EQUAL = "EQUAL"
+    CONTEXT_SIZE = "CONTEXT_SIZE"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return PresentEmbedNormalizationType.EQUAL
+        elif num == 2:
+            return PresentEmbedNormalizationType.CONTEXT_SIZE
+        else:
+            raise ValueError("Invalid encoder embed layer norm type number")
+
 @dataclass
 class ModelConfig(BaseModelConfig):
     future_context_size: (
         int  # this is the size of the future context beyond the next token
     )
-    include_present_context_in_embed: bool
+    present_embed_normalization_type: Optional[Union[PresentEmbedNormalizationType, int]]
     cross_attn_config: CrossAttentionConfig = None
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
@@ -346,6 +362,23 @@ class EncoderDecoderTransformer(BaseModel):
             gamma = gamma.masked_fill(mask == 1, 0)
             self.register_buffer("gamma", gamma)
 
+            if self.config.present_embed_normalization_type == PresentEmbedNormalizationType.CONTEXT_SIZE:
+                present_normalization_weights = torch.arange(
+                    1,
+                    self.future_1_dim + 1,
+                    dtype=torch.long,
+                )
+                future_normalization_weights = torch.full((self.future_1_dim,), self.actual_future_window)
+                normalization_sum = torch.arange(
+                    1 + self.actual_future_window,
+                    self.future_1_dim + 1 + self.actual_future_window,
+                    dtype=torch.long,
+                )
+                present_normalization_weights /= normalization_sum
+                future_normalization_weights /= normalization_sum
+                self.register_buffer("present_normalization_weights", present_normalization_weights.unsqueeze(0).unsqueeze(-1))
+                self.register_buffer("future_normalization_weights", future_normalization_weights.unsqueeze(0).unsqueeze(-1))
+
         # scale residual projections
         for pn, p in self.named_parameters():
             if pn.endswith("residual_proj.weight"):
@@ -398,7 +431,7 @@ class EncoderDecoderTransformer(BaseModel):
                 encoder_embed = self.encoder_embed_ln_1(encoder_embed)
 
             future_embed = self.gamma @ encoder_embed[:, 1:, :]
-            if self.config.include_present_context_in_embed:
+            if self.config.present_embed_normalization_type is not None:
                 cum_sum = torch.cumsum(
                     encoder_embed[:, : -self.actual_future_window, :], dim=-2
                 )
@@ -408,8 +441,10 @@ class EncoderDecoderTransformer(BaseModel):
                     dtype=torch.long,
                     device=device,
                 ).unsqueeze(0).unsqueeze(-1)
-                future_embed = future_embed / 2 + present_embed / 2
-
+                if self.config.present_embed_normalization_type == PresentEmbedNormalizationType.EQUAL:
+                    future_embed = future_embed / 2 + present_embed / 2
+                elif self.config.present_embed_normalization_type == PresentEmbedNormalizationType.CONTEXT_SIZE:
+                    future_embed = future_embed / self.future_normalization_weights + present_embed / self.present_normalization_weights
             if self.config.encoder_embed_ln_type in [
                 EncoderEmbedLayerNormType.POST_AGGR,
                 EncoderEmbedLayerNormType.BOTH,
