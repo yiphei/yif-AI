@@ -35,10 +35,10 @@ class EncoderEmbedLossType(str, Enum):
             raise ValueError("Invalid encoder embed loss type number")
 
 
-class EncoderEmbedDetachType(str, Enum):
+class EncoderLossDetachType(str, Enum):
     NONE = "NONE"
-    INIT = "INIT"
-    FINAL = "FINAL"
+    ENCODER_EMBED = "ENCODER_EMBED"
+    ENCODER_OUT = "ENCODER_OUT"
 
     def __str__(self):
         return self.value
@@ -46,11 +46,11 @@ class EncoderEmbedDetachType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return EncoderEmbedDetachType.NONE
+            return EncoderLossDetachType.NONE
         elif num == 2:
-            return EncoderEmbedDetachType.INIT
+            return EncoderLossDetachType.ENCODER_EMBED
         elif num == 3:
-            return EncoderEmbedDetachType.FINAL
+            return EncoderLossDetachType.ENCODER_OUT
         else:
             raise ValueError("Invalid encoder embed detatch type number")
 
@@ -140,8 +140,8 @@ class ModelConfig(BaseModelConfig):
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
-    encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = (
-        EncoderEmbedDetachType.FINAL
+    encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
+        EncoderLossDetachType.ENCODER_OUT
     )
     encoder_embed_loss_coeff: Optional[float] = 1
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
@@ -162,9 +162,9 @@ class ModelConfig(BaseModelConfig):
             self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(
                 self.encoder_embed_loss_type
             )
-        if type(self.encoder_embed_detach_type) == int:
-            self.encoder_embed_detach_type = EncoderEmbedDetachType.get_type_from_int(
-                self.encoder_embed_detach_type
+        if type(self.encoder_loss_detach_type) == int:
+            self.encoder_loss_detach_type = EncoderLossDetachType.get_type_from_int(
+                self.encoder_loss_detach_type
             )
         if type(self.encoder_embed_ln_type) == int:
             self.encoder_embed_ln_type = EncoderEmbedLayerNormType.get_type_from_int(
@@ -178,13 +178,13 @@ class ModelConfig(BaseModelConfig):
                 assert self.encoder_embed_loss_coeff > 0
             assert self.use_ln_on_encoder_out is not None
             assert self.encoder_embed_ln_type is not None
-            assert self.encoder_embed_detach_type is not None
+            assert self.encoder_loss_detach_type is not None
             assert self.future_aggregation_type is not None
         else:
             assert self.encoder_embed_loss_coeff is None
             assert self.use_ln_on_encoder_out is None
             assert self.encoder_embed_ln_type is None
-            assert self.encoder_embed_detach_type is None
+            assert self.encoder_loss_detach_type is None
             assert self.future_aggregation_type is None
 
         if type(self.cross_attn_config) == dict:
@@ -411,9 +411,9 @@ class EncoderDecoderTransformer(BaseModel):
             and self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
         ):
             encoder_out = encoder_out[:, : -self.actual_future_window, :]
-            if self.config.encoder_embed_detach_type == EncoderEmbedDetachType.INIT:
+            if self.config.encoder_loss_detach_type == EncoderLossDetachType.ENCODER_EMBED:
                 encoder_embed = encoder_embed.detach()
-            elif self.config.encoder_embed_detach_type == EncoderEmbedDetachType.FINAL:
+            elif self.config.encoder_loss_detach_type == EncoderLossDetachType.ENCODER_OUT:
                 encoder_out = encoder_out.detach()
 
             if self.config.use_ln_on_encoder_out:

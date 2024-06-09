@@ -36,7 +36,7 @@ parameters:
                 value: False
             encoder_embed_loss_type:
                 values: [2,3]
-            encoder_embed_detach_type:
+            encoder_loss_detach_type:
                 values: [2,3]
             encoder_embed_ln_type:
                 values: [2,3,4]
