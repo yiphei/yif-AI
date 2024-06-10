@@ -44,19 +44,19 @@ process_address() {
         tmux send-keys -t mySession "aws s3 sync s3://dropout-transformer/datasets/openweb/ datasets/openweb/" C-m
     fi
 
-    export_cmd = "export WANDB_API_KEY='${api_key}'"
-    torch_cmd = "torchrun --standalone --nproc_per_node=1 -m future_encoder_transformer.training_script --config_file future_encoder_transformer/train_configs/small.py --train datasets/wikipedia/ --platform_type LAMBDA --aws_access_key_id ${aws_access_key} --aws_secret_access_key ${aws_secret_key} --sweep_id a5e8ggsj --sweep_count 1 --sync_profile_live True"
+    export_cmd="export WANDB_API_KEY='${api_key}'"
+    torch_cmd="torchrun --standalone --nproc_per_node=1 -m future_encoder_transformer.training_script --config_file future_encoder_transformer/train_configs/small.py --train datasets/wikipedia/ --platform_type LAMBDA --aws_access_key_id ${aws_access_key} --aws_secret_access_key ${aws_secret_key} --sweep_id a5e8ggsj --sweep_count 1 --sync_profile_live True"
 
     if [ $gpu_processes -gt 1 ]; then
         for i in \$(seq 0 $((gpu_processes-1))); do
             session_name="mySession\$i"
             tmux new-session -d -s \$session_name /bin/bash
-            tmux send-keys -t \$session_name "$export_cmd" C-m
-            tmux send-keys -t \$session_name "CUDA_VISIBLE_DEVICES=\$i $torch_cmd" C-m
+            tmux send-keys -t \$session_name "\$export_cmd" C-m
+            tmux send-keys -t \$session_name "CUDA_VISIBLE_DEVICES=\$i \$torch_cmd" C-m
         done
     else
-        tmux send-keys -t mySession "$export_cmd" C-m
-        tmux send-keys -t mySession "$torch_cmd" C-m
+        tmux send-keys -t mySession "\$export_cmd" C-m
+        tmux send-keys -t mySession "\$torch_cmd" C-m
     fi
     exit
 EOF
