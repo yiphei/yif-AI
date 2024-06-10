@@ -73,7 +73,7 @@ while IFS=' ' read -r ssh_cmd address _ || [[ -n "$address" ]]; do
     if [[ -z "$address" ]]; then
         continue
     fi
-    process_address "$address" "$API_KEY" "$AWS_ACCESS_KEY" "$AWS_SECRET_KEY" "$SYNC_S3" "$SYNC_FILES" "$GPU_PROCESSES"
+    process_address "$address" "$API_KEY" "$AWS_ACCESS_KEY" "$AWS_SECRET_KEY" "$SYNC_S3" "$SYNC_FILES" "$GPU_PROCESSES" &
 done < "$ADDRESS_FILE"
 
 # Wait for all background processes to finish
