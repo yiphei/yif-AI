@@ -341,7 +341,10 @@ class EncoderDecoderTransformer(BaseModel):
             # this is the total future context including the next token
             self.future_2_dim = config.context_size - 1
             self.actual_future_window = self.config.future_context_size + 1
-            if self.config.future_aggregation_type in [FutureAggregationType.DECAY, FutureAggregationType.DECAY_W_NORMALIZE]:
+            if self.config.future_aggregation_type in [
+                FutureAggregationType.DECAY,
+                FutureAggregationType.DECAY_W_NORMALIZE,
+            ]:
                 values = torch.arange(1, config.context_size).unsqueeze(0)
                 gamma = values.repeat(self.future_1_dim, 1)
                 shift = torch.arange(self.future_1_dim).unsqueeze(1)
@@ -371,9 +374,12 @@ class EncoderDecoderTransformer(BaseModel):
             )
 
             gamma = gamma.masked_fill(mask == 1, 0)
-            if self.config.future_aggregation_type == FutureAggregationType.DECAY_W_NORMALIZE:
+            if (
+                self.config.future_aggregation_type
+                == FutureAggregationType.DECAY_W_NORMALIZE
+            ):
                 gamma = gamma / gamma.sum(dim=-1, keepdim=True)
-                
+
             self.register_buffer("gamma", gamma)
 
             if (
