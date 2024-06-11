@@ -39,7 +39,7 @@ parameters:
             encoder_loss_detach_type:
                 value: 2
             encoder_embed_ln_type:
-                values: [2,3,4]
+                values: [2,4]
             encoder_loss_coeff:
                 value: 1
             future_aggregation_type:
