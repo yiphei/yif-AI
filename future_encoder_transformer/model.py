@@ -82,6 +82,7 @@ class FutureAggregationType(str, Enum):
     AVG = "AVG"
     DECAY = "DECAY"
     DECAY_W_NORMALIZE = "DECAY_W_NORMALIZE"
+    DECAY_PARAMS = "DECAY_PARAMS"
 
     def __str__(self):
         return self.value
@@ -94,6 +95,8 @@ class FutureAggregationType(str, Enum):
             return FutureAggregationType.DECAY
         elif num == 3:
             return FutureAggregationType.DECAY_W_NORMALIZE
+        elif num == 4:
+            return FutureAggregationType.DECAY_PARAMS
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
 
@@ -344,6 +347,7 @@ class EncoderDecoderTransformer(BaseModel):
             if self.config.future_aggregation_type in [
                 FutureAggregationType.DECAY,
                 FutureAggregationType.DECAY_W_NORMALIZE,
+                FutureAggregationType.DECAY_PARAMS,
             ]:
                 values = torch.arange(1, config.context_size).unsqueeze(0)
                 gamma = values.repeat(self.future_1_dim, 1)
@@ -380,7 +384,10 @@ class EncoderDecoderTransformer(BaseModel):
             ):
                 gamma = gamma / gamma.sum(dim=-1, keepdim=True)
 
-            self.register_buffer("gamma", gamma)
+            if self.config.future_aggregation_type == FutureAggregationType.DECAY_PARAMS:
+                self.gamma = nn.Parameter(gamma)
+            else:
+                self.register_buffer("gamma", gamma)
 
             if (
                 self.config.present_embed_normalization_type
