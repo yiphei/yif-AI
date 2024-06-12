@@ -22,6 +22,10 @@ parameters:
                 value: 0
             future_context_size:
                 values: [2, 5, 10]
+            parametrize_future_weights:
+                value: True
+            normalize_future_weights:
+                values: [True, False]
             present_embed_normalization_type:
                 values: [1, null]
             cross_attn_config:
