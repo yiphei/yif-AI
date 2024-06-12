@@ -126,6 +126,7 @@ class ModelConfig(BaseModelConfig):
     future_context_size: (
         int  # this is the size of the future context beyond the next token
     )
+    parametrize_future_weights: bool
     present_embed_normalization_type: Optional[
         Union[PresentEmbedNormalizationType, int]
     ]
@@ -145,7 +146,7 @@ class ModelConfig(BaseModelConfig):
     )
 
     def __post_init__(self):
-        assert 0 < self.future_context_size < self.context_size - 1
+        assert 0 < self.future_context_size < self.context_size - 1 or self.future_context_size == -1
         if type(self.present_embed_normalization_type) == int:
             self.present_embed_normalization_type = (
                 PresentEmbedNormalizationType.get_type_from_int(
@@ -337,10 +338,11 @@ class EncoderDecoderTransformer(BaseModel):
             # this is how many future contexts can be used
             self.future_1_dim = (
                 config.context_size - self.config.future_context_size - 1
-            )
+            ) if self.config.future_context_size != -1 else config.context_size - 2
             # this is the total future context including the next token
             self.future_2_dim = config.context_size - 1
-            self.actual_future_window = self.config.future_context_size + 1
+            self.future_indexing = self.config.future_context_size + 1
+            self.actual_future_window = self.config.future_context_size + 1 if self.config.future_context_size != -1 else None
             if self.config.future_aggregation_type in [
                 FutureAggregationType.DECAY,
                 FutureAggregationType.DECAY_W_NORMALIZE,
@@ -365,13 +367,15 @@ class EncoderDecoderTransformer(BaseModel):
                     self.future_2_dim,
                 ),
                 diagonal=-1,
-            ) + torch.triu(
-                torch.ones(
-                    self.future_1_dim,
-                    self.future_2_dim,
-                ),
-                diagonal=self.actual_future_window,
-            )
+            ) 
+            if self.actual_future_window is not None:
+                mask += torch.triu(
+                    torch.ones(
+                        self.future_1_dim,
+                        self.future_2_dim,
+                    ),
+                    diagonal=self.actual_future_window,
+                )
 
             gamma = gamma.masked_fill(mask == 1, 0)
             if (
@@ -380,7 +384,11 @@ class EncoderDecoderTransformer(BaseModel):
             ):
                 gamma = gamma / gamma.sum(dim=-1, keepdim=True)
 
-            self.register_buffer("gamma", gamma)
+            if config.parametrize_future_weights:
+                self.gamma = nn.Parameter(gamma)
+                self.register_buffer("gamma_mask", mask)
+            else:
+                self.register_buffer("gamma", gamma)
 
             if (
                 self.config.present_embed_normalization_type
@@ -440,7 +448,7 @@ class EncoderDecoderTransformer(BaseModel):
         decoder_out = self.ln(decoder_x)
 
         if self.training and self.config.encoder_loss_type != EncoderLossType.NONE:
-            encoder_out = encoder_out[:, : -self.actual_future_window, :]
+            encoder_out = encoder_out[:, : -self.future_indexing, :]
             if (
                 self.config.encoder_loss_detach_type
                 == EncoderLossDetachType.ENCODER_EMBED
@@ -461,10 +469,15 @@ class EncoderDecoderTransformer(BaseModel):
             ]:
                 encoder_embed = self.encoder_embed_ln_1(encoder_embed)
 
-            future_embed = self.gamma @ encoder_embed[:, 1:, :]
+            modified_gamma = self.gamma
+
+            if self.config.parametrize_future_weights:
+                modified_gamma = modified_gamma.masked_fill(self.gamma_mask == 1, 0)
+
+            future_embed = modified_gamma @ encoder_embed[:, 1:, :]
             if self.config.present_embed_normalization_type is not None:
                 cum_sum = torch.cumsum(
-                    encoder_embed[:, : -self.actual_future_window, :], dim=-2
+                    encoder_embed[:, : -self.future_indexing, :], dim=-2
                 )
                 present_embed = cum_sum / torch.arange(
                     1,
