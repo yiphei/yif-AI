@@ -27,7 +27,7 @@ parameters:
             normalize_future_weights:
                 values: [True, False]
             present_embed_normalization_type:
-                values: [1, null]
+                values: [1, 2, null]
             cross_attn_config:
                 parameters:
                     n_head:
@@ -41,7 +41,7 @@ parameters:
             encoder_loss_type:
                 values: [2,3]
             encoder_loss_detach_type:
-                value: 2
+                values: [1,2,3]
             encoder_embed_ln_type:
                 value: 2
             encoder_loss_coeff:
