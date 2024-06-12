@@ -35,7 +35,7 @@ parameters:
             add_ln_before_decoder_ff:
                 value: False
             encoder_loss_type:
-                values: [2,3]
+                value: 2
             encoder_loss_detach_type:
                 value: 2
             encoder_embed_ln_type:
