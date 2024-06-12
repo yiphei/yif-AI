@@ -340,7 +340,7 @@ class EncoderDecoderTransformer(BaseModel):
             # this is the total future context including the next token
             self.future_2_dim = config.context_size - 1
             self.future_indexing = self.config.future_context_size + 1
-            self.actual_future_window = self.config.future_context_size + 1 if self.config.future_context_size != -1 else None
+            self.actual_future_window = self.future_indexing if self.config.future_context_size != -1 else None
             if self.config.future_aggregation_type == FutureAggregationType.DECAY:
                 values = torch.arange(1, config.context_size).unsqueeze(0)
                 gamma = values.repeat(self.future_1_dim, 1)
@@ -393,14 +393,16 @@ class EncoderDecoderTransformer(BaseModel):
                     self.future_1_dim + 1,
                     dtype=torch.float32,
                 )
-                future_normalization_weights = torch.full(
-                    (self.future_1_dim,), self.actual_future_window, dtype=torch.float32
-                )
-                normalization_sum = torch.arange(
-                    1 + self.actual_future_window,
-                    self.future_1_dim + 1 + self.actual_future_window,
-                    dtype=torch.float32,
-                )
+                if self.actual_future_window is not None:
+                    future_normalization_weights = torch.full(
+                        (self.future_1_dim,), self.actual_future_window, dtype=torch.float32
+                    )
+                else:
+                    present_normalization_weights = torch.arange(
+                        config.context_size -1, 1, step = -1,
+                        dtype=torch.float32,
+                    )
+                normalization_sum = present_normalization_weights + future_normalization_weights
                 present_normalization_weights /= normalization_sum
                 future_normalization_weights /= normalization_sum
                 self.register_buffer(
