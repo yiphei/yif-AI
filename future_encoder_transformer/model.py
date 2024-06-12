@@ -398,7 +398,7 @@ class EncoderDecoderTransformer(BaseModel):
                         (self.future_1_dim,), self.actual_future_window, dtype=torch.float32
                     )
                 else:
-                    present_normalization_weights = torch.arange(
+                    future_normalization_weights = torch.arange(
                         config.context_size -1, 1, step = -1,
                         dtype=torch.float32,
                     )
