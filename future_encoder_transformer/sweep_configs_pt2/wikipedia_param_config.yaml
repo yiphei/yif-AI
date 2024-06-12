@@ -1,5 +1,5 @@
 program: future_encoder_transformer/training_script.py
-name: wikipedia_param_config
+name: wikipedia_new_param_config
 project: future_encoder_transformer
 method: grid
 metric:
