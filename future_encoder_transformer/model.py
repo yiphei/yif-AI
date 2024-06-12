@@ -82,7 +82,6 @@ class FutureAggregationType(str, Enum):
     AVG = "AVG"
     DECAY = "DECAY"
     DECAY_W_NORMALIZE = "DECAY_W_NORMALIZE"
-    DECAY_PARAMS = "DECAY_PARAMS"
 
     def __str__(self):
         return self.value
@@ -95,8 +94,6 @@ class FutureAggregationType(str, Enum):
             return FutureAggregationType.DECAY
         elif num == 3:
             return FutureAggregationType.DECAY_W_NORMALIZE
-        elif num == 4:
-            return ValueError("not implemented yet")
         else:
             raise ValueError("Invalid encoder embed layer norm type number")
 
