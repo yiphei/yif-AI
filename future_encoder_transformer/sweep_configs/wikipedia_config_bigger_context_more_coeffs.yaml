@@ -41,7 +41,7 @@ parameters:
             encoder_embed_ln_type:
                 values: [3,4]
             encoder_loss_coeff:
-                value: 1
+                values: [0.5, 2]
             future_aggregation_type:
                 values: [2,3]
     batch_size: 
