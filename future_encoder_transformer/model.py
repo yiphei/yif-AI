@@ -344,7 +344,7 @@ class EncoderDecoderTransformer(BaseModel):
             )
             # this is the total future context including the next token
             self.future_2_dim = config.context_size - 1
-            self.future_indexing = self.config.future_context_size + 1
+            self.future_indexing = self.config.future_context_size + 1 if self.config.future_context_size != -1 else 2
             self.actual_future_window = (
                 self.future_indexing if self.config.future_context_size != -1 else None
             )

@@ -5,8 +5,10 @@ N_LAYER = 3
 N_HEAD = 3
 USE_BIAS = False
 DROPOUT_RATE = 0
-future_context_size = 5
+future_context_size = -1
 present_embed_normalization_type = 2
+parametrize_future_weights=True
+normalize_future_weights=True
 
 # Training config
 BATCH_SIZE = 15  # 50 when run on 1x A10
