@@ -43,11 +43,11 @@ parameters:
             encoder_loss_detach_type:
                 value: 2
             encoder_embed_ln_type:
-                values: [2,3,4]
+                value: 2
             encoder_loss_coeff:
                 value: 1
             future_aggregation_type:
-                value: 3
+                values: [1,2]
     batch_size: 
         value: 50
     train_steps: 
