@@ -47,9 +47,9 @@ Before the (decoder) output layer, the positional embedding of the "next tokens"
 
 In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss over the model input embeddings $E$ is introduced, in addition to the regular (decoder) loss. Again, the idea here is similar to weight tying the output layer with the token embedding (and to the positional embedding subtraction above). Weight tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved on token weights (in addition to output layer weight tying) **and on positional weights** with the embedding loss described as follows.
 
-Since the encoder better captures contextual understanding, the encoder output will reflect this nature. Thus, the encoder output may be interpreted as representing contextual embeddings. Furthermore, it should be observed that all the transformations that occur in the encoder amounts to the aggregation of the model input embeddings in a different latent space. Therefore, it is reasonable to expect some affinity between the encoder output and a more direct aggregation of the model input embeddings. This affinity is precisely what the embedding loss tries to maximize, or in minimization terms, it tries to minimize the disaffinity.
+Since the encoder better captures contextual understanding, the encoder output will reflect this nature. Thus, the encoder output may be interpreted as representing contextual embeddings. Furthermore, it should be observed that all the transformations that occur in the encoder amounts to an aggregation of the model input embeddings in a different latent space. Therefore, it is reasonable to expect some affinity between the encoder output and a more direct aggregation of the model input embeddings. This affinity is precisely what the embedding loss tries to maximize, or in minimization terms, it tries to minimize the disaffinity.
 
-There are many ways to directly aggregate model input embeddings to generate contextual embeddings, but the easiest is just an average. Therefore, given the full embedding (token + positional) ${E}$ of the input, the model first computes the cumulative average of ${E}$ along the token dimension (i.e. T dimension). Then, the embedding loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally,
+There are many ways to directly aggregate model input embeddings to generate contextual embeddings, but the easiest is just an average. Given the full embedding (token + positional) ${E}$ of the input, the model first computes the cumulative average of ${E}$ along the token dimension (i.e. T dimension). Then, the embedding loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally,
 
 $$
 \begin{aligned}
@@ -101,7 +101,7 @@ Adding the positional embedding subtraction strictly improved performance.
 | **no embedding loss and no pos sub** [(config)](#no-embedding-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
 
 
-Combining both MSE embedding loss and positional embedding subtraction improved validation loss.
+Combining both MSE embedding loss and positional embedding subtraction further improved validation loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/both_train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -146,11 +146,11 @@ Two more baselines are compared: "smaller baseline" and "0.2 dropout baseline". 
 These are some further things to look forward to:
 - experiment with unequal encoder and decoder layers, ideally allowing the model to learn it 
 - instead of MSE and cosine dissimilarity, some other disaffinity scores should be experimented with
-- the cumulative embedding average $E_{avg\\\_sum}$ assumes equal contribution from every preceding token, so a different aggregation might be better (maybe convolution or even matrix multiplication?). Furthermore, it should be explored if this weighting can be learnable by the model
+- the cumulative embedding average $E_{avg\\\_sum}$ assumes equal contribution from every preceding token, so a different aggregation might be better (maybe convolution or even matrix multiplication?). Furthermore, it should be explored if this aggregation weighting can be learned by the model
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
 - try different datasets
-- dropout is known to improve validation loss, but it was not used here for simplicity. The new architecture should also be tested with dropout
+- dropout is known to improve validation loss, but it was not used here for simplicity, except in the baseline. The new architecture should also be tested with dropout
 
 ## Conclusions
 
