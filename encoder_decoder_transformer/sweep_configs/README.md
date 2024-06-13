@@ -1,1 +1,1 @@
-This directory contains hyperparameter sweep configs that were experimented. Some of the hyperparameter names in these configs no longer match the respective ones in the model because they have been renamed for clarity.
+This directory contains hyperparameter sweep configs that were experimented. Some of the hyperparameter names in these configs no longer match the respective ones in model.py because they have been renamed for clarity.
