@@ -60,7 +60,7 @@ $$
 \end{aligned}
 $$
 
-Two disaffinity scores are experimented with. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is just
+Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is just
 
 $$embedding\\\_loss = MSE(out_{enc}, E_{avg\\\_sum})$$
 
@@ -74,7 +74,7 @@ $$embedding\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) +
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-The MSE embedding loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of embedding loss did better than an equivalent one without embedding loss.
+The MSE embedding loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of embedding loss did better than an equivalent model without embedding loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -127,7 +127,7 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 | **with MSE embedding loss and pos sub** [(config)](#with-mse-embedding-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
 | **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
 
-Two more baselines are compared: "smaller baseline" and "0.2 dropout baseline". "smaller baseline" is a baseline smaller than "with MSE encoder loss and pos sub". By outperforming it, the new model's better validation loss can't be attributed to its smaller size. "0.2 dropout baseline" is a baseline with 0.2 dropout. By outperforming it, the new model also demonstrates its superiority over dropout.
+Two more baselines are compared: "smaller baseline" and "0.2 dropout baseline". "smaller baseline" is a baseline smaller than "with MSE embedding loss and pos sub". By outperforming it, the new model's better validation loss can't be attributed to its smaller size. "0.2 dropout baseline" is a baseline with 0.2 dropout. By outperforming it, the new model also demonstrates its superiority over dropout.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/ff_train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -154,7 +154,7 @@ These are some further things to look forward to:
 
 ## Conclusions
 
-Even the bare-bones [no encoder loss and no pos sub](#no-embedding-loss-and-no-pos-sub) outperformed the baseline in validation loss with fewer parameters. This probably means that cross-attention on encoder output is enough for better performance (or at least prevents overfitting). When coupled with embedding loss and positional embedding subtraction, performance improved even more.
+Even the bare-bones [no embedding loss and no pos sub](#no-embedding-loss-and-no-pos-sub) outperformed the baseline in validation loss with fewer parameters. This probably means that cross-attention on encoder output is enough for better performance (or at least prevents overfitting). When coupled with embedding loss and positional embedding subtraction, performance improved even more.
 
 More informative, it would be very interesting to inspect the effect of embedding loss and positional embedding subtraction on token and positional embeddings. Perhaps interesting relationships can be observed between token and positional embedding. Furthermore, positional embedding subtraction should work even for decoder-only transformers, and experiments should validate this.
 
