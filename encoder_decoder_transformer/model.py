@@ -49,7 +49,7 @@ class SubPosEmbedType(str, Enum):
             raise ValueError("Invalid sub pos embed type number")
 
 
-class EncoderEmbedLossType(str, Enum):
+class EmbeddingLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
     COSINE_SIM = "CONSINE_SIM"
@@ -61,21 +61,21 @@ class EncoderEmbedLossType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return EncoderEmbedLossType.NONE
+            return EmbeddingLossType.NONE
         elif num == 2:
-            return EncoderEmbedLossType.MSE
+            return EmbeddingLossType.MSE
         elif num == 3:
-            return EncoderEmbedLossType.COSINE_SIM
+            return EmbeddingLossType.COSINE_SIM
         elif num == 4:
-            return EncoderEmbedLossType.LOG_COSINE_SIM
+            return EmbeddingLossType.LOG_COSINE_SIM
         else:
-            raise ValueError("Invalid encoder embed loss type number")
+            raise ValueError("Invalid embedding loss type number")
 
 
-class EncoderEmbedDetachType(str, Enum):
+class DetachType(str, Enum):
     NONE = "NONE"
-    INIT = "INIT"
-    FINAL = "FINAL"
+    EMBEDDING = "EMBEDDING"
+    ENCODER_OUT = "ENCODER_OUT"
 
     def __str__(self):
         return self.value
@@ -83,16 +83,16 @@ class EncoderEmbedDetachType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return EncoderEmbedDetachType.NONE
+            return DetachType.NONE
         elif num == 2:
-            return EncoderEmbedDetachType.INIT
+            return DetachType.EMBEDDING
         elif num == 3:
-            return EncoderEmbedDetachType.FINAL
+            return DetachType.ENCODER_OUT
         else:
-            raise ValueError("Invalid encoder embed detatch type number")
+            raise ValueError("Invalid detatch type number")
 
 
-class EncoderEmbedLayerNormType(str, Enum):
+class EmbeddingLayerNormType(str, Enum):
     NONE = "NONE"
     INIT = "INIT"
     AVG_CUM_SUM = "AVG_CUM_SUM"
@@ -103,13 +103,13 @@ class EncoderEmbedLayerNormType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return EncoderEmbedLayerNormType.NONE
+            return EmbeddingLayerNormType.NONE
         elif num == 2:
-            return EncoderEmbedLayerNormType.INIT
+            return EmbeddingLayerNormType.INIT
         elif num == 3:
-            return EncoderEmbedLayerNormType.AVG_CUM_SUM
+            return EmbeddingLayerNormType.AVG_CUM_SUM
         else:
-            raise ValueError("Invalid encoder embed layer norm type number")
+            raise ValueError("Invalid embedding layer norm type number")
 
 
 @dataclass
@@ -155,48 +155,48 @@ class ModelConfig(BaseModelConfig):
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     order_type: Union[OrderType, int] = OrderType.ORIGINAL
-    encoder_embed_loss_type: Union[EncoderEmbedLossType, int] = EncoderEmbedLossType.MSE
-    encoder_embed_detach_type: Optional[Union[EncoderEmbedDetachType, int]] = (
-        EncoderEmbedDetachType.FINAL
+    emebedding_loss_type: Union[EmbeddingLossType, int] = EmbeddingLossType.MSE
+    detach_type: Optional[Union[DetachType, int]] = (
+        DetachType.ENCODER_OUT
     )
-    encoder_embed_loss_coeff: Optional[float] = 1
-    encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
-        EncoderEmbedLayerNormType.INIT
+    embedding_loss_coeff: Optional[float] = 1
+    embedding_ln_type: Optional[Union[EmbeddingLayerNormType, int]] = (
+        EmbeddingLayerNormType.INIT
     )
 
     def __post_init__(self):
         if type(self.order_type) == int:
             self.order_type = OrderType.get_type_from_int(self.order_type)
-        if type(self.encoder_embed_loss_type) == int:
-            self.encoder_embed_loss_type = EncoderEmbedLossType.get_type_from_int(
-                self.encoder_embed_loss_type
+        if type(self.emebedding_loss_type) == int:
+            self.emebedding_loss_type = EmbeddingLossType.get_type_from_int(
+                self.emebedding_loss_type
             )
-        if type(self.encoder_embed_detach_type) == int:
-            self.encoder_embed_detach_type = EncoderEmbedDetachType.get_type_from_int(
-                self.encoder_embed_detach_type
+        if type(self.detach_type) == int:
+            self.detach_type = DetachType.get_type_from_int(
+                self.detach_type
             )
-        if type(self.encoder_embed_ln_type) == int:
-            self.encoder_embed_ln_type = EncoderEmbedLayerNormType.get_type_from_int(
-                self.encoder_embed_ln_type
+        if type(self.embedding_ln_type) == int:
+            self.embedding_ln_type = EmbeddingLayerNormType.get_type_from_int(
+                self.embedding_ln_type
             )
         if type(self.sub_pos_embed_to_decoder) == int:
             self.sub_pos_embed_to_decoder = SubPosEmbedType.get_type_from_int(
                 self.sub_pos_embed_to_decoder
             )
 
-        if self.encoder_embed_loss_type != EncoderEmbedLossType.NONE:
-            if self.encoder_embed_loss_coeff is None:
-                self.encoder_embed_loss_coeff = 1.0
+        if self.emebedding_loss_type != EmbeddingLossType.NONE:
+            if self.embedding_loss_coeff is None:
+                self.embedding_loss_coeff = 1.0
             else:
-                assert self.encoder_embed_loss_coeff > 0
+                assert self.embedding_loss_coeff > 0
             assert self.use_ln_on_encoder_out is not None
-            assert self.encoder_embed_ln_type is not None
-            assert self.encoder_embed_detach_type is not None
+            assert self.embedding_ln_type is not None
+            assert self.detach_type is not None
         else:
-            assert self.encoder_embed_loss_coeff is None
+            assert self.embedding_loss_coeff is None
             assert self.use_ln_on_encoder_out is None
-            assert self.encoder_embed_ln_type is None
-            assert self.encoder_embed_detach_type is None
+            assert self.embedding_ln_type is None
+            assert self.detach_type is None
 
         if type(self.cross_attn_config) == dict:
             self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
@@ -299,7 +299,7 @@ class DecoderTransformerBlock(nn.Module):
 
 class EncoderDecoderTransformer(BaseModel):
     model_config_cls = ModelConfig
-    extra_stats = ["encoder_loss", "scaled_encoder_loss"]
+    extra_stats = ["embedding_loss", "scaled_embedding_loss"]
 
     def _init_model(self, config: ModelConfig):
         assert (
@@ -352,7 +352,7 @@ class EncoderDecoderTransformer(BaseModel):
 
         if self.config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
-        if self.config.encoder_embed_ln_type != EncoderEmbedLayerNormType.NONE:
+        if self.config.embedding_ln_type != EmbeddingLayerNormType.NONE:
             self.encoder_embed_ln = LayerNorm(config.n_embed, True)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
@@ -397,17 +397,17 @@ class EncoderDecoderTransformer(BaseModel):
 
         if (
             self.training
-            and self.config.encoder_embed_loss_type != EncoderEmbedLossType.NONE
+            and self.config.emebedding_loss_type != EmbeddingLossType.NONE
         ):
-            if self.config.encoder_embed_detach_type == EncoderEmbedDetachType.INIT:
+            if self.config.detach_type == DetachType.EMBEDDING:
                 encoder_embed = encoder_embed.detach()
-            elif self.config.encoder_embed_detach_type == EncoderEmbedDetachType.FINAL:
+            elif self.config.detach_type == DetachType.ENCODER_OUT:
                 encoder_out = encoder_out.detach()
 
             if self.config.use_ln_on_encoder_out:
                 encoder_out = self.encoder_out_ln(encoder_out)
 
-            if self.config.encoder_embed_ln_type == EncoderEmbedLayerNormType.INIT:
+            if self.config.embedding_ln_type == EmbeddingLayerNormType.INIT:
                 encoder_embed = self.encoder_embed_ln(encoder_embed)
 
             cum_sum = torch.cumsum(encoder_embed, dim=-2)
@@ -416,30 +416,30 @@ class EncoderDecoderTransformer(BaseModel):
             ).unsqueeze(0).unsqueeze(-1)
 
             if (
-                self.config.encoder_embed_ln_type
-                == EncoderEmbedLayerNormType.AVG_CUM_SUM
+                self.config.embedding_ln_type
+                == EmbeddingLayerNormType.AVG_CUM_SUM
             ):
                 avg_sum = self.encoder_embed_ln(avg_sum)
 
-            if self.config.encoder_embed_loss_type == EncoderEmbedLossType.MSE:
-                self.encoder_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
-                self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_embed_loss_coeff
+            if self.config.emebedding_loss_type == EmbeddingLossType.MSE:
+                self.embedding_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
+                self.scaled_embedding_loss = (
+                    self.embedding_loss * self.config.embedding_loss_coeff
                 )
-            elif self.config.encoder_embed_loss_type == EncoderEmbedLossType.COSINE_SIM:
+            elif self.config.emebedding_loss_type == EmbeddingLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
-                self.encoder_loss = (1 - (cosine_sim + 1) / 2).mean()
-                self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_embed_loss_coeff
+                self.embedding_loss = (1 - (cosine_sim + 1) / 2).mean()
+                self.scaled_embedding_loss = (
+                    self.embedding_loss * self.config.embedding_loss_coeff
                 )
             elif (
-                self.config.encoder_embed_loss_type
-                == EncoderEmbedLossType.LOG_COSINE_SIM
+                self.config.emebedding_loss_type
+                == EmbeddingLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
-                self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
-                self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_embed_loss_coeff
+                self.embedding_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
+                self.scaled_embedding_loss = (
+                    self.embedding_loss * self.config.embedding_loss_coeff
                 )
             else:
                 raise ValueError("Invalid token loss type")
@@ -461,8 +461,8 @@ class EncoderDecoderTransformer(BaseModel):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
-            if self.training and self.scaled_encoder_loss.numel() != 0:
-                loss += self.scaled_encoder_loss
+            if self.training and self.scaled_embedding_loss.numel() != 0:
+                loss += self.scaled_embedding_loss
 
         return (logits, loss)
 
