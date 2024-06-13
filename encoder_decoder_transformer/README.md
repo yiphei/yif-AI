@@ -36,7 +36,7 @@ For simplicity, the new architecture consists of an equal number of encoder and 
 
 ### Positional embedding subtraction
 
-Before the (decoder) output layer, the positional embedding of the "next tokens" is subtracted from the latent representation. Again, the idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, the update frequency & magnitude of positional weights is increased. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
+Before the (decoder) output layer, the positional embedding of the "next tokens" is subtracted from the latent representation. The idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, the update frequency & magnitude of positional weights is increased. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
 
 <div align="center">
     <img src="assets/pos_diagram.svg"
@@ -45,7 +45,7 @@ Before the (decoder) output layer, the positional embedding of the "next tokens"
 
 ### Embedding loss
 
-In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss over the model input embeddings $E$ is introduced, in addition to the regular (decoder) loss. The idea here is similar to weight tying the output layer with the token embedding (and to the positional embedding subtraction above). Weight tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved on token weights (in addition to output layer weight tying) **and on positional weights** with the embedding loss described as follows.
+In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss over the model input embeddings $E$ is introduced, in addition to the regular (decoder) loss. Again, the idea here is similar to weight tying the output layer with the token embedding (and to the positional embedding subtraction above). Weight tying increases update frequency & magnitude of embedding weights, which then better compresses the entire forward pass into embedding weights. Ultimately, this permits hidden layers to compute more complex representations. The same effect can be achieved on token weights (in addition to output layer weight tying) **and on positional weights** with the embedding loss described as follows.
 
 Since the encoder better captures contextual understanding, the encoder output will reflect this nature. Thus, the encoder output may be interpreted as representing contextual embeddings. Furthermore, it should be observed that all the transformations that occur in the encoder amounts to the aggregation of the model input embeddings in a different latent space. Therefore, it is reasonable to expect some affinity between the encoder output and a more direct aggregation of the model input embeddings. This affinity is precisely what the embedding loss tries to maximize, or in minimization terms, it tries to minimize the disaffinity.
 
