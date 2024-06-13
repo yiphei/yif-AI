@@ -18,14 +18,14 @@ At the high level, the architecture re-implements the canonical encoder-decoder 
 In the canonical encoder-decoder transformer, the encoder runs once on an input, and then the decoder runs auto-regressively on its own output while attending to the encoder output. It looks like this
 
 <div align="center">
-  <img src="assets/self_canon_diagram.svg" alt="diagram" width="500">
+  <img src="assets/self_canon_diagram_a.svg" alt="diagram" width="500">
 </div>
 <br>
 
 To use this architecture for an end-to-end auto-regressive task, the encoder and decoder are adapted to run serially on each new model input. The encoder generates an output and the decoder generates the next token while attending to the encoder output. When a new input is formed with the last decoder output, it gets fed back to the model, which reruns the encoder and decoder. To make this work, the encoder's attention has to be masked. The new architecture is shown in the figure below.
 
 <div align="center">
-    <img src="assets/self_new_diagram.svg"
+    <img src="assets/self_new_diagram_a.svg"
          alt="diagram" height="900">
 </div>
 <br>
