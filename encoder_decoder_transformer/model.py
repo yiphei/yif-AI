@@ -353,7 +353,7 @@ class EncoderDecoderTransformer(BaseModel):
         if self.config.use_ln_on_encoder_out:
             self.encoder_out_ln = LayerNorm(config.n_embed, True)
         if self.config.embedding_ln_type != EmbeddingLayerNormType.NONE:
-            self.encoder_embed_ln = LayerNorm(config.n_embed, True)
+            self.embeddings_ln = LayerNorm(config.n_embed, True)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
         self.token_embedding.weight = self.output_layer.weight  # weight tying
@@ -372,9 +372,9 @@ class EncoderDecoderTransformer(BaseModel):
         pos_embed = self.positional_embedding(
             torch.arange(x.shape[1], dtype=torch.long, device=device)
         )
-        encoder_embed = token_embed + pos_embed
-        encoder_embed = self.dropout(encoder_embed)
-        encoder_x = encoder_embed
+        input_embeddings = token_embed + pos_embed
+        input_embeddings = self.dropout(input_embeddings)
+        encoder_x = input_embeddings
 
         encoder_out = self.encoder_transformer_blocks(encoder_x)
 
@@ -400,7 +400,7 @@ class EncoderDecoderTransformer(BaseModel):
             and self.config.emebedding_loss_type != EmbeddingLossType.NONE
         ):
             if self.config.detach_type == DetachType.EMBEDDING:
-                encoder_embed = encoder_embed.detach()
+                input_embeddings = input_embeddings.detach()
             elif self.config.detach_type == DetachType.ENCODER_OUT:
                 encoder_out = encoder_out.detach()
 
@@ -408,9 +408,9 @@ class EncoderDecoderTransformer(BaseModel):
                 encoder_out = self.encoder_out_ln(encoder_out)
 
             if self.config.embedding_ln_type == EmbeddingLayerNormType.INIT:
-                encoder_embed = self.encoder_embed_ln(encoder_embed)
+                input_embeddings = self.embeddings_ln(input_embeddings)
 
-            cum_sum = torch.cumsum(encoder_embed, dim=-2)
+            cum_sum = torch.cumsum(input_embeddings, dim=-2)
             avg_sum = cum_sum / torch.arange(
                 1, x.shape[1] + 1, dtype=torch.long, device=device
             ).unsqueeze(0).unsqueeze(-1)
@@ -419,7 +419,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.config.embedding_ln_type
                 == EmbeddingLayerNormType.AVG_CUM_SUM
             ):
-                avg_sum = self.encoder_embed_ln(avg_sum)
+                avg_sum = self.embeddings_ln(avg_sum)
 
             if self.config.emebedding_loss_type == EmbeddingLossType.MSE:
                 self.embedding_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
@@ -442,7 +442,7 @@ class EncoderDecoderTransformer(BaseModel):
                     self.embedding_loss * self.config.embedding_loss_coeff
                 )
             else:
-                raise ValueError("Invalid token loss type")
+                raise ValueError("Invalid embedding loss type")
 
         if self.config.sub_pos_embed_to_decoder != SubPosEmbedType.NO:
             decoder_out = decoder_out - self.positional_embedding(
