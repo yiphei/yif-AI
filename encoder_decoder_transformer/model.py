@@ -156,9 +156,7 @@ class ModelConfig(BaseModelConfig):
     add_ln_before_decoder_ff: bool = False
     order_type: Union[OrderType, int] = OrderType.ORIGINAL
     embedding_loss_type: Union[EmbeddingLossType, int] = EmbeddingLossType.MSE
-    detach_type: Optional[Union[DetachType, int]] = (
-        DetachType.ENCODER_OUT
-    )
+    detach_type: Optional[Union[DetachType, int]] = DetachType.ENCODER_OUT
     embedding_loss_coeff: Optional[float] = 1
     embedding_ln_type: Optional[Union[EmbeddingLayerNormType, int]] = (
         EmbeddingLayerNormType.INIT
@@ -172,9 +170,7 @@ class ModelConfig(BaseModelConfig):
                 self.embedding_loss_type
             )
         if type(self.detach_type) == int:
-            self.detach_type = DetachType.get_type_from_int(
-                self.detach_type
-            )
+            self.detach_type = DetachType.get_type_from_int(self.detach_type)
         if type(self.embedding_ln_type) == int:
             self.embedding_ln_type = EmbeddingLayerNormType.get_type_from_int(
                 self.embedding_ln_type
@@ -395,10 +391,7 @@ class EncoderDecoderTransformer(BaseModel):
 
         decoder_out = self.ln(decoder_x)
 
-        if (
-            self.training
-            and self.config.embedding_loss_type != EmbeddingLossType.NONE
-        ):
+        if self.training and self.config.embedding_loss_type != EmbeddingLossType.NONE:
             if self.config.detach_type == DetachType.EMBEDDING:
                 input_embeddings = input_embeddings.detach()
             elif self.config.detach_type == DetachType.ENCODER_OUT:
@@ -415,10 +408,7 @@ class EncoderDecoderTransformer(BaseModel):
                 1, x.shape[1] + 1, dtype=torch.long, device=device
             ).unsqueeze(0).unsqueeze(-1)
 
-            if (
-                self.config.embedding_ln_type
-                == EmbeddingLayerNormType.AVG_CUM_SUM
-            ):
+            if self.config.embedding_ln_type == EmbeddingLayerNormType.AVG_CUM_SUM:
                 avg_sum = self.embeddings_ln(avg_sum)
 
             if self.config.embedding_loss_type == EmbeddingLossType.MSE:
@@ -432,10 +422,7 @@ class EncoderDecoderTransformer(BaseModel):
                 self.scaled_embedding_loss = (
                     self.embedding_loss * self.config.embedding_loss_coeff
                 )
-            elif (
-                self.config.embedding_loss_type
-                == EmbeddingLossType.LOG_COSINE_SIM
-            ):
+            elif self.config.embedding_loss_type == EmbeddingLossType.LOG_COSINE_SIM:
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 self.embedding_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_embedding_loss = (
