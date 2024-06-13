@@ -1,5 +1,5 @@
 # Auto-regressive Encoder-Decoder Transformer
-> NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
+> NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX well, so Chrome is advised.
 
 Current SOTA LLMs are all decoder-only models. Here, a new end-to-end auto-regressive encoder-decoder transformer is presented that outperforms, with fewer parameters, the canonical decoder-only transformer.
 
