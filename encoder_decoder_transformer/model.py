@@ -89,7 +89,7 @@ class DetachType(str, Enum):
         elif num == 3:
             return DetachType.ENCODER_OUT
         else:
-            raise ValueError("Invalid detatch type number")
+            raise ValueError("Invalid detach type number")
 
 
 class EmbeddingLayerNormType(str, Enum):
@@ -143,7 +143,7 @@ class ModelConfig(BaseModelConfig):
             EmbeddingLossType.MSE performed better.
         detach_type: the type of tensor detachment applied for embedding loss.
             DetachType.ENCODER_OUT performed better.
-        embedding_loss_coeff: a scaling coefficient for the encoder loss. This may be
+        embedding_loss_coeff: a scaling coefficient for the embedding loss. This may be
             fine-tuned for best performance.
         embedding_ln_type: the type of layer normalization applied to the embedding
             before computing the embedding loss. EmbeddingLayerNormType.INIT performed better.
@@ -155,7 +155,7 @@ class ModelConfig(BaseModelConfig):
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     order_type: Union[OrderType, int] = OrderType.ORIGINAL
-    emebedding_loss_type: Union[EmbeddingLossType, int] = EmbeddingLossType.MSE
+    embedding_loss_type: Union[EmbeddingLossType, int] = EmbeddingLossType.MSE
     detach_type: Optional[Union[DetachType, int]] = (
         DetachType.ENCODER_OUT
     )
@@ -167,9 +167,9 @@ class ModelConfig(BaseModelConfig):
     def __post_init__(self):
         if type(self.order_type) == int:
             self.order_type = OrderType.get_type_from_int(self.order_type)
-        if type(self.emebedding_loss_type) == int:
-            self.emebedding_loss_type = EmbeddingLossType.get_type_from_int(
-                self.emebedding_loss_type
+        if type(self.embedding_loss_type) == int:
+            self.embedding_loss_type = EmbeddingLossType.get_type_from_int(
+                self.embedding_loss_type
             )
         if type(self.detach_type) == int:
             self.detach_type = DetachType.get_type_from_int(
@@ -184,7 +184,7 @@ class ModelConfig(BaseModelConfig):
                 self.sub_pos_embed_to_decoder
             )
 
-        if self.emebedding_loss_type != EmbeddingLossType.NONE:
+        if self.embedding_loss_type != EmbeddingLossType.NONE:
             if self.embedding_loss_coeff is None:
                 self.embedding_loss_coeff = 1.0
             else:
@@ -397,7 +397,7 @@ class EncoderDecoderTransformer(BaseModel):
 
         if (
             self.training
-            and self.config.emebedding_loss_type != EmbeddingLossType.NONE
+            and self.config.embedding_loss_type != EmbeddingLossType.NONE
         ):
             if self.config.detach_type == DetachType.EMBEDDING:
                 input_embeddings = input_embeddings.detach()
@@ -421,19 +421,19 @@ class EncoderDecoderTransformer(BaseModel):
             ):
                 avg_sum = self.embeddings_ln(avg_sum)
 
-            if self.config.emebedding_loss_type == EmbeddingLossType.MSE:
+            if self.config.embedding_loss_type == EmbeddingLossType.MSE:
                 self.embedding_loss = F.mse_loss(avg_sum, encoder_out, reduction="mean")
                 self.scaled_embedding_loss = (
                     self.embedding_loss * self.config.embedding_loss_coeff
                 )
-            elif self.config.emebedding_loss_type == EmbeddingLossType.COSINE_SIM:
+            elif self.config.embedding_loss_type == EmbeddingLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 self.embedding_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_embedding_loss = (
                     self.embedding_loss * self.config.embedding_loss_coeff
                 )
             elif (
-                self.config.emebedding_loss_type
+                self.config.embedding_loss_type
                 == EmbeddingLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
