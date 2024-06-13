@@ -84,9 +84,9 @@ The MSE embedding loss performed better than cosine dissimilarity in validation 
 
 |   | Train loss | Val loss | Embedding loss |
 |---|----------|----------|----------|
-| **with cosine-dissimilarity embedding loss** [(config)](#with-cosine-dissimilarity-encoder-loss) | **2.993** | 3.387 | 8.564e-9 |
-| **with MSE embedding loss** [(config)](#with-mse-encoder-loss) | 2.998 | **3.385** | 4.138e-9 |
-| **no embedding loss and no pos sub** [(config)](#no-encoder-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
+| **with cosine-dissimilarity embedding loss** [(config)](#with-cosine-dissimilarity-embedding-loss) | **2.993** | 3.387 | 8.564e-9 |
+| **with MSE embedding loss** [(config)](#with-mse-embedding-loss) | 2.998 | **3.385** | 4.138e-9 |
+| **no embedding loss and no pos sub** [(config)](#no-embedding-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
 
 Adding the positional embedding subtraction strictly improved performance.
 
@@ -98,7 +98,7 @@ Adding the positional embedding subtraction strictly improved performance.
 |   | Train loss | Val loss | Embedding loss |
 |---|----------|----------|----------|
 | **with pos embed sub** [(config)](#with-pos-embed-sub) | **2.979** | **3.381** | N/A |
-| **no embedding loss and no pos sub** [(config)](#no-encoder-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
+| **no embedding loss and no pos sub** [(config)](#no-embedding-loss-and-no-pos-sub) | 3.043 | 3.413 | N/A |
 
 
 Combining both MSE embedding loss and positional embedding subtraction improved validation loss.
@@ -112,8 +112,8 @@ Combining both MSE embedding loss and positional embedding subtraction improved 
 |   | Train loss | Val loss | Embedding loss |
 |---|----------|----------|----------|
 | **with pos embed sub** [(config)](#with-pos-embed-sub) | **2.979** | 3.381 | N/A |
-| **with MSE embedding loss** [(config)](#with-mse-encoder-loss) | 2.998 | 3.385 | 4.138e-9 |
-| **with MSE embedding loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 4.673e-9 |
+| **with MSE embedding loss** [(config)](#with-mse-embedding-loss) | 2.998 | 3.385 | 4.138e-9 |
+| **with MSE embedding loss and pos sub** [(config)](#with-mse-embedding-loss-and-pos-sub) | 2.982 | **3.378** | 4.673e-9 |
 
 Compared to a canonical decoder-only transformer (baseline), the new model outperformed the baseline in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands, but the baseline had more parameters.
 
@@ -124,7 +124,7 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **with MSE embedding loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
+| **with MSE embedding loss and pos sub** [(config)](#with-mse-embedding-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
 | **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
 
 Two more baselines are compared: "smaller baseline" and "0.2 dropout baseline". "smaller baseline" is a baseline smaller than "with MSE encoder loss and pos sub". By outperforming it, the new model's better validation loss can't be attributed to its smaller size. "0.2 dropout baseline" is a baseline with 0.2 dropout. By outperforming it, the new model also demonstrates its superiority over dropout.
@@ -136,7 +136,7 @@ Two more baselines are compared: "smaller baseline" and "0.2 dropout baseline". 
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **with MSE embedding loss and pos sub** [(config)](#with-mse-encoder-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
+| **with MSE embedding loss and pos sub** [(config)](#with-mse-embedding-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
 | **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
 | **smaller baseline** [(config)](#smaller-baseline) | 2.958 | 3.416 | 15,441,192 |
 | **0.2 dropout baseline** [(config)](#02-dropout-baseline) | 3.174 | 3.406 | 16,036,800 |
@@ -154,7 +154,7 @@ These are some further things to look forward to:
 
 ## Conclusions
 
-Even the bare-bones [no encoder loss and no pos sub](#no-encoder-loss-and-no-pos-sub) outperformed the baseline in validation loss with fewer parameters. This probably means that cross-attention on encoder output is enough for better performance (or at least prevents overfitting). When coupled with embedding loss and positional embedding subtraction, performance improved even more.
+Even the bare-bones [no encoder loss and no pos sub](#no-embedding-loss-and-no-pos-sub) outperformed the baseline in validation loss with fewer parameters. This probably means that cross-attention on encoder output is enough for better performance (or at least prevents overfitting). When coupled with embedding loss and positional embedding subtraction, performance improved even more.
 
 More informative, it would be very interesting to inspect the effect of embedding loss and positional embedding subtraction on token and positional embeddings. Perhaps interesting relationships can be observed between token and positional embedding. Furthermore, positional embedding subtraction should work even for decoder-only transformers, and experiments should validate this.
 
@@ -163,7 +163,7 @@ Alas, the principal limitation is my personal compute budget, so this project ca
 ---
 ## Appendix
 ### Run configs
-#### "with cosine-dissimilarity encoder loss"
+#### "with cosine-dissimilarity embedding loss"
 ```
 {'lr': 0.0009,
  'beta1': 0.9,
@@ -195,7 +195,7 @@ Alas, the principal limitation is my personal compute budget, so this project ca
  'lr_decay_iters': 700000,
  'gradient_accumulation_steps': 16}
  ```
-#### "with MSE encoder loss"
+#### "with MSE embedding loss"
 ```
 {'lr': 0.0009,
  'beta1': 0.9,
@@ -227,7 +227,7 @@ Alas, the principal limitation is my personal compute budget, so this project ca
  'lr_decay_iters': 700000,
  'gradient_accumulation_steps': 16}
  ```
-#### "no encoder loss and no pos sub"
+#### "no embedding loss and no pos sub"
 ```
 {'lr': 0.0009,
  'beta1': 0.9,
@@ -292,7 +292,7 @@ Alas, the principal limitation is my personal compute budget, so this project ca
  'lr_decay_iters': 700000,
  'gradient_accumulation_steps': 16}
 ```
-#### "with MSE encoder loss and pos sub"
+#### "with MSE embedding loss and pos sub"
 ```
 {'lr': 0.0009,
  'beta1': 0.9,
