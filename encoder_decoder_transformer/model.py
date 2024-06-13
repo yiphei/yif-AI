@@ -121,7 +121,7 @@ class CrossAttentionConfig:
 @dataclass
 class ModelConfig(BaseModelConfig):
     """The default field values are the suggested ones for the best performance.
-    Fine-tuning encoder_embed_loss_coeff may improve performance.
+    Fine-tuning embedding_loss_coeff may improve performance.
 
     NB: there are more hyperparameters here than described in the README. This is because
         either they were found to be detrimental or were trivial additions.
@@ -139,14 +139,14 @@ class ModelConfig(BaseModelConfig):
             False performed better.
         order_type: the order of attention operations in decoder transformer blocks.
             OrderType.ORIGINAL performed better.
-        encoder_embed_loss_type: the type of loss applied to the encoder output.
-            EncoderEmbedLossType.MSE performed better.
-        encoder_embed_detach_type: the type of tensor detachment applied to the encoder embed
-            before computing the encoder loss. EncoderEmbedDetachType.FINAL performed better.
-        encoder_embed_loss_coeff: a scaling coefficient for the encoder loss. This may be
+        embedding_loss_type: the type of embedding loss applied.
+            EmbeddingLossType.MSE performed better.
+        detach_type: the type of tensor detachment applied for embedding loss.
+            DetachType.ENCODER_OUT performed better.
+        embedding_loss_coeff: a scaling coefficient for the encoder loss. This may be
             fine-tuned for best performance.
-        encoder_embed_ln_type: the type of layer normalization applied to the encoder embed
-            before computing the encoder loss. EncoderEmbedLayerNormType.INIT performed better.
+        embedding_ln_type: the type of layer normalization applied to the embedding
+            before computing the embedding loss. EmbeddingLayerNormType.INIT performed better.
     """
 
     cross_attn_config: CrossAttentionConfig = None
