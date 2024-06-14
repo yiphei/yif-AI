@@ -56,7 +56,7 @@ $$
 & out_{enc} \coloneqq \text{encoder output (detached)} \\
 & E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
 & E_{ln} = LayerNorm(E)\\
-& out_{enc\\\_ln} = LayerNorm(out_{enc})\\
+& out_{enc\\\_ln} = LayerNorm(out_{enc})\\[1cm]
 & E_{avg\\\_sum} \coloneqq \text{cumulative average of }E_{ln}\text{ along T dimension, where } E_{avg\\\_sum_{(i,j)}} = \frac{1}{i} \sum_{z}^{i}E_{ln_{z,j}} \\
 & embedding\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{avg\\\_sum})
 \end{aligned}
