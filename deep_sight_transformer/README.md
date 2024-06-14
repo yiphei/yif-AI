@@ -1,7 +1,7 @@
 # DeepSight (WIP)
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX well, so Chrome is advised.
 
-Virtually all autoregressive models are trained with the singular objective of next token prediction. They don't have an explicit objective to think beyond the next token (though they implicitly do). Here, I present a new transformer model, DeepSight, that includes this additional objective of planning beyond the next token. DeepSight beats, with fewer parameters, a canonical decoder-only transformer, both in train and validation loss.
+Virtually all autoregressive models are trained with the singular objective of next token prediction. They don't have an explicit objective to think beyond the next token (though they implicitly do). Here, I present a new transformer model, DeepSight, that includes an additional objective of planning beyond the next token. DeepSight beats, with fewer parameters, a canonical decoder-only transformer, both in train and validation loss.
 
 ## Motivations
 
@@ -38,17 +38,13 @@ When transitioning from encoder to decoder, the input to the first decoder layer
 
 ### Future loss
 
-In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new future loss is introduced, in addition to the regular (decoder) loss. This loss serves to push the model to predict the future context, the context from the next token until the nth, which in turn should help develop planning abilities in the model.
+To improve the model's planning abilities, an explicit objective function must be added to the model. As for any objective function, you need: 1) model output, 2) ground truth, and 3) a minimization function.
 
-The first thing to observe is that planning for the future requires it being captured by the latent representation. So we know that whatever the model does for planning, it will be reflected in the latent representations. 
+For 1), first note that it is hard to make one output fulfill two predictive functions, so we need a different output than the one used for next token prediction. Second, observe that this output must be used by the model to produce the downstream next token prediction output, so it must be play an important role in the computational graph. In a decoder-only transformer, your choice is basically a hidden state, which is too transient. Or you can do something more complicated but risk bloating the model. But in a encoder-decoder transformer, there are two natural distinct outputs, and the decoder attends to the encoder output in every single layer. Indeed, planning may be viewed as an extension of understanding, which is the focus of the encoder. Therefore, the encoder output is the output used for the planning objective function.
 
+For 2), we need to first define what it means to plan ahead that is compatible with deep learning. The easiest and best way to define any model behavior is as a prediction. Prediction of what? A plan is too vague to work with. Remember, though, that transformers are excellent at contextual understanding, more so in the encoder layers. Normally, the contextual understanding of any hidden state $h_{t}$ spans from token $x_t$ to $x_1$. But we can extend it to include future tokens as well. So we define plan prediction as predicting the context that spans from from $x_1$ to $x_{t+n}$, where $n$ is a hyperparameter. Now, we need to generate ground truth for these future contexts. Here, we must observe that all the transformations that occur in our encoder layers amount to an aggregation of the model input embeddings in a different latent space. Hence, we can expect an affinity between encoder output and a more direct agggregation of the model input embeddings. Thus, future context can be constructed from the aggregation of model input embeddings.
 
-
-The first thing to observe is that we do have the future context available for most tokens. The crux is how to create the "ground truth" and how to create a loss over it. On the former, we know that we can aggregate input embeddings to generate some future embeddings. On the latter, we leverage the encoder-decoder separation.
-
-
-
-In a encoder-decoder transformer, there is a distinct separation between understanding and prediction. The encoder focuses more on understanding, and the decoder more on prediction. This separation is convenient because it allows us to introduce inductive bias to one without drastically affecting the other. In our case, it is easier to introduce inductive bias to the encoder than decoder. We ask the encoder to not just understand the existing context but also future context. In other words, instead of each latent representation $h_t$ representing the entire context from $t$ to $1$, we can extend the representation to include tokens from $t$ to $t+n$.
+Finally, once the future contexts are constructed, then the objective function is defined as the following minimization. 
 
 
 ## Results
