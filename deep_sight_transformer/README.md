@@ -1,13 +1,13 @@
 # DeepSight (WIP)
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX well, so Chrome is advised.
 
-Virtually all autoregressive models are trained with the singular objective of next token prediction. They don't possess an explicit objective to think – or better, plan – beyond the next token (though they implicitly do). Here, I present a new transformer model, DeepSight, that includes an explicit objective of planning beyond the next token, in addition to next token prediction. DeepSight beats, with fewer parameters, a canonical decoder-only transformer, both in train and validation loss.
+Virtually all autoregressive transformer models are trained with the singular objective of next token prediction. They don't possess an explicit objective to think – or better, plan – beyond the next token (though they implicitly do). Here, I present a new transformer model, DeepSight, that includes an explicit objective of planning beyond the next token, in addition to next token prediction. DeepSight beats, with fewer parameters, a canonical decoder-only transformer, both in train and validation loss.
 
 ## Motivations
 
 Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token because of the attention mechanism. Yet, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I restrict planning to whatever happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
 
-This project explores how planning many steps beyond the next token can be formulated as an objective function, in addition to the regular next token prediction. Why planning? The (perhaps antropomorphic) intuition is that deliberate planning will improve downstream next token prediction. After all, planning for $n$ future tokens includes the next token. Why as new objective function though? Because that is the easiest and best way to induce any model behavior.
+This project explores how planning many steps beyond the next token can be formulated as an objective function during training, in addition to the regular next token prediction. Why planning? The (perhaps antropomorphic) intuition is that deliberate planning can improve downstream next token prediction. After all, planning for $n$ future tokens includes the next token. Why as new objective function though? Because that is the easiest and best way to induce any model behavior.
 
 ## Architecture
 
@@ -15,7 +15,7 @@ At the high level, the architecture consists of an encoder-decoder transformer a
 
 ### Encoder-Decoder
 
-> This section reiterates the equivalent section in *Auto-regressive Encoder-Decoder Transformer*. You can skip it if you have already read that one
+> This section reiterates the respective section in *Auto-regressive Encoder-Decoder Transformer*. You can skip it if you have already read that one
 
 In the canonical encoder-decoder transformer, the encoder runs once on an input, and then the decoder runs auto-regressively on its own output while attending to the encoder output. It looks like this
 
