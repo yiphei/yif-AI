@@ -1,7 +1,7 @@
 # DeepSight (WIP)
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX well, so Chrome is advised.
 
-Virtually all autoregressive models are trained with the singular objective of next token prediction. They don't have an explicit objective to think beyond the next token (though they implicitly will). Here, I present a new transformer model DeepSight that includes this additional objective of planning beyond the next token. DeepSight beats, with fewer parameters, a canonical decoder-only transformer, both in train and validation loss.
+Virtually all autoregressive models are trained with the singular objective of next token prediction. They don't have an explicit objective to think beyond the next token (though they implicitly do). Here, I present a new transformer model, DeepSight, that includes this additional objective of planning beyond the next token. DeepSight beats, with fewer parameters, a canonical decoder-only transformer, both in train and validation loss.
 
 ## Motivations
 
@@ -11,7 +11,7 @@ This project explores how planning many steps beyond the next token can be formu
 
 ## Architecture
 
-At the high level, the architecture consists of an autoregressive encoder-decoder (like encoder_decoder_transformer). The encoder-decoder separation is necessary to the formulation of the planning objective
+At the high level, the architecture consists of an autoregressive encoder-decoder (like encoder_decoder_transformer). The encoder-decoder separation is necessary to the formulation of the planning objective.
 
 ### Encoder-Decoder
 
@@ -38,7 +38,15 @@ When transitioning from encoder to decoder, the input to the first decoder layer
 
 ### Future loss
 
-In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new loss over the encoder output is introduced, in addition to the regular (decoder) loss. 
+In the canonical decoder-encoder model, the loss function is evaluated over the decoder's output (itself being a function of the encoder's output). In this implementation, a new future loss is introduced, in addition to the regular (decoder) loss. This loss serves to push the model to predict the future context, the context from the next token until the nth, which in turn should help develop planning abilities in the model.
+
+The first thing to observe is that planning for the future requires it being captured by the latent representation. So we know that whatever the model does for planning, it will be reflected in the latent representations. 
+
+
+
+The first thing to observe is that we do have the future context available for most tokens. The crux is how to create the "ground truth" and how to create a loss over it. On the former, we know that we can aggregate input embeddings to generate some future embeddings. On the latter, we leverage the encoder-decoder separation.
+
+
 
 In a encoder-decoder transformer, there is a distinct separation between understanding and prediction. The encoder focuses more on understanding, and the decoder more on prediction. This separation is convenient because it allows us to introduce inductive bias to one without drastically affecting the other. In our case, it is easier to introduce inductive bias to the encoder than decoder. We ask the encoder to not just understand the existing context but also future context. In other words, instead of each latent representation $h_t$ representing the entire context from $t$ to $1$, we can extend the representation to include tokens from $t$ to $t+n$.
 
