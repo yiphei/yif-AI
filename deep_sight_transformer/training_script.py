@@ -1,14 +1,14 @@
 from utils.train import train
 
 try:
-    from deep_sight_transformer.model import EncoderDecoderTransformer
+    from deep_sight_transformer.model import DeepSight
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
-    from model import EncoderDecoderTransformer
+    from model import DeepSight
 
 if __name__ == "__main__":
     train(
-        EncoderDecoderTransformer,
-        "future_encoder_transformer/",
+        DeepSight,
+        "deep_sight_transformer/",
         "future_encoder_transformer",
     )

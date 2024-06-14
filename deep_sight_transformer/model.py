@@ -273,7 +273,7 @@ class DecoderTransformerBlock(nn.Module):
         return decoder_x
 
 
-class EncoderDecoderTransformer(BaseModel):
+class DeepSight(BaseModel):
     model_config_cls = ModelConfig
     extra_stats = ["encoder_loss", "scaled_encoder_loss"]
 
