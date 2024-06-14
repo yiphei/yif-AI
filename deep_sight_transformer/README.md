@@ -7,7 +7,7 @@ Virtually all autoregressive models are trained with the singular objective of n
 
 Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token because of the attention mechanism. Yet, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I restrict planning to whatever happens in a single forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
 
-This project explores how planning many steps beyond the next token can be formulated as an objective function, in addition to the regular next token prediction. The (perhaps antropomorphic) intuition is that deliberate planning will improve downstream next token prediction. After all, planning for n future tokens includes the next token.
+This project explores how planning many steps beyond the next token can be formulated as an objective function, in addition to the regular next token prediction. Why planning? The (perhaps antropomorphic) intuition is that deliberate planning will improve downstream next token prediction. After all, planning for n future tokens includes the next token. Why as new objective function though? Because that is the easiest and best way to induce any model behavior.
 
 ## Architecture
 
@@ -38,11 +38,13 @@ When transitioning from encoder to decoder, the input to the first decoder layer
 
 ### Future loss
 
-To improve the model's planning abilities, an explicit objective function must be added. As for any objective function, you need: 1) model output, 2) ground truth, and 3) a minimization function.
+To improve the model's planning abilities, an explicit objective function must be added. Like any objective function, you need: 1) model output, 2) ground truth, and 3) a minimization function.
 
 For 1), first note that it is hard to make one output fulfill two predictive functions, so we need a different output than the one used for next token prediction. Furthermore, this output must be used by the model to produce the downstream next token prediction output, so it must be play an important role in the computational graph. In a decoder-only transformer, your choice is basically a hidden state, which is too transient. Or you can do something more complicated but risk bloating the model and hinder the gradient flow. However, in an encoder-decoder transformer, there are two natural distinct outputs, and the decoder attends to the encoder output in every single layer. Indeed, planning may be viewed as an extension of understanding, which is the focus of the encoder. Therefore, the encoder output is the model output used for the planning objective function.
 
-For 2), we need to define what it means to plan ahead such that it is compatible with deep learning. The easiest and best way to define any model behavior is as a prediction. Prediction of what? A plan is too vague to work with. Remember, though, that transformers are excellent at contextual understanding, more so in the encoder layers. Normally, the contextual understanding of any hidden state $h_{t}$ spans from token $x_t$ to $x_1$, but that can be extended it to include future tokens as well. So we define plan prediction as predicting the context that spans from from $x_1$ to $x_{t+n}$, where $n$ is a hyperparameter. Now, we need to generate ground truth for these future contexts. Here, we must observe that all the transformations that occur in our encoder layers amount to an aggregation of the model input embeddings in a different latent space. Hence, we can expect an affinity between encoder output and a more direct agggregation of the model input embeddings. Thus, future context can be constructed from the aggregation of model input embeddings.
+For 2), we need to express planning as an output that the model can predict. Remember that transformers are excellent at contextual understanding, more so in the encoder layers of an encoder-decoder transformer. Normally, the contextual understanding of any hidden state $h_{t}$ spans from token $x_t$ to $x_1$, but nothing precludes it from being extended to include future tokens as well. Hence, we define planning as predicting the context that spans from from $x_1$ to $x_{t+n}$, where $n$ is a hyperparameter. 
+
+Next, we need to generate ground truth for these future contexts. Here, observe that all the transformations that occur in encoder layers amount to an aggregation of the model input embeddings in a different latent space. Hence, we can expect an affinity between encoder output and a more direct agggregation of the model input embeddings. Thus, future context can be constructed from the aggregation of model input embeddings.
 
 Finally, once the future contexts are constructed, then the objective function is defined as the following minimization. 
 
