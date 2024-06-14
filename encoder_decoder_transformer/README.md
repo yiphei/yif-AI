@@ -148,7 +148,7 @@ Two more baselines are compared: "smaller baseline" and "0.2 dropout baseline". 
 These are some further things to look forward to:
 - experiment with unequal encoder and decoder layers, ideally allowing the model to learn it 
 - instead of MSE and cosine dissimilarity, some other disaffinity scores should be experimented with
-- the cumulative embedding average $E_{avg\\\_sum}$ assumes equal contribution from every preceding token, so a different aggregation might be better (maybe convolution or even matrix multiplication?). Furthermore, it should be explored if this aggregation weighting can be learned by the model
+- LayerNorm normalization of $E$ before averaging allows the model to learn non-uniform aggregation of $E$. It's worth exploring other ways to do so, like convolution or even plain matmul
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
 - try different datasets
