@@ -49,24 +49,26 @@ In the canonical decoder-encoder model, the loss function is evaluated over the 
 
 Since the encoder better captures contextual understanding, the encoder output may be interpreted as representing contextual embeddings. Furthermore, it should be observed that all the transformations that occur in the encoder amount to an aggregation of the model input embeddings in a different latent space. Therefore, it is reasonable to expect some affinity between the encoder output and a more direct aggregation of the model input embeddings. This affinity is precisely what the embedding loss tries to maximize, or in minimization terms, it tries to minimize the disaffinity.
 
-There are many ways to directly aggregate model input embeddings to generate contextual embeddings, but the easiest is just an average. Given the full embedding (token + positional) ${E}$ of the input, the model computes the cumulative average of ${E}$ along the token dimension (i.e. T dimension). Then, the embedding loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally,
+There are many ways to directly aggregate model input embeddings to generate contextual embeddings, but the easiest is just an average. Given the full embedding (token + positional) $E$ of the model input and encoder output $out_{enc}$, they are both first normalized with a LayerNorm pass to become $E_{ln}$ and $out_{enc\\\_ln}$, respectively. Crucially, the LayerNorm normalization of $E$ before the averaging does allow the model to learn a non-uniform aggregation of $E$. Then, the model computes the cumulative average of $E_{ln}$ along the token dimension (i.e. T dimension). Finally, the embedding loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally,
 
 $$
 \begin{aligned}
 & out_{enc} \coloneqq \text{encoder output (detached)} \\
 & E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
-& E_{avg\\\_sum} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{avg\\\_sum_{(i,j)}} = \frac{1}{i} \sum_{z}^{i}E_{z,j} \\
-& embedding\\\_loss = disaffinity\\\_score(out_{enc}, E_{avg\\\_sum})
+& E_{ln} = LayerNorm(E)\\
+& out_{enc\\\_ln} = LayerNorm(out_{enc})\\
+& E_{avg\\\_sum} \coloneqq \text{cumulative average of }E_{ln}\text{ along T dimension, where } E_{avg\\\_sum_{(i,j)}} = \frac{1}{i} \sum_{z}^{i}E_{ln_{z,j}} \\
+& embedding\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{avg\\\_sum})
 \end{aligned}
 $$
 
 Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is just
 
-$$embedding\\\_loss = MSE(out_{enc}, E_{avg\\\_sum})$$
+$$embedding\\\_loss = MSE(out_{enc\\\_ln}, E_{avg\\\_sum})$$
 
 and the embedding loss with cosine dissimilarity is
 
-$$embedding\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc}, E_{avg\\\_sum}) + 1}{2}$$
+$$embedding\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{avg\\\_sum}) + 1}{2}$$
 
 ## Results
 
