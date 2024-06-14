@@ -11,7 +11,7 @@ parameters:
             use_bias:
                 value: False
             context_size:
-                value: 400
+                value: 600
             n_embed: 
                 value: 150
             n_layer: 
@@ -21,7 +21,7 @@ parameters:
             dropout_rate:
                 value: 0
             future_context_size:
-                values: [15, 25]
+                values: [5, 10]
             present_embed_normalization_type:
                 value: 1
             cross_attn_config:
