@@ -5,7 +5,7 @@ Virtually all autoregressive models are trained with the singular objective of n
 
 ## Motivations
 
-Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token because of the attention mechanism. Yet, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I restrict planning to whatever happens in a single forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
+Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token because of the attention mechanism. Yet, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I restrict planning to whatever happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
 
 This project explores how planning many steps beyond the next token can be formulated as an objective function, in addition to the regular next token prediction. Why planning? The (perhaps antropomorphic) intuition is that deliberate planning will improve downstream next token prediction. After all, planning for $n$ future tokens includes the next token. Why as new objective function though? Because that is the easiest and best way to induce any model behavior.
 
