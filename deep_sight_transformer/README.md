@@ -48,8 +48,8 @@ For 2), it requires generating ground truth for these "future" contexts. Since t
 
 $$
 \begin{aligned}
-& out_{enc} \coloneqq \text{encoder output (detached)} \\
-& E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
+& out_{enc} \coloneqq \text{encoder output} \\
+& E \coloneqq \text{model input embedding (detached), comprised of token and positional embedding} \\
 & n \coloneqq \text{hyperparameter for how many future tokens the model should plan for, inclusive of next token} \\
 & out_{enc\\\_ln} = LayerNorm(out_{enc})\\\\[0.5cm]
 & E_{present\\\_aggr} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present\\\_aggr_{(i,j)}} = \frac{1}{i} \sum_{z=0}^{i}E_{z,j} \\
