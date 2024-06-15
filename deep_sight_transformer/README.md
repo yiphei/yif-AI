@@ -53,7 +53,7 @@ $$
 & n \coloneqq \text{hyperparameter for how many future tokens the model should plan for, inclusive of next token} \\
 & out_{enc\\\_ln} = LayerNorm(out_{enc})\\\\[0.5cm]
 & E_{present\\\_aggr} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present\\\_aggr_{(i,j)}} = \frac{1}{i} \sum_{z=0}^{i}E_{z,j} \\
-& E_{future_aggr} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future\\\_aggr_{(i,j)}} = \sum_{z=1}^{z+n}z^{-1}E_{i+z,j} \\
+& E_{future\\\_aggr} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future\\\_aggr_{(i,j)}} = \sum_{z=1}^{z+n}z^{-1}E_{i+z,j} \\
 & E_{full} = \frac{E_{present\\\_aggr} +  E_{future_aggr}}{2} \\
 & embedding\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{full})
 \end{aligned}
