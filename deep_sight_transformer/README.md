@@ -55,7 +55,7 @@ $$
 & E_{present\\\_aggr} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present\\\_aggr_{(i,j)}} = \frac{1}{i} \sum_{z=0}^{i}E_{z,j} \\
 & E_{future\\\_aggr} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future\\\_aggr_{(i,j)}} = \sum_{z=1}^{z+n-1}z^{-1}\cdot E_{i+z,j} \\
 & E_{full} = \frac{E_{present\\\_aggr} +  E_{future\\\_aggr}}{2} \\
-& embedding\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{full})
+& future\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{full})
 \end{aligned}
 $$
 
