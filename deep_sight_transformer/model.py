@@ -104,7 +104,7 @@ class CrossAttentionConfig:
     n_head: int
 
 
-class PresentEmbedNormalizationType(str, Enum):
+class PresentFutureContextAggregationType(str, Enum):
     EQUAL = "EQUAL"
     CONTEXT_SIZE = "CONTEXT_SIZE"
     NONE = "NONE"
@@ -115,13 +115,13 @@ class PresentEmbedNormalizationType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return PresentEmbedNormalizationType.EQUAL
+            return PresentFutureContextAggregationType.EQUAL
         elif num == 2:
-            return PresentEmbedNormalizationType.CONTEXT_SIZE
+            return PresentFutureContextAggregationType.CONTEXT_SIZE
         elif num == 3:
-            return PresentEmbedNormalizationType.NONE
+            return PresentFutureContextAggregationType.NONE
         else:
-            raise ValueError("Invalid encoder embed layer norm type number")
+            raise ValueError("Invalid PresentFutureContextAggregationType type number")
 
 
 @dataclass
@@ -129,7 +129,7 @@ class ModelConfig(BaseModelConfig):
     future_context_size: (
         int  # this is the size of the future context beyond the next token
     )
-    present_embed_normalization_type: Union[PresentEmbedNormalizationType, int]
+    present_future_context_aggregation_type: Union[PresentFutureContextAggregationType, int]
     cross_attn_config: CrossAttentionConfig = None
     encoder_loss_type: Union[EncoderLossType, int] = EncoderLossType.MSE
     encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
@@ -145,10 +145,10 @@ class ModelConfig(BaseModelConfig):
 
     def __post_init__(self):
         assert 0 < self.future_context_size < self.context_size - 1
-        if type(self.present_embed_normalization_type) == int:
-            self.present_embed_normalization_type = (
-                PresentEmbedNormalizationType.get_type_from_int(
-                    self.present_embed_normalization_type
+        if type(self.present_future_context_aggregation_type) == int:
+            self.present_future_context_aggregation_type = (
+                PresentFutureContextAggregationType.get_type_from_int(
+                    self.present_future_context_aggregation_type
                 )
             )
         if type(self.future_aggregation_type) == int:
@@ -377,10 +377,10 @@ class DeepSight(BaseModel):
             self.register_buffer("gamma", gamma)
 
             if (
-                self.config.present_embed_normalization_type
-                != PresentEmbedNormalizationType.NONE
+                self.config.present_future_context_aggregation_type
+                != PresentFutureContextAggregationType.NONE
             ):
-                if self.config.present_embed_normalization_type == PresentEmbedNormalizationType.CONTEXT_SIZE:
+                if self.config.present_future_context_aggregation_type == PresentFutureContextAggregationType.CONTEXT_SIZE:
                     present_normalization_weights = torch.arange(
                         1,
                         self.future_1_dim + 1,
@@ -398,7 +398,7 @@ class DeepSight(BaseModel):
                     future_normalization_weights /= normalization_sum
                     present_normalization_weights = present_normalization_weights.unsqueeze(0).unsqueeze(-1)
                     future_normalization_weights = future_normalization_weights.unsqueeze(0).unsqueeze(-1)
-                elif self.config.present_embed_normalization_type == PresentEmbedNormalizationType.EQUAL:
+                elif self.config.present_future_context_aggregation_type == PresentFutureContextAggregationType.EQUAL:
                     present_normalization_weights = torch.tensor(0.5)
                     future_normalization_weights = torch.tensor(0.5)
 
@@ -459,7 +459,7 @@ class DeepSight(BaseModel):
                 encoder_embed = self.encoder_embed_ln_1(encoder_embed)
 
             future_embed = self.gamma @ encoder_embed[:, 1:, :]
-            if self.config.present_embed_normalization_type != PresentEmbedNormalizationType.NONE:
+            if self.config.present_future_context_aggregation_type != PresentFutureContextAggregationType.NONE:
                 cum_sum = torch.cumsum(
                     encoder_embed[:, : -self.actual_future_window, :], dim=-2
                 )
