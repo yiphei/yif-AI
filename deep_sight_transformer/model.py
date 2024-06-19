@@ -341,14 +341,14 @@ class DeepSight(BaseModel):
                 FutureContextAggregationType.DECAY,
                 FutureContextAggregationType.DECAY_W_NORMALIZE,
             ]:
-                values = torch.arange(1, config.context_size).unsqueeze(0)
-                gamma = values.repeat(self.future_1_dim, 1)
+                future_context_weights = torch.arange(1, config.context_size).unsqueeze(0)
+                future_context_weights = future_context_weights.repeat(self.future_1_dim, 1)
                 shift = torch.arange(self.future_1_dim).unsqueeze(1)
-                gamma = gamma - shift
-                gamma = gamma.to(dtype=torch.float32)
-                gamma = gamma**-1
+                future_context_weights = future_context_weights - shift
+                future_context_weights = future_context_weights.to(dtype=torch.float32)
+                future_context_weights = future_context_weights**-1
             elif self.config.future_context_aggregation_type == FutureContextAggregationType.AVG:
-                gamma = torch.full(
+                future_context_weights = torch.full(
                     (
                         self.future_1_dim,
                         self.future_2_dim,
@@ -369,14 +369,14 @@ class DeepSight(BaseModel):
                 diagonal=self.actual_future_window,
             )
 
-            gamma = gamma.masked_fill(mask == 1, 0)
+            future_context_weights = future_context_weights.masked_fill(mask == 1, 0)
             if (
                 self.config.future_context_aggregation_type
                 == FutureContextAggregationType.DECAY_W_NORMALIZE
             ):
-                gamma = gamma / gamma.sum(dim=-1, keepdim=True)
+                future_context_weights = future_context_weights / future_context_weights.sum(dim=-1, keepdim=True)
 
-            self.register_buffer("gamma", gamma)
+            self.register_buffer("future_context_weights", future_context_weights)
 
             if (
                 self.config.present_future_context_aggregation_type
@@ -468,7 +468,7 @@ class DeepSight(BaseModel):
             ]:
                 encoder_embed = self.encoder_embed_ln_1(encoder_embed)
 
-            future_embed = self.gamma @ encoder_embed[:, 1:, :]
+            future_embed = self.future_context_weights @ encoder_embed[:, 1:, :]
             if (
                 self.config.present_future_context_aggregation_type
                 != PresentFutureContextAggregationType.NONE
