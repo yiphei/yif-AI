@@ -78,7 +78,7 @@ class EncoderEmbedLayerNormType(str, Enum):
             raise ValueError("Invalid encoder embed layer norm type number")
 
 
-class FutureAggregationType(str, Enum):
+class FutureContextAggregationType(str, Enum):
     AVG = "AVG"
     DECAY = "DECAY"
     DECAY_W_NORMALIZE = "DECAY_W_NORMALIZE"
@@ -89,13 +89,13 @@ class FutureAggregationType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return FutureAggregationType.AVG
+            return FutureContextAggregationType.AVG
         elif num == 2:
-            return FutureAggregationType.DECAY
+            return FutureContextAggregationType.DECAY
         elif num == 3:
-            return FutureAggregationType.DECAY_W_NORMALIZE
+            return FutureContextAggregationType.DECAY_W_NORMALIZE
         else:
-            raise ValueError("Invalid encoder embed layer norm type number")
+            raise ValueError("Invalid FutureContextAggregationType type number")
 
 
 @dataclass
@@ -141,8 +141,8 @@ class ModelConfig(BaseModelConfig):
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
         EncoderEmbedLayerNormType.PRE_AGGR
     )
-    future_aggregation_type: Optional[Union[FutureAggregationType, int]] = (
-        FutureAggregationType.DECAY
+    future_context_aggregation_type: Optional[Union[FutureContextAggregationType, int]] = (
+        FutureContextAggregationType.DECAY
     )
 
     def __post_init__(self):
@@ -153,9 +153,9 @@ class ModelConfig(BaseModelConfig):
                     self.present_future_context_aggregation_type
                 )
             )
-        if type(self.future_aggregation_type) == int:
-            self.future_aggregation_type = FutureAggregationType.get_type_from_int(
-                self.future_aggregation_type
+        if type(self.future_context_aggregation_type) == int:
+            self.future_context_aggregation_type = FutureContextAggregationType.get_type_from_int(
+                self.future_context_aggregation_type
             )
         if type(self.encoder_loss_type) == int:
             self.encoder_loss_type = EncoderLossType.get_type_from_int(
@@ -177,12 +177,12 @@ class ModelConfig(BaseModelConfig):
                 assert self.encoder_loss_coeff > 0
             assert self.encoder_embed_ln_type is not None
             assert self.encoder_loss_detach_type is not None
-            assert self.future_aggregation_type is not None
+            assert self.future_context_aggregation_type is not None
         else:
             assert self.encoder_loss_coeff is None
             assert self.encoder_embed_ln_type is None
             assert self.encoder_loss_detach_type is None
-            assert self.future_aggregation_type is None
+            assert self.future_context_aggregation_type is None
 
         if type(self.cross_attn_config) == dict:
             self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
@@ -337,9 +337,9 @@ class DeepSight(BaseModel):
             # this is the total future context including the next token
             self.future_2_dim = config.context_size - 1
             self.actual_future_window = self.config.future_context_size + 1
-            if self.config.future_aggregation_type in [
-                FutureAggregationType.DECAY,
-                FutureAggregationType.DECAY_W_NORMALIZE,
+            if self.config.future_context_aggregation_type in [
+                FutureContextAggregationType.DECAY,
+                FutureContextAggregationType.DECAY_W_NORMALIZE,
             ]:
                 values = torch.arange(1, config.context_size).unsqueeze(0)
                 gamma = values.repeat(self.future_1_dim, 1)
@@ -347,7 +347,7 @@ class DeepSight(BaseModel):
                 gamma = gamma - shift
                 gamma = gamma.to(dtype=torch.float32)
                 gamma = gamma**-1
-            elif self.config.future_aggregation_type == FutureAggregationType.AVG:
+            elif self.config.future_context_aggregation_type == FutureContextAggregationType.AVG:
                 gamma = torch.full(
                     (
                         self.future_1_dim,
@@ -371,8 +371,8 @@ class DeepSight(BaseModel):
 
             gamma = gamma.masked_fill(mask == 1, 0)
             if (
-                self.config.future_aggregation_type
-                == FutureAggregationType.DECAY_W_NORMALIZE
+                self.config.future_context_aggregation_type
+                == FutureContextAggregationType.DECAY_W_NORMALIZE
             ):
                 gamma = gamma / gamma.sum(dim=-1, keepdim=True)
 
