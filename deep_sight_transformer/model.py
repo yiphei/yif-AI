@@ -130,7 +130,6 @@ class ModelConfig(BaseModelConfig):
         Union[PresentEmbedNormalizationType, int]
     ]
     cross_attn_config: CrossAttentionConfig = None
-    use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
     encoder_loss_type: Union[EncoderLossType, int] = EncoderLossType.MSE
     encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
@@ -174,13 +173,11 @@ class ModelConfig(BaseModelConfig):
                 self.encoder_loss_coeff = 1.0
             else:
                 assert self.encoder_loss_coeff > 0
-            assert self.use_ln_on_encoder_out is not None
             assert self.encoder_embed_ln_type is not None
             assert self.encoder_loss_detach_type is not None
             assert self.future_aggregation_type is not None
         else:
             assert self.encoder_loss_coeff is None
-            assert self.use_ln_on_encoder_out is None
             assert self.encoder_embed_ln_type is None
             assert self.encoder_loss_detach_type is None
             assert self.future_aggregation_type is None
@@ -316,8 +313,7 @@ class DeepSight(BaseModel):
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
 
-        if self.config.use_ln_on_encoder_out:
-            self.encoder_out_ln = LayerNorm(config.n_embed, True)
+        self.encoder_out_ln = LayerNorm(config.n_embed, True)
         if self.config.encoder_embed_ln_type in [
             EncoderEmbedLayerNormType.PRE_AGGR,
             EncoderEmbedLayerNormType.BOTH,
@@ -452,8 +448,7 @@ class DeepSight(BaseModel):
             ):
                 encoder_out = encoder_out.detach()
 
-            if self.config.use_ln_on_encoder_out:
-                encoder_out = self.encoder_out_ln(encoder_out)
+            encoder_out = self.encoder_out_ln(encoder_out)
 
             if self.config.encoder_embed_ln_type in [
                 EncoderEmbedLayerNormType.PRE_AGGR,
