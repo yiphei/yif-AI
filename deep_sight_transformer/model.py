@@ -133,7 +133,9 @@ class ModelConfig(BaseModelConfig):
         PresentFutureContextAggregationType, int
     ]
     cross_attn_config: CrossAttentionConfig = None
-    future_context_loss_type: Union[FutureContextLossType, int] = FutureContextLossType.MSE
+    future_context_loss_type: Union[FutureContextLossType, int] = (
+        FutureContextLossType.MSE
+    )
     encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
         EncoderLossDetachType.ENCODER_OUT
     )
@@ -141,9 +143,9 @@ class ModelConfig(BaseModelConfig):
     future_context_ln_type: Optional[Union[FutureContextLayerNormType, int]] = (
         FutureContextLayerNormType.PRE_AGGR
     )
-    future_context_aggregation_type: Optional[Union[FutureContextAggregationType, int]] = (
-        FutureContextAggregationType.DECAY
-    )
+    future_context_aggregation_type: Optional[
+        Union[FutureContextAggregationType, int]
+    ] = FutureContextAggregationType.DECAY
 
     def __post_init__(self):
         assert 0 < self.future_context_size < self.context_size - 1
@@ -154,8 +156,10 @@ class ModelConfig(BaseModelConfig):
                 )
             )
         if type(self.future_context_aggregation_type) == int:
-            self.future_context_aggregation_type = FutureContextAggregationType.get_type_from_int(
-                self.future_context_aggregation_type
+            self.future_context_aggregation_type = (
+                FutureContextAggregationType.get_type_from_int(
+                    self.future_context_aggregation_type
+                )
             )
         if type(self.future_context_loss_type) == int:
             self.future_context_loss_type = FutureContextLossType.get_type_from_int(
@@ -341,13 +345,20 @@ class DeepSight(BaseModel):
                 FutureContextAggregationType.DECAY,
                 FutureContextAggregationType.DECAY_W_NORMALIZE,
             ]:
-                future_context_weights = torch.arange(1, config.context_size).unsqueeze(0)
-                future_context_weights = future_context_weights.repeat(self.future_1_dim, 1)
+                future_context_weights = torch.arange(1, config.context_size).unsqueeze(
+                    0
+                )
+                future_context_weights = future_context_weights.repeat(
+                    self.future_1_dim, 1
+                )
                 shift = torch.arange(self.future_1_dim).unsqueeze(1)
                 future_context_weights = future_context_weights - shift
                 future_context_weights = future_context_weights.to(dtype=torch.float32)
                 future_context_weights = future_context_weights**-1
-            elif self.config.future_context_aggregation_type == FutureContextAggregationType.AVG:
+            elif (
+                self.config.future_context_aggregation_type
+                == FutureContextAggregationType.AVG
+            ):
                 future_context_weights = torch.full(
                     (
                         self.future_1_dim,
@@ -374,7 +385,10 @@ class DeepSight(BaseModel):
                 self.config.future_context_aggregation_type
                 == FutureContextAggregationType.DECAY_W_NORMALIZE
             ):
-                future_context_weights = future_context_weights / future_context_weights.sum(dim=-1, keepdim=True)
+                future_context_weights = (
+                    future_context_weights
+                    / future_context_weights.sum(dim=-1, keepdim=True)
+                )
 
             self.register_buffer("future_context_weights", future_context_weights)
 
@@ -396,15 +410,17 @@ class DeepSight(BaseModel):
                         self.actual_future_window,
                         dtype=torch.float32,
                     )
-                    normalization_sum = merge_present_context_weights + merge_future_context_weights
+                    normalization_sum = (
+                        merge_present_context_weights + merge_future_context_weights
+                    )
                     merge_present_context_weights /= normalization_sum
                     merge_future_context_weights /= normalization_sum
-                    merge_present_context_weights = merge_present_context_weights.unsqueeze(
-                        0
-                    ).unsqueeze(-1)
-                    merge_future_context_weights = merge_future_context_weights.unsqueeze(
-                        0
-                    ).unsqueeze(-1)
+                    merge_present_context_weights = (
+                        merge_present_context_weights.unsqueeze(0).unsqueeze(-1)
+                    )
+                    merge_future_context_weights = (
+                        merge_future_context_weights.unsqueeze(0).unsqueeze(-1)
+                    )
                 elif (
                     self.config.present_future_context_aggregation_type
                     == PresentFutureContextAggregationType.EQUAL
@@ -447,7 +463,10 @@ class DeepSight(BaseModel):
 
         decoder_out = self.ln(decoder_x)
 
-        if self.training and self.config.future_context_loss_type != FutureContextLossType.NONE:
+        if (
+            self.training
+            and self.config.future_context_loss_type != FutureContextLossType.NONE
+        ):
             encoder_out = encoder_out[:, : -self.actual_future_window, :]
             if (
                 self.config.encoder_loss_detach_type
@@ -499,14 +518,23 @@ class DeepSight(BaseModel):
                 self.scaled_future_context_loss = (
                     self.future_context_loss * self.config.future_context_loss_coeff
                 )
-            elif self.config.future_context_loss_type == FutureContextLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(future_context_embed, encoder_out, dim=-1)
+            elif (
+                self.config.future_context_loss_type == FutureContextLossType.COSINE_SIM
+            ):
+                cosine_sim = F.cosine_similarity(
+                    future_context_embed, encoder_out, dim=-1
+                )
                 self.future_context_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_future_context_loss = (
                     self.future_context_loss * self.config.future_context_loss_coeff
                 )
-            elif self.config.future_context_loss_type == FutureContextLossType.LOG_COSINE_SIM:
-                cosine_sim = F.cosine_similarity(future_context_embed, encoder_out, dim=-1)
+            elif (
+                self.config.future_context_loss_type
+                == FutureContextLossType.LOG_COSINE_SIM
+            ):
+                cosine_sim = F.cosine_similarity(
+                    future_context_embed, encoder_out, dim=-1
+                )
                 self.future_context_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_future_context_loss = (
                     self.future_context_loss * self.config.future_context_loss_coeff
