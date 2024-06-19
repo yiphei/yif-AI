@@ -304,19 +304,19 @@ class DeepSight(BaseModel):
 
         if self.config.future_context_loss_type != FutureContextLossType.NONE:
             # this is how many future contexts can be used
-            self.future_1_dim = config.context_size - self.config.future_context_size
-            self.future_2_dim = config.context_size - 1
+            self.future_context_weights_dim_1 = config.context_size - self.config.future_context_size
+            self.future_context_weights_dim_2 = config.context_size - 1
             if self.config.future_context_aggregation_type in [
                 FutureContextAggregationType.DECAY,
                 FutureContextAggregationType.DECAY_W_NORMALIZE,
             ]:
-                future_context_weights = torch.arange(1, config.context_size).unsqueeze(
+                future_context_weights = torch.arange(1, self.future_context_weights_dim_2 + 1).unsqueeze(
                     0
                 )
                 future_context_weights = future_context_weights.repeat(
-                    self.future_1_dim, 1
+                    self.future_context_weights_dim_1, 1
                 )
-                shift = torch.arange(self.future_1_dim).unsqueeze(1)
+                shift = torch.arange(self.future_context_weights_dim_1).unsqueeze(1)
                 future_context_weights = future_context_weights - shift
                 future_context_weights = future_context_weights.to(dtype=torch.float32)
                 future_context_weights = future_context_weights**-1
@@ -326,21 +326,21 @@ class DeepSight(BaseModel):
             ):
                 future_context_weights = torch.full(
                     (
-                        self.future_1_dim,
-                        self.future_2_dim,
+                        self.future_context_weights_dim_1,
+                        self.future_context_weights_dim_2,
                     ),
                     1 / (self.config.future_context_size),
                 )
             mask = torch.tril(
                 torch.ones(
-                    self.future_1_dim,
-                    self.future_2_dim,
+                    self.future_context_weights_dim_1,
+                    self.future_context_weights_dim_2,
                 ),
                 diagonal=-1,
             ) + torch.triu(
                 torch.ones(
-                    self.future_1_dim,
-                    self.future_2_dim,
+                    self.future_context_weights_dim_1,
+                    self.future_context_weights_dim_2,
                 ),
                 diagonal=self.config.future_context_size,
             )
@@ -367,11 +367,11 @@ class DeepSight(BaseModel):
                 ):
                     merge_present_context_weights = torch.arange(
                         1,
-                        self.future_1_dim + 1,
+                        self.future_context_weights_dim_1 + 1,
                         dtype=torch.float32,
                     )
                     merge_future_context_weights = torch.full(
-                        (self.future_1_dim,),
+                        (self.future_context_weights_dim_1,),
                         self.config.future_context_size,
                         dtype=torch.float32,
                     )
