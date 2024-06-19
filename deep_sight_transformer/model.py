@@ -389,11 +389,7 @@ class DeepSight(BaseModel):
                     future_context_weights = torch.full(
                         (self.future_1_dim,), self.actual_future_window, dtype=torch.float32
                     )
-                    normalization_sum = torch.arange(
-                        1 + self.actual_future_window,
-                        self.future_1_dim + 1 + self.actual_future_window,
-                        dtype=torch.float32,
-                    )
+                    normalization_sum = present_context_weights + future_context_weights
                     present_context_weights /= normalization_sum
                     future_context_weights /= normalization_sum
                     present_context_weights = present_context_weights.unsqueeze(0).unsqueeze(-1)
