@@ -107,7 +107,7 @@ class PresentFutureContextAggregationType(str, Enum):
 @dataclass
 class ModelConfig(BaseModelConfig):
     future_context_size: (
-        int  # this is the size of the future context beyond the next token
+        int  # this is the size of the future context
     )
     present_future_context_aggregation_type: Union[
         PresentFutureContextAggregationType, int
@@ -125,7 +125,7 @@ class ModelConfig(BaseModelConfig):
     ] = FutureContextAggregationType.DECAY
 
     def __post_init__(self):
-        assert 0 < self.future_context_size < self.context_size - 1
+        assert 1 < self.future_context_size < self.context_size
         if type(self.present_future_context_aggregation_type) == int:
             self.present_future_context_aggregation_type = (
                 PresentFutureContextAggregationType.get_type_from_int(
@@ -307,11 +307,9 @@ class DeepSight(BaseModel):
         if self.config.future_context_loss_type != FutureContextLossType.NONE:
             # this is how many future contexts can be used
             self.future_1_dim = (
-                config.context_size - self.config.future_context_size - 1
+                config.context_size - self.config.future_context_size
             )
-            # this is the total future context including the next token
             self.future_2_dim = config.context_size - 1
-            self.actual_future_window = self.config.future_context_size + 1
             if self.config.future_context_aggregation_type in [
                 FutureContextAggregationType.DECAY,
                 FutureContextAggregationType.DECAY_W_NORMALIZE,
@@ -335,7 +333,7 @@ class DeepSight(BaseModel):
                         self.future_1_dim,
                         self.future_2_dim,
                     ),
-                    1 / (self.actual_future_window),
+                    1 / (self.config.future_context_size),
                 )
             mask = torch.tril(
                 torch.ones(
@@ -348,7 +346,7 @@ class DeepSight(BaseModel):
                     self.future_1_dim,
                     self.future_2_dim,
                 ),
-                diagonal=self.actual_future_window,
+                diagonal=self.config.future_context_size,
             )
 
             future_context_weights = future_context_weights.masked_fill(mask == 1, 0)
@@ -378,7 +376,7 @@ class DeepSight(BaseModel):
                     )
                     merge_future_context_weights = torch.full(
                         (self.future_1_dim,),
-                        self.actual_future_window,
+                        self.config.future_context_size,
                         dtype=torch.float32,
                     )
                     normalization_sum = (
@@ -438,7 +436,7 @@ class DeepSight(BaseModel):
             self.training
             and self.config.future_context_loss_type != FutureContextLossType.NONE
         ):
-            encoder_out = encoder_out[:, : -self.actual_future_window, :]
+            encoder_out = encoder_out[:, : -self.config.future_context_size, :]
             encoder_out = self.encoder_out_ln(encoder_out)
 
             encoder_embed = encoder_embed.detach()
@@ -455,7 +453,7 @@ class DeepSight(BaseModel):
                 != PresentFutureContextAggregationType.NONE
             ):
                 cum_sum = torch.cumsum(
-                    encoder_embed[:, : -self.actual_future_window, :], dim=-2
+                    encoder_embed[:, : -self.config.future_context_size, :], dim=-2
                 )
                 present_context_embed = cum_sum / torch.arange(
                     1,

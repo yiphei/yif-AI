@@ -5,7 +5,7 @@ N_LAYER = 3
 N_HEAD = 3
 USE_BIAS = False
 DROPOUT_RATE = 0
-future_context_size = 5
+future_context_size = 6
 present_future_context_aggregation_type = 2
 
 # Training config
