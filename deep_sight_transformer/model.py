@@ -95,7 +95,7 @@ class FutureContextAggregationType(str, Enum):
         elif num == 3:
             return FutureContextAggregationType.DECAY_W_NORMALIZE
         else:
-            raise ValueError("Invalid FutureContextAggregationType type number")
+            raise ValueError("Invalid FutureContextAggregationType number")
 
 
 @dataclass
@@ -121,7 +121,7 @@ class PresentFutureContextAggregationType(str, Enum):
         elif num == 3:
             return PresentFutureContextAggregationType.NONE
         else:
-            raise ValueError("Invalid PresentFutureContextAggregationType type number")
+            raise ValueError("Invalid PresentFutureContextAggregationType number")
 
 
 @dataclass
