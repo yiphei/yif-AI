@@ -271,17 +271,17 @@ class DecoderTransformerBlock(nn.Module):
         self.decoder_ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, encoder_x, decoder_x):
+    def forward(self, encoder_out, decoder_x):
         if self.order_type == OrderType.ORIGINAL:
             decoder_x = decoder_x + self.decoder_multi_attn_head(
                 self.decoder_ln1(decoder_x)
             )
             decoder_x = decoder_x + self.cross_multi_attn_head(
-                self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
+                self.encoder_cross_ln(encoder_out), self.decoder_cross_ln(decoder_x)
             )
         elif self.order_type == OrderType.ALT:
             decoder_x = decoder_x + self.cross_multi_attn_head(
-                self.encoder_cross_ln(encoder_x), self.decoder_cross_ln(decoder_x)
+                self.encoder_cross_ln(encoder_out), self.decoder_cross_ln(decoder_x)
             )
             decoder_x = decoder_x + self.decoder_multi_attn_head(
                 self.decoder_ln1(decoder_x)
