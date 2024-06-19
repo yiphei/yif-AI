@@ -468,7 +468,7 @@ class DeepSight(BaseModel):
             ]:
                 encoder_embed = self.encoder_embed_ln_1(encoder_embed)
 
-            future_embed = self.future_context_weights @ encoder_embed[:, 1:, :]
+            future_context_embed = self.future_context_weights @ encoder_embed[:, 1:, :]
             if (
                 self.config.present_future_context_aggregation_type
                 != PresentFutureContextAggregationType.NONE
@@ -476,37 +476,37 @@ class DeepSight(BaseModel):
                 cum_sum = torch.cumsum(
                     encoder_embed[:, : -self.actual_future_window, :], dim=-2
                 )
-                present_embed = cum_sum / torch.arange(
+                present_context_embed = cum_sum / torch.arange(
                     1,
                     cum_sum.shape[1] + 1,
                     dtype=torch.long,
                     device=device,
                 ).unsqueeze(0).unsqueeze(-1)
-                future_embed = (
-                    future_embed * self.merge_future_context_weights
-                    + present_embed * self.merge_present_context_weights
+                future_context_embed = (
+                    future_context_embed * self.merge_future_context_weights
+                    + present_context_embed * self.merge_present_context_weights
                 )
             if self.config.encoder_embed_ln_type in [
                 EncoderEmbedLayerNormType.POST_AGGR,
                 EncoderEmbedLayerNormType.BOTH,
             ]:
-                future_embed = self.encoder_embed_ln_2(future_embed)
+                future_context_embed = self.encoder_embed_ln_2(future_context_embed)
 
             if self.config.encoder_loss_type == EncoderLossType.MSE:
                 self.encoder_loss = F.mse_loss(
-                    future_embed, encoder_out, reduction="mean"
+                    future_context_embed, encoder_out, reduction="mean"
                 )
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_loss_coeff
                 )
             elif self.config.encoder_loss_type == EncoderLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(future_embed, encoder_out, dim=-1)
+                cosine_sim = F.cosine_similarity(future_context_embed, encoder_out, dim=-1)
                 self.encoder_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_loss_coeff
                 )
             elif self.config.encoder_loss_type == EncoderLossType.LOG_COSINE_SIM:
-                cosine_sim = F.cosine_similarity(future_embed, encoder_out, dim=-1)
+                cosine_sim = F.cosine_similarity(future_context_embed, encoder_out, dim=-1)
                 self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_encoder_loss = (
                     self.encoder_loss * self.config.encoder_loss_coeff
