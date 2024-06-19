@@ -12,7 +12,7 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, TransformerBlock)
 
 
-class EncoderLossType(str, Enum):
+class FutureContextLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
     COSINE_SIM = "CONSINE_SIM"
@@ -24,15 +24,15 @@ class EncoderLossType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return EncoderLossType.NONE
+            return FutureContextLossType.NONE
         elif num == 2:
-            return EncoderLossType.MSE
+            return FutureContextLossType.MSE
         elif num == 3:
-            return EncoderLossType.COSINE_SIM
+            return FutureContextLossType.COSINE_SIM
         elif num == 4:
-            return EncoderLossType.LOG_COSINE_SIM
+            return FutureContextLossType.LOG_COSINE_SIM
         else:
-            raise ValueError("Invalid encoder embed loss type number")
+            raise ValueError("Invalid FutureContextLossType number")
 
 
 class EncoderLossDetachType(str, Enum):
@@ -133,7 +133,7 @@ class ModelConfig(BaseModelConfig):
         PresentFutureContextAggregationType, int
     ]
     cross_attn_config: CrossAttentionConfig = None
-    encoder_loss_type: Union[EncoderLossType, int] = EncoderLossType.MSE
+    future_context_loss_type: Union[FutureContextLossType, int] = FutureContextLossType.MSE
     encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
         EncoderLossDetachType.ENCODER_OUT
     )
@@ -157,9 +157,9 @@ class ModelConfig(BaseModelConfig):
             self.future_context_aggregation_type = FutureContextAggregationType.get_type_from_int(
                 self.future_context_aggregation_type
             )
-        if type(self.encoder_loss_type) == int:
-            self.encoder_loss_type = EncoderLossType.get_type_from_int(
-                self.encoder_loss_type
+        if type(self.future_context_loss_type) == int:
+            self.future_context_loss_type = FutureContextLossType.get_type_from_int(
+                self.future_context_loss_type
             )
         if type(self.encoder_loss_detach_type) == int:
             self.encoder_loss_detach_type = EncoderLossDetachType.get_type_from_int(
@@ -170,7 +170,7 @@ class ModelConfig(BaseModelConfig):
                 self.encoder_embed_ln_type
             )
 
-        if self.encoder_loss_type != EncoderLossType.NONE:
+        if self.future_context_loss_type != FutureContextLossType.NONE:
             if self.encoder_loss_coeff is None:
                 self.encoder_loss_coeff = 1.0
             else:
@@ -274,7 +274,7 @@ class DecoderTransformerBlock(nn.Module):
 
 class DeepSight(BaseModel):
     model_config_cls = ModelConfig
-    extra_stats = ["encoder_loss", "scaled_encoder_loss"]
+    extra_stats = ["future_context_loss", "scaled_future_context_loss"]
 
     def _init_model(self, config: ModelConfig):
         assert (
@@ -329,7 +329,7 @@ class DeepSight(BaseModel):
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
-        if self.config.encoder_loss_type != EncoderLossType.NONE:
+        if self.config.future_context_loss_type != FutureContextLossType.NONE:
             # this is how many future contexts can be used
             self.future_1_dim = (
                 config.context_size - self.config.future_context_size - 1
@@ -447,7 +447,7 @@ class DeepSight(BaseModel):
 
         decoder_out = self.ln(decoder_x)
 
-        if self.training and self.config.encoder_loss_type != EncoderLossType.NONE:
+        if self.training and self.config.future_context_loss_type != FutureContextLossType.NONE:
             encoder_out = encoder_out[:, : -self.actual_future_window, :]
             if (
                 self.config.encoder_loss_detach_type
@@ -492,27 +492,27 @@ class DeepSight(BaseModel):
             ]:
                 future_context_embed = self.encoder_embed_ln_2(future_context_embed)
 
-            if self.config.encoder_loss_type == EncoderLossType.MSE:
-                self.encoder_loss = F.mse_loss(
+            if self.config.future_context_loss_type == FutureContextLossType.MSE:
+                self.future_context_loss = F.mse_loss(
                     future_context_embed, encoder_out, reduction="mean"
                 )
-                self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_loss_coeff
+                self.scaled_future_context_loss = (
+                    self.future_context_loss * self.config.encoder_loss_coeff
                 )
-            elif self.config.encoder_loss_type == EncoderLossType.COSINE_SIM:
+            elif self.config.future_context_loss_type == FutureContextLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_context_embed, encoder_out, dim=-1)
-                self.encoder_loss = (1 - (cosine_sim + 1) / 2).mean()
-                self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_loss_coeff
+                self.future_context_loss = (1 - (cosine_sim + 1) / 2).mean()
+                self.scaled_future_context_loss = (
+                    self.future_context_loss * self.config.encoder_loss_coeff
                 )
-            elif self.config.encoder_loss_type == EncoderLossType.LOG_COSINE_SIM:
+            elif self.config.future_context_loss_type == FutureContextLossType.LOG_COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_context_embed, encoder_out, dim=-1)
-                self.encoder_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
-                self.scaled_encoder_loss = (
-                    self.encoder_loss * self.config.encoder_loss_coeff
+                self.future_context_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
+                self.scaled_future_context_loss = (
+                    self.future_context_loss * self.config.encoder_loss_coeff
                 )
             else:
-                raise ValueError("Invalid token loss type")
+                raise ValueError("Invalid future context loss type")
 
         if targets is None:
             loss = None
@@ -522,8 +522,8 @@ class DeepSight(BaseModel):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
-            if self.training and self.scaled_encoder_loss.numel() != 0:
-                loss += self.scaled_encoder_loss
+            if self.training and self.scaled_future_context_loss.numel() != 0:
+                loss += self.scaled_future_context_loss
 
         return (logits, loss)
 
