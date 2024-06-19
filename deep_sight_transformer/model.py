@@ -55,7 +55,7 @@ class EncoderLossDetachType(str, Enum):
             raise ValueError("Invalid encoder embed detatch type number")
 
 
-class EncoderEmbedLayerNormType(str, Enum):
+class FutureContextLayerNormType(str, Enum):
     NONE = "NONE"
     PRE_AGGR = "PRE_AGGR"
     POST_AGGR = "POST_AGGR"
@@ -67,15 +67,15 @@ class EncoderEmbedLayerNormType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return EncoderEmbedLayerNormType.NONE
+            return FutureContextLayerNormType.NONE
         elif num == 2:
-            return EncoderEmbedLayerNormType.PRE_AGGR
+            return FutureContextLayerNormType.PRE_AGGR
         elif num == 3:
-            return EncoderEmbedLayerNormType.POST_AGGR
+            return FutureContextLayerNormType.POST_AGGR
         elif num == 4:
-            return EncoderEmbedLayerNormType.BOTH
+            return FutureContextLayerNormType.BOTH
         else:
-            raise ValueError("Invalid encoder embed layer norm type number")
+            raise ValueError("Invalid FutureContextLayerNormType number")
 
 
 class FutureContextAggregationType(str, Enum):
@@ -138,8 +138,8 @@ class ModelConfig(BaseModelConfig):
         EncoderLossDetachType.ENCODER_OUT
     )
     future_context_loss_coeff: Optional[float] = 1
-    encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
-        EncoderEmbedLayerNormType.PRE_AGGR
+    future_context_ln_type: Optional[Union[FutureContextLayerNormType, int]] = (
+        FutureContextLayerNormType.PRE_AGGR
     )
     future_context_aggregation_type: Optional[Union[FutureContextAggregationType, int]] = (
         FutureContextAggregationType.DECAY
@@ -165,9 +165,9 @@ class ModelConfig(BaseModelConfig):
             self.encoder_loss_detach_type = EncoderLossDetachType.get_type_from_int(
                 self.encoder_loss_detach_type
             )
-        if type(self.encoder_embed_ln_type) == int:
-            self.encoder_embed_ln_type = EncoderEmbedLayerNormType.get_type_from_int(
-                self.encoder_embed_ln_type
+        if type(self.future_context_ln_type) == int:
+            self.future_context_ln_type = FutureContextLayerNormType.get_type_from_int(
+                self.future_context_ln_type
             )
 
         if self.future_context_loss_type != FutureContextLossType.NONE:
@@ -175,12 +175,12 @@ class ModelConfig(BaseModelConfig):
                 self.future_context_loss_coeff = 1.0
             else:
                 assert self.future_context_loss_coeff > 0
-            assert self.encoder_embed_ln_type is not None
+            assert self.future_context_ln_type is not None
             assert self.encoder_loss_detach_type is not None
             assert self.future_context_aggregation_type is not None
         else:
             assert self.future_context_loss_coeff is None
-            assert self.encoder_embed_ln_type is None
+            assert self.future_context_ln_type is None
             assert self.encoder_loss_detach_type is None
             assert self.future_context_aggregation_type is None
 
@@ -314,16 +314,16 @@ class DeepSight(BaseModel):
         self.ln = LayerNorm(config.n_embed, config.use_bias)
 
         self.encoder_out_ln = LayerNorm(config.n_embed, True)
-        if self.config.encoder_embed_ln_type in [
-            EncoderEmbedLayerNormType.PRE_AGGR,
-            EncoderEmbedLayerNormType.BOTH,
+        if self.config.future_context_ln_type in [
+            FutureContextLayerNormType.PRE_AGGR,
+            FutureContextLayerNormType.BOTH,
         ]:
-            self.encoder_embed_ln_1 = LayerNorm(config.n_embed, True)
-        if self.config.encoder_embed_ln_type in [
-            EncoderEmbedLayerNormType.POST_AGGR,
-            EncoderEmbedLayerNormType.BOTH,
+            self.future_context_ln_1 = LayerNorm(config.n_embed, True)
+        if self.config.future_context_ln_type in [
+            FutureContextLayerNormType.POST_AGGR,
+            FutureContextLayerNormType.BOTH,
         ]:
-            self.encoder_embed_ln_2 = LayerNorm(config.n_embed, True)
+            self.future_context_ln_2 = LayerNorm(config.n_embed, True)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
         self.token_embedding.weight = self.output_layer.weight  # weight tying
@@ -462,11 +462,11 @@ class DeepSight(BaseModel):
 
             encoder_out = self.encoder_out_ln(encoder_out)
 
-            if self.config.encoder_embed_ln_type in [
-                EncoderEmbedLayerNormType.PRE_AGGR,
-                EncoderEmbedLayerNormType.BOTH,
+            if self.config.future_context_ln_type in [
+                FutureContextLayerNormType.PRE_AGGR,
+                FutureContextLayerNormType.BOTH,
             ]:
-                encoder_embed = self.encoder_embed_ln_1(encoder_embed)
+                encoder_embed = self.future_context_ln_1(encoder_embed)
 
             future_context_embed = self.future_context_weights @ encoder_embed[:, 1:, :]
             if (
@@ -486,11 +486,11 @@ class DeepSight(BaseModel):
                     future_context_embed * self.merge_future_context_weights
                     + present_context_embed * self.merge_present_context_weights
                 )
-            if self.config.encoder_embed_ln_type in [
-                EncoderEmbedLayerNormType.POST_AGGR,
-                EncoderEmbedLayerNormType.BOTH,
+            if self.config.future_context_ln_type in [
+                FutureContextLayerNormType.POST_AGGR,
+                FutureContextLayerNormType.BOTH,
             ]:
-                future_context_embed = self.encoder_embed_ln_2(future_context_embed)
+                future_context_embed = self.future_context_ln_2(future_context_embed)
 
             if self.config.future_context_loss_type == FutureContextLossType.MSE:
                 self.future_context_loss = F.mse_loss(
