@@ -6,7 +6,7 @@ N_HEAD = 3
 USE_BIAS = False
 DROPOUT_RATE = 0
 future_context_size = 5
-present_embed_normalization_type = 2
+present_future_context_aggregation_type = 2
 
 # Training config
 BATCH_SIZE = 15  # 50 when run on 1x A10
