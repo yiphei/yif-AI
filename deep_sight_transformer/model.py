@@ -130,7 +130,6 @@ class ModelConfig(BaseModelConfig):
         Union[PresentEmbedNormalizationType, int]
     ]
     cross_attn_config: CrossAttentionConfig = None
-    add_ln_before_decoder_ff: bool = False
     encoder_loss_type: Union[EncoderLossType, int] = EncoderLossType.MSE
     encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
         EncoderLossDetachType.ENCODER_OUT
@@ -283,8 +282,6 @@ class DeepSight(BaseModel):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
 
-        if config.add_ln_before_decoder_ff:
-            self.ffd_ln = LayerNorm(config.n_embed, config.use_bias)
         self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
         )
@@ -425,10 +422,7 @@ class DeepSight(BaseModel):
 
         encoder_out = self.encoder_transformer_blocks(encoder_x)
 
-        decoder_x = encoder_out
-        if self.config.add_ln_before_decoder_ff:
-            decoder_x = self.ffd_ln(decoder_x)
-        decoder_x = self.decoder_feed_forward(decoder_x)
+        decoder_x = self.decoder_feed_forward(encoder_out)
 
         for transformer_block in self.decoder_transformer_blocks:
             decoder_x = transformer_block(encoder_out, decoder_x)
