@@ -381,12 +381,12 @@ class DeepSight(BaseModel):
                 != PresentFutureContextAggregationType.NONE
             ):
                 if self.config.present_future_context_aggregation_type == PresentFutureContextAggregationType.CONTEXT_SIZE:
-                    present_normalization_weights = torch.arange(
+                    present_context_weights = torch.arange(
                         1,
                         self.future_1_dim + 1,
                         dtype=torch.float32,
                     )
-                    future_normalization_weights = torch.full(
+                    future_context_weights = torch.full(
                         (self.future_1_dim,), self.actual_future_window, dtype=torch.float32
                     )
                     normalization_sum = torch.arange(
@@ -394,21 +394,21 @@ class DeepSight(BaseModel):
                         self.future_1_dim + 1 + self.actual_future_window,
                         dtype=torch.float32,
                     )
-                    present_normalization_weights /= normalization_sum
-                    future_normalization_weights /= normalization_sum
-                    present_normalization_weights = present_normalization_weights.unsqueeze(0).unsqueeze(-1)
-                    future_normalization_weights = future_normalization_weights.unsqueeze(0).unsqueeze(-1)
+                    present_context_weights /= normalization_sum
+                    future_context_weights /= normalization_sum
+                    present_context_weights = present_context_weights.unsqueeze(0).unsqueeze(-1)
+                    future_context_weights = future_context_weights.unsqueeze(0).unsqueeze(-1)
                 elif self.config.present_future_context_aggregation_type == PresentFutureContextAggregationType.EQUAL:
-                    present_normalization_weights = torch.tensor(0.5)
-                    future_normalization_weights = torch.tensor(0.5)
+                    present_context_weights = torch.tensor(0.5)
+                    future_context_weights = torch.tensor(0.5)
 
                 self.register_buffer(
-                    "present_normalization_weights",
-                    present_normalization_weights,
+                    "present_context_weights",
+                    present_context_weights,
                 )
                 self.register_buffer(
-                    "future_normalization_weights",
-                    future_normalization_weights,
+                    "future_context_weights",
+                    future_context_weights,
                 )
 
         # scale residual projections
@@ -470,8 +470,8 @@ class DeepSight(BaseModel):
                     device=device,
                 ).unsqueeze(0).unsqueeze(-1)
                 future_embed = (
-                    future_embed * self.future_normalization_weights
-                    + present_embed * self.present_normalization_weights
+                    future_embed * self.future_context_weights
+                    + present_embed * self.present_context_weights
                 )
             if self.config.encoder_embed_ln_type in [
                 EncoderEmbedLayerNormType.POST_AGGR,
