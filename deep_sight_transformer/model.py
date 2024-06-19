@@ -35,26 +35,6 @@ class FutureContextLossType(str, Enum):
             raise ValueError("Invalid FutureContextLossType number")
 
 
-class EncoderLossDetachType(str, Enum):
-    NONE = "NONE"
-    ENCODER_EMBED = "ENCODER_EMBED"
-    ENCODER_OUT = "ENCODER_OUT"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return EncoderLossDetachType.NONE
-        elif num == 2:
-            return EncoderLossDetachType.ENCODER_EMBED
-        elif num == 3:
-            return EncoderLossDetachType.ENCODER_OUT
-        else:
-            raise ValueError("Invalid encoder embed detatch type number")
-
-
 class FutureContextLayerNormType(str, Enum):
     NONE = "NONE"
     PRE_AGGR = "PRE_AGGR"
@@ -136,9 +116,6 @@ class ModelConfig(BaseModelConfig):
     future_context_loss_type: Union[FutureContextLossType, int] = (
         FutureContextLossType.MSE
     )
-    encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
-        EncoderLossDetachType.ENCODER_OUT
-    )
     future_context_loss_coeff: Optional[float] = 1
     future_context_ln_type: Optional[Union[FutureContextLayerNormType, int]] = (
         FutureContextLayerNormType.PRE_AGGR
@@ -165,10 +142,6 @@ class ModelConfig(BaseModelConfig):
             self.future_context_loss_type = FutureContextLossType.get_type_from_int(
                 self.future_context_loss_type
             )
-        if type(self.encoder_loss_detach_type) == int:
-            self.encoder_loss_detach_type = EncoderLossDetachType.get_type_from_int(
-                self.encoder_loss_detach_type
-            )
         if type(self.future_context_ln_type) == int:
             self.future_context_ln_type = FutureContextLayerNormType.get_type_from_int(
                 self.future_context_ln_type
@@ -180,12 +153,10 @@ class ModelConfig(BaseModelConfig):
             else:
                 assert self.future_context_loss_coeff > 0
             assert self.future_context_ln_type is not None
-            assert self.encoder_loss_detach_type is not None
             assert self.future_context_aggregation_type is not None
         else:
             assert self.future_context_loss_coeff is None
             assert self.future_context_ln_type is None
-            assert self.encoder_loss_detach_type is None
             assert self.future_context_aggregation_type is None
 
         if type(self.cross_attn_config) == dict:
@@ -468,18 +439,9 @@ class DeepSight(BaseModel):
             and self.config.future_context_loss_type != FutureContextLossType.NONE
         ):
             encoder_out = encoder_out[:, : -self.actual_future_window, :]
-            if (
-                self.config.encoder_loss_detach_type
-                == EncoderLossDetachType.ENCODER_EMBED
-            ):
-                encoder_embed = encoder_embed.detach()
-            elif (
-                self.config.encoder_loss_detach_type
-                == EncoderLossDetachType.ENCODER_OUT
-            ):
-                encoder_out = encoder_out.detach()
-
             encoder_out = self.encoder_out_ln(encoder_out)
+
+            encoder_embed = encoder_embed.detach()
 
             if self.config.future_context_ln_type in [
                 FutureContextLayerNormType.PRE_AGGR,
