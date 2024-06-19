@@ -55,7 +55,8 @@ $$
 & E_{present\\\_aggr} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present\\\_aggr_{(i,j)}} = \frac{1}{i} \sum_{z=0}^{i}E_{z,j} \\
 & E_{future\\\_aggr} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future\\\_aggr_{(i,j)}} = \sum_{z=1}^{z+n-1}z^{-1}\cdot E_{i+z,j} \\
 & E_{full} = \frac{E_{present\\\_aggr} +  E_{future\\\_aggr}}{2} \\
-& future\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{full})
+& E_{full\\\_ln} = LayerNorm(E_{full}) \\
+& future\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{full\\\_ln})
 \end{aligned}
 $$
 
@@ -64,11 +65,11 @@ Note that neither the embedding weights (both token and positional) nor the enco
 
 Once the future contexts are constructed, then the objective function is defined as a disaffinity score between future contexts and encoder output. Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is just
 
-$$future\\\_loss = MSE(out_{enc\\\_ln}, E_{future})$$
+$$future\\\_loss = MSE(out_{enc\\\_ln}, E_{full\\\_ln})$$
 
 and the embedding loss with cosine dissimilarity is
 
-$$future\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{future}) + 1}{2}$$
+$$future\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{full\\\_ln}) + 1}{2}$$
 
 
 ## Results
