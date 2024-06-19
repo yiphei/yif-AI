@@ -106,9 +106,7 @@ class PresentFutureContextAggregationType(str, Enum):
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    future_context_size: (
-        int  # this is the size of the future context
-    )
+    future_context_size: int  # this is the size of the future context
     present_future_context_aggregation_type: Union[
         PresentFutureContextAggregationType, int
     ]
@@ -306,9 +304,7 @@ class DeepSight(BaseModel):
 
         if self.config.future_context_loss_type != FutureContextLossType.NONE:
             # this is how many future contexts can be used
-            self.future_1_dim = (
-                config.context_size - self.config.future_context_size
-            )
+            self.future_1_dim = config.context_size - self.config.future_context_size
             self.future_2_dim = config.context_size - 1
             if self.config.future_context_aggregation_type in [
                 FutureContextAggregationType.DECAY,
