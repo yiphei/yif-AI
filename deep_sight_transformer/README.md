@@ -61,7 +61,7 @@ $$
 $$
 
 
-Note that neither the embedding weights (both token and positional) nor the encoder weights are frozen, so these future contextual embeddings must be computed at every forward pass because they can change. So perhaps calling them ground truth is a bit of a misnomer.
+Note that neither the embedding weights (both token and positional) nor the encoder weights are frozen, so these future contextual embeddings must be computed at every forward pass because they can change. Calling them ground truth is a bit of a misnomer.
 
 Once the future contexts are constructed, then the objective function is defined as a disaffinity score between future contexts and encoder output. Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is just
 
