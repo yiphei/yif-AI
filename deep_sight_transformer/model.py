@@ -137,7 +137,7 @@ class ModelConfig(BaseModelConfig):
     encoder_loss_detach_type: Optional[Union[EncoderLossDetachType, int]] = (
         EncoderLossDetachType.ENCODER_OUT
     )
-    encoder_loss_coeff: Optional[float] = 1
+    future_context_loss_coeff: Optional[float] = 1
     encoder_embed_ln_type: Optional[Union[EncoderEmbedLayerNormType, int]] = (
         EncoderEmbedLayerNormType.PRE_AGGR
     )
@@ -171,15 +171,15 @@ class ModelConfig(BaseModelConfig):
             )
 
         if self.future_context_loss_type != FutureContextLossType.NONE:
-            if self.encoder_loss_coeff is None:
-                self.encoder_loss_coeff = 1.0
+            if self.future_context_loss_coeff is None:
+                self.future_context_loss_coeff = 1.0
             else:
-                assert self.encoder_loss_coeff > 0
+                assert self.future_context_loss_coeff > 0
             assert self.encoder_embed_ln_type is not None
             assert self.encoder_loss_detach_type is not None
             assert self.future_context_aggregation_type is not None
         else:
-            assert self.encoder_loss_coeff is None
+            assert self.future_context_loss_coeff is None
             assert self.encoder_embed_ln_type is None
             assert self.encoder_loss_detach_type is None
             assert self.future_context_aggregation_type is None
@@ -497,19 +497,19 @@ class DeepSight(BaseModel):
                     future_context_embed, encoder_out, reduction="mean"
                 )
                 self.scaled_future_context_loss = (
-                    self.future_context_loss * self.config.encoder_loss_coeff
+                    self.future_context_loss * self.config.future_context_loss_coeff
                 )
             elif self.config.future_context_loss_type == FutureContextLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_context_embed, encoder_out, dim=-1)
                 self.future_context_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_future_context_loss = (
-                    self.future_context_loss * self.config.encoder_loss_coeff
+                    self.future_context_loss * self.config.future_context_loss_coeff
                 )
             elif self.config.future_context_loss_type == FutureContextLossType.LOG_COSINE_SIM:
                 cosine_sim = F.cosine_similarity(future_context_embed, encoder_out, dim=-1)
                 self.future_context_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_future_context_loss = (
-                    self.future_context_loss * self.config.encoder_loss_coeff
+                    self.future_context_loss * self.config.future_context_loss_coeff
                 )
             else:
                 raise ValueError("Invalid future context loss type")
