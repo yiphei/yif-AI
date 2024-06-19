@@ -304,15 +304,17 @@ class DeepSight(BaseModel):
 
         if self.config.future_context_loss_type != FutureContextLossType.NONE:
             # this is how many future contexts can be used
-            self.future_context_weights_dim_1 = config.context_size - self.config.future_context_size
+            self.future_context_weights_dim_1 = (
+                config.context_size - self.config.future_context_size
+            )
             self.future_context_weights_dim_2 = config.context_size - 1
             if self.config.future_context_aggregation_type in [
                 FutureContextAggregationType.DECAY,
                 FutureContextAggregationType.DECAY_W_NORMALIZE,
             ]:
-                future_context_weights = torch.arange(1, self.future_context_weights_dim_2 + 1).unsqueeze(
-                    0
-                )
+                future_context_weights = torch.arange(
+                    1, self.future_context_weights_dim_2 + 1
+                ).unsqueeze(0)
                 future_context_weights = future_context_weights.repeat(
                     self.future_context_weights_dim_1, 1
                 )
