@@ -27,7 +27,7 @@ parameters:
                     use_bias:
                         value: False
             future_context_size:
-                value: 11
+                values: [3,6,16,26]
             present_future_context_aggregation_type:
                 value: 1
             future_context_loss_type:
