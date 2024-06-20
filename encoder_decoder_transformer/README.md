@@ -133,7 +133,7 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 | **with MSE embedding loss and pos sub** [(config)](#with-mse-embedding-loss-and-pos-sub) | 2.982 | **3.378** | 15,763,500 |
 | **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
 
-Two more baselines are compared: "smaller baseline" and "0.2 dropout baseline". "smaller baseline" is a baseline smaller than "with MSE embedding loss and pos sub". By outperforming it, the new model's better validation loss can't be attributed to its smaller size. "0.2 dropout baseline" is a baseline with 0.2 dropout. By outperforming it, the new model also demonstrates its superiority over dropout.
+Two more baselines were compared: "smaller baseline" and "0.2 dropout baseline". "smaller baseline" was a baseline smaller than "with MSE embedding loss and pos sub". By outperforming it, the new model's better validation loss can't be attributed to its smaller size. "0.2 dropout baseline" was a baseline with 0.2 dropout. By outperforming it, the new model also demonstrated its superiority over dropout.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
   <img src="assets/ff_train_loss.svg" alt="Image 1" style="width: 45%;"/>
@@ -151,13 +151,13 @@ Two more baselines are compared: "smaller baseline" and "0.2 dropout baseline". 
 
 These are some further things to look forward to:
 - experiment with unequal encoder and decoder layers, ideally allowing the model to learn it 
-- instead of MSE and cosine dissimilarity, some other disaffinity scores should be experimented with
+- instead of MSE and cosine dissimilarity, some other disaffinity scores should be considered
 - LayerNorm normalization of $E$ before averaging allows the model to learn non-uniform aggregation of $E$. It's worth exploring other ways of doing so, like convolution or even plain matmul
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
 - try different datasets
 - dropout is known to improve validation loss, but it was not used here for simplicity, except in the baseline. The new architecture should also be tested with dropout
-- absolute positional embeddings were used. Positional embedding subtraction should be tested with relative positional embeddings as well, like Rotary Position Embedding
+- absolute positional embeddings are used. Positional embedding subtraction should be tested with relative positional embeddings as well, like Rotary Position Embedding
 
 
 ## Conclusions
