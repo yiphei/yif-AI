@@ -157,6 +157,8 @@ These are some further things to look forward to:
 - run training for longer to observe long-term behavior
 - try different datasets
 - dropout is known to improve validation loss, but it was not used here for simplicity, except in the baseline. The new architecture should also be tested with dropout
+- absolute positional embeddings were used. Positional embedding subtraction should be tested with relative positional embeddings as well, like Rotary Position Embedding
+
 
 ## Conclusions
 
