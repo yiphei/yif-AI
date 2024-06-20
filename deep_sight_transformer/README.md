@@ -82,7 +82,13 @@ $$future\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{full\\\_ln}
 ## Next steps
 
 These are some further things to look forward to:
-TODO
+- experiment with unequal encoder and decoder layers, ideally allowing the model to learn it 
+- instead of MSE and cosine dissimilarity, some other disaffinity scores should be experimented with
+- LayerNorm normalization of $E_{full}$ before averaging allows the model to learn non-uniform aggregation of $E_{full}$. It's worth exploring other ways of doing so, like convolution or even plain matmul. This includes learned weights.
+- try bigger models, at least GPT-2 size
+- run training for longer to observe long-term behavior
+- try different datasets
+- dropout is known to improve validation loss, but it was not used here for simplicity, except in the baseline. The new architecture should also be tested with dropout
 
 ## Conclusions
 
