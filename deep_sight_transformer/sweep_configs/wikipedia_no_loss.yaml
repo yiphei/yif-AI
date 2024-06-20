@@ -1,4 +1,4 @@
-program: future_encoder_transformer/training_script.py
+program: deep_sight_transformer/training_script.py
 name: wikipedia_no_loss
 project: future_encoder_transformer
 method: grid
