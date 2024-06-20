@@ -107,7 +107,7 @@ class PresentFutureContextAggregationType(str, Enum):
 @dataclass
 class ModelConfig(BaseModelConfig):
     cross_attn_config: CrossAttentionConfig = None
-    future_context_size: Optional[int]  # this is the size of the future context
+    future_context_size: Optional[int] = None  # this is the size of the future context
     present_future_context_aggregation_type: Optional[Union[
         PresentFutureContextAggregationType, int
     ]] = PresentFutureContextAggregationType.EQUAL
