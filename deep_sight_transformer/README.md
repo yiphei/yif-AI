@@ -74,6 +74,7 @@ $$future\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{full\\\_ln}
 ##### A note on $E_{future\\\_aggr}$
 
 Observe the upper bound term $n$ of 
+
 $$
 \begin{aligned}
 & E_{future\\\_aggr_{(i,j)}} = \sum_{z=1}^{n}z^{-1}\cdot E_{i+z,j}
