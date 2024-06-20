@@ -287,11 +287,11 @@ class DeepSight(BaseModel):
 
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         positional_embedding_size = config.context_size
-        if (
-            self.config.sub_pos_embed_to_decoder
-        ):
+        if self.config.sub_pos_embed_to_decoder:
             positional_embedding_size += 1
-        self.positional_embedding = nn.Embedding(positional_embedding_size, config.n_embed)
+        self.positional_embedding = nn.Embedding(
+            positional_embedding_size, config.n_embed
+        )
 
         self.decoder_feed_forward = nn.Linear(
             config.n_embed, config.n_embed, bias=config.use_bias
@@ -533,7 +533,7 @@ class DeepSight(BaseModel):
                 )
             else:
                 raise ValueError("Invalid future context loss type")
-        
+
         if self.config.sub_pos_embed_to_decoder:
             decoder_out = decoder_out - self.positional_embedding(
                 torch.arange(
