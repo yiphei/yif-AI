@@ -36,12 +36,16 @@ When transitioning from encoder to decoder, the input to the first decoder layer
 
 ### Positional embedding subtraction
 
-Before the (decoder) output layer, the positional embedding of the "next tokens" is subtracted from the latent representation. The idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, the update frequency & magnitude of positional weights is increased. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
+Before the (decoder) output layer, the positional embedding of the "next tokens" is subtracted from the latent representations. Note that weight tying of output layer with token embedding is also used in this model.
 
 <div align="center">
     <img src="assets/pos_diagram.svg"
          alt="diagram" height="300">
 </div>
+
+The idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, the update frequency & magnitude of positional weights is increased. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
+
+Another related benefit is the following. Remember that any hidden state $h_t$ carries positional information. First, this stems from the use of positional embedding in creating the model input embeddings $E$ for the first hidden layer. Second, because $h_t$ is exposed to $\{h_i \mid 1 \leq i < t\}$ via the attention mechanism and positional information is important for good contextual understanding, the attention mechanism and other model operations should also carry forward the positional information. Yet, due to output layer weight tying, the final hidden state $h_t$ is expected to exhibit the greatest affinity with the next token embedding only. Since $h_t$ carries positional information, $h_t$ presumably needs to discard it when approaching the output layer. By explicitly subtracting the positional embedding before the output layer, such burdern should be lifted and more compute can be spent elsewhere. Results validate this below.
 
 ### Embedding loss
 
