@@ -71,7 +71,7 @@ and the embedding future with cosine dissimilarity is
 
 $$future\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{full\\\_ln}) + 1}{2}$$
 
-##### A note on $E_{future\\\_aggr}$
+#### A note on $E_{future\\\_aggr}$
 
 Observe the upper bound term $n$ of 
 
