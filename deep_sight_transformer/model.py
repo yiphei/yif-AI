@@ -114,25 +114,26 @@ class ModelConfig(BaseModelConfig):
 
     Args:
         cross_attn_config: config for the cross-attention head layer.
-        future_context_size: size of the future context to be predicted by the encoder. 
+        future_context_size: size of the future context to be predicted by the encoder.
             This may be fine-tuned for best performance.
-        present_future_context_aggregation_type: how to aggregate present and future embeddings 
+        present_future_context_aggregation_type: how to aggregate present and future embeddings
             together. PresentFutureContextAggregationType.EQUAL performed better.
         future_context_loss_type: the type of future context loss applied.
             FutureContextLossType.MSE performed better.
         future_context_loss_coeff: a scaling coefficient for the future context loss. This may be
             fine-tuned for best performance.
-        future_context_ln_type: the type of layer normalization applied to the future context 
-            embeddings before computing the future context loss. 
+        future_context_ln_type: the type of layer normalization applied to the future context
+            embeddings before computing the future context loss.
             FutureContextLayerNormType.POST_AGGR performed better.
         future_context_aggregation_type: the type of aggregation applied to the future context.
             FutureContextAggregationType.DECAY performed better.
     """
+
     cross_attn_config: CrossAttentionConfig = None
     future_context_size: Optional[int] = None
-    present_future_context_aggregation_type: Optional[Union[
-        PresentFutureContextAggregationType, int
-    ]] = PresentFutureContextAggregationType.EQUAL
+    present_future_context_aggregation_type: Optional[
+        Union[PresentFutureContextAggregationType, int]
+    ] = PresentFutureContextAggregationType.EQUAL
     future_context_loss_type: Union[FutureContextLossType, int] = (
         FutureContextLossType.MSE
     )
