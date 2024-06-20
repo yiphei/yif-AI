@@ -106,6 +106,28 @@ class PresentFutureContextAggregationType(str, Enum):
 
 @dataclass
 class ModelConfig(BaseModelConfig):
+    """The default field values are the suggested ones for the best performance.
+    Fine-tuning future_context_loss_coeff and future_context_size may improve performance.
+
+    NB: there are more hyperparameters here than described in the README. This is because
+        either they were found to be detrimental or were trivial additions.
+
+    Args:
+        cross_attn_config: config for the cross-attention head layer.
+        future_context_size: size of the future context to be predicted by the encoder. 
+            This may be fine-tuned for best performance.
+        present_future_context_aggregation_type: how to aggregate present and future embeddings 
+            together. PresentFutureContextAggregationType.EQUAL performed better.
+        future_context_loss_type: the type of future context loss applied.
+            FutureContextLossType.MSE performed better.
+        future_context_loss_coeff: a scaling coefficient for the future context loss. This may be
+            fine-tuned for best performance.
+        future_context_ln_type: the type of layer normalization applied to the future context 
+            embeddings before computing the future context loss. 
+            FutureContextLayerNormType.POST_AGGR performed better.
+        future_context_aggregation_type: the type of aggregation applied to the future context.
+            FutureContextAggregationType.DECAY performed better.
+    """
     cross_attn_config: CrossAttentionConfig = None
     future_context_size: Optional[int] = None
     present_future_context_aggregation_type: Optional[Union[
