@@ -81,7 +81,7 @@ $$
 \end{aligned}
 $$
 
-What happens when $i > context\_size - n$?
+What happens when $i > context\\_size - n$?
 
 
 ## Results
