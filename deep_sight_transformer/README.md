@@ -63,11 +63,11 @@ $$
 
 Note that neither the embedding weights (both token and positional) nor the encoder weights are frozen, so these future contextual embeddings must be computed at every forward pass because they can change. Perhaps calling them ground truth is a bit of a misnomer.
 
-Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is just
+Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the future loss with MSE is just
 
 $$future\\\_loss = MSE(out_{enc\\\_ln}, E_{full\\\_ln})$$
 
-and the embedding loss with cosine dissimilarity is
+and the embedding future with cosine dissimilarity is
 
 $$future\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{full\\\_ln}) + 1}{2}$$
 
