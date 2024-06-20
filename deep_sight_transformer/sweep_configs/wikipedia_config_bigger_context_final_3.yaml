@@ -1,4 +1,4 @@
-program: future_encoder_transformer/training_script.py
+program: deep_sight_transformer/training_script.py
 name: wikipedia_config_bigger_context_final_3
 project: future_encoder_transformer
 method: grid
@@ -27,17 +27,17 @@ parameters:
                     use_bias:
                         value: False
             future_context_size:
-                value: null
+                value: 11
             present_future_context_aggregation_type:
-                value: null
-            future_context_loss_type:
                 value: 1
+            future_context_loss_type:
+                value: 2
             future_context_loss_coeff:
-                value: null
+                value: 1
             future_context_ln_type:
-                value: null
+                value: 3
             future_context_aggregation_type:
-                value: null
+                value: 2
     batch_size: 
         value: 50
     train_steps: 
