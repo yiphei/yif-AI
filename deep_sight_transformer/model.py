@@ -106,11 +106,11 @@ class PresentFutureContextAggregationType(str, Enum):
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    future_context_size: int  # this is the size of the future context
-    present_future_context_aggregation_type: Union[
-        PresentFutureContextAggregationType, int
-    ]
     cross_attn_config: CrossAttentionConfig = None
+    future_context_size: Optional[int]  # this is the size of the future context
+    present_future_context_aggregation_type: Optional[Union[
+        PresentFutureContextAggregationType, int
+    ]]
     future_context_loss_type: Union[FutureContextLossType, int] = (
         FutureContextLossType.MSE
     )
@@ -123,7 +123,9 @@ class ModelConfig(BaseModelConfig):
     ] = FutureContextAggregationType.DECAY
 
     def __post_init__(self):
-        assert 1 < self.future_context_size < self.context_size
+        if self.future_context_size is not None:
+            assert 1 < self.future_context_size < self.context_size
+
         if type(self.present_future_context_aggregation_type) == int:
             self.present_future_context_aggregation_type = (
                 PresentFutureContextAggregationType.get_type_from_int(
@@ -152,10 +154,14 @@ class ModelConfig(BaseModelConfig):
                 assert self.future_context_loss_coeff > 0
             assert self.future_context_ln_type is not None
             assert self.future_context_aggregation_type is not None
+            assert self.future_context_size is not None
+            assert self.present_future_context_aggregation_type is not None
         else:
             assert self.future_context_loss_coeff is None
             assert self.future_context_ln_type is None
             assert self.future_context_aggregation_type is None
+            assert self.future_context_size is None
+            assert self.present_future_context_aggregation_type is None
 
         if type(self.cross_attn_config) == dict:
             self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
