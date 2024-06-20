@@ -20,30 +20,24 @@ parameters:
                 value: 5
             dropout_rate:
                 value: 0
-            future_context_size:
-                values: [15, 25]
-            present_embed_normalization_type:
-                value: 1
             cross_attn_config:
                 parameters:
                     n_head:
                         value: 10
                     use_bias:
                         value: False
-            use_ln_on_encoder_out:
-                value: True
-            add_ln_before_decoder_ff:
-                value: False
-            encoder_loss_type:
-                value: 2
-            encoder_loss_detach_type:
-                value: 2
-            encoder_embed_ln_type:
-                value: 3
-            encoder_loss_coeff:
-                value: 1
-            future_aggregation_type:
-                values: [2,3]
+            future_context_size:
+                value: null
+            present_future_context_aggregation_type:
+                value: null
+            future_context_loss_type:
+                value: null
+            future_context_loss_coeff:
+                value: null
+            future_context_ln_type:
+                value: null
+            future_context_aggregation_type:
+                value: null
     batch_size: 
         value: 50
     train_steps: 
