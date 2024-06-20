@@ -81,7 +81,7 @@ $$
 \end{aligned}
 $$
 
-What happens when $i > context\\\_size - n$? There are two options. The first is to change the training code such that the input data size becomes of length $context\\\_size+n$ tokens but expected output length remains $context\\\_size$, for each batch. Thus, the additional $n$ tokens simply serve to satisfy $E_{future\\\_aggr}$ but no next token output is expected of them. Moreover, the positional embeddings for the additional $n$ tokens are never gonna be updated because $E$ is detached for future loss (this assumes absolute positional embeddings; it may be different with relative positional embeddings).
+What happens when $i > context\\\_size - n$? There are two options. The first is to change the training code such that the input data size becomes of length $context\\\_size+n$ tokens but expected output length remains $context\\\_size$, for each batch. Thus, the additional $n$ tokens simply serve to satisfy $E_{future\\\_aggr}$ but no next token output is expected of them. Moreover, the positional embeddings for the additional $n$ tokens are never gonna be updated because $E$ is detached for future loss (this assumes absolute positional embeddings, which are used in this model; it may be different with relative positional embeddings).
 
 The second option is to just ignore tokens $\\{x_i \mid context\\\_size - n < i \leq context\\\_size\\}$ for future loss, meaning there will be only $context\\\_size - n$ future contexts evaluated for future loss. Doing so also limits the lenght of $E_{present\\\_aggr}$ and downstream $E_{full}$ and $out_{enc}$. The second option is chosen for simplicity.
 
