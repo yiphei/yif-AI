@@ -110,13 +110,13 @@ class ModelConfig(BaseModelConfig):
     future_context_size: Optional[int]  # this is the size of the future context
     present_future_context_aggregation_type: Optional[Union[
         PresentFutureContextAggregationType, int
-    ]]
+    ]] = PresentFutureContextAggregationType.EQUAL
     future_context_loss_type: Union[FutureContextLossType, int] = (
         FutureContextLossType.MSE
     )
     future_context_loss_coeff: Optional[float] = 1
     future_context_ln_type: Optional[Union[FutureContextLayerNormType, int]] = (
-        FutureContextLayerNormType.PRE_AGGR
+        FutureContextLayerNormType.POST_AGGR
     )
     future_context_aggregation_type: Optional[
         Union[FutureContextAggregationType, int]
