@@ -31,7 +31,7 @@ parameters:
             present_future_context_aggregation_type:
                 value: null
             future_context_loss_type:
-                value: null
+                value: 1
             future_context_loss_coeff:
                 value: null
             future_context_ln_type:
