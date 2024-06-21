@@ -88,15 +88,15 @@ The MSE embedding loss performed better than cosine dissimilarity in validation 
 
 <div float="left">
   <div>
-    <img src="assets/e_train_loss.svg" alt="Train Loss" style="width: 100%;"/>
+    <img src="assets/e_train_loss.svg" alt="Train Loss" style="width: 45%;"/>
     <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_train_loss.png">click here</a></p>
   </div>
   <div>
-    <img src="assets/e_val_loss.svg" alt="Validation Loss" style="width: 100%;"/>
+    <img src="assets/e_val_loss.svg" alt="Validation Loss" style="width: 45%;"/>
     <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_val_loss.png">click here</a></p>
   </div>
   <div>
-    <img src="assets/e_embedding_loss_2.svg" alt="Embedding Loss" style="width: 100%;"/>
+    <img src="assets/e_embedding_loss_2.svg" alt="Embedding Loss" style="width: 45%;"/>
     <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_embedding_loss_2.png">click here</a></p>
   </div>
 </div>
