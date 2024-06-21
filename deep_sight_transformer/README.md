@@ -62,8 +62,7 @@ $$
 \end{aligned}
 $$
 
-
-Note that the embedding weights of $E$ are not frozen, so these planning context embeddings must be re-computed at every forward pass because they can change. Perhaps calling them ground truth is a bit of a misnomer.
+Note that $E$ is first detached because it is used to construct the ground truth. However, because the embedding weights of $E$ are not frozen and thus change, these planning context embeddings must be re-computed at every forward pass. Perhaps calling them ground truth is a bit of a misnomer.
 
 Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the future loss with MSE is just
 
