@@ -82,6 +82,8 @@ $$embedding\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{avg\\\_s
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
+TESTTTTT
+
 The MSE embedding loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of embedding loss did better than an equivalent model without embedding loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
