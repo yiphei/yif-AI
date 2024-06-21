@@ -86,7 +86,7 @@ TESTTTTT
 
 The MSE embedding loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of embedding loss did better than an equivalent model without embedding loss.
 
-<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+<p float="left">
   <div>
     <img src="assets/e_train_loss.svg" alt="Train Loss" style="width: 45%;"/>
     <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_train_loss.png">click here</a></p>
@@ -99,7 +99,7 @@ The MSE embedding loss performed better than cosine dissimilarity in validation 
     <img src="assets/e_embedding_loss_2.svg" alt="Embedding Loss" style="width: 45%;"/>
     <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_embedding_loss_2.png">click here</a></p>
   </div>
-</div>
+</p>
 
 |   | Train loss | Val loss | Embedding loss |
 |---|----------|----------|----------|
