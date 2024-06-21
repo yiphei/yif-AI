@@ -87,7 +87,7 @@ class CrossAttentionConfig:
 class PresentFutureContextAggregationType(str, Enum):
     EQUAL = "EQUAL"
     CONTEXT_SIZE = "CONTEXT_SIZE"
-    NONE = "NONE" # this means that present context is excluded from planning context
+    NONE = "NONE"  # this means that present context is excluded from planning context
 
     def __str__(self):
         return self.value
@@ -134,9 +134,7 @@ class ModelConfig(BaseModelConfig):
     present_future_context_aggregation_type: Optional[
         Union[PresentFutureContextAggregationType, int]
     ] = PresentFutureContextAggregationType.EQUAL
-    planning_loss_type: Union[PlanningLossType, int] = (
-        PlanningLossType.MSE
-    )
+    planning_loss_type: Union[PlanningLossType, int] = PlanningLossType.MSE
     planning_loss_coeff: Optional[float] = 1
     planning_context_ln_type: Optional[Union[PlanningContextLayerNormType, int]] = (
         PlanningContextLayerNormType.POST_AGGR
@@ -166,8 +164,10 @@ class ModelConfig(BaseModelConfig):
                 self.planning_loss_type
             )
         if type(self.planning_context_ln_type) == int:
-            self.planning_context_ln_type = PlanningContextLayerNormType.get_type_from_int(
-                self.planning_context_ln_type
+            self.planning_context_ln_type = (
+                PlanningContextLayerNormType.get_type_from_int(
+                    self.planning_context_ln_type
+                )
             )
 
         if self.planning_loss_type != PlanningLossType.NONE:
@@ -458,10 +458,7 @@ class DeepSight(BaseModel):
 
         decoder_out = self.ln(decoder_x)
 
-        if (
-            self.training
-            and self.config.planning_loss_type != PlanningLossType.NONE
-        ):
+        if self.training and self.config.planning_loss_type != PlanningLossType.NONE:
             encoder_out = encoder_out[:, : -self.config.future_context_size, :]
             encoder_out = self.encoder_out_ln(encoder_out)
 
@@ -473,7 +470,9 @@ class DeepSight(BaseModel):
             ]:
                 encoder_embed = self.planning_context_ln_1(encoder_embed)
 
-            planning_context_embed = self.future_context_weights @ encoder_embed[:, 1:, :]
+            planning_context_embed = (
+                self.future_context_weights @ encoder_embed[:, 1:, :]
+            )
             if (
                 self.config.present_future_context_aggregation_type
                 != PresentFutureContextAggregationType.NONE
@@ -495,7 +494,9 @@ class DeepSight(BaseModel):
                 PlanningContextLayerNormType.POST_AGGR,
                 PlanningContextLayerNormType.BOTH,
             ]:
-                planning_context_embed = self.planning_context_ln_2(planning_context_embed)
+                planning_context_embed = self.planning_context_ln_2(
+                    planning_context_embed
+                )
 
             if self.config.planning_loss_type == PlanningLossType.MSE:
                 self.planning_loss = F.mse_loss(
@@ -504,9 +505,7 @@ class DeepSight(BaseModel):
                 self.scaled_planning_loss = (
                     self.planning_loss * self.config.planning_loss_coeff
                 )
-            elif (
-                self.config.planning_loss_type == PlanningLossType.COSINE_SIM
-            ):
+            elif self.config.planning_loss_type == PlanningLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(
                     planning_context_embed, encoder_out, dim=-1
                 )
@@ -514,10 +513,7 @@ class DeepSight(BaseModel):
                 self.scaled_planning_loss = (
                     self.planning_loss * self.config.planning_loss_coeff
                 )
-            elif (
-                self.config.planning_loss_type
-                == PlanningLossType.LOG_COSINE_SIM
-            ):
+            elif self.config.planning_loss_type == PlanningLossType.LOG_COSINE_SIM:
                 cosine_sim = F.cosine_similarity(
                     planning_context_embed, encoder_out, dim=-1
                 )
