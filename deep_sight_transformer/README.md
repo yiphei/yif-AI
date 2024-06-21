@@ -62,7 +62,7 @@ $$
 \end{aligned}
 $$
 
-Note that $E$ is first detached because it is used to construct the ground truth. However, because the embedding weights of $E$ are not frozen and thus change, these planning context embeddings must be re-computed at every forward pass. Perhaps calling them ground truth is a bit of a misnomer.
+Note that $E$ is first detached because it is used to construct the ground truth. However, because the embedding weights of $E$ are not frozen and thus change, the planning context embeddings must be re-computed at every forward pass. Perhaps calling them ground truth is a bit of a misnomer.
 
 Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the future loss with MSE is just
 
@@ -72,19 +72,19 @@ and the embedding future with cosine dissimilarity is
 
 $$future\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{full\\\_ln}) + 1}{2}$$
 
-#### A note on $E_{future\\\_aggr}$
+#### A note on $E_{future}$
 
 Observe the upper bound term $n$ of 
 
 $$
 \begin{aligned}
-& E_{future\\\_aggr_{(i,j)}} = \sum_{z=1}^{n}z^{-1}\cdot E_{i+z,j}
+& E_{future_{(i,j)}} = \sum_{z=1}^{n}z^{-1}\cdot E_{i+z,j}
 \end{aligned}
 $$
 
-What happens when $i > context\\\_size - n$? There are two options. The first is to change the training code such that the input data size becomes of length $context\\\_size+n$ tokens but expected output length remains $context\\\_size$, for each batch. Thus, the additional $n$ tokens simply serve to satisfy $E_{future\\\_aggr}$ but no next token output is expected of them. Moreover, the positional embeddings for the additional $n$ tokens won't never be updated because $E$ is detached for future loss (this assumes absolute positional embeddings, which are used in this model; it may be different with relative positional embeddings).
+What happens when $i > context\\\_size - n$? There are two options. The first is to change the training code such that the input data size $X$ becomes of length $|X| = context\\\_size+n$ tokens but expected output length remains $|Y| = context\\\_size$, for each batch. Thus, the additional $n$ tokens simply serve to satisfy $E_{future}$ but no next token output is expected of them. Moreover, the positional embeddings for the additional $n$ tokens won't never be updated because $E$ is detached for future loss (this assumes absolute positional embeddings, which are used in this model; it may be different with relative positional embeddings).
 
-The second option is to just ignore tokens $\\{x_i \mid context\\\_size - n < i \leq context\\\_size\\}$ for future loss, meaning there will be only $context\\\_size - n$ future contexts evaluated for future loss. Doing so also limits the lenght of $E_{present\\\_aggr}$ and downstream $E_{full}$ and $out_{enc}$. The second option is chosen for simplicity.
+The second option is to just ignore tokens $\\{x_i \mid context\\\_size - n < i \leq context\\\_size\\}$ for future loss, meaning there will be only $context\\\_size - n$ planning context embeddings evaluated for future (or planning) loss. Doing so essentially limits the lenght (i.e. T dimension) of $E_{present}$, $E_{future}$, $E_{full}$ and $out_{enc}$. The second option is chosen for simplicity.
 
 
 ## Results
