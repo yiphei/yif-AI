@@ -30,11 +30,11 @@ parameters:
                 value: 11
             present_future_context_aggregation_type:
                 value: 1
-            future_context_loss_type:
+            planning_loss_type:
                 value: 2
-            future_context_loss_coeff:
+            planning_loss_coeff:
                 value: 1
-            future_context_ln_type:
+            planning_context_ln_type:
                 value: 3
             future_context_aggregation_type:
                 value: 2
