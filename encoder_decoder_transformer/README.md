@@ -87,7 +87,7 @@ The MSE embedding loss performed better than cosine dissimilarity in validation 
 AAA
 
 
-<div style="display: flex; flex-direction: column; align-items: center;">
+<div style="display: flex; flex-direction: column; align-items: center; align-content: center;">
   <div style="display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: flex-start; align-content: flex-start;">
     <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
     <img src="assets/e_val_loss.svg" alt="Image 2" style="width: 45%;"/>
