@@ -94,7 +94,9 @@ AAA
     <img src="assets/e_embedding_loss_2.svg" alt="Image 2" style="width: 45%;"/>
   </div>
     <br>
-    <em align="center">Safari may not render these charts</em>
+    <div align="center">
+      <em>Safari may not render these charts</em>
+    </div>
 </div>
 <br>
 
