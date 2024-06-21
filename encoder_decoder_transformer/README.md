@@ -88,7 +88,7 @@ AAA
 
 
 <div>
-  <div style="display: flex; flex-wrap: wrap; justify-content: space-around; align-items: flex-start; align-content: flex-start;">
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
     <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
     <img src="assets/e_val_loss.svg" alt="Image 2" style="width: 45%;"/>
     <img src="assets/e_embedding_loss_2.svg" alt="Image 2" style="width: 45%;"/>
