@@ -85,15 +85,15 @@ $$embedding\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{avg\\\_s
 The MSE embedding loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of embedding loss did better than an equivalent model without embedding loss.
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap;">
-  <div>
+  <div style="flex: 1 1 45%;">
     <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
     <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_train_loss.png">click this</a></p>
   </div>
-  <div>
+  <div style="flex: 1 1 45%;">
   <img src="assets/e_val_loss.svg" alt="Image 2" style="width: 45%;"/>
       <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_val_loss.png">click this</a></p>
   </div>
-  <div>
+  <div style="flex: 1 1 45%;">
     <img src="assets/e_embedding_loss_2.svg" alt="Image 2" style="width: 45%;"/>
         <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_embedding_loss_2.png">click this</a></p>
   </div>
