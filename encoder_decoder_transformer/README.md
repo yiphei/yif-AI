@@ -93,6 +93,7 @@ The MSE embedding loss performed better than cosine dissimilarity in validation 
     <br>
     <em>Safari may not render these charts</em>
 </div>
+<br>
 
 |   | Train loss | Val loss | Embedding loss |
 |---|----------|----------|----------|
