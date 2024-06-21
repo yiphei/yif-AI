@@ -66,6 +66,8 @@ $$
 \end{aligned}
 $$
 
+Note that $out_{enc}$ is detached because only updating embedding weights is of interest.
+
 Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is just
 
 $$embedding\\\_loss = MSE(out_{enc\\\_ln}, E_{avg\\\_sum})$$
