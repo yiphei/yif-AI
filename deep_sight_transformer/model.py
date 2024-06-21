@@ -334,6 +334,9 @@ class DeepSight(BaseModel):
             self.future_context_ln_2 = LayerNorm(config.n_embed, True)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
+
+        self.post_pos_sub_ln = nn.LayerNorm(config.n_embed, True)
+
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
@@ -540,6 +543,7 @@ class DeepSight(BaseModel):
                     start=1, end=x.shape[1] + 1, dtype=torch.long, device=device
                 )
             )
+            decoder_out = self.post_pos_sub_ln(decoder_out)
 
         if targets is None:
             loss = None
