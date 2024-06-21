@@ -104,10 +104,17 @@ The MSE embedding loss performed better than cosine dissimilarity in validation 
 
 Adding the positional embedding subtraction strictly improved performance.
 
-<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
   <img src="assets/pos_train_loss.svg" alt="Image 1" style="width: 45%;"/>
   <img src="assets/pos_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
 </div>
+<br>
+
 
 |   | Train loss | Val loss | Embedding loss |
 |---|----------|----------|----------|
@@ -117,11 +124,17 @@ Adding the positional embedding subtraction strictly improved performance.
 
 Combining both MSE embedding loss and positional embedding subtraction further improved validation loss.
 
-<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
   <img src="assets/both_train_loss.svg" alt="Image 1" style="width: 45%;"/>
   <img src="assets/both_val_loss.svg" alt="Image 2" style="width: 45%;"/>
     <img src="assets/both_embedding_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
 </div>
+<br>
 
 |   | Train loss | Val loss | Embedding loss |
 |---|----------|----------|----------|
@@ -131,10 +144,16 @@ Combining both MSE embedding loss and positional embedding subtraction further i
 
 Compared to a canonical decoder-only transformer (baseline), the new model outperformed the baseline in validation loss but underperformed in train loss. Both completed in a similar amount of time with similar memory demands, but the baseline had more parameters.
 
-<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
   <img src="assets/f_train_loss.svg" alt="Image 1" style="width: 45%;"/>
   <img src="assets/f_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
 </div>
+<br>
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
@@ -143,10 +162,16 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 
 Two more baselines were compared: "smaller baseline" and "0.2 dropout baseline". "smaller baseline" was a baseline smaller than "with MSE embedding loss and pos sub". By outperforming it, the new model's better validation loss can't be attributed to its smaller size. "0.2 dropout baseline" was a baseline with 0.2 dropout. By outperforming it, the new model also demonstrated its superiority over dropout.
 
-<div style="display: flex; overflow-x: auto; white-space: nowrap;">
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
   <img src="assets/ff_train_loss.svg" alt="Image 1" style="width: 45%;"/>
   <img src="assets/ff_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
 </div>
+<br>
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
