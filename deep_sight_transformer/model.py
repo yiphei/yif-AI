@@ -486,6 +486,7 @@ class DeepSight(BaseModel):
                     dtype=torch.long,
                     device=device,
                 ).unsqueeze(0).unsqueeze(-1)
+                
                 planning_context_embed = (
                     planning_context_embed * self.merge_future_context_weights
                     + present_context_embed * self.merge_present_context_weights
