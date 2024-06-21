@@ -88,6 +88,8 @@ The MSE embedding loss performed better than cosine dissimilarity in validation 
   <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
   <img src="assets/e_val_loss.svg" alt="Image 2" style="width: 45%;"/>
     <img src="assets/e_embedding_loss_2.svg" alt="Image 2" style="width: 45%;"/>
+  <br>
+  <em>hahahah.</em>
 </div>
 
 |   | Train loss | Val loss | Embedding loss |
