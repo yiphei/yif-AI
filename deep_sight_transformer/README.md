@@ -55,7 +55,7 @@ $$
 & E \coloneqq \text{model input embedding (detached), comprised of token and positional embedding} \\
 & E_{present} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present_{(i,j)}} = \frac{1}{i} \sum_{z=1}^{i}E_{z,j}\\\\[0.2cm]
 & E_{future} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future_{(i,j)}} = \sum_{z=1}^{n}z^{-1}\cdot E_{i+z,j} \\
-& out_{enc\\\_ln} = LayerNorm(out_{enc}) \\
+& out_{enc\\\_ln} = LayerNorm(out_{enc})\\\\[0.5cm]
 & E_{full} = \frac{E_{present} +  E_{future}}{2} \\
 & E_{full\\\_ln} = LayerNorm(E_{full}) \\
 & future\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{full\\\_ln})
