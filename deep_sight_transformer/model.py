@@ -12,7 +12,7 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, TransformerBlock)
 
 
-class FutureContextLossType(str, Enum):
+class PlanningLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
     COSINE_SIM = "CONSINE_SIM"
@@ -24,15 +24,15 @@ class FutureContextLossType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return FutureContextLossType.NONE
+            return PlanningLossType.NONE
         elif num == 2:
-            return FutureContextLossType.MSE
+            return PlanningLossType.MSE
         elif num == 3:
-            return FutureContextLossType.COSINE_SIM
+            return PlanningLossType.COSINE_SIM
         elif num == 4:
-            return FutureContextLossType.LOG_COSINE_SIM
+            return PlanningLossType.LOG_COSINE_SIM
         else:
-            raise ValueError("Invalid FutureContextLossType number")
+            raise ValueError("Invalid PlanningLossType number")
 
 
 class FutureContextLayerNormType(str, Enum):
@@ -106,36 +106,36 @@ class PresentFutureContextAggregationType(str, Enum):
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    """The default field values are the suggested ones for the best performance.
-    Fine-tuning future_context_loss_coeff and future_context_size may improve performance.
+    # """The default field values are the suggested ones for the best performance.
+    # Fine-tuning future_context_loss_coeff and future_context_size may improve performance.
 
-    NB: there are more hyperparameters here than described in the README. This is because
-        either they were found to be detrimental or were trivial additions.
+    # NB: there are more hyperparameters here than described in the README. This is because
+    #     either they were found to be detrimental or were trivial additions.
 
-    Args:
-        cross_attn_config: config for the cross-attention head layer.
-        future_context_size: size of the future context to be predicted by the encoder.
-            This may be fine-tuned for best performance.
-        present_future_context_aggregation_type: how to aggregate present and future embeddings
-            together. PresentFutureContextAggregationType.EQUAL performed better.
-        future_context_loss_type: the type of future context loss applied.
-            FutureContextLossType.MSE performed better.
-        future_context_loss_coeff: a scaling coefficient for the future context loss. This may be
-            fine-tuned for best performance.
-        future_context_ln_type: the type of layer normalization applied to the future context
-            embeddings before computing the future context loss.
-            FutureContextLayerNormType.POST_AGGR performed better.
-        future_context_aggregation_type: the type of aggregation applied to the future context.
-            FutureContextAggregationType.DECAY performed better.
-    """
+    # Args:
+    #     cross_attn_config: config for the cross-attention head layer.
+    #     future_context_size: size of the future context to be predicted by the encoder.
+    #         This may be fine-tuned for best performance.
+    #     present_future_context_aggregation_type: how to aggregate present and future embeddings
+    #         together. PresentFutureContextAggregationType.EQUAL performed better.
+    #     future_context_loss_type: the type of future context loss applied.
+    #         FutureContextLossType.MSE performed better.
+    #     future_context_loss_coeff: a scaling coefficient for the future context loss. This may be
+    #         fine-tuned for best performance.
+    #     future_context_ln_type: the type of layer normalization applied to the future context
+    #         embeddings before computing the future context loss.
+    #         FutureContextLayerNormType.POST_AGGR performed better.
+    #     future_context_aggregation_type: the type of aggregation applied to the future context.
+    #         FutureContextAggregationType.DECAY performed better.
+    # """
 
     cross_attn_config: CrossAttentionConfig = None
     future_context_size: Optional[int] = None
     present_future_context_aggregation_type: Optional[
         Union[PresentFutureContextAggregationType, int]
     ] = PresentFutureContextAggregationType.EQUAL
-    future_context_loss_type: Union[FutureContextLossType, int] = (
-        FutureContextLossType.MSE
+    planning_loss_type: Union[PlanningLossType, int] = (
+        PlanningLossType.MSE
     )
     future_context_loss_coeff: Optional[float] = 1
     future_context_ln_type: Optional[Union[FutureContextLayerNormType, int]] = (
@@ -161,16 +161,16 @@ class ModelConfig(BaseModelConfig):
                     self.future_context_aggregation_type
                 )
             )
-        if type(self.future_context_loss_type) == int:
-            self.future_context_loss_type = FutureContextLossType.get_type_from_int(
-                self.future_context_loss_type
+        if type(self.planning_loss_type) == int:
+            self.planning_loss_type = PlanningLossType.get_type_from_int(
+                self.planning_loss_type
             )
         if type(self.future_context_ln_type) == int:
             self.future_context_ln_type = FutureContextLayerNormType.get_type_from_int(
                 self.future_context_ln_type
             )
 
-        if self.future_context_loss_type != FutureContextLossType.NONE:
+        if self.planning_loss_type != PlanningLossType.NONE:
             if self.future_context_loss_coeff is None:
                 self.future_context_loss_coeff = 1.0
             else:
@@ -276,7 +276,7 @@ class DecoderTransformerBlock(nn.Module):
 
 class DeepSight(BaseModel):
     model_config_cls = ModelConfig
-    extra_stats = ["future_context_loss", "scaled_future_context_loss"]
+    extra_stats = ["planning_loss", "scaled_planning_loss"]
 
     def _init_model(self, config: ModelConfig):
         assert (
@@ -331,7 +331,7 @@ class DeepSight(BaseModel):
         self.token_embedding.weight = self.output_layer.weight  # weight tying
         self.apply(self._init_weights)
 
-        if self.config.future_context_loss_type != FutureContextLossType.NONE:
+        if self.config.planning_loss_type != PlanningLossType.NONE:
             self.future_context_weights_dim_1 = (
                 config.context_size - self.config.future_context_size
             )
@@ -460,7 +460,7 @@ class DeepSight(BaseModel):
 
         if (
             self.training
-            and self.config.future_context_loss_type != FutureContextLossType.NONE
+            and self.config.planning_loss_type != PlanningLossType.NONE
         ):
             encoder_out = encoder_out[:, : -self.config.future_context_size, :]
             encoder_out = self.encoder_out_ln(encoder_out)
@@ -497,36 +497,36 @@ class DeepSight(BaseModel):
             ]:
                 future_context_embed = self.future_context_ln_2(future_context_embed)
 
-            if self.config.future_context_loss_type == FutureContextLossType.MSE:
-                self.future_context_loss = F.mse_loss(
+            if self.config.planning_loss_type == PlanningLossType.MSE:
+                self.planning_loss = F.mse_loss(
                     future_context_embed, encoder_out, reduction="mean"
                 )
-                self.scaled_future_context_loss = (
-                    self.future_context_loss * self.config.future_context_loss_coeff
+                self.scaled_planning_loss = (
+                    self.planning_loss * self.config.future_context_loss_coeff
                 )
             elif (
-                self.config.future_context_loss_type == FutureContextLossType.COSINE_SIM
+                self.config.planning_loss_type == PlanningLossType.COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(
                     future_context_embed, encoder_out, dim=-1
                 )
-                self.future_context_loss = (1 - (cosine_sim + 1) / 2).mean()
-                self.scaled_future_context_loss = (
-                    self.future_context_loss * self.config.future_context_loss_coeff
+                self.planning_loss = (1 - (cosine_sim + 1) / 2).mean()
+                self.scaled_planning_loss = (
+                    self.planning_loss * self.config.future_context_loss_coeff
                 )
             elif (
-                self.config.future_context_loss_type
-                == FutureContextLossType.LOG_COSINE_SIM
+                self.config.planning_loss_type
+                == PlanningLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(
                     future_context_embed, encoder_out, dim=-1
                 )
-                self.future_context_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
-                self.scaled_future_context_loss = (
-                    self.future_context_loss * self.config.future_context_loss_coeff
+                self.planning_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
+                self.scaled_planning_loss = (
+                    self.planning_loss * self.config.future_context_loss_coeff
                 )
             else:
-                raise ValueError("Invalid future context loss type")
+                raise ValueError("Invalid planning loss type")
 
         if targets is None:
             loss = None
@@ -536,8 +536,8 @@ class DeepSight(BaseModel):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             loss = F.cross_entropy(logits, targets.view(-1))
-            if self.training and self.scaled_future_context_loss.numel() != 0:
-                loss += self.scaled_future_context_loss
+            if self.training and self.scaled_planning_loss.numel() != 0:
+                loss += self.scaled_planning_loss
 
         return (logits, loss)
 
