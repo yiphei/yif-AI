@@ -90,7 +90,6 @@ The MSE embedding loss performed better than cosine dissimilarity in validation 
     <img src="assets/e_val_loss.svg" alt="Image 2" style="width: 45%;"/>
     <img src="assets/e_embedding_loss_2.svg" alt="Image 2" style="width: 45%;"/>
   </div>
-    <br>
     <div align="center">
       <em>Safari may not render the charts above. Chrome is advised.</em>
     </div>
