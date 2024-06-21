@@ -87,18 +87,18 @@ TESTTTTT
 The MSE embedding loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of embedding loss did better than an equivalent model without embedding loss.
 
 <p float="left">
-  <div>
+  <figure>
     <img src="assets/e_train_loss.svg" alt="Train Loss" style="width: 45%;"/>
-    <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_train_loss.png">click here</a></p>
-  </div>
-  <div>
+    <figcaption>This may not render in Safari, in which case <a href="assets/png/e_train_loss.png">click here</a></figcaption>
+  </figure>
+  <figure>
     <img src="assets/e_val_loss.svg" alt="Validation Loss" style="width: 45%;"/>
-    <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_val_loss.png">click here</a></p>
-  </div>
-  <div>
+    <figcaption>This may not render in Safari, in which case <a href="assets/png/e_val_loss.png">click here</a></figcaption>
+  </figure>
+  <figure>
     <img src="assets/e_embedding_loss_2.svg" alt="Embedding Loss" style="width: 45%;"/>
-    <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_embedding_loss_2.png">click here</a></p>
-  </div>
+    <figcaption>This may not render in Safari, in which case <a href="assets/png/e_embedding_loss_2.png">click here</a></figcaption>
+  </figure>
 </p>
 
 |   | Train loss | Val loss | Embedding loss |
