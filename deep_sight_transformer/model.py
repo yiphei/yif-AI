@@ -87,7 +87,7 @@ class CrossAttentionConfig:
 class PresentFutureContextAggregationType(str, Enum):
     EQUAL = "EQUAL"
     CONTEXT_SIZE = "CONTEXT_SIZE"
-    NONE = "NONE"
+    NONE = "NONE" # this means that present context is excluded from planning context
 
     def __str__(self):
         return self.value
