@@ -86,18 +86,18 @@ TESTTTTT
 
 The MSE embedding loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of embedding loss did better than an equivalent model without embedding loss.
 
-<div style="display: flex; flex-wrap: wrap; gap: 10px;">
-  <div style="flex: 1 1 45%;">
-    <img src="assets/e_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+<div>
+  <div style="display: inline-block; width: 45%; margin-right: 10px;">
+    <img src="assets/e_train_loss.svg" alt="Train Loss" style="width: 100%;"/>
     <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_train_loss.png">click this</a></p>
   </div>
-  <div style="flex: 1 1 45%;">
-  <img src="assets/e_val_loss.svg" alt="Image 2" style="width: 45%;"/>
-      <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_val_loss.png">click this</a></p>
+  <div style="display: inline-block; width: 45%; margin-right: 10px;">
+    <img src="assets/e_val_loss.svg" alt="Validation Loss" style="width: 100%;"/>
+    <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_val_loss.png">click this</a></p>
   </div>
-  <div style="flex: 1 1 45%;">
-    <img src="assets/e_embedding_loss_2.svg" alt="Image 2" style="width: 45%;"/>
-        <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_embedding_loss_2.png">click this</a></p>
+  <div style="display: inline-block; width: 45%; margin-right: 10px;">
+    <img src="assets/e_embedding_loss_2.svg" alt="Embedding Loss" style="width: 100%;"/>
+    <p style="text-align: center;">This may not render in Safari, in which case <a href="assets/png/e_embedding_loss_2.png">click this</a></p>
   </div>
 </div>
 
