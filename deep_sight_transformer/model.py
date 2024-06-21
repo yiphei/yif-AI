@@ -35,7 +35,7 @@ class PlanningLossType(str, Enum):
             raise ValueError("Invalid PlanningLossType number")
 
 
-class FutureContextLayerNormType(str, Enum):
+class PlanningContextLayerNormType(str, Enum):
     NONE = "NONE"
     PRE_AGGR = "PRE_AGGR"
     POST_AGGR = "POST_AGGR"
@@ -47,15 +47,15 @@ class FutureContextLayerNormType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return FutureContextLayerNormType.NONE
+            return PlanningContextLayerNormType.NONE
         elif num == 2:
-            return FutureContextLayerNormType.PRE_AGGR
+            return PlanningContextLayerNormType.PRE_AGGR
         elif num == 3:
-            return FutureContextLayerNormType.POST_AGGR
+            return PlanningContextLayerNormType.POST_AGGR
         elif num == 4:
-            return FutureContextLayerNormType.BOTH
+            return PlanningContextLayerNormType.BOTH
         else:
-            raise ValueError("Invalid FutureContextLayerNormType number")
+            raise ValueError("Invalid PlanningContextLayerNormType number")
 
 
 class FutureContextAggregationType(str, Enum):
@@ -137,9 +137,9 @@ class ModelConfig(BaseModelConfig):
     planning_loss_type: Union[PlanningLossType, int] = (
         PlanningLossType.MSE
     )
-    future_context_loss_coeff: Optional[float] = 1
-    future_context_ln_type: Optional[Union[FutureContextLayerNormType, int]] = (
-        FutureContextLayerNormType.POST_AGGR
+    planning_loss_coeff: Optional[float] = 1
+    planning_context_ln_type: Optional[Union[PlanningContextLayerNormType, int]] = (
+        PlanningContextLayerNormType.POST_AGGR
     )
     future_context_aggregation_type: Optional[
         Union[FutureContextAggregationType, int]
@@ -165,23 +165,23 @@ class ModelConfig(BaseModelConfig):
             self.planning_loss_type = PlanningLossType.get_type_from_int(
                 self.planning_loss_type
             )
-        if type(self.future_context_ln_type) == int:
-            self.future_context_ln_type = FutureContextLayerNormType.get_type_from_int(
-                self.future_context_ln_type
+        if type(self.planning_context_ln_type) == int:
+            self.planning_context_ln_type = PlanningContextLayerNormType.get_type_from_int(
+                self.planning_context_ln_type
             )
 
         if self.planning_loss_type != PlanningLossType.NONE:
-            if self.future_context_loss_coeff is None:
-                self.future_context_loss_coeff = 1.0
+            if self.planning_loss_coeff is None:
+                self.planning_loss_coeff = 1.0
             else:
-                assert self.future_context_loss_coeff > 0
-            assert self.future_context_ln_type is not None
+                assert self.planning_loss_coeff > 0
+            assert self.planning_context_ln_type is not None
             assert self.future_context_aggregation_type is not None
             assert self.future_context_size is not None
             assert self.present_future_context_aggregation_type is not None
         else:
-            assert self.future_context_loss_coeff is None
-            assert self.future_context_ln_type is None
+            assert self.planning_loss_coeff is None
+            assert self.planning_context_ln_type is None
             assert self.future_context_aggregation_type is None
             assert self.future_context_size is None
             assert self.present_future_context_aggregation_type is None
@@ -316,16 +316,16 @@ class DeepSight(BaseModel):
         self.ln = LayerNorm(config.n_embed, config.use_bias)
 
         self.encoder_out_ln = LayerNorm(config.n_embed, True)
-        if self.config.future_context_ln_type in [
-            FutureContextLayerNormType.PRE_AGGR,
-            FutureContextLayerNormType.BOTH,
+        if self.config.planning_context_ln_type in [
+            PlanningContextLayerNormType.PRE_AGGR,
+            PlanningContextLayerNormType.BOTH,
         ]:
-            self.future_context_ln_1 = LayerNorm(config.n_embed, True)
-        if self.config.future_context_ln_type in [
-            FutureContextLayerNormType.POST_AGGR,
-            FutureContextLayerNormType.BOTH,
+            self.planning_context_ln_1 = LayerNorm(config.n_embed, True)
+        if self.config.planning_context_ln_type in [
+            PlanningContextLayerNormType.POST_AGGR,
+            PlanningContextLayerNormType.BOTH,
         ]:
-            self.future_context_ln_2 = LayerNorm(config.n_embed, True)
+            self.planning_context_ln_2 = LayerNorm(config.n_embed, True)
 
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
         self.token_embedding.weight = self.output_layer.weight  # weight tying
@@ -467,13 +467,13 @@ class DeepSight(BaseModel):
 
             encoder_embed = encoder_embed.detach()
 
-            if self.config.future_context_ln_type in [
-                FutureContextLayerNormType.PRE_AGGR,
-                FutureContextLayerNormType.BOTH,
+            if self.config.planning_context_ln_type in [
+                PlanningContextLayerNormType.PRE_AGGR,
+                PlanningContextLayerNormType.BOTH,
             ]:
-                encoder_embed = self.future_context_ln_1(encoder_embed)
+                encoder_embed = self.planning_context_ln_1(encoder_embed)
 
-            future_context_embed = self.future_context_weights @ encoder_embed[:, 1:, :]
+            planning_context_embed = self.future_context_weights @ encoder_embed[:, 1:, :]
             if (
                 self.config.present_future_context_aggregation_type
                 != PresentFutureContextAggregationType.NONE
@@ -487,43 +487,43 @@ class DeepSight(BaseModel):
                     dtype=torch.long,
                     device=device,
                 ).unsqueeze(0).unsqueeze(-1)
-                future_context_embed = (
-                    future_context_embed * self.merge_future_context_weights
+                planning_context_embed = (
+                    planning_context_embed * self.merge_future_context_weights
                     + present_context_embed * self.merge_present_context_weights
                 )
-            if self.config.future_context_ln_type in [
-                FutureContextLayerNormType.POST_AGGR,
-                FutureContextLayerNormType.BOTH,
+            if self.config.planning_context_ln_type in [
+                PlanningContextLayerNormType.POST_AGGR,
+                PlanningContextLayerNormType.BOTH,
             ]:
-                future_context_embed = self.future_context_ln_2(future_context_embed)
+                planning_context_embed = self.planning_context_ln_2(planning_context_embed)
 
             if self.config.planning_loss_type == PlanningLossType.MSE:
                 self.planning_loss = F.mse_loss(
-                    future_context_embed, encoder_out, reduction="mean"
+                    planning_context_embed, encoder_out, reduction="mean"
                 )
                 self.scaled_planning_loss = (
-                    self.planning_loss * self.config.future_context_loss_coeff
+                    self.planning_loss * self.config.planning_loss_coeff
                 )
             elif (
                 self.config.planning_loss_type == PlanningLossType.COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(
-                    future_context_embed, encoder_out, dim=-1
+                    planning_context_embed, encoder_out, dim=-1
                 )
                 self.planning_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_planning_loss = (
-                    self.planning_loss * self.config.future_context_loss_coeff
+                    self.planning_loss * self.config.planning_loss_coeff
                 )
             elif (
                 self.config.planning_loss_type
                 == PlanningLossType.LOG_COSINE_SIM
             ):
                 cosine_sim = F.cosine_similarity(
-                    future_context_embed, encoder_out, dim=-1
+                    planning_context_embed, encoder_out, dim=-1
                 )
                 self.planning_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_planning_loss = (
-                    self.planning_loss * self.config.future_context_loss_coeff
+                    self.planning_loss * self.config.planning_loss_coeff
                 )
             else:
                 raise ValueError("Invalid planning loss type")
