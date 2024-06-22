@@ -11,7 +11,7 @@ The canonical encoder-decoder transformer is used for sequence-to-sequence tasks
 
 ## Architecture
 
-At the high level, the architecture follows the canonical encoder-decoder model but applied to auto-regressive language generation. Furthermore, an additional "embedding" loss and a positional embedding operation demonstrate improved performance.
+At the high level, the architecture follows the canonical encoder-decoder model but is applied to auto-regressive language generation. Furthermore, an additional "embedding" loss and a positional embedding operation demonstrate improved performance.
 
 ### Encoder-Decoder
 
