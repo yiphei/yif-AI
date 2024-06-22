@@ -97,13 +97,14 @@ The second option is to just ignore tokens $\\{x_i \mid context\\\_size - n < i 
 ## Next steps
 
 These are some further things to look forward to:
-- experiment with unequal encoder and decoder layers, ideally allowing the model to learn it 
-- instead of MSE and cosine dissimilarity, some other disaffinity scores should be experimented with
-- LayerNorm normalization of $E_{full}$ before averaging allows the model to learn non-uniform aggregation of $E_{full}$. It's worth exploring other ways of doing so, like convolution or even plain matmul. This includes learned weights.
+- experiment with unequal encoder and decoder layers, ideally allowing the model to learn the ratio
+- instead of MSE and cosine dissimilarity, consider other disaffinity scores
+- explore other ways of constructing present, future, and planning context embeddings, like convolution or even plain matmul
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
 - try different datasets
-- dropout is known to improve validation loss, but it was not used here for simplicity, except in the baseline. The new architecture should also be tested with dropout
+- try it on non-language tasks
+- using relative positional embeddings like Rotary Position Embedding, instead of absolute ones, should make option one in [A note on $E_{future}$](#a-note-on-e_future) more palatable
 
 ## Conclusions
 
