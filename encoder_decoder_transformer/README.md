@@ -66,7 +66,7 @@ $$
 \end{aligned}
 $$
 
-Note that $out_{enc}$ is detached because only updating embedding weights is of interest here. However, the encoder weights are updated because $out_{enc}$ is not detached when it is used in the decoder.
+Note that $out_{enc}$ is detached because only updating embedding weights is of interest for embedding loss.
 
 Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is given by
 
