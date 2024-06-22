@@ -53,8 +53,8 @@ $$
 & n \coloneqq \text{hyperparameter for how many future tokens the model should plan for, inclusive of next token} \\
 & out_{enc} \coloneqq \text{encoder output} \\
 & E \coloneqq \text{model input embedding (detached), comprised of token and positional embedding} \\
-& E_{present} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present_{(i,j)}} = \frac{1}{i} \sum_{z=1}^{i}E_{z,j}\\\\[0.2cm]
-& E_{future} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future_{(i,j)}} = \sum_{z=1}^{n}z^{-1}\cdot E_{i+z,j}\\\\[0.5cm]
+& E_{present} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present_{(i,j)}} = \frac{1}{i} \sum_{k=1}^{i}E_{k,j}\\\\[0.2cm]
+& E_{future} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future_{(i,j)}} = \sum_{k=1}^{n}k^{-1}\cdot E_{i+k,j}\\\\[0.5cm]
 & out_{enc\\\_ln} = LayerNorm(out_{enc}) \\
 & E_{plan} = \frac{E_{present} +  E_{future}}{2} \\
 & E_{plan\\\_ln} = LayerNorm(E_{plan}) \\
@@ -78,7 +78,7 @@ Observe the upper bound term $n$ of
 
 $$
 \begin{aligned}
-& E_{future_{(i,j)}} = \sum_{z=1}^{n}z^{-1}\cdot E_{i+z,j}
+& E_{future_{(i,j)}} = \sum_{k=1}^{n}k^{-1}\cdot E_{i+k,j}
 \end{aligned}
 $$
 
