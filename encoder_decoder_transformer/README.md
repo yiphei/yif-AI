@@ -1,28 +1,28 @@
 # Auto-regressive Encoder-Decoder Transformer
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Current SOTA LLMs are all decoder-only models. Here, a new end-to-end auto-regressive encoder-decoder transformer is presented that outperforms, with fewer parameters, the canonical decoder-only transformer.
+Virtually all SOTA LLMs are decoder-only transformer models. Here, a new end-to-end auto-regressive encoder-decoder transformer is presented that outperforms, with fewer parameters, the canonical decoder-only transformer.
 
 ## Motivations
 
-Though transformer models have a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. Indeed, empirical evidence shows that the earlier layers of a model focus more on general linguistic features (when applied to language) and the later layers more on task-specific features and thus more on prediction. In a decoder-only transformer, the model learns when to switch from understanding to predicting. In an encoder-decoder model, the switch is more imposed by design: the encoder generates an output and the decoder has to continuously attend to the encoder output. Therefore, the encoder focuses more on understanding, and the decoder more on prediction. I was interested to discover how an encoder-decoder model would fare on auto-regressive language generation.
+Though transformer models have a singular objective function (next token prediction), the attention mechanism implicitly introduces another one: general (contextual) understanding. Indeed, empirical evidence shows that the earlier layers of a model focus more on general linguistic features (when applied to language), and the later layers focus more on task-specific features and thus more on prediction. In a decoder-only transformer, the model learns when to switch from understanding to predicting. In an encoder-decoder model, the switch is more imposed by design: the encoder generates an output and the decoder has to continuously attend to the encoder output. Therefore, the encoder focuses more on understanding, and the decoder more on prediction. I was interested to discover how an encoder-decoder model would fare on auto-regressive language generation.
 
 The canonical encoder-decoder transformer is used for sequence-to-sequence tasks, like machine translation. Instead, the model here is used auto-regressively end-to-end. This, along with novel components described in sections that follow, beats – with fewer parameters – the baseline of a decoder-only transformer.
 
 ## Architecture
 
-At the high level, the architecture re-implements the canonical encoder-decoder model but for auto-regressive language generation. Furthermore, an additional "embedding" loss and a positional embedding operation are added and demonstrate improved performance.
+At the high level, the architecture follows the canonical encoder-decoder model but applied to auto-regressive language generation. Furthermore, an additional "embedding" loss and a positional embedding operation demonstrate improved performance.
 
 ### Encoder-Decoder
 
-In the canonical encoder-decoder transformer, the encoder runs once on an input, and then the decoder runs auto-regressively on its own output while attending to the encoder output. It looks like this
+In the canonical encoder-decoder transformer, the encoder runs once on an input, and the decoder runs auto-regressively on its own output while attending to the encoder output. It looks like the figure below.
 
 <div align="center">
   <img src="assets/self_canon_diagram.svg" alt="diagram" width="500">
 </div>
 <br>
 
-To use this architecture for an end-to-end auto-regressive task, the encoder and decoder are adapted to run serially on each new model input. The encoder generates an output and the decoder generates the next token while attending to the encoder output. When a new input is formed with the last decoder output, it gets fed back to the model, which reruns the encoder and decoder. To make this work, the encoder's attention has to be masked. The new architecture is shown in the figure below.
+To use this architecture for an end-to-end auto-regressive task, the encoder and decoder are adapted to run serially on each new model input. The encoder generates an output and the decoder generates the next token while attending to the encoder output. When a new input is formed with the last decoder output, it gets fed back to the model, which reruns the encoder and decoder. To make this work, the encoder's attention has to be causally masked. The new architecture is shown in the figure below.
 
 <div align="center">
     <img src="assets/self_new_diagram.svg"
@@ -36,7 +36,7 @@ When transitioning from encoder to decoder, the input to the first decoder layer
 
 ### Positional embedding subtraction
 
-Before the (decoder) output layer, the positional embedding of the "next tokens" is subtracted from the latent representations. Note that weight tying of output layer with token embedding is also used in this model.
+Before the (decoder) output layer, the positional embedding of the "next tokens" is subtracted from the latent representations.
 
 <div align="center">
     <img src="assets/pos_diagram.svg"
@@ -45,7 +45,7 @@ Before the (decoder) output layer, the positional embedding of the "next tokens"
 
 The idea here is similar to weight tying of token embedding but for positional embedding. By subtracting positional embedding, the update frequency & magnitude of positional weights is increased. When coupled with token embedding weight tying, this should improve latent separation between token and positional embedding (i.e. more contrastive learning).
 
-Another related benefit is the following. Remember that any hidden state $h_t$ carries positional information. First, this stems from the use of positional embedding in creating the model input embeddings $E$ for the first hidden layer. Second, because $h_t$ is exposed to $\\{h_i \mid 1 \leq i < t\\}$ via the attention mechanism and positional information is important for good contextual understanding, the attention mechanism and other model operations should also carry forward the positional information. Yet, due to output layer weight tying, the final hidden state $h_t$ is expected to exhibit the greatest affinity with the next token embedding only. Since $h_t$ carries positional information, $h_t$ presumably needs to remove or suppress it when approaching the output layer. By explicitly subtracting the positional embedding before the output layer, such burden should be lifted, and more compute can be spent elsewhere. Results validate this below.
+Another related benefit is the following (this assumes usage of weight tying of output layer with token embedding, which is true in this model). Remember that any hidden state $h_t$ carries positional information. This stems from the use of positional embedding in creating the model input embeddings $E$ for the first hidden layer. Moreover, because $h_t$ is exposed to $\\{h_i \mid 1 \leq i < t\\}$ via the attention mechanism and positional information is important for good contextual understanding, the attention mechanism and other model operations should also carry forward the positional information. Yet, due to output layer weight tying, the final hidden state $h_t$ is expected to exhibit the greatest affinity with the next token embedding only. Since $h_t$ carries positional information, $h_t$ presumably needs to remove or suppress it when approaching the output layer. By explicitly subtracting the positional embedding before the output layer, such burden should be lifted, and more compute can be spent elsewhere. Results validate this intuition below.
 
 ### Embedding loss
 
@@ -53,7 +53,7 @@ In the canonical decoder-encoder model, the loss function is evaluated over the 
 
 Since the encoder better captures contextual understanding, the encoder output may be interpreted as representing contextual embeddings. Furthermore, observe that all the transformations that occur in the encoder amount to an aggregation of the model input embeddings in a different latent space. Therefore, it is reasonable to expect some affinity between the encoder output and a more direct aggregation of the model input embeddings. This affinity is precisely what the embedding loss maximizes, or in minimization terms, it minimizes the disaffinity.
 
-There are many ways to directly aggregate model input embeddings to generate contextual embeddings, but the easiest is just an average. Given the full embedding (token + positional) $E$ of the model input and encoder output $out_{enc}$, they are both first normalized with separate LayerNorm layers to become $E_{ln}$ and $out_{enc\\\_ln}$, respectively. Crucially, the LayerNorm normalization of $E$ before the averaging does allow the model to learn a non-uniform aggregation of $E$. Then, the model computes the cumulative average of $E_{ln}$ along the token dimension (i.e. T dimension). Finally, the embedding loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally,
+There are many ways to directly aggregate model input embeddings to generate contextual embeddings, but the simplest is the mean operator. Given the full embedding (token + positional) $E$ of the model input and encoder output $out_{enc}$, they are both first normalized with separate LayerNorm layers to become $E_{ln}$ and $out_{enc\\\_ln}$, respectively. Crucially, the LayerNorm normalization of $E$ before the averaging does allow the model to learn a non-uniform aggregation of $E$. Then, the model computes the cumulative average of $E_{ln}$ along the token dimension (i.e. T dimension). Finally, the embedding loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally,
 
 $$
 \begin{aligned}
@@ -61,18 +61,18 @@ $$
 & E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
 & E_{ln} = LayerNorm(E)\\
 & out_{enc\\\_ln} = LayerNorm(out_{enc})\\\\[0.5cm]
-& E_{avg\\\_sum} \coloneqq \text{cumulative average of }E_{ln}\text{ along T dimension, where } E_{avg\\\_sum_{(i,j)}} = \frac{1}{i} \sum_{z=1}^{i}E_{ln_{z,j}} \\
+& E_{avg\\\_sum} \coloneqq \text{cumulative average of }E_{ln}\text{ along T dimension, where } E_{avg\\\_sum_{(i,j)}} = \frac{1}{i} \sum_{k=1}^{i}E_{ln_{k,j}} \\
 & embedding\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{avg\\\_sum})
 \end{aligned}
 $$
 
-Note that $out_{enc}$ is detached because only updating embedding weights is of interest.
+Note that $out_{enc}$ is detached because only updating embedding weights is of interest here. However, the encoder weights are updated because $out_{enc}$ is not detached when it is used in the decoder.
 
-Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is just
+Two disaffinity scores are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents the most similarity and 1 most dissimilarity. So the embedding loss with MSE is given by
 
 $$embedding\\\_loss = MSE(out_{enc\\\_ln}, E_{avg\\\_sum})$$
 
-and the embedding loss with cosine dissimilarity is
+and the embedding loss with cosine dissimilarity is given by
 
 $$embedding\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{avg\\\_sum}) + 1}{2}$$
 
@@ -82,7 +82,7 @@ $$embedding\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{avg\\\_s
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-The MSE embedding loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of embedding loss did better than an equivalent model without embedding loss.
+The MSE embedding loss performed better than cosine dissimilarity in validation loss but worse in train loss. Both types of embedding loss performed better than an equivalent model without embedding loss.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -183,12 +183,13 @@ Two more baselines were compared: "smaller baseline" and "0.2 dropout baseline".
 ## Next steps
 
 These are some further things to look forward to:
-- experiment with unequal encoder and decoder layers, ideally allowing the model to learn it 
-- instead of MSE and cosine dissimilarity, some other disaffinity scores should be considered
+- experiment with unequal encoder and decoder layers, ideally allowing the model to learn the ratio
+- instead of MSE and cosine dissimilarity, consider other disaffinity scores
 - LayerNorm normalization of $E$ before averaging allows the model to learn non-uniform aggregation of $E$. It's worth exploring other ways of doing so, like convolution or even plain matmul
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
 - try different datasets
+- try it on non-language tasks
 - dropout is known to improve validation loss, but it was not used here for simplicity, except in the baseline. The new architecture should also be tested with dropout
 - absolute positional embeddings are used in the model. Positional embedding subtraction should be tested with relative positional embeddings as well, like Rotary Position Embedding
 
@@ -197,7 +198,7 @@ These are some further things to look forward to:
 
 Even the bare-bones [no embedding loss and no pos sub](#no-embedding-loss-and-no-pos-sub) outperformed the baseline in validation loss with fewer parameters. This probably means that cross-attention on encoder output is enough for better performance (or at least prevents overfitting). When coupled with embedding loss and positional embedding subtraction, performance improved even more.
 
-More informative, it would be very interesting to inspect the effect of embedding loss and positional embedding subtraction on token and positional embeddings. Perhaps interesting relationships can be observed between token and positional embedding. Furthermore, positional embedding subtraction should work even for decoder-only transformers, and experiments should validate this.
+Moreover, it would be very interesting to inspect the effect of embedding loss and positional embedding subtraction on token and positional embeddings. Perhaps interesting relationships can be observed between token and positional embedding. Furthermore, positional embedding subtraction should work even for decoder-only transformers, and experiments should validate this.
 
 Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
