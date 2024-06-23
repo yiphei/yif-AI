@@ -116,8 +116,8 @@ class ModelConfig(BaseModelConfig):
         cross_attn_config: config for the cross-attention head layer.
         future_context_size: size of the future context in the planning context.
             This may be fine-tuned for best performance.
-        present_future_context_aggregation_type: how to aggregate present and future context 
-            embeddings together to create planning context embeddings. 
+        present_future_context_aggregation_type: how to aggregate present and future context
+            embeddings together to create planning context embeddings.
             PresentFutureContextAggregationType.EQUAL performed better.
         planning_loss_type: the type of disaffinity score applied for the planning loss.
             PlanningLossType.MSE performed better.
