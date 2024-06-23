@@ -97,9 +97,10 @@ The second option is to just ignore tokens $\\{x_i \mid context\\\_size - n < i 
 ## Next steps
 
 These are some further things to look forward to:
+- remove the $n$ hyperparameter and let the model learn the best planning horizon
+- explore other ways of constructing present, future, and planning context embeddings, like convolution or even plain matmul. Ideally, the model learns them
 - experiment with unequal encoder and decoder layers, ideally allowing the model to learn the ratio
 - instead of MSE and cosine dissimilarity, consider other disaffinity scores
-- explore other ways of constructing present, future, and planning context embeddings, like convolution or even plain matmul
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
 - try different datasets
