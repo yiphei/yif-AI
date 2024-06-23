@@ -38,7 +38,7 @@ When transitioning from encoder to decoder, the input to the first decoder layer
 
 ### Planning loss
 
-To improve the model's planning abilities, an explicit planning objective function must be added. To this end, planning must be first expressed as an output that the model can generate. Remember that transformers are excellent at contextual understanding. Normally, the contextual understanding of any hidden state $h_{t}$ spans the tokens $\\{x_i \mid 1 \leq i \leq t\\}$. Under this paradigm, the simplest and most natural way to introduce planning is to express it as an extension of understanding that includes future tokens as well. Thus, good planning is defined as predicting well the latent representation $h^{*}\_{t}$ that captures the contextual understanding of $\\{x_i \mid 1 \leq i \leq t+n\\}$, where $n$ is a hyperparameter. Let's call the context encompassing $\\{x_i \mid 1 \leq i \leq t+n\\}$ the **planning context**, of which $\\{x_i \mid 1 \leq i \leq t\\}$ is the **present context** and $\\{x_i \mid t+1 \leq i \leq t+n\\}$ is the **future context**. Note that this planning definition doesn't imply that the future becomes somewhat exposed to the present (e.g. by removing the causal mask in attention), rather that it becomes part of an objective that the model maximizes.
+To improve the model's planning abilities, an explicit planning objective function must be added. To this end, planning must be first expressed as an output that the model can generate. Remember that transformers are excellent at contextual understanding. Normally, the contextual understanding of any hidden state $h_{t}$ spans the tokens $\\{x_i \mid 1 \leq i \leq t\\}$. Under this paradigm, the simplest and most natural way to introduce planning is to express it as an extension of understanding that includes future tokens as well. Thus, good planning is defined as predicting well the latent representation $h^{*}\_{t}$ that captures the contextual understanding of $\\{x_i \mid 1 \leq i \leq t+\delta\\}$, where $\delta$ is a scalar hyperparameter. Let's call the context encompassing $\\{x_i \mid 1 \leq i \leq t+\delta\\}$ the **planning context**, of which $\\{x_i \mid 1 \leq i \leq t\\}$ is the **present context** and $\\{x_i \mid t+1 \leq i \leq t+\delta\\}$ is the **future context**. Note that this planning definition doesn't imply that the future becomes somewhat exposed to the present (e.g. by removing the causal mask in attention), rather that it becomes part of an objective that the model maximizes.
 
 Next, let's proceed to the three components of any objective function: model output, ground truth, and a minimization function.
 
@@ -50,11 +50,11 @@ Consequently, the ground truth can be generated as planning context embeddings. 
 
 $$
 \begin{aligned}
-& n \coloneqq \text{hyperparameter for how many future tokens the model should plan for, inclusive of next token} \\
+& \delta \coloneqq \text{hyperparameter for how many future tokens the model should plan for, inclusive of next token} \\
 & out_{enc} \coloneqq \text{encoder output} \\
 & E \coloneqq \text{model input embedding (detached), comprised of token and positional embedding} \\
 & E_{present} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present_{(i,j)}} = \frac{1}{i} \sum_{k=1}^{i}E_{k,j}\\\\[0.2cm]
-& E_{future} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future_{(i,j)}} = \sum_{k=1}^{n}k^{-1}\cdot E_{i+k,j}\\\\[0.5cm]
+& E_{future} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future_{(i,j)}} = \sum_{k=1}^{\delta}k^{-1}\cdot E_{i+k,j}\\\\[0.5cm]
 & E_{plan} = \frac{E_{present} +  E_{future}}{2} \\
 & E_{plan\\\_ln} = LayerNorm(E_{plan}) \\
 & out_{enc\\\_ln} = LayerNorm(out_{enc}) \\
@@ -74,17 +74,17 @@ $$planning\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{plan\\\_l
 
 #### A note on $E_{future}$
 
-Observe the upper bound term $n$ of 
+Observe the upper bound term $\delta$ of 
 
 $$
 \begin{aligned}
-& E_{future_{(i,j)}} = \sum_{k=1}^{n}k^{-1}\cdot E_{i+k,j}
+& E_{future_{(i,j)}} = \sum_{k=1}^{\delta}k^{-1}\cdot E_{i+k,j}
 \end{aligned}
 $$
 
-When $i > context\\\_size - n$, an index out of bounds error will occur. To handle this, there are two options. The first is to change the training code such that the input data $X$ becomes of length $|X| = context\\\_size+n$ tokens but the expected output length remains $|Y| = context\\\_size$, for each batch. Thus, the additional $n$ tokens simply serve to satisfy $E_{future}$ but no next token output is expected of them. Consequentially, the positional embeddings of the additional $n$ tokens won't ever be updated because $E$ is detached for the planning loss (this assumes absolute positional embeddings, which are used in this model; it may be different with relative positional embeddings).
+When $i > context\\\_size - \delta$, an index out of bounds error will occur. To handle this, there are two options. The first is to change the training code such that the input data $X$ becomes of length $|X| = context\\\_size+\delta$ tokens but the expected output length remains $|Y| = context\\\_size$, for each batch. Thus, the additional $\delta$ tokens simply serve to satisfy $E_{future}$ but no next token output is expected of them. Consequentially, the positional embeddings of the additional $\delta$ tokens won't ever be updated because $E$ is detached for the planning loss (this assumes absolute positional embeddings, which are used in this model; it may be different with relative positional embeddings).
 
-The second option is to just ignore tokens $\\{x_i \mid context\\\_size - n < i \leq context\\\_size\\}$ for the planning loss, meaning there will be only $|context\\\_size - n|$ planning context embeddings evaluated for the planning loss. Doing so essentially limits the lenght (i.e. T dimension) of $E_{present}$, $E_{future}$, $E_{plan}$ and $out_{enc}$ to $|context\\\_size - n|$. This second option is chosen for simplicity.
+The second option is to just ignore tokens $\\{x_i \mid context\\\_size - \delta < i \leq context\\\_size\\}$ for the planning loss, meaning there will be only $|context\\\_size - \delta|$ planning context embeddings evaluated for the planning loss. Doing so essentially limits the lenght (i.e. T dimension) of $E_{present}$, $E_{future}$, $E_{plan}$ and $out_{enc}$ to $|context\\\_size - \delta|$. This second option is chosen for simplicity.
 
 
 ## Results
@@ -97,7 +97,7 @@ The second option is to just ignore tokens $\\{x_i \mid context\\\_size - n < i 
 ## Next steps
 
 These are some further things to look forward to:
-- remove the $n$ hyperparameter and let the model learn the best planning horizon
+- remove the $\delta$ hyperparameter and let the model learn the best planning horizon
 - explore other ways of constructing present, future, and planning context embeddings, like convolution or even plain matmul. Ideally, the model learns them
 - experiment with unequal encoder and decoder layers, ideally allowing the model to learn the ratio
 - instead of MSE and cosine dissimilarity, consider other disaffinity scores
