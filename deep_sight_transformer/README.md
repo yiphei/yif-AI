@@ -93,6 +93,26 @@ The second option is to just ignore tokens $\\{x_i \mid context\\\_size - \delta
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
+The MSE embedding loss performed better than cosine dissimilarity in both validation and train loss. MSE outperformed an equivalent model without embedding loss. Cosine dissimilarity outperformed an equivalent model without embedding loss in train loss and slightly underperformed in val loss. MSE and cosine dissimilarity both had $\delta = 11$
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+    <img src="assets/score_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/score_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/score_plan_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | Planning loss |
+|---|----------|----------|----------|
+| **FCS=11 Cosine** [(config)](#) | 2.788 | 3.353| 6.999e-9 |
+| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 4.841e-9 |
+| **no planning loss** [(config)](#) | 2.809 | 3.352 | N/A |
+
 
 ## Next steps
 
