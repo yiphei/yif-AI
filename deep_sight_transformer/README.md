@@ -42,7 +42,7 @@ To improve the model's planning abilities, an explicit planning objective functi
 
 Next, let's proceed to the three components of any objective function: model output, ground truth, and a minimization function.
 
-On model output, first note that it is hard to make one output fulfill two predictive functions, so a different output than the one used for next token prediction is preferred. Furthermore, this output must be used by the model to produce the downstream next token prediction output, so it must play an important role in the latter's computational graph. In a decoder-only transformer, the choice is essentially a hidden state, which is too transient. Alternatively, something more complicated is possible but runs the risk of bloating the model and hindering the gradient flow. However, in an encoder-decoder transformer, there are two naturally distinct outputs, and the decoder attends to the encoder output in every single decoder layer. Moreover, since the encoder focuses more on understanding and the decoder more on predicting the next token, the encoder becomes the natural place to expect planning to happen. Therefore, the encoder output is selected as the model output of the planning objective function.
+On model output, first note that it is hard to make one output – or two closely derived outputs – fulfill two objective functions because different objective functions can cannibalize each other. Hence, a different output than the one used for next token prediction is preferred. Furthermore, this output must be used by the model to produce the downstream next token prediction output, so it must play an important role in the latter's computational graph. In a decoder-only transformer, the choice is essentially a hidden state, which is too transient. Alternatively, something more complicated is possible but runs the risk of bloating the model and hindering the gradient flow. However, in an encoder-decoder transformer, there are two naturally distinct outputs, and the decoder attends to the encoder output in every single decoder layer. Moreover, since the encoder focuses more on understanding and the decoder more on predicting the next token, the encoder becomes the natural place to expect planning to happen. Therefore, the encoder output is selected as the model output of the planning objective function.
 
 Next, generating the ground truth of planning contexts is necessary. Since the encoder output is selected, observe that all the transformations that occur in encoder layers amount to an aggregation of the model input embeddings in a different latent space. This aggregation forms the basis of (present) contextual understanding. Hence, one can expect an affinity between encoder output and a more direct aggregation of the model input embeddings. Given the planning objective function, this affinity can be extended to include future model input embeddings as well. This affinity is precisely what the objective function maximizes, or in minimization terms, it minimizes the disaffinity. 
 
@@ -93,7 +93,7 @@ The second option is to just ignore tokens $\\{x_i \mid context\\\_size - \delta
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-The MSE planning loss performed better than cosine dissimilarity in both validation and train loss. Both had $\delta = 11$. MSE also strictly outperformed an equivalent model without planning loss, and cosine dissimilariry outperformed the same equivalent model in train loss but fell marginally short in validation loss. In general, the planning loss proved beneficial to performance. 
+The MSE planning loss performed better than cosine dissimilarity in both validation and train loss. Both had $\delta = 11$. MSE also strictly outperformed an equivalent model without planning loss, and cosine dissimilariry outperformed the same equivalent model in train loss but fell marginally short in validation loss. In general, the planning loss proved beneficial to model performance. 
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -114,7 +114,7 @@ The MSE planning loss performed better than cosine dissimilarity in both validat
 | **no planning loss** [(config)](#no-planning-loss) | 2.809 | 3.352 | N/A |
 
 
-Next, using the MSE planning loss, the performances of different $\delta$ values were compared. There was a strongly positive correlation between larger $\delta$ and better train loss performance. There appeared good positive correlation between larger $\delta$ and better validation loss but with smaller $\delta$ values only. This divergence can be accounted by the choice of the second option in [A note on $E_{future}$](#a-note-on-e_future). As $\delta$ grows big, there are fewer and fewer planning context embeddings evaluated for the planning loss.
+Next, using the MSE planning loss, the performances of different $\delta$ values were compared. There was a strongly positive correlation between larger $\delta$ and better train loss performance. On the other hand, there appeared good positive correlation between larger $\delta$ and better validation loss but with smaller $\delta$ values only. This narrow correlation can be explained by the second option choice in [A note on $E_{future}$](#a-note-on-e_future). As $\delta$ becomes large, there are fewer and fewer planning context embeddings evaluated for the planning loss, which translates to fewer signals to the model on how to plan correctly.
 
 "FCS=11 MSE" occupied a strong position in the Pareto frontier, so it was selected for subsequent comparisons.
 
@@ -175,7 +175,7 @@ Two more baselines were compared: "smaller baseline" and "0.3 dropout baseline".
 | **smaller baseline** [(config)](#smaller-baseline) | 2.811 | 3.387| 15,441,192 |
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.173 | 3.364 | 16,036,800 |
 
-Finally, the *Auto-regressive Encoder-Decoder Transformer* model was compared. That model beat the baseline in validation loss, and it beat it again here. The new model beat *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
+Finally, the *Auto-regressive Encoder-Decoder Transformer* model was compared. That model beat the baseline in validation loss, and it beat the baseline again here. The new model beat *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -208,7 +208,7 @@ These are some further things to look forward to:
 
 ## Conclusions
 
-Given the nature of planning, the hypothesis was that a planning objective model would improve both train and validation loss. The training loss would improve because of the prominent role that planning plays in the next token generation's computational graph. The val loss would improve because planning shares a strong affinity with generalization. The results from the new model fully substantiate the hypothesis.
+Given the nature of planning, the hypothesis was that adding a planning objective to a model would improve both train and validation loss. The training loss would improve because of the prominent role that planning plays in the next token generation's computational graph. The val loss would improve because planning shares a strong affinity with generalization. The results from the new model fully substantiate the hypothesis.
 
 Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
