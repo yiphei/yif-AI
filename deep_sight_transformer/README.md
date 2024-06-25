@@ -210,6 +210,8 @@ These are some further things to look forward to:
 
 Given the nature of planning, the hypothesis was that adding a planning objective to a model would improve both train and validation loss. The training loss would improve because of the prominent role that planning plays in the next token prediction. The validation loss would improve because planning shares a strong correlation with generalization. The results from the new model fully substantiate the hypothesis.
 
+Another potential benefit of explicit planning is accelerated inference. A canonical decoder-only transformer only outputs one token at a time, which can be very inefficient. To combat this, speculative decoding exists to generate multiple future tokens at once. By having an explicit latent representation that captures the planning context (and thus the future context), other speculative decoding methods should become possible and perhaps also more efficient & accurate. This is worth exploring.
+
 Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
 ---
