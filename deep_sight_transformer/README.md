@@ -135,6 +135,24 @@ Next, the model was tested on different future context sizes. Better train loss 
 | **FCS=26 MSE** [(config)](#) | **2.779** | 3.357| 5.057e-9 |
 
 
+Compared to a canonical decoder-only transformer (baseline), the new model outperformed the baseline in validation and train loss. Both completed in a similar amount of time with similar memory demands, but the baseline had more parameters.
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+  <img src="assets/f_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/f_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | Size (params) |
+|---|----------|----------|----------|
+| **with MSE embedding loss and pos sub** [(config)](#) | **2.782** | **3.34** | 15,763,500 |
+| **baseline** [(config)](#) | 2.789 | 3.391 | 16,036,800 |
+
 ## Next steps
 
 These are some further things to look forward to:
