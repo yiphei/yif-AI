@@ -93,7 +93,7 @@ The second option is to just ignore tokens $\\{x_i \mid context\\\_size - \delta
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-The MSE embedding loss performed better than cosine dissimilarity in both validation and train loss. MSE outperformed an equivalent model without embedding loss. Cosine dissimilarity outperformed an equivalent model without embedding loss in train loss and slightly underperformed in val loss. MSE and cosine dissimilarity both had $\delta = 11$
+The MSE planning loss performed better than cosine dissimilarity in both validation and train loss. Both had $\delta = 11$. MSE also strictly outperformed an equivalent model without planning loss, and cosine dissimilariry outperformed the same model in train loss but fell marginally short in val loss. Therefore, the planning loss in general was beneficial to performance. 
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -114,7 +114,7 @@ The MSE embedding loss performed better than cosine dissimilarity in both valida
 | **no planning loss** [(config)](#no-planning-loss) | 2.809 | 3.352 | N/A |
 
 
-Next, the model was tested on different future context sizes. Better train loss performance is correlated with bigger future context size. Val loss is not very correlated.
+Next, using the MSE planning loss, different $\delta$ values were experimented. There was a positive correlation between bigger $\delta$ and better train loss performance, whereas val loss was uncorrelated to $\delta$.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -135,7 +135,7 @@ Next, the model was tested on different future context sizes. Better train loss 
 | **FCS=26 MSE** [(config)](#fcs26-mse) | **2.779** | 3.357| 5.057e-9 |
 
 
-Compared to a canonical decoder-only transformer (baseline), the new model outperformed the baseline in validation and train loss. Both completed in a similar amount of time with similar memory demands, but the baseline had more parameters.
+Compared to a canonical decoder-only transformer (baseline), the new model outperformed the baseline in both validation and train loss. Both completed in a similar amount of time with similar memory demands, but the baseline had more parameters.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -153,7 +153,7 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 | **FCS=11 MSE** [(config)](#fcs11-mse) | **2.782** | **3.34** | 15,763,500 |
 | **baseline** [(config)](#baseline) | 2.789 | 3.391 | 16,036,800 |
 
-TODO with other two baselines.
+Two more baselines were compared: "smaller baseline" and "0.3 dropout baseline". "smaller baseline" was a baseline smaller (i.e. fewer parameters) than "FCS=11 MSE". Usually, smaller models perform better in validation loss because they overfit less, so the new model's better validation loss could just be explained by its smaller size. By also outperforming "smaller baseline", then the new model's better validation loss can't be attributed to any size explanation. "0.3 dropout baseline" was a baseline with 0.3 dropout. By outperforming it, the new model also demonstrated its superiority over dropout.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -173,9 +173,7 @@ TODO with other two baselines.
 | **smaller baseline** [(config)](#smaller-baseline) | 2.811 | 3.387| 15,441,192 |
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.173 | 3.364 | 16,036,800 |
 
-
-
-A final comparisonw with the best model from autoregressive encoder decoder
+Finally, the *Auto-regressive Encoder-Decoder Transformer* model was compared. That model beat the baseline validation loss there and here. But again, the new model beat it both in val and train loss.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
