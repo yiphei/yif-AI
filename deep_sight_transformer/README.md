@@ -211,4 +211,14 @@ These are some further things to look forward to:
 ---
 ## Appendix
 ### Run configs
-TODO
+#### "FCS=11 Cosine"
+#### "FCS=11 MSE"
+#### "no planning loss"
+#### "FCS=3 MSE"
+#### "FCS=6 MSE"
+#### "FCS=16 MSE"
+#### "FCS=26 MSE"
+#### "baseline"
+#### "smaller baseline"
+#### "0.3 dropout baseline"
+#### "autoregressive enc-dec"
