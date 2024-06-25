@@ -1,5 +1,5 @@
 # This exists for Sagemaker to load the model and run inference.
-from encoder_decoder_transformer.model import EncoderDecoderTransformer
+from autoregressive_encoder_decoder_transformer.model import EncoderDecoderTransformer
 from utils.inference import input_fn as base_input_fn
 from utils.inference import model_fn as base_model_fn
 from utils.inference import output_fn as base_output_fn
