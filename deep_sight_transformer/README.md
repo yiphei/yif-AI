@@ -114,6 +114,27 @@ The MSE embedding loss performed better than cosine dissimilarity in both valida
 | **no planning loss** [(config)](#) | 2.809 | 3.352 | N/A |
 
 
+Next, the model was tested on different future context sizes. Better train loss performance is correlated with bigger future context size. Val loss is not very correlated.
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+    <img src="assets/future_comparison.svg" alt="Image 1" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | Planning loss |
+|---|----------|----------|----------|
+| **FCS=3 MSE** [(config)](#) | 2.797 | 3.354| 5.855e-9 |
+| **FCS=6 MSE** [(config)](#) | 2.792 | 3.341| 5.082e-9 |
+| **FCS=11 MSE** [(config)](#) | 2.782 | **3.34** | 4.841e-9 |
+| **FCS=16 MSE** [(config)](#) | 2.784 | 3.345| 5.028e-9 |
+| **FCS=26 MSE** [(config)](#) | **2.779** | 3.357| 5.057e-9 |
+
+
 ## Next steps
 
 These are some further things to look forward to:
