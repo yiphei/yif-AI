@@ -38,7 +38,7 @@ When transitioning from encoder to decoder, the input to the first decoder layer
 
 ### Planning loss
 
-To improve the model's planning abilities, an explicit planning objective function must be added. To this end, planning must be first expressed as an output that the model can generate. Remember that transformers are excellent at contextual understanding. Normally, the contextual understanding of any hidden state $h_{t}$ spans the tokens $\\{x_i \mid 1 \leq i \leq t\\}$. Under this paradigm, the simplest and most natural way to introduce planning is to express it as an extension of understanding that includes future tokens as well. Thus, good planning is defined as predicting well the latent representation $h^{*}\_{t}$ that captures the contextual understanding of $\\{x_i \mid 1 \leq i \leq t+\delta\\}$, where $\delta$ is a scalar hyperparameter. Let's call the context encompassing $\\{x_i \mid 1 \leq i \leq t+\delta\\}$ the **planning context**, of which $\\{x_i \mid 1 \leq i \leq t\\}$ is the **present context** and $\\{x_i \mid t+1 \leq i \leq t+\delta\\}$ is the **future context**. $\delta$ may be called future context size. Note that this planning definition doesn't imply that the future becomes somewhat exposed to the present (e.g. by removing the causal mask in attention), rather that it becomes part of an objective that the model maximizes.
+To improve the model's planning abilities, an explicit planning objective function must be added. To this end, planning must be first expressed as an output that the model can generate. Remember that transformers are excellent at contextual understanding. Normally, the contextual understanding of any hidden state $h_{t}$ spans the tokens $\\{x_i \mid 1 \leq i \leq t\\}$. Under this paradigm, the simplest and most natural way to introduce planning is to express it as an extension of understanding that includes future tokens as well. Thus, good planning is defined as predicting well the latent representation $h^{*}\_{t}$ that captures the contextual understanding of $\\{x_i \mid 1 \leq i \leq t+\delta\\}$, where $\delta$ is a scalar hyperparameter. Let's call the context encompassing $\\{x_i \mid 1 \leq i \leq t+\delta\\}$ the **planning context**, of which $\\{x_i \mid 1 \leq i \leq t\\}$ is the **present context** and $\\{x_i \mid t+1 \leq i \leq t+\delta\\}$ is the **future context**. $\delta$ may be called **future context size**. Note that this planning definition doesn't imply that the future becomes somewhat exposed to the present (e.g. by removing the causal mask in attention), rather that it becomes part of an objective that the model maximizes.
 
 Next, let's proceed to the three components of any objective function: model output, ground truth, and a minimization function.
 
@@ -93,7 +93,7 @@ The second option is to just ignore tokens $\\{x_i \mid context\\\_size - \delta
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-The MSE planning loss performed better than cosine dissimilarity in both validation and train loss. Both had $\delta = 11$. MSE also strictly outperformed an equivalent model without planning loss, and cosine dissimilariry outperformed the same model in train loss but fell marginally short in val loss. Therefore, the planning loss in general was beneficial to performance. 
+The MSE planning loss performed better than cosine dissimilarity in both validation and train loss. Both had $\delta = 11$. MSE also strictly outperformed an equivalent model without planning loss, and cosine dissimilariry outperformed the same model in train loss but fell marginally short in val loss. In general, the planning loss was beneficial to performance. 
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -114,7 +114,7 @@ The MSE planning loss performed better than cosine dissimilarity in both validat
 | **no planning loss** [(config)](#no-planning-loss) | 2.809 | 3.352 | N/A |
 
 
-Next, using the MSE planning loss, different $\delta$ values were experimented. There was a positive correlation between bigger $\delta$ and better train loss performance, whereas val loss was uncorrelated to $\delta$.
+Next, using the MSE planning loss, the performances of different $\delta$ values were compared. There was a positive correlation between larger $\delta$ and better train loss performance, whereas no correlation was found for val loss. "FCS=11 MSE" occupied a strong position in the pareto frontier, so it was selected for subsequent comparisons.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -173,7 +173,7 @@ Two more baselines were compared: "smaller baseline" and "0.3 dropout baseline".
 | **smaller baseline** [(config)](#smaller-baseline) | 2.811 | 3.387| 15,441,192 |
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.173 | 3.364 | 16,036,800 |
 
-Finally, the *Auto-regressive Encoder-Decoder Transformer* model was compared. That model beat the baseline validation loss there and here. But again, the new model beat it both in val and train loss.
+Finally, the *Auto-regressive Encoder-Decoder Transformer* model was compared. That model beat the baseline in validation loss, and it beat it again here. Yet again, the new model beat *Auto-regressive Encoder-Decoder Transformer* in both val and train loss.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
