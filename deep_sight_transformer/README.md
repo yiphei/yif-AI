@@ -118,7 +118,7 @@ Next, the model was tested on different future context sizes. Better train loss 
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
-    <img src="assets/aaaa.svg" alt="Image 1" style="width: 95%;"/>
+    <img src="assets/future_comparison.svg" alt="Image 1" style="width: 95%;"/>
   </div>
     <div align="center">
       <em>Safari may not render the charts above. Chrome is advised.</em>
