@@ -109,9 +109,9 @@ The MSE embedding loss performed better than cosine dissimilarity in both valida
 
 |   | Train loss | Val loss | Planning loss |
 |---|----------|----------|----------|
-| **FCS=11 Cosine** [(config)](#) | 2.788 | 3.353| 6.999e-9 |
-| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 4.841e-9 |
-| **no planning loss** [(config)](#) | 2.809 | 3.352 | N/A |
+| **FCS=11 Cosine** [(config)](#fcs11-cosine) | 2.788 | 3.353| 6.999e-9 |
+| **FCS=11 MSE** [(config)](#fcs11-mse) | **2.782** | **3.34** | 4.841e-9 |
+| **no planning loss** [(config)](#no-planning-loss) | 2.809 | 3.352 | N/A |
 
 
 Next, the model was tested on different future context sizes. Better train loss performance is correlated with bigger future context size. Val loss is not very correlated.
@@ -128,11 +128,11 @@ Next, the model was tested on different future context sizes. Better train loss 
 
 |   | Train loss | Val loss | Planning loss |
 |---|----------|----------|----------|
-| **FCS=3 MSE** [(config)](#) | 2.797 | 3.354| 5.855e-9 |
-| **FCS=6 MSE** [(config)](#) | 2.792 | 3.341| 5.082e-9 |
-| **FCS=11 MSE** [(config)](#) | 2.782 | **3.34** | 4.841e-9 |
-| **FCS=16 MSE** [(config)](#) | 2.784 | 3.345| 5.028e-9 |
-| **FCS=26 MSE** [(config)](#) | **2.779** | 3.357| 5.057e-9 |
+| **FCS=3 MSE** [(config)](#fcs3-mse) | 2.797 | 3.354| 5.855e-9 |
+| **FCS=6 MSE** [(config)](#fcs6-mse) | 2.792 | 3.341| 5.082e-9 |
+| **FCS=11 MSE** [(config)](#fcs11-mse) | 2.782 | **3.34** | 4.841e-9 |
+| **FCS=16 MSE** [(config)](#fcs16-mse) | 2.784 | 3.345| 5.028e-9 |
+| **FCS=26 MSE** [(config)](#fcs26-mse) | **2.779** | 3.357| 5.057e-9 |
 
 
 Compared to a canonical decoder-only transformer (baseline), the new model outperformed the baseline in validation and train loss. Both completed in a similar amount of time with similar memory demands, but the baseline had more parameters.
@@ -150,8 +150,8 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 15,763,500 |
-| **baseline** [(config)](#) | 2.789 | 3.391 | 16,036,800 |
+| **FCS=11 MSE** [(config)](#fcs11-mse) | **2.782** | **3.34** | 15,763,500 |
+| **baseline** [(config)](#baseline) | 2.789 | 3.391 | 16,036,800 |
 
 TODO with other two baselines.
 
@@ -168,10 +168,10 @@ TODO with other two baselines.
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 15,763,500 |
-| **baseline** [(config)](#) | 2.789 | 3.391 | 16,036,800 |
-| **smaller baseline** [(config)](#) | 2.811 | 3.387| 15,441,192 |
-| **0.3 dropout baseline** [(config)](#) | 3.173 | 3.364 | 16,036,800 |
+| **FCS=11 MSE** [(config)](#fcs11-mse) | **2.782** | **3.34** | 15,763,500 |
+| **baseline** [(config)](#baseline) | 2.789 | 3.391 | 16,036,800 |
+| **smaller baseline** [(config)](#smaller-baseline) | 2.811 | 3.387| 15,441,192 |
+| **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.173 | 3.364 | 16,036,800 |
 
 
 
@@ -190,8 +190,8 @@ A final comparisonw with the best model from autoregressive encoder decoder
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 15,763,500 |
-| **autoregressive enc-dec** [(config)](#) | 2.876 | 3.377 | 15,763,500 |
+| **FCS=11 MSE** [(config)](#fcs11-mse) | **2.782** | **3.34** | 15,763,500 |
+| **autoregressive enc-dec** [(config)](#autoregressive-enc-dec) | 2.876 | 3.377 | 15,763,500 |
 
 ## Next steps
 
