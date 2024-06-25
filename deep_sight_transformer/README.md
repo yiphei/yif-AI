@@ -150,8 +150,48 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **with MSE embedding loss and pos sub** [(config)](#) | **2.782** | **3.34** | 15,763,500 |
+| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 15,763,500 |
 | **baseline** [(config)](#) | 2.789 | 3.391 | 16,036,800 |
+
+TODO with other two baselines.
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+  <img src="assets/ff_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/ff_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | Size (params) |
+|---|----------|----------|----------|
+| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 15,763,500 |
+| **baseline** [(config)](#) | 2.789 | 3.391 | 16,036,800 |
+| **smaller baseline** [(config)](#) | 2.811 | 3.387| 15,441,192 |
+| **0.3 dropout baseline** [(config)](#) | 3.173 | 3.364 | 16,036,800 |
+
+
+
+A final comparisonw with the best model from autoregressive encoder decoder
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+  <img src="assets/enc_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+  <img src="assets/enc_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | Size (params) |
+|---|----------|----------|----------|
+| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 16,036,800 |
+| **autoregressive enc-dec** [(config)](#) | 2.876 | 3.377 | 16,036,800 |
 
 ## Next steps
 
