@@ -293,7 +293,7 @@ class DecoderTransformerBlock(nn.Module):
         return decoder_x
 
 
-class EncoderDecoderTransformer(BaseModel):
+class AutoregressiveEncoderDecoderTransformer(BaseModel):
     model_config_cls = ModelConfig
     extra_stats = ["embedding_loss", "scaled_embedding_loss"]
 
