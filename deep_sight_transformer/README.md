@@ -190,8 +190,8 @@ A final comparisonw with the best model from autoregressive encoder decoder
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 16,036,800 |
-| **autoregressive enc-dec** [(config)](#) | 2.876 | 3.377 | 16,036,800 |
+| **FCS=11 MSE** [(config)](#) | **2.782** | **3.34** | 15,763,500 |
+| **autoregressive enc-dec** [(config)](#) | 2.876 | 3.377 | 15,763,500 |
 
 ## Next steps
 
