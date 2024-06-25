@@ -206,6 +206,10 @@ These are some further things to look forward to:
 
 ## Conclusions
 
+Given the nature of planning, the hypothesis was that the new model would improve both train and val loss. The training loss would improve because of the prominent role that planning plays in the next token generation's computational graph. The val loss would improve because planning shares affinity with generalization. The results from the new model fully substantiate the hypothesis. 
+
+Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
+
 ---
 ## Appendix
 ### Run configs
