@@ -114,7 +114,7 @@ The MSE planning loss outperformed cosine dissimilarity planning loss in both va
 | **no planning loss** [(config)](#no-planning-loss) | 2.809 | 3.352 | N/A |
 
 
-Next, using the MSE planning loss, the performances of different $\delta$ values were compared. There was a strongly positive correlation between larger $\delta$ and better train loss performance. On the other hand, there appeared good positive correlation between larger $\delta$ and better validation loss but for smaller $\delta$ values only. This narrow correlation can be explained by the second option choice in [A note on $E_{future}$](#a-note-on-e_future). As $\delta$ becomes large, fewer and fewer planning contexts are evaluated for the planning loss, which translates to fewer signals that the model receives on how to plan correctly.
+Next, using the MSE planning loss, the performances of different $\delta$ values were compared. There was a strongly positive correlation between larger $\delta$ and better train loss performance. On the other hand, there appeared good positive correlation between larger $\delta$ and better validation loss but for smaller $\delta$ values only. This narrow correlation can be explained by the second option choice in [A note on $E_{future}$](#a-note-on-e_future). As $\delta$ becomes large, fewer and fewer planning contexts are evaluated for the planning loss, thereby reducing the optimization scope.
 
 "FCS=11 MSE" occupied a strong position in the Pareto frontier, so it was selected for subsequent comparisons.
 
