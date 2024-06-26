@@ -84,7 +84,7 @@ $$
 
 When $i > context\\\_size - \delta$, an index out-of-bounds error will occur. To address this, there are two options. The first is to modify the training code such that the input data $X$ becomes of length $|X| = context\\\_size+\delta$ tokens but the expected output length remains $|Y| = context\\\_size$, for each batch. Thus, the additional $\delta$ tokens merely serve to satisfy $E_{future}$ but no next token output is expected of them. Consequently, the positional embeddings of the additional $\delta$ tokens won't ever be updated because $E$ is detached for the planning loss (this assumes absolute positional embeddings, which are used in this model; it may be different with relative positional embeddings).
 
-The second option is to just ignore the tokens $\\{x_i \mid context\\\_size - \delta < i \leq context\\\_size\\}$ for the planning loss, meaning there will be only $|context\\\_size - \delta|$ planning contexts evaluated for the planning loss. Doing so essentially limits the length (i.e. T dimension) of $E_{present}$, $E_{future}$, $E_{plan}$ and $out_{enc}$ to $|context\\\_size - \delta|$ in planning loss calculations. This second option is chosen for simplicity.
+The second option is to just ignore the tokens $\\{x_i \mid context\\\_size - \delta < i \leq context\\\_size\\}$ for the planning loss, meaning there will be only $|context\\\_size - \delta|$ planning contexts evaluated for the planning loss. Doing so essentially limits the length (i.e. T dimension) of $E_{present}$, $E_{future}$, $E_{plan}$ and $out_{enc}$ to $|context\\\_size - \delta|$ in planning loss calculations, thereby restricting the planning optimization scope. This second option is chosen for simplicity.
 
 
 ## Results
@@ -114,7 +114,7 @@ The MSE planning loss outperformed cosine dissimilarity planning loss in both va
 | **no planning loss** [(config)](#no-planning-loss) | 2.809 | 3.352 | N/A |
 
 
-Next, using the MSE planning loss, the performances of different $\delta$ values were compared. There was a strongly positive correlation between larger $\delta$ and better train loss performance. On the other hand, there appeared good positive correlation between larger $\delta$ and better validation loss but for smaller $\delta$ values only. This narrow correlation can be explained by the second option choice in [A note on $E_{future}$](#a-note-on-e_future). As $\delta$ becomes large, fewer and fewer planning contexts are evaluated for the planning loss, thereby reducing the optimization scope.
+Next, using the MSE planning loss, the performances of different $\delta$ values were compared. There was a strongly positive correlation between larger $\delta$ and better train loss performance. On the other hand, there appeared good positive correlation between larger $\delta$ and better validation loss but for smaller $\delta$ values only. This narrow correlation can be explained by the second option choice in [A note on $E_{future}$](#a-note-on-e_future). As $\delta$ increases, the planning optimization scope decreases.
 
 "FCS=11 MSE" occupied a strong position in the Pareto frontier, so it was selected for subsequent comparisons.
 
