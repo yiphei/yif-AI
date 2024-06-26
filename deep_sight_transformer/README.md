@@ -121,6 +121,7 @@ Next, using the MSE planning loss, the performances of different $\delta$ values
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
     <img src="assets/future_comparison_2.svg" alt="Image 1" style="width: 95%;"/>
+    <img src="assets/future_planning_comparison.svg" alt="Image 1" style="width: 85%;"/>
   </div>
     <div align="center">
       <em>Safari may not render the charts above. Chrome is advised.</em>
