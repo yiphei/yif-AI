@@ -7,9 +7,9 @@ import boto3
 import sagemaker
 from dotenv import load_dotenv
 from sagemaker.pytorch import PyTorch
+from transformer_dropout.model import ModelConfig
 
 import wandb
-from transformer_dropout.model import ModelConfig
 from utils.train import PlatformType, TrainConfig
 
 SOURCE_DIR = "transformer_dropout/"

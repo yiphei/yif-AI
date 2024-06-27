@@ -172,14 +172,11 @@ class FutureMultiAttentionHead(SubModuleStats):
         v_future = self.v_weights(f)
         v_pres = v_pres.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         v_future = v_future.view(B, T, self.n_head, self.head_size).transpose(1, 2)
-        
+
         attn = (q @ k_pres.transpose(-2, -1)) * (self.head_size**-0.5)
         if self.training:
             with torch.no_grad():
-                true_attn = attn.masked_fill(
-                    self.causal_tril != 0,
-                    float("-inf")
-                )
+                true_attn = attn.masked_fill(self.causal_tril != 0, float("-inf"))
                 true_attn = F.softmax(true_attn, dim=-1)
                 true_future_attn = true_attn[:, :, :-1, :]
                 true_future_x = true_future_attn @ v_pres[:, :, :-1, :]
@@ -187,10 +184,20 @@ class FutureMultiAttentionHead(SubModuleStats):
                     true_future_x = true_future_x.detach()
 
         out_pres = F.scaled_dot_product_attention(
-            q, k_pres, v_pres, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
+            q,
+            k_pres,
+            v_pres,
+            attn_mask=None,
+            dropout_p=self.dropout_rate,
+            is_causal=True,
         )
         out_future = F.scaled_dot_product_attention(
-            q, k_future, v_future, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
+            q,
+            k_future,
+            v_future,
+            attn_mask=None,
+            dropout_p=self.dropout_rate,
+            is_causal=True,
         )
         out = out_pres + out_future
         out = (
