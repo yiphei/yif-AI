@@ -17,7 +17,7 @@ parameters:
             n_layer: 
                 value: 26
             n_head: 
-                value: 5
+                value: 10
             dropout_rate:
                 value: 0
             start_layer:
