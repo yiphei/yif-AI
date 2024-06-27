@@ -124,7 +124,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.f_ln = LayerNorm(dim_in, use_bias)
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
 
-        self.dropout_1 = nn.Dropout(dropout_rate)
+        self.dropout_rate = dropout_rate
         self.dropout_2 = nn.Dropout(dropout_rate)
 
         self.register_buffer(
@@ -157,7 +157,6 @@ class FutureMultiAttentionHead(SubModuleStats):
 
     def forward(self, x):
         B, T, C = x.shape
-        T_w_future = min(T + self.future_dim, self.context_size)
 
         q, f = self.batch_attn_weights(x).split(self.dim_in, dim=2)
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
@@ -173,15 +172,14 @@ class FutureMultiAttentionHead(SubModuleStats):
         v_pres = v_pres.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         v_future = v_future.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
-        attn = (q @ k_pres.transpose(-2, -1)) * (self.head_size**-0.5)
         if self.training:
-            with torch.no_grad():
-                true_attn = attn.masked_fill(self.causal_tril != 0, float("-inf"))
-                true_attn = F.softmax(true_attn, dim=-1)
-                true_future_attn = true_attn[:, :, :-1, :]
-                true_future_x = true_future_attn @ v_pres[:, :, :-1, :]
-                if self.detach_future_x:
-                    true_future_x = true_future_x.detach()
+            attn = (q @ k_pres.transpose(-2, -1)) * (self.head_size**-0.5)
+            true_attn = attn.masked_fill(self.causal_tril != 0, float("-inf"))
+            true_attn = F.softmax(true_attn, dim=-1)
+            true_future_attn = true_attn[:, :, :-1, :]
+            true_future_x = true_future_attn @ v_pres[:, :, :-1, :]
+            if self.detach_future_x:
+                true_future_x = true_future_x.detach()
 
         out_pres = F.scaled_dot_product_attention(
             q,
