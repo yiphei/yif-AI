@@ -178,7 +178,7 @@ class FutureMultiAttentionHead(SubModuleStats):
             true_attn = F.softmax(true_attn, dim=-1)
             # TODO: add dropout here for consistency, but its best not to use it
             true_future_attn = true_attn[:, :, :-1, :]
-            true_future_x = true_future_attn @ v_pres[:, :, :-1, :]
+            true_future_x = true_future_attn @ v_pres
             if self.detach_future_x:
                 true_future_x = true_future_x.detach()
 
@@ -206,10 +206,11 @@ class FutureMultiAttentionHead(SubModuleStats):
         out = self.dropout_2(out)
 
         if self.training:
+            adapted_out_future = out_future[:, :, :-1, :]
             if self.future_x_loss_type == FutureXLossType.MSE:
-                self.future_loss = F.mse_loss(out_future, true_future_x)
+                self.future_loss = F.mse_loss(adapted_out_future, true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(out_future, true_future_x, dim=-1)
+                cosine_sim = F.cosine_similarity(adapted_out_future, true_future_x, dim=-1)
                 self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
 
         return out
