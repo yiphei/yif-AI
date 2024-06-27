@@ -76,7 +76,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         dropout_rate,
         future_x_loss_type,
         detach_future_x,
-        normalize_loss
+        normalize_loss,
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -166,9 +166,13 @@ class FutureMultiAttentionHead(SubModuleStats):
             adapted_out_future = out_future[:, :, :-1, :]
             if self.future_x_loss_type == FutureXLossType.MSE:
                 if self.normalize_loss:
-                    self.future_loss = F.mse_loss(adapted_out_future, true_future_x, reduction='none')
+                    self.future_loss = F.mse_loss(
+                        adapted_out_future, true_future_x, reduction="none"
+                    )
                     self.future_loss = self.future_loss.mean(dim=-1)
-                    self.future_loss = (self.future_loss * self.loss_weights).sum(dim=-1).mean()
+                    self.future_loss = (
+                        (self.future_loss * self.loss_weights).sum(dim=-1).mean()
+                    )
                 else:
                     self.future_loss = F.mse_loss(adapted_out_future, true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
@@ -176,8 +180,10 @@ class FutureMultiAttentionHead(SubModuleStats):
                     adapted_out_future, true_future_x, dim=-1
                 )
                 if self.normalize_loss:
-                    self.future_loss = (1 - (1 + cosine_sim) / 2)
-                    self.future_loss = (self.future_loss * self.loss_weights).sum(dim=-1).mean()
+                    self.future_loss = 1 - (1 + cosine_sim) / 2
+                    self.future_loss = (
+                        (self.future_loss * self.loss_weights).sum(dim=-1).mean()
+                    )
                 else:
                     self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
 
@@ -200,7 +206,7 @@ class TransformerBlock(nn.Module):
                 config.dropout_rate,
                 config.future_x_loss_type,
                 config.detach_future_x,
-                config.normalize_loss
+                config.normalize_loss,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
