@@ -15,6 +15,7 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
 class FutureXLossType(str, Enum):
     MSE = "MSE"
     COSINE_SIM = "COSINE_SIM"
+    DOT_SUM = "DOT_SUM"
 
     def __str__(self):
         return self.value
@@ -25,6 +26,8 @@ class FutureXLossType(str, Enum):
             return FutureXLossType.MSE
         elif num == 2:
             return FutureXLossType.COSINE_SIM
+        elif num == 3:
+            return FutureXLossType.DOT_SUM
         else:
             raise ValueError("Invalid future x loss number")
 
@@ -35,6 +38,8 @@ class ModelConfig(BaseModelConfig):
     future_dim: int = None  # number of future tokens to attend to
     future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
     use_future_x_loss: bool = True
+    separate_softmax: bool = False
+    use_ln_on_up_future: bool = False
     detach_future_x: Optional[bool] = False
     end_layer: Optional[int] = None
     future_x_loss_coeff: Optional[float] = 1.0
@@ -59,38 +64,12 @@ class ModelConfig(BaseModelConfig):
         if self.end_layer > self.n_layer or self.end_layer < 1:
             raise ValueError("end_layer must be <= n_layer and >= 1")
 
-        assert 1 <= self.future_dim <= (self.context_size - 1)
-
         assert self.future_x_loss_coeff > 0
 
         if self.detach_future_x is None:
             assert not self.use_future_x_loss
         else:
             assert self.use_future_x_loss
-
-
-class DynamicLinear(nn.Module):
-    def __init__(self, head_dim, in_dim, out_dim, use_bias):
-        super().__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.weight = nn.Parameter(torch.randn(head_dim, in_dim, out_dim))
-        torch.nn.init.normal_(self.weight, mean=0.0, std=0.02)
-        self.bias = (
-            nn.Parameter(torch.zeros(head_dim, 1, out_dim)) if use_bias else None
-        )
-
-    def forward(self, x, max_in_size=None, max_out_size=None):
-        max_in_size = max_in_size or self.in_dim
-        max_out_size = max_out_size or self.out_dim
-
-        weight = self.weight[:, :max_in_size, :max_out_size]
-        bias = self.bias[:, :, :max_out_size] if self.bias is not None else None
-
-        x = x @ weight
-        if bias is not None:
-            x = x + bias
-        return x
 
 
 class FutureMultiAttentionHead(SubModuleStats):
@@ -106,6 +85,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         future_dim,
         future_x_loss_type,
         detach_future_x,
+        use_ln_on_up_future,
+        separate_softmax,
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -116,13 +97,23 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.future_dim = future_dim
         self.future_x_loss_type = future_x_loss_type
         self.detach_future_x = detach_future_x or False
+        self.use_ln_on_up_future = use_ln_on_up_future
+        self.separate_softmax = separate_softmax
 
-        self.batch_attn_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
-        self.future_k_weights = DynamicLinear(
-            n_head, self.head_size, context_size - 1, use_bias
-        )
-        self.future_v_weights = DynamicLinear(
-            n_head, context_size - 1, self.head_size, use_bias
+        self.batch_attn_weights = nn.Linear(dim_in, dim_in * 2, bias=use_bias)
+        self.k_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
+        self.v_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
+
+        self.ln = None
+        if use_ln_on_up_future:
+            self.ln = LayerNorm(dim_in, use_bias)
+
+        self.up_future_conv = nn.ConvTranspose1d(
+            in_channels=self.dim_in,
+            out_channels=self.dim_in,
+            kernel_size=self.future_dim,
+            stride=self.future_dim,
+            bias=use_bias,
         )
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
 
@@ -156,77 +147,127 @@ class FutureMultiAttentionHead(SubModuleStats):
                 diagonal=future_dim,
             ),
         )
+        self.register_buffer(
+            "indices",
+            (
+                torch.arange(self.future_dim).unsqueeze(0)
+                + torch.arange(1, context_size + 1).unsqueeze(1)
+            ).expand(self.n_head, context_size, self.future_dim),
+        )
+
+        inf_mask = torch.triu(
+            torch.ones(context_size, self.future_dim + context_size),
+            diagonal=self.future_dim + 1,
+        )
+        padding = torch.zeros((self.context_size, self.future_dim + self.context_size))
+        padding = padding.masked_fill(inf_mask == 1, float("-inf"))
+        padding = padding.expand(
+            self.n_head, self.context_size, self.future_dim + self.context_size
+        )
+        self.register_buffer("padding", padding)
 
     def forward(self, x):
         B, T, C = x.shape
         T_w_future = min(T + self.future_dim, self.context_size)
 
-        q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
-        k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        q, f = self.batch_attn_weights(x).split(self.dim_in, dim=2)
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        f = f.transpose(1, 2)  # B, E, T
+        up_future = self.up_future_conv(f)  # B, E, T * self.future_dim
+        up_future = up_future.transpose(1, 2)  # B, T * self.future_dim, E
+        if self.use_ln_on_up_future:
+            up_future = self.ln(up_future)
+
+        k = self.k_weights(x)
+        k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+
+        k_future = self.k_weights(up_future)  # B, T * self.future_dim, E
+        k_future = k_future.view(B, T, self.future_dim, self.n_head, self.head_size)
+        k_future = k_future.permute(
+            0, 3, 1, 2, 4
+        )  # B, H, T, self.future_dim, self.head_size
+
+        v = self.v_weights(x)
         v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+
+        v_future = self.v_weights(up_future)  # B, T * self.future_dim, E
+        v_future = v_future.view(B, T, self.future_dim, self.n_head, self.head_size)
+        v_future = v_future.permute(0, 3, 1, 2, 4)
 
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
         if self.training:
             with torch.no_grad():
-                true_attn = attn.masked_fill(
-                    self.full_tril[:, :, :T, :T_w_future] == 0,
-                    float("-inf"),
-                )
-                true_attn = F.softmax(true_attn, dim=-1)
-                true_future_attn = true_attn[:, :, :T, 1:]
-                true_future_attn = true_future_attn.masked_fill(
-                    self.future_tril[
-                        :,
-                        :,
-                        :T,
-                        : T_w_future - 1,
-                    ]
-                    != 0,
-                    0.0,
-                )
+                if self.separate_softmax:
+                    true_attn = attn[:, :, :, 1:]
+                    true_attn = true_attn.masked_fill(
+                        self.future_tril[:, :, :T, : T_w_future - 1] == 1,
+                        float("-inf"),
+                    )
+                    true_future_attn = F.softmax(true_attn, dim=-1)
+                else:
+                    true_attn = attn.masked_fill(
+                        self.full_tril[:, :, :T, :T_w_future] == 0,
+                        float("-inf"),
+                    )
+                    true_attn = F.softmax(true_attn, dim=-1)
+                    true_future_attn = true_attn[:, :, :T, 1:]
+                    true_future_attn = true_future_attn.masked_fill(
+                        self.future_tril[
+                            :,
+                            :,
+                            :T,
+                            : T_w_future - 1,
+                        ]
+                        != 0,
+                        0.0,
+                    )
                 true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
                 if self.detach_future_x:
                     true_future_x = true_future_x.detach()
 
-        causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
-        pad_size = min(self.future_dim, self.context_size - T)
-        if pad_size > 0:
-            padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
+        future_attention = torch.einsum("bhts,bhtfs->bhtf", q, k_future)
+
+        if self.separate_softmax:
+            causal_attn = attn.masked_fill(
+                self.causal_tril[:, :, :T, :T] == 0, float("-inf")
+            )
+
+            softmax_causal_attn = F.softmax(causal_attn, dim=-1)
+            unpadded_future_attn = F.softmax(future_attention, dim=-1)
+            softmax_causal_attn = self.dropout_1(softmax_causal_attn)
+            unpadded_future_attn = self.dropout_1(unpadded_future_attn)
         else:
-            padded_causal_attn = causal_attn
+            causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
+            padded_causal_attn = F.pad(causal_attn, (0, self.future_dim), "constant", 0)
 
-        future_attn = self.future_k_weights(q, max_out_size=T_w_future - 1) * (
-            self.head_size**-0.5
-        )
-        future_attn = future_attn.masked_fill(
-            self.future_tril[:, :, :T, : T_w_future - 1] != 0,
-            0.0,
-        )
-        padded_future_attn = F.pad(future_attn, (1, 0), "constant", 0)
+            padding = self.padding[:, :T, : T + self.future_dim].expand(
+                B, self.n_head, T, self.future_dim + T
+            )
+            expanded_indices = self.indices[:, :T, :].expand(
+                B, self.n_head, T, self.future_dim
+            )
+            # TODO: figure out a better solution for this. Currently, without this,
+            #       torch.compile complains that padding's dtype and future_attention's
+            #       dtype are different.
+            padding = padding.to(dtype=future_attention.dtype)
+            padded_future_attn = torch.scatter(
+                padding, -1, expanded_indices, future_attention
+            )
 
-        full_attn = padded_causal_attn + padded_future_attn
-        full_attn = full_attn.masked_fill(
-            self.full_tril[:, :, :T, :T_w_future] == 0,
-            float("-inf"),
-        )
-        softmax_full_attn = F.softmax(full_attn, dim=-1)
-        softmax_full_attn = self.dropout_1(softmax_full_attn)
+            full_attn = padded_causal_attn + padded_future_attn
+            softmax_full_attn = F.softmax(full_attn, dim=-1)
+            softmax_full_attn = self.dropout_1(softmax_full_attn)
 
-        softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
-        softmax_causal_attn = softmax_causal_attn.masked_fill(
-            self.causal_tril[:, :, :T, :T] == 0, 0.0
-        )
-        softmax_future_attn = softmax_full_attn[:, :, :T, 1:T_w_future]
-        softmax_future_attn = softmax_future_attn.masked_fill(
-            self.future_tril[:, :, :T, : T_w_future - 1] != 0,
-            0.0,
-        )
+            softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
+            softmax_causal_attn = softmax_causal_attn.masked_fill(
+                self.causal_tril[:, :, :T, :T] == 0, 0.0
+            )
+
+            unpadded_future_attn = torch.gather(softmax_full_attn, 3, expanded_indices)
 
         causal_x = softmax_causal_attn @ v
-        future_x = self.future_v_weights(
-            softmax_future_attn, max_in_size=T_w_future - 1
-        )
+        future_x = torch.einsum("bhtf,bhtfs->bhts", unpadded_future_attn, v_future)
+
         new_x = causal_x + future_x
         new_x = new_x.transpose(1, 2).contiguous().view(B, T, C)
 
@@ -234,11 +275,20 @@ class FutureMultiAttentionHead(SubModuleStats):
         new_x = self.dropout_2(new_x)
 
         if self.training:
+            adjusted_future_x = future_x[:, :, :-1, :]
+            adjusted_true_future_x = true_future_x[:, :, :-1, :]
             if self.future_x_loss_type == FutureXLossType.MSE:
-                self.future_loss = F.mse_loss(future_x, true_future_x)
+                self.future_loss = F.mse_loss(adjusted_future_x, adjusted_true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(future_x, true_future_x, dim=-1)
+                cosine_sim = F.cosine_similarity(
+                    adjusted_future_x, adjusted_true_future_x, dim=-1
+                )
                 self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
+            elif self.future_x_loss_type == FutureXLossType.DOT_SUM:
+                dot_sum = (
+                    (adjusted_future_x * adjusted_true_future_x).sum(dim=-1) ** 2
+                ).mean()
+                self.future_loss = 1 / dot_sum
 
         return new_x
 
@@ -260,6 +310,8 @@ class TransformerBlock(nn.Module):
                 config.future_dim,
                 config.future_x_loss_type,
                 config.detach_future_x,
+                config.use_ln_on_up_future,
+                config.separate_softmax,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
