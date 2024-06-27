@@ -52,7 +52,7 @@ class SubPosEmbedType(str, Enum):
 class EmbeddingLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
-    COSINE_SIM = "CONSINE_SIM"
+    COSINE_SIM = "COSINE_SIM"
     LOG_COSINE_SIM = "LOG_COSINE_SIM"
 
     def __str__(self):

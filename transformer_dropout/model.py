@@ -55,8 +55,8 @@ class SubPosEmbedType(str, Enum):
 class TokenLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
-    COSINE_SIM_NORM = "CONSINE_SIM_NORM"
-    COSINE_SIM_LOG = "CONSINE_SIM_LOG"
+    COSINE_SIM_NORM = "COSINE_SIM_NORM"
+    COSINE_SIM_LOG = "COSINE_SIM_LOG"
 
     def __str__(self):
         return self.value
