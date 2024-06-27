@@ -32,7 +32,6 @@ class FutureXLossType(str, Enum):
 @dataclass
 class ModelConfig(BaseModelConfig):
     start_layer: int = 1  # layer at which to start using future attention
-    future_dim: int = None  # number of future tokens to attend to
     future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
     use_future_x_loss: bool = True
     detach_future_x: Optional[bool] = False
@@ -45,9 +44,6 @@ class ModelConfig(BaseModelConfig):
                 self.future_x_loss_type
             )
 
-        if self.future_dim is None:
-            self.future_dim = self.context_size - 1
-
         if self.end_layer is None:
             self.end_layer = self.start_layer
 
@@ -59,38 +55,12 @@ class ModelConfig(BaseModelConfig):
         if self.end_layer > self.n_layer or self.end_layer < 1:
             raise ValueError("end_layer must be <= n_layer and >= 1")
 
-        assert 1 <= self.future_dim <= (self.context_size - 1)
-
         assert self.future_x_loss_coeff > 0
 
         if self.detach_future_x is None:
             assert not self.use_future_x_loss
         else:
             assert self.use_future_x_loss
-
-
-class DynamicLinear(nn.Module):
-    def __init__(self, head_dim, in_dim, out_dim, use_bias):
-        super().__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.weight = nn.Parameter(torch.randn(head_dim, in_dim, out_dim))
-        torch.nn.init.normal_(self.weight, mean=0.0, std=0.02)
-        self.bias = (
-            nn.Parameter(torch.zeros(head_dim, 1, out_dim)) if use_bias else None
-        )
-
-    def forward(self, x, max_in_size=None, max_out_size=None):
-        max_in_size = max_in_size or self.in_dim
-        max_out_size = max_out_size or self.out_dim
-
-        weight = self.weight[:, :max_in_size, :max_out_size]
-        bias = self.bias[:, :, :max_out_size] if self.bias is not None else None
-
-        x = x @ weight
-        if bias is not None:
-            x = x + bias
-        return x
 
 
 class FutureMultiAttentionHead(SubModuleStats):
@@ -103,7 +73,6 @@ class FutureMultiAttentionHead(SubModuleStats):
         use_bias,
         context_size,
         dropout_rate,
-        future_dim,
         future_x_loss_type,
         detach_future_x,
     ):
@@ -113,7 +82,6 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.context_size = context_size
         self.n_head = n_head
         self.head_size = dim_in // n_head
-        self.future_dim = future_dim
         self.future_x_loss_type = future_x_loss_type
         self.detach_future_x = detach_future_x or False
 
@@ -133,25 +101,6 @@ class FutureMultiAttentionHead(SubModuleStats):
                 torch.ones(context_size, context_size).view(
                     1, 1, context_size, context_size
                 )
-            ),
-        )
-        self.register_buffer(
-            "future_tril",
-            (
-                torch.tril(torch.ones(context_size, context_size - 1), diagonal=-1)
-                + torch.triu(
-                    torch.ones(context_size, context_size - 1),
-                    diagonal=future_dim,
-                )
-            ).view(1, 1, context_size, context_size - 1),
-        )
-        self.register_buffer(
-            "full_tril",
-            torch.tril(
-                torch.ones(context_size, context_size).view(
-                    1, 1, context_size, context_size
-                ),
-                diagonal=future_dim,
             ),
         )
 
@@ -232,7 +181,6 @@ class TransformerBlock(nn.Module):
                 config.use_bias,
                 config.context_size,
                 config.dropout_rate,
-                config.future_dim,
                 config.future_x_loss_type,
                 config.detach_future_x,
             )
