@@ -15,8 +15,8 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
 class PlanningLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
-    COSINE_SIM = "COSINE_SIM"
-    LOG_COSINE_SIM = "LOG_COSINE_SIM"
+    COSINE = "COSINE"
+    COSINE_SIM = "LOG_COSINE"
 
     def __str__(self):
         return self.value
@@ -28,9 +28,9 @@ class PlanningLossType(str, Enum):
         elif num == 2:
             return PlanningLossType.MSE
         elif num == 3:
-            return PlanningLossType.COSINE_SIM
+            return PlanningLossType.COSINE
         elif num == 4:
-            return PlanningLossType.LOG_COSINE_SIM
+            return PlanningLossType.COSINE_SIM
         else:
             raise ValueError("Invalid PlanningLossType number")
 
@@ -507,7 +507,7 @@ class DeepSight(BaseModel):
                 self.scaled_planning_loss = (
                     self.planning_loss * self.config.planning_loss_coeff
                 )
-            elif self.config.planning_loss_type == PlanningLossType.COSINE_SIM:
+            elif self.config.planning_loss_type == PlanningLossType.COSINE:
                 cosine_sim = F.cosine_similarity(
                     planning_context_embed, encoder_out, dim=-1
                 )
@@ -515,7 +515,7 @@ class DeepSight(BaseModel):
                 self.scaled_planning_loss = (
                     self.planning_loss * self.config.planning_loss_coeff
                 )
-            elif self.config.planning_loss_type == PlanningLossType.LOG_COSINE_SIM:
+            elif self.config.planning_loss_type == PlanningLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(
                     planning_context_embed, encoder_out, dim=-1
                 )
