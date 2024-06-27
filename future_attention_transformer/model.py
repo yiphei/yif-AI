@@ -117,13 +117,11 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.future_x_loss_type = future_x_loss_type
         self.detach_future_x = detach_future_x or False
 
-        self.batch_attn_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
-        self.future_k_weights = DynamicLinear(
-            n_head, self.head_size, context_size - 1, use_bias
-        )
-        self.future_v_weights = DynamicLinear(
-            n_head, context_size - 1, self.head_size, use_bias
-        )
+        self.batch_attn_weights = nn.Linear(dim_in, dim_in * 2, bias=use_bias)
+        self.k_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
+        self.v_weights = nn.Linear(dim_in, dim_in, bias=use_bias)
+
+        self.f_ln = LayerNorm(dim_in, use_bias)
         self.residual_proj = nn.Linear(dim_in, dim_in, bias=use_bias)
 
         self.dropout_1 = nn.Dropout(dropout_rate)
@@ -161,86 +159,54 @@ class FutureMultiAttentionHead(SubModuleStats):
         B, T, C = x.shape
         T_w_future = min(T + self.future_dim, self.context_size)
 
-        q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
-        k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        q, f = self.batch_attn_weights(x).split(self.dim_in, dim=2)
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
-        v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        f = self.f_ln(f)
 
-        attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
+        k_pres = self.k_weights(x)
+        k_future = self.k_weights(f)
+        k_pres = k_pres.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        k_future = k_future.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+
+        v_pres = self.v_weights(x)
+        v_future = self.v_weights(f)
+        v_pres = v_pres.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        v_future = v_future.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        
+        attn = (q @ k_pres.transpose(-2, -1)) * (self.head_size**-0.5)
         if self.training:
             with torch.no_grad():
                 true_attn = attn.masked_fill(
-                    self.full_tril[:, :, :T, :T_w_future] == 0,
-                    float("-inf"),
+                    self.causal_tril != 0,
+                    float("-inf")
                 )
                 true_attn = F.softmax(true_attn, dim=-1)
-                true_future_attn = true_attn[:, :, :T, 1:]
-                true_future_attn = true_future_attn.masked_fill(
-                    self.future_tril[
-                        :,
-                        :,
-                        :T,
-                        : T_w_future - 1,
-                    ]
-                    != 0,
-                    0.0,
-                )
-                true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
+                true_future_attn = true_attn[:, :, :-1, :]
+                true_future_x = true_future_attn @ v_pres[:, :, :-1, :]
                 if self.detach_future_x:
                     true_future_x = true_future_x.detach()
 
-        causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
-        pad_size = min(self.future_dim, self.context_size - T)
-        if pad_size > 0:
-            padded_causal_attn = F.pad(causal_attn, (0, pad_size), "constant", 0)
-        else:
-            padded_causal_attn = causal_attn
-
-        future_attn = self.future_k_weights(q, max_out_size=T_w_future - 1) * (
-            self.head_size**-0.5
+        out_pres = F.scaled_dot_product_attention(
+            q, k_pres, v_pres, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
         )
-        future_attn = future_attn.masked_fill(
-            self.future_tril[:, :, :T, : T_w_future - 1] != 0,
-            0.0,
+        out_future = F.scaled_dot_product_attention(
+            q, k_future, v_future, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
         )
-        padded_future_attn = F.pad(future_attn, (1, 0), "constant", 0)
-
-        full_attn = padded_causal_attn + padded_future_attn
-        full_attn = full_attn.masked_fill(
-            self.full_tril[:, :, :T, :T_w_future] == 0,
-            float("-inf"),
-        )
-        softmax_full_attn = F.softmax(full_attn, dim=-1)
-        softmax_full_attn = self.dropout_1(softmax_full_attn)
-
-        softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
-        softmax_causal_attn = softmax_causal_attn.masked_fill(
-            self.causal_tril[:, :, :T, :T] == 0, 0.0
-        )
-        softmax_future_attn = softmax_full_attn[:, :, :T, 1:T_w_future]
-        softmax_future_attn = softmax_future_attn.masked_fill(
-            self.future_tril[:, :, :T, : T_w_future - 1] != 0,
-            0.0,
-        )
-
-        causal_x = softmax_causal_attn @ v
-        future_x = self.future_v_weights(
-            softmax_future_attn, max_in_size=T_w_future - 1
-        )
-        new_x = causal_x + future_x
-        new_x = new_x.transpose(1, 2).contiguous().view(B, T, C)
-
-        new_x = self.residual_proj(new_x)
-        new_x = self.dropout_2(new_x)
+        out = out_pres + out_future
+        out = (
+            out.transpose(1, 2).contiguous().view(B, T, C)
+        )  # B,H,T,S -> B,T,H,S -> B,T,C
+        out = self.residual_proj(out)
+        out = self.dropout_2(out)
 
         if self.training:
             if self.future_x_loss_type == FutureXLossType.MSE:
-                self.future_loss = F.mse_loss(future_x, true_future_x)
+                self.future_loss = F.mse_loss(out_future, true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
-                cosine_sim = F.cosine_similarity(future_x, true_future_x, dim=-1)
+                cosine_sim = F.cosine_similarity(out_future, true_future_x, dim=-1)
                 self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
 
-        return new_x
+        return out
 
 
 class TransformerBlock(nn.Module):
