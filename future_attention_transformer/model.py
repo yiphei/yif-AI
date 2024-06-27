@@ -34,6 +34,7 @@ class ModelConfig(BaseModelConfig):
     start_layer: int = 1  # layer at which to start using future attention
     future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
     use_future_x_loss: bool = True
+    normalize_loss: bool = False
     detach_future_x: Optional[bool] = False
     end_layer: Optional[int] = None  # None means end_layer = start_layer
     future_x_loss_coeff: Optional[float] = 1.0
@@ -75,6 +76,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         dropout_rate,
         future_x_loss_type,
         detach_future_x,
+        normalize_loss
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -94,6 +96,12 @@ class FutureMultiAttentionHead(SubModuleStats):
 
         self.dropout_rate = dropout_rate
         self.dropout_2 = nn.Dropout(dropout_rate)
+
+        self.normalize_loss = normalize_loss
+        if normalize_loss:
+            values = torch.arange(1, context_size, dtype=torch.float32)
+            values = values / values.sum()
+            self.register_buffer("loss_weights", values.view(1, 1, context_size - 1))
 
         self.register_buffer(
             "causal_tril",
@@ -157,12 +165,20 @@ class FutureMultiAttentionHead(SubModuleStats):
         if self.training:
             adapted_out_future = out_future[:, :, :-1, :]
             if self.future_x_loss_type == FutureXLossType.MSE:
-                self.future_loss = F.mse_loss(adapted_out_future, true_future_x)
+                if self.normalize_loss:
+                    self.future_loss = F.mse_loss(adapted_out_future, true_future_x, reduction='none')
+                    self.future_loss = (self.future_loss * self.loss_weights).sum(dim=-1).mean()
+                else:
+                    self.future_loss = F.mse_loss(adapted_out_future, true_future_x)
             elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
                 cosine_sim = F.cosine_similarity(
                     adapted_out_future, true_future_x, dim=-1
                 )
-                self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
+                if self.normalize_loss:
+                    self.future_loss = (1 - (1 + cosine_sim) / 2)
+                    self.future_loss = (self.future_loss * self.loss_weights).sum(dim=-1).mean()
+                else:
+                    self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
 
         return out
 
@@ -183,6 +199,7 @@ class TransformerBlock(nn.Module):
                 config.dropout_rate,
                 config.future_x_loss_type,
                 config.detach_future_x,
+                config.normalize_loss
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
