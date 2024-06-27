@@ -34,7 +34,7 @@ class ModelConfig(BaseModelConfig):
     start_layer: int = 1  # layer at which to start using future attention
     future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
     use_future_x_loss: bool = True
-    normalize_loss: bool = False
+    normalize_loss: bool = True
     detach_future_x: Optional[bool] = False
     end_layer: Optional[int] = None  # None means end_layer = start_layer
     future_x_loss_coeff: Optional[float] = 1.0
@@ -167,6 +167,7 @@ class FutureMultiAttentionHead(SubModuleStats):
             if self.future_x_loss_type == FutureXLossType.MSE:
                 if self.normalize_loss:
                     self.future_loss = F.mse_loss(adapted_out_future, true_future_x, reduction='none')
+                    self.future_loss = self.future_loss.mean(dim=-1)
                     self.future_loss = (self.future_loss * self.loss_weights).sum(dim=-1).mean()
                 else:
                     self.future_loss = F.mse_loss(adapted_out_future, true_future_x)
