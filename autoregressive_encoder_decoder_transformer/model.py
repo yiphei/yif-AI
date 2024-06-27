@@ -52,8 +52,8 @@ class SubPosEmbedType(str, Enum):
 class EmbeddingLossType(str, Enum):
     NONE = "NONE"
     MSE = "MSE"
-    COSINE_SIM = "COSINE_SIM"
-    LOG_COSINE_SIM = "LOG_COSINE_SIM"
+    COSINE = "COSINE"
+    LOG_COSINE = "LOG_COSINE"
 
     def __str__(self):
         return self.value
@@ -65,9 +65,9 @@ class EmbeddingLossType(str, Enum):
         elif num == 2:
             return EmbeddingLossType.MSE
         elif num == 3:
-            return EmbeddingLossType.COSINE_SIM
+            return EmbeddingLossType.COSINE
         elif num == 4:
-            return EmbeddingLossType.LOG_COSINE_SIM
+            return EmbeddingLossType.LOG_COSINE
         else:
             raise ValueError("Invalid embedding loss type number")
 
@@ -416,13 +416,13 @@ class AutoregressiveEncoderDecoderTransformer(BaseModel):
                 self.scaled_embedding_loss = (
                     self.embedding_loss * self.config.embedding_loss_coeff
                 )
-            elif self.config.embedding_loss_type == EmbeddingLossType.COSINE_SIM:
+            elif self.config.embedding_loss_type == EmbeddingLossType.COSINE:
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 self.embedding_loss = (1 - (cosine_sim + 1) / 2).mean()
                 self.scaled_embedding_loss = (
                     self.embedding_loss * self.config.embedding_loss_coeff
                 )
-            elif self.config.embedding_loss_type == EmbeddingLossType.LOG_COSINE_SIM:
+            elif self.config.embedding_loss_type == EmbeddingLossType.LOG_COSINE:
                 cosine_sim = F.cosine_similarity(avg_sum, encoder_out, dim=-1)
                 self.embedding_loss = (-torch.log(((cosine_sim + 1) / 2))).mean()
                 self.scaled_embedding_loss = (
