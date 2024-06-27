@@ -35,7 +35,7 @@ class ModelConfig(BaseModelConfig):
     future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
     use_future_x_loss: bool = True
     detach_future_x: Optional[bool] = False
-    end_layer: Optional[int] = None # None means end_layer = start_layer
+    end_layer: Optional[int] = None  # None means end_layer = start_layer
     future_x_loss_coeff: Optional[float] = 1.0
 
     def __post_init__(self):
