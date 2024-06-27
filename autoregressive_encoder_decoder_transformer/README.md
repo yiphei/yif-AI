@@ -207,11 +207,11 @@ Alas, the principal limitation is my personal compute budget, so this project ca
 If you use this codebase, or otherwise found my work valuable, please cite:
 
 ```
-@misc{autoregressive-enc-dec,
+@misc{yan2024autoregressive-enc-dec,
   title={Auto-regressive Encoder-Decoder Transformer},
   author={Yan, Yifei},
   year={2024},
-  note={\url{https://github.com/yiphei/yif-AI/tree/main/autoregressive_encoder_decoder_transformer}}
+  url={https://github.com/yiphei/yif-AI/tree/main/autoregressive_encoder_decoder_transformer}
 }
 ```
 
