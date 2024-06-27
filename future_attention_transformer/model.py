@@ -176,6 +176,7 @@ class FutureMultiAttentionHead(SubModuleStats):
             attn = (q @ k_pres.transpose(-2, -1)) * (self.head_size**-0.5)
             true_attn = attn.masked_fill(self.causal_tril != 0, float("-inf"))
             true_attn = F.softmax(true_attn, dim=-1)
+            # TODO: add dropout here for consistency, but its best not to use it
             true_future_attn = true_attn[:, :, :-1, :]
             true_future_x = true_future_attn @ v_pres[:, :, :-1, :]
             if self.detach_future_x:
