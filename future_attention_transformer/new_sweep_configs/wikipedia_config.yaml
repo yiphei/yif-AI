@@ -1,6 +1,6 @@
-program: encoder_decoder_transformer/training_script.py
+program: future_attention_transformer/training_script.py
 name: wikipedia_config
-project: serial_encoder_decoder_transformer
+project: future_attention_transformer_v2
 method: grid
 metric:
   goal: minimize
@@ -15,35 +15,25 @@ parameters:
             n_embed: 
                 value: 150
             n_layer: 
-                value: 13
+                value: 26
             n_head: 
                 value: 5
             dropout_rate:
                 value: 0
-            order_type:
+            start_layer:
                 value: 1
-            add_ln_before_decoder_ff:
-                value: False
-            add_pos_embed_to_decoder:
-                value: False
-            sub_pos_embed_to_decoder:
-                value: 2
-            cross_attn_config:
-                parameters:
-                    n_head:
-                        value: 10
-                    use_bias:
-                        value: False
-            use_ln_on_encoder_out:
+            end_layer:
+                value: 26
+            future_x_loss_type:
+                values: [1, 2]
+            use_future_x_loss:
                 value: True
-            encoder_embed_loss_type:
-                value: 2
-            encoder_embed_detach_type:
-                value: 3
-            encoder_embed_ln_type:
-                value: 2
-            encoder_embed_loss_coeff:
-                value: 8
+            normalize_loss:
+                values: [True, False]
+            detach_future_x:
+                values: [True, False]
+            future_x_loss_coeff:
+                value: 1
     batch_size: 
         value: 50
     train_steps: 
