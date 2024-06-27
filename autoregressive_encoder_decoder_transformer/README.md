@@ -202,6 +202,19 @@ Moreover, it would be very interesting to inspect the effect of embedding loss a
 
 Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
+## Citation
+
+If you use this codebase, or otherwise found my work valuable, please cite:
+
+```
+@misc{autoregressive-enc-dec,
+  title={Auto-regressive Encoder-Decoder Transformer},
+  author={Yan, Yifei},
+  year={2024},
+  note={\url{https://github.com/yiphei/yif-AI/tree/main/autoregressive_encoder_decoder_transformer}}
+}
+```
+
 ---
 ## Appendix
 ### Run configs
