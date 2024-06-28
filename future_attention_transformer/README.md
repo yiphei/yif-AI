@@ -5,13 +5,17 @@ Decoder-only transformer models apply a causal mask to enable parallel training 
 
 ## Motivations
 
-In the canonical decoder transformer, the attention layer computes an attention matrix for each head, like the figure below.
+In the canonical decoder transformer, the attention layer computes an attention matrix $A$ for each head, like the figure below.
 
 <div align="center">
   <img src="assets/unmasked.svg" alt="sdasd" width="400">
 </div>
 
-Because transformer models are trained in a parallel way, a causal mask must be applied to the attention matrix to prevent the model from peeking at future tokens and thus from cheating. In the figure below, the mask is depicted with red squares.
+Because transformer models are trained in a parallel way, a causal mask $M$ must be applied to the attention matrix $A$ to prevent the model from peeking at future tokens and thus from cheating. Stated more formally,
+
+...
+
+In the figure below, the mask $m$ is depicted with red squares.
 
 <div align="center">
   <img src="assets/causal_mask.svg" alt="sdasd" width="400">
@@ -23,11 +27,27 @@ However, the masked part contains good signal on the affinities between present 
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
+Because $A$ is later matrix multiplied with $V$ to produce the attention output $out_{attn}$
+
+$out_{attn} = A \circ V$
+
+then future $V$ values need to predicted as well. This part is tricky because, unlike 
+
 ## Architecture
 
 At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi attention head block that also predicts the some portion of the masked attention matrix. A loss is created from these predictions and is added to the final model loss.
 
 ### Future Attention Head
+
+Because the model needs to both predict masked values of $A$ and future $V$, it can be complicated and difficult to predict both separately. Rather, it is easier to predict the respective contributions of each to $out_{attn}$. Let's call this contribution $out_{masked_attn}$. Stated more formally,  
+
+
+
+Instead of directly predicting the masked values, the model can indirectly do so by predicting their contributions to the attention mechanism output.
+
+As a quick refresh, the canonical attention mechanism works by first computing $Q$, $K$, and $V$ tensors from the input $X$. Then, the attention matrix is formed $A = Q \circ K^{T}$. Then, the output is $out = A \circ V$. 
+
+
 
 In the regular attention head, attention works by computing $Q$, $K$, and $V$ tensors. That continues to be the case here, with $out_{decoder}$ as the output of the cannonical attention operation with a masked attention matrix. In parallel, the model also computes $out_{future}$. To do so, we need to first determine how much of the masked part (the "future") we want to predict, which is represented by the hyperparameter $future\\\_dim$. $future\_dim$ demarcates the part of the masked upper-right triangle that starts from first diagonal where values are masked till the $future\\\_dim^{th}$ diagonal. The range of $future\\\_dim$ is $\in [1, context\\\_size-1]$ since there are $context\\\_size-1$ diagonals in the masked triangle. 
 
