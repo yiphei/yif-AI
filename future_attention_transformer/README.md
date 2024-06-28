@@ -8,13 +8,13 @@ Decoder-only transformer models apply a causal mask to enable parallel training 
 In the canonical decoder's multi attention head, an attention matrix is calculated for every head
 
 <div align="center">
-  <img src="assets/unmasked.png" alt="sdasd" width="400">
+  <img src="assets/unmasked.svg" alt="sdasd" width="400">
 </div>
 
 and an upper-right triangular mask is applied on it to respect temporal causality.
 
 <div align="center">
-  <img src="assets/causal_mask.png" alt="sdasd" width="400">
+  <img src="assets/causal_mask.svg" alt="sdasd" width="400">
 </div>
 
 This is necessary to permit parallel training because you don't want the model to cheat by exposing it the answers. However, you lose the upper mask.
