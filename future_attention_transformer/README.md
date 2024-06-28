@@ -23,26 +23,33 @@ A(i,j) & \text{if } M[i,j] = 1 \\
 \end{aligned}
 $$
 
-Because of this, two components of the original $A$ can be defined
-
-$$
-\begin{aligned}
-& A_{unmasked}(i,j) = A(i,j) \text{ where } (i,j) \in \\{ (i,j) \mid M(i,j) = 0 \\} \\
-& A_{masked}(i,j) = A(i,j) \text{ where } (i,j) \in \\{ (i,j) \mid M(i,j) \neq 0 \\}
-\end{aligned}
-$$
-
-In the figure below, the mask $m$ is depicted with red squares.
+The causal attention matrix is illustrated in the figure below (the mask $M$ is depicted with red squares).
 
 <div align="center">
   <img src="assets/causal_mask.svg" alt="sdasd" width="400">
 </div>
 
-However, the masked part contains good signal on the affinities between present and future tokens. Presumably, the model could improve next token prediction when leveraging these affinities in its computations. Since the masked part can't be directly used, the model can instead predict the masked part and these predictions can be optimized with the true masked values. In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
+
+Before proceeding, let's define two subcomponents of the original $A$
+
+$$
+\begin{aligned}
+& A_{unmasked}(i,j) = A(i,j) \text{ where } (i,j) \in \\{ (i,j) \mid M(i,j) = 1 \\} \\
+& A_{masked}(i,j) = A(i,j) \text{ where } (i,j) \in \\{ (i,j) \mid M(i,j) = 0 \\}
+\end{aligned}
+$$
+
+Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. Presumably, the model could improve next token prediction by leveraging these affinities in its computations. Since the masked part can't be directly used, the model can instead predict the masked part, and these predictions can be optimized with the true masked values. In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
+
+Let's call the blue part $A_{pred}$ and define it as
+
+$A_{pred}(i,j) = A_{masked}(k,l) \text{ where } i < k \leq min(i + future\_dim, T)$
+
+$T$ is the token dimension, and $future_dim$ is a scalar hyperparameter that defines how many unmasked values to predict. In the example above, $future\_dim = 2$
 
 Because $A$ is later matrix multiplied with $V$ to produce the attention output $out_{attn}$
 
