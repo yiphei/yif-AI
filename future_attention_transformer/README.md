@@ -45,17 +45,17 @@ Now, the masked part $A_{masked}$ contains good signal on the affinities between
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
-Let's call the blue part $A_{pred}$, formally defined as
+Let's call the blue part $A_{future}$, formally defined as
 
-$A_{pred}(i,j) = A_{masked}(i,j) \text{  where  } i < j \leq min(i + future\\_dim, context\\_size)$
+$A_{future}(i,j) = A_{masked}(i,j) \text{  where  } i < j \leq min(i + future\\_dim, context\\_size)$
 
 $future\\_dim$ is a scalar hyperparameter that defines how many unmasked values to predict. In the example above, $future\\_dim = 2$
 
-Because $A$ is later matrix multiplied with $V$ to produce the attention output $out_{attn}$
+Because $A_{causal}$ is later matrix multiplied with $V$ to produce the attention output $out_{causal}$
 
-$out_{attn} = A \circ V$
+$out_{causal} = softmax(A_{causal}) \circ V$
 
-then future $V$ values need to predicted as well. This part is tricky because, unlike 
+then "future" $V$ values need to predicted as well for the matrix multiplication to work. This is trickier because, unlike $A_{future}$ where the target future lies in the last dimension, $V$ has the target future in the penultimate dimension. 
 
 ## Architecture
 
@@ -63,13 +63,24 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-Because the model needs to both predict masked values of $A$ and future $V$, it can be complicated and difficult to predict both separately. Rather, it is easier to predict the respective contributions of each to $out_{attn}$. Let's call this contribution $out_{masked_attn}$. Stated more formally,  
+Because the model needs to both predict masked values $A_{future}$ and future $V$, it is expensive to do both and, as stated before, tricky to do $V$. Instead, it becomes much simpler to predict the output contribution.
+
+In other words, assuming you have $out_{no\\_mask}$ that is the output of attention without any mask
+
+$out_{no\\_mask} = softmax(A) \circ V$
+
+Then, predicting the output contribution is equivalent to predicting
+
+$out_{future} = out_{no\\_mask} - out_{causal}$
+
+Now, the attention mechanism is based on three operands:
+$Q$, $K$, and $V$. $A$ is already computed by $Q$ and $K$
+
+$A = Q \cdot K^{T}$
+
+Since we need to indirectly predict $A_{pred}$, we should reuse $Q$ but need different $K_{pred}$ and $V_{pred}$. There are many ways to construct $K_{pred}$ and $V_{pred}$, but here they are learnable weights, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
 
 
-
-Instead of directly predicting the masked values, the model can indirectly do so by predicting their contributions to the attention mechanism output.
-
-As a quick refresh, the canonical attention mechanism works by first computing $Q$, $K$, and $V$ tensors from the input $X$. Then, the attention matrix is formed $A = Q \circ K^{T}$. Then, the output is $out = A \circ V$. 
 
 
 
