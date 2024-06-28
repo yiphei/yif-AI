@@ -23,6 +23,15 @@ A(i,j) & \text{if } M[i,j] = 1 \\
 \end{aligned}
 $$
 
+Because of this, two components of the original $A$ can be defined
+
+$$
+\begin{aligned}
+& A_{unmasked}(i,j) = A(i,j) \text{ where } (i,j) \in \{ (i,j) \mid M(i,j) = 0 \} \\
+& A_{masked}(i,j) = A(i,j) \text{ where } (i,j) \in \{ (i,j) \mid M(i,j) \neq 0 \}
+\end{aligned}
+$$
+
 In the figure below, the mask $m$ is depicted with red squares.
 
 <div align="center">
