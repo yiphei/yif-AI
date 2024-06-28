@@ -1,20 +1,26 @@
 # Future Attention Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
 
-Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. However, the masked part of the attention matrix contains good signal between present tokens and future tokens. This project explores how the masked part can be leveraged to improve model training.
+Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. However, the masked part of the attention matrix contains good signal on the relationship between present tokens and future tokens. This project explores how the masked part can be leveraged to improve model training.
 
 ## Motivations
 
-In the canonical decoder's multi attention head, an attention matrix is calculated for every head
+In the canonical decoder transformer, an attention matrix is calculated like the figure below
 
 <div align="center">
   <img src="assets/unmasked.svg" alt="sdasd" width="400">
 </div>
 
-and an upper-right triangular mask is applied on it to respect temporal causality.
+Because transformer models are trained on parallel inputs, a causal mask is applied to the attention matrix to prevent the model from peeking at future tokens and thus from cheating.
 
 <div align="center">
   <img src="assets/causal_mask.svg" alt="sdasd" width="400">
+</div>
+
+However, the masked part contains good signal on the relationship between present tokens and future tokens. And computing such relationships can plausibly help performance. Therefore, we can ask the model to predict the masked part and use the true masked values as the ground truth, like the figure below.
+
+<div align="center">
+  <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
 This is necessary to permit parallel training because you don't want the model to cheat by exposing it the answers. However, you lose the upper mask.
