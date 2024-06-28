@@ -47,7 +47,7 @@ Now, the masked part $A_{masked}$ contains good signal on the affinities between
 
 Let's call the blue part $A_{pred}$, formally defined as
 
-$A_{pred}(i,j) = A_{masked}(i,j) \text{  where  } i < l \leq min(i + future\\_dim, context\\_size)$
+$A_{pred}(i,j) = A_{masked}(i,j) \text{  where  } i < j \leq min(i + future\\_dim, context\\_size)$
 
 $future\\_dim$ is a scalar hyperparameter that defines how many unmasked values to predict. In the example above, $future\\_dim = 2$
 
