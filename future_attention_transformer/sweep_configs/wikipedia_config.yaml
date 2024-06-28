@@ -1,6 +1,6 @@
 program: future_attention_transformer/training_script.py
 name: wikipedia_config
-project: future_attention_transformer
+project: future_attention_transformer_v1
 method: grid
 metric:
   goal: minimize
@@ -13,9 +13,9 @@ parameters:
             context_size:
                 value: 200
             n_embed: 
-                value: 200
+                value: 150
             n_layer: 
-                value: 10
+                value: 26
             n_head: 
                 value: 10
             dropout_rate:
@@ -23,17 +23,17 @@ parameters:
             start_layer:
                 value: 1
             end_layer:
-                value: 10
-            future_dim:
-                values: [50, 100, 150,199]
+                value: 26
             future_x_loss_type:
-                values: [1,2]
+                values: [1, 2]
             use_future_x_loss:
                 value: True
-            future_x_loss_coeff:
-                values: [1, 2, 0.5]
+            future_dim:
+                values: [50, 100]
             detach_future_x:
-                value: False
+                values: [True, False]
+            future_x_loss_coeff:
+                value: 1
     batch_size: 
         value: 50
     train_steps: 
