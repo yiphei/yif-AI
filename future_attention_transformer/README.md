@@ -27,8 +27,8 @@ Because of this, two components of the original $A$ can be defined
 
 $$
 \begin{aligned}
-& A_{unmasked}(i,j) = A(i,j) \text{ where } (i,j) \in \{ (i,j) \mid M(i,j) = 0 \} \\
-& A_{masked}(i,j) = A(i,j) \text{ where } (i,j) \in \{ (i,j) \mid M(i,j) \neq 0 \}
+& A_{unmasked}(i,j) = A(i,j) \text{ where } (i,j) \in \\{ (i,j) \mid M(i,j) = 0 \\} \\
+& A_{masked}(i,j) = A(i,j) \text{ where } (i,j) \in \\{ (i,j) \mid M(i,j) \neq 0 \\}
 \end{aligned}
 $$
 
