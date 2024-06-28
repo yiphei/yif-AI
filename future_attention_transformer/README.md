@@ -1,37 +1,31 @@
 # Future Attention Transformer [WIP readme]
-> NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
+> NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. However, the masked part of the attention matrix contains good signal on the relationship between present tokens and future tokens. This project explores how the masked part can be leveraged to improve model training.
+Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. However, the masked part of the attention matrix contains good signal on the affinities between present and future tokens. This project explores how the masked part can be leveraged to improve model training.
 
 ## Motivations
 
-In the canonical decoder transformer, an attention matrix is calculated like the figure below
+In the canonical decoder transformer, the attention layer computes an attention matrix for each head, like the figure below.
 
 <div align="center">
   <img src="assets/unmasked.svg" alt="sdasd" width="400">
 </div>
 
-Because transformer models are trained on parallel inputs, a causal mask is applied to the attention matrix to prevent the model from peeking at future tokens and thus from cheating.
+Because transformer models are trained in a parallel way, a causal mask must be applied to the attention matrix to prevent the model from peeking at future tokens and thus from cheating. In the figure below, the mask is depicted with red squares.
 
 <div align="center">
   <img src="assets/causal_mask.svg" alt="sdasd" width="400">
 </div>
 
-However, the masked part contains good signal on the relationship between present tokens and future tokens. And computing such relationships can plausibly help performance. Therefore, we can ask the model to predict the masked part and use the true masked values as the ground truth, like the figure below.
+However, the masked part contains good signal on the affinities between present and future tokens. Presumably, the model could improve next token prediction when leveraging these affinities in its computations. Since the masked part can't be directly used, the model can instead predict the masked part and these predictions can be optimized with the true masked values. In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
-This is necessary to permit parallel training because you don't want the model to cheat by exposing it the answers. However, you lose the upper mask.
-
-it creates two issues. First, it creates an imbalance of compute per token: bigger contexts have more compute. This is not bad per se but the benefit of imposing it by design is not obvious. Second, the masked part of the attention matrix contains good signal on the affinity of earlier tokens to future tokens. This signal can be used for training as a loss.
-
-We can ask the model to indirectly "predict" the masked upper right triangle of the attention matrix by having it compute the output contribution from it. That would be like predicting the "future" (beyond just the next token) since that's precisely what the mask removes. In other words, asumming that $out_{full}$ is the output of the attention operation if no mask were applied to the attention matrix (also known as $out_{encoder}$) and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{future} = out_{full/encoder} - out_{decoder}$. Once that is computed, we return the final output of the attention operation as $out_{future} + out_{decoder}$. Moreover, as alluded to earlier, we can calculate a future attention loss on $out_{future}$ since we know the true $out_{future}^{*}$ (calculating $out_{future}^{*}$ is straight-forward but too convoluted to express briefly verbally or mathematically, so the code is your best friend here). This future attention loss is then aggregated over all heads and added to the model's final loss.
-
 ## Architecture
 
-At the high-level, the architecture is just the canonical decoder-only transformer but with a modified multi attention head block that also predicts the contribution from the masked part of the attention matrix. Finally, a future attention loss is computed for every $out_{future}$, which is added to the final model loss.
+At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi attention head block that also predicts the some portion of the masked attention matrix. A loss is created from these predictions and is added to the final model loss.
 
 ### Future Attention Head
 
@@ -46,6 +40,11 @@ $$future\\\_attn\\\_loss = MSE(out_{future}, out_{future}^{*})$$
 and with cosine dissimilarity is
 
 $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{future}, out_{future}^{*}) + 1}{2}$$
+
+
+<---->
+We can ask the model to indirectly "predict" the masked upper right triangle of the attention matrix by having it compute the output contribution from it. That would be like predicting the "future" (beyond just the next token) since that's precisely what the mask removes. In other words, asumming that $out_{full}$ is the output of the attention operation if no mask were applied to the attention matrix (also known as $out_{encoder}$) and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{future} = out_{full/encoder} - out_{decoder}$. Once that is computed, we return the final output of the attention operation as $out_{future} + out_{decoder}$. Moreover, as alluded to earlier, we can calculate a future attention loss on $out_{future}$ since we know the true $out_{future}^{*}$ (calculating $out_{future}^{*}$ is straight-forward but too convoluted to express briefly verbally or mathematically, so the code is your best friend here). This future attention loss is then aggregated over all heads and added to the model's final loss.
+<---->
 
 ## Results
 
