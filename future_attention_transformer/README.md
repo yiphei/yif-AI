@@ -13,7 +13,26 @@ In the canonical decoder transformer, the attention layer computes an attention 
 
 Because transformer models are trained in a parallel way, a causal mask $M$ must be applied to the attention matrix $A$ to prevent the model from peeking at future tokens and thus from cheating. Stated more formally,
 
-...
+$$
+\begin{aligned}
+& \delta \coloneqq \text{hyperparameter for how many future tokens the model should plan for, inclusive of next token} \\
+& out_{enc} \coloneqq \text{encoder output} \\
+& E \coloneqq \text{model input embedding (detached), comprised of token and positional embedding} \\
+& E_{present} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present_{(i,j)}} = \frac{1}{i} \sum_{k=1}^{i}E_{k,j}\\\\[0.2cm]
+& E_{future} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future_{(i,j)}} = \sum_{k=1}^{\delta}k^{-1}\cdot E_{i+k,j}\\\\[0.5cm]
+& E_{plan} = \frac{E_{present} +  E_{future}}{2} \\
+& E_{plan\\\_ln} = LayerNorm(E_{plan}) \\
+& out_{enc\\\_ln} = LayerNorm(out_{enc}) \\
+& planning\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{plan\\\_ln})\\\\[0.5cm]
+& \text{Masked\_QK}[i,j] = 
+\begin{cases} 
+(QK^T)[i,j] & \text{if } M[i,j] = 1 \\
+-\infty & \text{if } M[i,j] = 0
+\end{cases} \\\\[0.2cm]
+& \text{Attention\_Weights} = \text{softmax}(\text{Masked\_QK}) \\
+& \text{Output} = \text{Attention\_Weights} \cdot V
+\end{aligned}
+$$
 
 In the figure below, the mask $m$ is depicted with red squares.
 
