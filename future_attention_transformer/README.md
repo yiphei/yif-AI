@@ -18,7 +18,7 @@ $$
 & A_{causal}(i,j) = 
 \begin{cases} 
 A(i,j) & \text{if } M[i,j] = 1 \\
-1 & \text{if } M[i,j] = 0
+-\infty & \text{if } M[i,j] = 0
 \end{cases} \\
 \end{aligned}
 $$
