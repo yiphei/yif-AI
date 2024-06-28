@@ -13,25 +13,25 @@ parameters:
             context_size:
                 value: 200
             n_embed: 
-                value: 150
+                value: 144
             n_layer: 
-                value: 26
+                value: 28
             n_head: 
-                value: 10
+                value: 9
             dropout_rate:
                 value: 0
             start_layer:
                 value: 1
             end_layer:
-                value: 26
+                value: 28
             future_x_loss_type:
-                values: [1, 2]
+                value: 1
             use_future_x_loss:
                 value: True
             future_dim:
-                values: [50, 100]
+                values: [25, 50, 100]
             detach_future_x:
-                values: [True, False]
+                value: True
             future_x_loss_coeff:
                 value: 1
     batch_size: 
