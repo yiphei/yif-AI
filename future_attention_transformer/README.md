@@ -23,14 +23,14 @@ A(i,j) & \text{if } M[i,j] = 1 \\
 \end{aligned}
 $$
 
-The causal attention matrix is illustrated in the figure below (the mask $M$ is depicted with red squares).
+This masking is illustrated in the figure below (the masked values are depicted with red squares).
 
 <div align="center">
   <img src="assets/causal_mask.svg" alt="sdasd" width="400">
 </div>
 
 
-Before proceeding, let's define two subcomponents of the original $A$
+Before proceeding, let's define two subsets of the original $A$
 
 $$
 \begin{aligned}
@@ -45,11 +45,11 @@ Now, the masked part $A_{masked}$ contains good signal on the affinities between
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
-Let's call the blue part $A_{pred}$ and define it as
+Let's call the blue part $A_{pred}$, formally defined as
 
-$A_{pred}(i,j) = A_{masked}(k,l) \text{ where } i < k \leq min(i + future\_dim, T)$
+$A_{pred}(i,j) = A_{masked}(i,j) \text{  where  } i < l \leq min(i + future\\_dim, context\\_size)$
 
-$T$ is the token dimension, and $future_dim$ is a scalar hyperparameter that defines how many unmasked values to predict. In the example above, $future\_dim = 2$
+$future\\_dim$ is a scalar hyperparameter that defines how many unmasked values to predict. In the example above, $future\\_dim = 2$
 
 Because $A$ is later matrix multiplied with $V$ to produce the attention output $out_{attn}$
 
