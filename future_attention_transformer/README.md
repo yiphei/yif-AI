@@ -92,6 +92,7 @@ $$
 & out_{full} = out_{future} + out_{causal}
 \end{aligned}
 $$
+
 Note that $A_{causal}$ and $A_{future}$ have different shapes, so merging the two requires padding operations, which is denoted by $\cup$.
 
 To calculate the true $out_{future}^{*}$, you have
