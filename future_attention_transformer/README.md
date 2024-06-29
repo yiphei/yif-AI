@@ -63,7 +63,7 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-Because the model needs to both predict $A_{future}$ and future $V$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V$. Instead, it becomes much simpler to predict the contributions of $A_{future}$ and $V$ to the attention output $out$. Then, a single loss is computed. In other words, assuming that $out_{no\\_mask}$ is the output of attention matrix without any mask
+Because the model needs to both predict $A_{future}$ and future $V$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V$. Instead, it becomes much simpler to predict the contributions of $A_{future}$ and $V$ to the attention output $out$ if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{no\\_mask}$ is the output of attention matrix without any mask
 
 $out_{no\\_mask} = softmax(A) \cdot V$
 
@@ -76,7 +76,7 @@ $Q$, $K$, and $V$. $A$ is already computed by $Q$ and $K$
 
 $A = Q \cdot K^{T}$
 
-Since we need to indirectly predict $A_{future}$, we should reuse $Q$ but need different $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are model parameters, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
+Since we need to indirectly predict $A_{future}$, we should reuse $Q$ but need different $K_{future}$ and $V_{future}$ to emulate $K$ and $V$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are model parameters, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
     
 $$
 \begin{aligned}
@@ -100,11 +100,6 @@ $$future\\\_attn\\\_loss = MSE(out_{future}, out_{future}^{*})$$
 and with cosine dissimilarity is
 
 $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{future}, out_{future}^{*}) + 1}{2}$$
-
-
-<---->
-We can ask the model to indirectly "predict" the masked upper right triangle of the attention matrix by having it compute the output contribution from it. That would be like predicting the "future" (beyond just the next token) since that's precisely what the mask removes. In other words, asumming that $out_{full}$ is the output of the attention operation if no mask were applied to the attention matrix (also known as $out_{encoder}$) and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{future} = out_{full/encoder} - out_{decoder}$. Once that is computed, we return the final output of the attention operation as $out_{future} + out_{decoder}$. Moreover, as alluded to earlier, we can calculate a future attention loss on $out_{future}$ since we know the true $out_{future}^{*}$ (calculating $out_{future}^{*}$ is straight-forward but too convoluted to express briefly verbally or mathematically, so the code is your best friend here). This future attention loss is then aggregated over all heads and added to the model's final loss.
-<---->
 
 ## Results
 
