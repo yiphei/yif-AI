@@ -58,7 +58,7 @@ $$
 \end{aligned}
 $$
 
-Presumably, the model performance would improve if it could use $out_{masked}$ (e.g. add it to $out_{causal}$). Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ (thus indirectly predicting $A_{masked}$ also). Subsequently, the $out_{masked}$ predictions can be optimized against the true $out_{masked}^{\*}$ (which can be easily derived) with a new **future attention loss**. Furthermore, instead of predicting the full $out_{masked}$, the model can predict part of it, which is equivalent to limiting how much of $A_{masked}$ is considered. Let's call $out_{future}$ and $A_{future}$ the subsets of $out_{masked}$ and $A_{masked}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $A_{masked}$ to consider, per token. Stated formally, 
+Presumably, the model performance would improve if it could make use of $out_{masked}$ (e.g. add it to $out_{causal}$). Since the true $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$, thus indirectly predicting $A_{masked}$ as well. From the $out_{masked}$ predictions, a new **future attention loss** can be formulated using the true $out_{masked}^{\*}$ (which can be easily derived) as ground truth. Furthermore, instead of predicting the full $out_{masked}$, the model can predict part of it, which is equivalent to limiting how much of $A_{masked}$ is considered. Let's call $out_{future}$ and $A_{future}$ the subsets of $out_{masked}$ and $A_{masked}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $A_{masked}$ to consider, per token. Stated formally, 
 
 $$
 \begin{aligned}
