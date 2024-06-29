@@ -55,11 +55,11 @@ Let's also define $A_{omni} = A_{future} \cup A_{unmasked}$. Here's a visualizat
 
 [ADD VISUALIZATION HERE]
 
-Because $A_{causal}$ is later matrix multiplied with $V$ to produce the attention output $out_{causal}$
+Because the softmax of the attention matrix is later matrix multiplied with $V$ to produce the attention output $out$
 
-$out_{causal} = softmax(A_{causal}) \cdot V$
+$out = Softmax\\\_A \cdot V$
 
-then "future" $V$ values ($V_{future}$) need to predicted along with $A_{future}$. $V_{future}$ is trickier to predict because, unlike $A_{future}$ where the target future lies in the last dimension, $V$ has the target future in the penultimate dimension. 
+then $V$ also need to be adjusted to match $Softmax\\\_A$'s shape.
 
 ## Architecture
 
