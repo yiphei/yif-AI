@@ -63,11 +63,11 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-Because the model needs to both predict $A_{future}$ and $V_{future}$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V_{future}$. Instead, it becomes much simpler to predict the contributions of $(A_{future}, V_{future})$ to the attention output $out$ if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{no\\_mask}$ is the output of attention matrix without any mask
+Because the model needs to both predict $A_{future}$ and $V_{future}$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V_{future}$. Instead, it becomes much simpler to predict the contributions of $(A_{future}, V_{future})$ to the attention output if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{no\\_mask}$ is the output of attention matrix without any mask
 
 $out_{no\\_mask} = softmax(A) \cdot V$
 
-then, the output contribution of $(A_{future}, V_{future})$ is
+then, the output contribution of $(A_{future}, V_{future})$ to $out_{no\\_mask}$ is
 
 $out_{future} = out_{no\\\_mask} - out_{causal}$
 
