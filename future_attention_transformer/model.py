@@ -34,8 +34,8 @@ class ModelConfig(BaseModelConfig):
     start_layer: int = 1  # layer at which to start using future attention
     future_dim: int = None  # number of future tokens to attend to
     future_attn_loss_type: Union[FutureAttnLossType, int] = FutureAttnLossType.COSINE
-    use_future_x_loss: bool = True
-    detach_future_x: Optional[bool] = False
+    use_future_attn_loss: bool = True
+    detach_ground_truth: Optional[bool] = False
     end_layer: Optional[int] = None
     future_attn_loss_coeff: Optional[float] = 1.0
 
@@ -63,10 +63,10 @@ class ModelConfig(BaseModelConfig):
 
         assert self.future_attn_loss_coeff > 0
 
-        if self.detach_future_x is None:
-            assert not self.use_future_x_loss
+        if self.detach_ground_truth is None:
+            assert not self.use_future_attn_loss
         else:
-            assert self.use_future_x_loss
+            assert self.use_future_attn_loss
 
 
 class DynamicLinear(nn.Module):
@@ -105,7 +105,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         dropout_rate,
         future_dim,
         future_attn_loss_type,
-        detach_future_x,
+        detach_ground_truth,
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -115,7 +115,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.head_size = dim_in // n_head
         self.future_dim = future_dim
         self.future_attn_loss_type = future_attn_loss_type
-        self.detach_future_x = detach_future_x or False
+        self.detach_ground_truth = detach_ground_truth or False
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
         self.future_k_weights = DynamicLinear(
@@ -230,7 +230,7 @@ class FutureMultiAttentionHead(SubModuleStats):
                 0.0,
             )
             true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
-            if self.detach_future_x:
+            if self.detach_ground_truth:
                 true_future_x = true_future_x.detach()
 
             if self.future_attn_loss_type == FutureAttnLossType.MSE:
@@ -258,7 +258,7 @@ class TransformerBlock(nn.Module):
                 config.dropout_rate,
                 config.future_dim,
                 config.future_attn_loss_type,
-                config.detach_future_x,
+                config.detach_ground_truth,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
@@ -343,7 +343,7 @@ class FutureAttentionTransformer(BaseModel):
                 )
 
             loss = F.cross_entropy(logits, targets.view(-1))
-            if self.training and self.config.use_future_x_loss:
+            if self.training and self.config.use_future_attn_loss:
                 loss += self.scaled_future_attn_loss
 
         return (logits, loss)
