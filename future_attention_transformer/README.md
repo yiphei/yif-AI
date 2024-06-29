@@ -85,8 +85,8 @@ $$
 & A_{future} = Q \cdot K_{future}^{T}  \\
 & A_{full} = A_{causal} + A_{future} \\
 & Softmax\\\_A_{full} = softmax(A_{full}) \\
-& Softmax\\\_A_{causal} = Softmax\\\_A_{full}[indices] \\
-& Softmax\\\_A_{future} = Softmax\\\_A_{full}[indices] \\
+& Softmax\\\_A_{causal} = Softmax\\\_A_{full}[A_{causal}.indices] \\
+& Softmax\\\_A_{future} = Softmax\\\_A_{full}[A_{future}.indices] \\
 & out_{causal} = Softmax\\\_A_{causal} \cdot V \\
 & out_{future} = Softmax\\\_A_{future} \cdot V \\
 & out_{full} = out_{future} + out_{causal}
