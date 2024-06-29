@@ -93,12 +93,6 @@ $$
 \end{aligned}
 $$
 
-
-
-In the regular attention head, attention works by computing $Q$, $K$, and $V$ tensors. That continues to be the case here, with $out_{decoder}$ as the output of the cannonical attention operation with a masked attention matrix. In parallel, the model also computes $out_{future}$. To do so, we need to first determine how much of the masked part (the "future") we want to predict, which is represented by the hyperparameter $future\\\_dim$. $future\_dim$ demarcates the part of the masked upper-right triangle that starts from first diagonal where values are masked till the $future\\\_dim^{th}$ diagonal. The range of $future\\\_dim$ is $\in [1, context\\\_size-1]$ since there are $context\\\_size-1$ diagonals in the masked triangle. 
-
-Afterwards, you need $K_{future}$ and $V_{future}$, while reusing $Q$. There are many ways to obtain these two but the easier way is to have $K_{future}$ and $V_{future}$ as model parameters (and not computed tensors like $Q$, $K$, and $V$), each of size $E\text{x}(context\\\_size-1)$. Then, you compute a "future" attention matrix $Attn_{future} = Q \cdot K_{future}[:,:,:,min(T+future\\\_dim, context\\\_size)-1]$. After, compute the full attention matrix $Attn_{full} = Attn_{decoder} + Attn_{future}$, where $Attn_{decoder}$ is just the regular decoder-only masked attention (though $Attn_{decoder} + Attn_{future}$ is not precise because there are padding operations to have the shapes match, but it's tedious to explain verbally so please see the code). Perform the softmax on $Attn_{full}$ to get $AttnSoftmax_{full}$ and separate $AttnSoftmax_{full}$ into the individual contributions $AttnSoftmax_{decoder}$ and $AttnSoftmax_{future}$. Finally, compute $out_{decoder}= AttnSoftmax_{decoder} \cdot V$, then $out_{future}= AttnSoftmax_{future} \cdot V_{future}[:,:,:min(T+future\\\_dim, context\\\_size)-1,:]$, and get the final output $out = out_{decoder} + out_{future}$. 
-
 The future attention loss is computed between $out_{future}$ and $out_{future}^{*}$. Two types of loss are experimented. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the future attention loss with MSE is just
 
 $$future\\\_attn\\\_loss = MSE(out_{future}, out_{future}^{*})$$
