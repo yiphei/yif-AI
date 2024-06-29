@@ -68,7 +68,7 @@ Let's call the blue part $A_{future}$, formally defined as
 
 $A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\_dim, context\\_size)$
 
-$future\\_dim$ is a scalar hyperparameter that defines how many masked values to predict, per token. In the example above, $future\\_dim = 2$. Note that $future\\_dim$ only represents the max value. In fact, note that, in the figure above, $q_4$ can only predict $k_5$.
+$future\\_dim$ is a scalar hyperparameter that defines how many masked values to predict, per token. In the example above, $future\\_dim = 2$. Note that $future\\_dim$ only represents the max value. In fact, note that, in the figure above, $q_4$ can only predict $k_5$. Because of this hyperparameter, instead of $out_{masked}$, the target becomes $out_{future}$ (a "subset" of $out_{masked}$).
 
 Let's also define $A_{omni} = A_{future} \cup A_{unmasked}$. Here's a visualization guide for all the different $A$'s.
 
@@ -88,7 +88,12 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-At the high-level, there are two parallel computations with some shared computations as well
+The attention mechanism is based on three operands:
+$Q$, $K$, and $V$. $A$ is already computed by $Q$ and $K$
+
+$A = Q \cdot K^{T}$
+
+Since we need to indirectly predict $A_{future}$, we should reuse $Q$ but need different $K_{future}$ and $V_{future}$ to emulate $K$ and $V$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are model parameters, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
 
 |||
 |----------|----------|
@@ -99,36 +104,6 @@ At the high-level, there are two parallel computations with some shared computat
 | $$Softmax\\\_A_{unmasked} = Softmax\\\_A_{omni}[A_{unmasked}.indices]$$ | $$Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices]$$ |
 | $$out_{unmasked} = Softmax\\\_A_{unmasked} \cdot V$$ | $$out_{future} = Softmax\\\_A_{future} \cdot V_{future}$$ |
 | $$out_{omni} = out_{future} + out_{unmasked}$$ | |
-
-Because the model needs to both predict $A_{future}$ and $V_{future}$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V_{future}$. Instead, it becomes much simpler to predict the contributions of $(A_{future}, V_{future})$ to the attention output if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{omni}$ is the output of attention matrix without any mask over $A_{future}$ (therefore it becomes $A_{omni}$)
-
-$out_{omni} = softmax(A_{omni}) \cdot V$
-
-then, the output contribution of $(A_{future}, V_{future})$ to $out_{omni}$ is
-
-$out_{future} = out_{omni} - out_{unmasked}$
-
-Now, the attention mechanism is based on three operands:
-$Q$, $K$, and $V$. $A$ is already computed by $Q$ and $K$
-
-$A = Q \cdot K^{T}$
-
-Since we need to indirectly predict $A_{future}$, we should reuse $Q$ but need different $K_{future}$ and $V_{future}$ to emulate $K$ and $V$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are model parameters, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
-    
-$$
-\begin{aligned}
-& A = Q \cdot K^{T}  \\
-& A_{unmasked} = A[A_{unmasked}.indices]  \\
-& A_{future} = Q \cdot K_{future}^{T}  \\
-& A_{omni} = A_{unmasked} \cup A_{future} \\
-& Softmax\\\_A_{omni} = softmax(A_{omni}) \\
-& Softmax\\\_A_{unmasked} = Softmax\\\_A_{omni}[A_{unmasked}.indices] \\
-& Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices] \\
-& out_{unmasked} = Softmax\\\_A_{unmasked} \cdot V \\
-& out_{future} = Softmax\\\_A_{future} \cdot V_{future} \\
-& out_{omni} = out_{future} + out_{unmasked}
-\end{aligned}
-$$
 
 Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations, which is denoted by $\cup$.
 
