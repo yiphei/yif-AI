@@ -62,9 +62,10 @@ Presumably, the model performance would improve if it could use $out_{masked}$ (
 
 $$
 \begin{aligned}
-& A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\\_dim, context\\\_size)\\\\[0.2cm]
-& Softmax\\\_A = softmax(A) \\
-& Softmax\\\_A_{future} = Softmax\\\_A[A_{future}.indices] \\
+& A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\\_dim, context\\\_size) \\
+& A_{omni} = A_{future} \cup A_{unmasked} \\\\[0.4cm]
+& Softmax\\\_A_{omni} = softmax(A_{omni}) \\
+& Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices] \\
 & out_{future} = Softmax\\\_A_{future} \cdot V \\
 \end{aligned}
 $$
@@ -75,9 +76,9 @@ In the figure below, for instance, the model considers the affinity of each toke
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
-Note: $future\\_dim$ only represents the max value. In fact, in the figure above, $q_4$ can only predict $k_5$.
+**Note:** $future\\_dim$ only represents the max value. In fact, in the figure above, $q_4$ can only predict $k_5$.
 
-Lastly, let's also define $A_{omni} = A_{future} \cup A_{unmasked}$. Here's a visualization guide for all the different $A$'s define thus far.
+Here's a visualization guide for all the different $A$'s define thus far.
 
 [ADD VISUALIZATION HERE]
 
