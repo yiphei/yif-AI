@@ -83,20 +83,20 @@ Since we need to indirectly predict $A_{pred}$, we should reuse $Q$ but need dif
 <div style="display: flex; flex-direction: row;">
   <div style="flex: 1;">
     
-  $$
-  \begin{aligned}
-  & out_{enc} \coloneqq \text{encoder output (detached)} \\
-  \end{aligned}
-  $$
+$$
+\begin{aligned}
+& out_{enc} \coloneqq \text{encoder output (detached)} \\
+\end{aligned}
+$$
 
   </div>
   <div style="flex: 1;">
 
-  $$
-  \begin{aligned}
-  & out_{enc} \coloneqq \text{encoder output (detached)} \\
-  \end{aligned}
-  $$
+$$
+\begin{aligned}
+& out_{enc} \coloneqq \text{encoder output (detached)} \\
+\end{aligned}
+$$
 
   </div>
 </div>
