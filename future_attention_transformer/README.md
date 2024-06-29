@@ -1,7 +1,7 @@
 # Future Attention Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. However, the masked part of the attention matrix contains good signal on the affinities between present and future tokens. This project explores how the masked part can be leveraged to improve model training.
+Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signal on the affinities between present and future tokens. This project explores how the masked part can be leveraged to improve model training.
 
 ## Motivations
 
@@ -55,7 +55,7 @@ Because $A_{causal}$ is later matrix multiplied with $V$ to produce the attentio
 
 $out_{causal} = softmax(A_{causal}) \circ V$
 
-then "future" $V$ values need to predicted as well for the matrix multiplication to work. This is trickier because, unlike $A_{future}$ where the target future lies in the last dimension, $V$ has the target future in the penultimate dimension. 
+then "future" $V$ values need to predicted along with $A_{future}$. This is trickier because, unlike $A_{future}$ where the target future lies in the last dimension, $V$ has the target future in the penultimate dimension. 
 
 ## Architecture
 
@@ -63,11 +63,9 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-Because the model needs to both predict masked values $A_{future}$ and future $V$, it is expensive to do both and, as stated before, tricky to do $V$. Instead, it becomes much simpler to predict the output contribution.
+Because the model needs to both predict masked values $A_{future}$ and future $V$, it is expensive to do both and, as stated before, tricky to do $V$. Instead, it becomes much simpler to predict the output contribution. In other words, assuming you have $out_{no\\_mask}$ that is the output of attention without any mask
 
-In other words, assuming you have $out_{no\\_mask}$ that is the output of attention without any mask
-
-$out_{no\\_mask} = softmax(A) \circ V$
+$out_{no\\_mask} = softmax(A) \cdot V$
 
 Then, predicting the output contribution is equivalent to predicting
 
