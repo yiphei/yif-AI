@@ -14,7 +14,7 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
 
 class FutureXLossType(str, Enum):
     MSE = "MSE"
-    COSINE_SIM = "COSINE_SIM"
+    COSINE = "COSINE"
 
     def __str__(self):
         return self.value
@@ -24,7 +24,7 @@ class FutureXLossType(str, Enum):
         if num == 1:
             return FutureXLossType.MSE
         elif num == 2:
-            return FutureXLossType.COSINE_SIM
+            return FutureXLossType.COSINE
         else:
             raise ValueError("Invalid future x loss number")
 
@@ -33,7 +33,7 @@ class FutureXLossType(str, Enum):
 class ModelConfig(BaseModelConfig):
     start_layer: int = 1  # layer at which to start using future attention
     future_dim: int = None  # number of future tokens to attend to
-    future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
+    future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE
     use_future_x_loss: bool = True
     detach_future_x: Optional[bool] = False
     end_layer: Optional[int] = None
@@ -236,7 +236,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         if self.training:
             if self.future_x_loss_type == FutureXLossType.MSE:
                 self.future_loss = F.mse_loss(future_x, true_future_x)
-            elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
+            elif self.future_x_loss_type == FutureXLossType.COSINE:
                 cosine_sim = F.cosine_similarity(future_x, true_future_x, dim=-1)
                 self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
 
