@@ -96,12 +96,7 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-The attention mechanism is based on three operands:
-$Q$, $K$, and $V$. $A$ is already computed by $Q$ and $K$
-
-$A = Q \cdot K^{T}$
-
-Since we need to indirectly predict $A_{future}$, we should reuse $Q$ but need different $K_{future}$ and $V_{future}$ to emulate $K$ and $V$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are model parameters, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
+To (predict) compute $out_{future}$, it is necessary to obtain the three operands used in attention: $Q$, $K$, and $V$. $Q$ should be reused but different $K$ and $V$ are needed. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are model parameters, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
 
 |||
 |----------|----------|
