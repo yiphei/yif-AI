@@ -23,7 +23,7 @@ A[i,j] & \text{if } M[i,j] = 1 \\
 \end{aligned}
 $$
 
-This masking is illustrated in the figure below (the masked values are depicted with red squares).
+The result of masking is illustrated in the figure below (the masked values are depicted with red squares).
 
 <div align="center">
   <img src="assets/causal_mask.svg" alt="sdasd" width="400">
@@ -39,7 +39,7 @@ $$
 \end{aligned}
 $$
 
-Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. Presumably, the model could improve next token prediction by leveraging these affinities in its computations. Since the masked part can't be directly used, the model can instead predict the masked part, and these predictions can be optimized with the true masked values via a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
+Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. Presumably, the model could improve prediction performance by leveraging these affinities in its computations. Since the masked part can't be directly used, the model can instead predict the masked part and then use it. Then, these predictions can be optimized against the true masked values with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
@@ -49,25 +49,25 @@ Let's call the blue part $A_{future}$, formally defined as
 
 $A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\_dim, context\\_size)$
 
-$future\\_dim$ is a scalar hyperparameter that defines how many masked values to predict. In the example above, $future\\_dim = 2$.
+$future\\_dim$ is a scalar hyperparameter that defines how many masked values to predict, per token. In the example above, $future\\_dim = 2$. Note that $future\\_dim$ only represents the max value. In fact, note that, in the figure above, $q_4$ can only predict $k_5$.
 
 Because $A_{causal}$ is later matrix multiplied with $V$ to produce the attention output $out_{causal}$
 
 $out_{causal} = softmax(A_{causal}) \cdot V$
 
-then "future" $V$ values need to predicted along with $A_{future}$. This is trickier because, unlike $A_{future}$ where the target future lies in the last dimension, $V$ has the target future in the penultimate dimension. 
+then "future" $V$ values ($V_{future}$) need to predicted along with $A_{future}$. $V_{future}$ is trickier because, unlike $A_{future}$ where the target future lies in the last dimension, $V$ has the target future in the penultimate dimension. 
 
 ## Architecture
 
-At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi attention head block that also predicts the some portion of the masked attention matrix. A loss is created from these predictions and is added to the final model loss.
+At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi attention head block that also predicts some portion of the masked attention matrix. A loss is created from these predictions and is added to the final model loss.
 
 ### Future Attention Head
 
-Because the model needs to both predict $A_{future}$ and future $V$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V$. Instead, it becomes much simpler to predict the contributions of $A_{future}$ and $V$ to the attention output $out$ if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{no\\_mask}$ is the output of attention matrix without any mask
+Because the model needs to both predict $A_{future}$ and $V_{future}$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V_{future}$. Instead, it becomes much simpler to predict the contributions of $(A_{future}, V_{future})$ to the attention output $out$ if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{no\\_mask}$ is the output of attention matrix without any mask
 
 $out_{no\\_mask} = softmax(A) \cdot V$
 
-then, the output contribution of $A_{future}$ and $V$ is
+then, the output contribution of $(A_{future}, V_{future})$ is
 
 $out_{future} = out_{no\\\_mask} - out_{causal}$
 
@@ -88,8 +88,20 @@ $$
 & Softmax\\\_A_{causal} = Softmax\\\_A_{full}[A_{causal}.indices] \\
 & Softmax\\\_A_{future} = Softmax\\\_A_{full}[A_{future}.indices] \\
 & out_{causal} = Softmax\\\_A_{causal} \cdot V \\
-& out_{future} = Softmax\\\_A_{future} \cdot V \\
+& out_{future} = Softmax\\\_A_{future} \cdot V_{future} \\
 & out_{full} = out_{future} + out_{causal}
+\end{aligned}
+$$
+
+To calculate the true $out_{future}^{*}$, you have
+
+$$
+\begin{aligned}
+& A = Q \cdot K^{T}  \\
+& A_{target} = A[A_{unmasked}.indices + A_{future}.indices]  \\
+& Softmax\\\_A_{target} = softmax(A_{target})  \\
+& Softmax\\\_A_{future} = Softmax\\\_A_{target}[A_{future}.indices]  \\
+& out_{future}^{*} = Softmax\\\_A_{future} \cdot V
 \end{aligned}
 $$
 
