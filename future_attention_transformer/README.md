@@ -90,7 +90,15 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 At the high-level, there are two parallel computations with some shared computations as well
 
-
+|||
+|----------|----------|
+| $$A = Q \cdot K^{T}$$ | |
+| $$A_{unmasked} = A[A_{unmasked}.indices]$$ | $A_{future} = Q \cdot K_{future}^{T}$ |
+| $$A_{omni} = A_{unmasked} \cup A_{future}$$ | |
+| $$Softmax\\\_A_{omni} = softmax(A_{omni})$$ | |
+| $$Softmax\\\_A_{unmasked} = Softmax\\\_A_{omni}[A_{unmasked}.indices]$$ | $$Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices]$$ |
+| $$out_{unmasked} = Softmax\\\_A_{unmasked} \cdot V$$ | $$out_{future} = Softmax\\\_A_{future} \cdot V_{future}$$ |
+| $$out_{omni} = out_{future} + out_{unmasked}$$ | |
 
 Because the model needs to both predict $A_{future}$ and $V_{future}$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V_{future}$. Instead, it becomes much simpler to predict the contributions of $(A_{future}, V_{future})$ to the attention output if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{omni}$ is the output of attention matrix without any mask over $A_{future}$ (therefore it becomes $A_{omni}$)
 
