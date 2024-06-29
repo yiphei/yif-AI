@@ -48,7 +48,7 @@ $$
 \end{aligned}
 $$
 
-Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. Subsequent operations transformer these affinities into $out_{masked}$, like so              
+Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. If no mask $M$ were applied, subsequent operations would transform these affinities into $out_{masked}$, like so              
 
 $$
 \begin{aligned}
@@ -58,7 +58,7 @@ $$
 \end{aligned}
 $$
 
-Presumably, the model performance would improve if $out_{masked}$ were available. Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
+Presumably, the model performance would improve if it could use $out_{masked}$. Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
@@ -74,17 +74,23 @@ Let's also define $A_{omni} = A_{future} \cup A_{unmasked}$. Here's a visualizat
 
 [ADD VISUALIZATION HERE]
 
+(The reason for explicitly defining all these different attention matrices is because the implementation is very indexing-heavy)
+
 Because the softmax of the attention matrix is later matrix multiplied with $V$ to produce the attention output $out$
 
-$out = Softmax\\\_A \cdot V$
+$out = softmax(A) \cdot V$
 
-then $V$ also need to be adjusted to match $Softmax\\\_A$'s shape.
+then $V$ also need to be adjusted to match $softmax(A)$'s shape.
 
 ## Architecture
 
 At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi attention head block that also predicts some portion of the masked attention matrix. A loss is created from these predictions and is added to the final model loss.
 
 ### Future Attention Head
+
+At the high-level, there are two parallel computations with some shared computations as well
+
+
 
 Because the model needs to both predict $A_{future}$ and $V_{future}$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V_{future}$. Instead, it becomes much simpler to predict the contributions of $(A_{future}, V_{future})$ to the attention output if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{omni}$ is the output of attention matrix without any mask over $A_{future}$ (therefore it becomes $A_{omni}$)
 
