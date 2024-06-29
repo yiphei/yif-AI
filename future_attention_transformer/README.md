@@ -29,6 +29,15 @@ The result of masking is illustrated in the figure below (the masked values are 
   <img src="assets/causal_mask.svg" alt="sdasd" width="400">
 </div>
 
+Afterwards, the following operation occurs
+
+$$
+\begin{aligned}
+& out_{causal} = softmax(A_{causal}) \cdot V \\
+\end{aligned}
+$$
+
+This concludes the attention mechanism. In a canonical attention layer, there are other subsequent operations on $out_{causal}$ that follow (e.g. dropout, residual projection, etc.), but those are not of concern here.
 
 Before proceeding, let's identify two subsets of the original $A$
 
@@ -39,7 +48,16 @@ $$
 \end{aligned}
 $$
 
-Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. Presumably, the model could improve prediction performance by leveraging these affinities in its computations. Since the masked part can't be directly used, the model can instead predict the masked part and then use it. Then, these predictions can be optimized against the true masked values with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
+Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. Presumably, the model could improve prediction performance by leveraging these affinities in its computations. To illustrate this, consider the following two outputs
+
+$$
+\begin{aligned}
+& out = softmax(A) \cdot V \\
+& out_{masked} = softmax(A_{masked}) \cdot V \\
+\end{aligned}
+$$
+
+From this, observe that $out_{causal} = out - out_{masked}$. Therefore, the causal mask is equivalent to subtracting $out_{masked}$ from $out$. Since the masked part can't be directly used, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
