@@ -1,7 +1,7 @@
 # Future Attention Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signal on the affinities between present and future tokens. This project explores how the masked part can be leveraged to improve model training.
+Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signal on the affinities between present and future tokens. This project investigates how the masked part can be leveraged to improve model training.
 
 ## Motivations
 
@@ -15,9 +15,9 @@ Because transformer models are trained in a parallel way, a causal mask $M$ must
 
 $$
 \begin{aligned}
-& A_{causal}(i,j) = 
+& A_{causal}[i,j] = 
 \begin{cases} 
-A(i,j) & \text{if } M[i,j] = 1 \\
+A[i,j] & \text{if } M[i,j] = 1 \\
 -\infty & \text{if } M[i,j] = 0
 \end{cases} \\
 \end{aligned}
@@ -30,16 +30,16 @@ This masking is illustrated in the figure below (the masked values are depicted 
 </div>
 
 
-Before proceeding, let's define two subsets of the original $A$
+Before proceeding, let's identify two subsets of the original $A$
 
 $$
 \begin{aligned}
-& A_{unmasked}(i,j) = A(i,j) \text{ where } (i,j) \in \\{ (i,j) \mid M(i,j) = 1 \\} \\
-& A_{masked}(i,j) = A(i,j) \text{ where } (i,j) \in \\{ (i,j) \mid M(i,j) = 0 \\}
+& A_{unmasked}[i,j] = A[i,j] \text{ where } (i,j) \in \\{ (i,j) \mid M[i,j] = 1 \\} \\
+& A_{masked}[i,j] = A[i,j] \text{ where } (i,j) \in \\{ (i,j) \mid M[i,j] = 0 \\}
 \end{aligned}
 $$
 
-Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. Presumably, the model could improve next token prediction by leveraging these affinities in its computations. Since the masked part can't be directly used, the model can instead predict the masked part, and these predictions can be optimized with the true masked values. In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
+Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. Presumably, the model could improve next token prediction by leveraging these affinities in its computations. Since the masked part can't be directly used, the model can instead predict the masked part, and these predictions can be optimized with the true masked values via a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
@@ -47,13 +47,13 @@ Now, the masked part $A_{masked}$ contains good signal on the affinities between
 
 Let's call the blue part $A_{future}$, formally defined as
 
-$A_{future}(i,j) = A_{masked}(i,j) \text{  where  } i < j \leq min(i + future\\_dim, context\\_size)$
+$A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\_dim, context\\_size)$
 
-$future\\_dim$ is a scalar hyperparameter that defines how many unmasked values to predict. In the example above, $future\\_dim = 2$
+$future\\_dim$ is a scalar hyperparameter that defines how many masked values to predict. In the example above, $future\\_dim = 2$.
 
 Because $A_{causal}$ is later matrix multiplied with $V$ to produce the attention output $out_{causal}$
 
-$out_{causal} = softmax(A_{causal}) \circ V$
+$out_{causal} = softmax(A_{causal}) \cdot V$
 
 then "future" $V$ values need to predicted along with $A_{future}$. This is trickier because, unlike $A_{future}$ where the target future lies in the last dimension, $V$ has the target future in the penultimate dimension. 
 
@@ -63,11 +63,11 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-Because the model needs to both predict masked values $A_{future}$ and future $V$, it is expensive to do both and, as stated before, tricky to do $V$. Instead, it becomes much simpler to predict the output contribution. In other words, assuming you have $out_{no\\_mask}$ that is the output of attention without any mask
+Because the model needs to both predict $A_{future}$ and future $V$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V$. Instead, it becomes much simpler to predict the contributions of $A_{future}$ and $V$ to the attention output $out$. Then, a single loss is computed. In other words, assuming that $out_{no\\_mask}$ is the output of attention matrix without any mask
 
 $out_{no\\_mask} = softmax(A) \cdot V$
 
-Then, predicting the output contribution is equivalent to predicting
+then, the output contribution of $A_{future}$ and $V$ is
 
 $out_{future} = out_{no\\\_mask} - out_{causal}$
 
@@ -76,12 +76,12 @@ $Q$, $K$, and $V$. $A$ is already computed by $Q$ and $K$
 
 $A = Q \cdot K^{T}$
 
-Since we need to indirectly predict $A_{future}$, we should reuse $Q$ but need different $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are learnable weights, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
+Since we need to indirectly predict $A_{future}$, we should reuse $Q$ but need different $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are model parameters, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
     
 $$
 \begin{aligned}
 & A = Q \cdot K^{T}  \\
-& A_{causal} = A[M]  \\
+& A_{causal} = A[M.indices]  \\
 & A_{future} = Q \cdot K_{future}^{T}  \\
 & A_{full} = A_{causal} + A_{future} \\
 & Softmax\\\_A_{full} = softmax(A_{full}) \\
