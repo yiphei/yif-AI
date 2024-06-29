@@ -24,15 +24,15 @@ parameters:
                 value: 1
             end_layer:
                 value: 28
-            future_x_loss_type:
-                value: 1
-            use_future_x_loss:
+            future_attn_loss_type:
+                values: [1,2]
+            use_future_attn_loss:
                 value: True
             future_dim:
-                values: [25, 50, 100]
-            detach_future_x:
-                value: True
-            future_x_loss_coeff:
+                values: [25, 100]
+            detach_ground_truth:
+                values: [True, False]
+            future_attn_loss_coeff:
                 value: 1
     batch_size: 
         value: 50
