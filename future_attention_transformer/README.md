@@ -96,7 +96,7 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-To (predict) compute $out_{future}$, it is necessary to obtain the three operands used in attention: $Q$, $K$, and $V$. $Q$ should be reused but different $K$ and $V$ are needed. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are model parameters, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
+To (predict) compute $out_{future}$, it is necessary to obtain the three operands used in attention: $Q$, $K$, and $V$. $Q$ should be reused but different $K$ and $V$ are needed. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but a simple way is to have them as model parameters, not computed tensors, of shape $T\times context\\_size$. Then, the computational graph becomes
 
 |||
 |----------|----------|
@@ -108,7 +108,7 @@ To (predict) compute $out_{future}$, it is necessary to obtain the three operand
 | $$out_{unmasked} = Softmax\\\_A_{unmasked} \cdot V$$ | $$out_{future} = Softmax\\\_A_{future} \cdot V_{future}$$ |
 | $$out_{omni} = out_{future} + out_{unmasked}$$ | |
 
-Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations, which is denoted by $\cup$.
+Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations, which is denoted by $\cup$. Also note that $out_{unmasked}$ is different than $out_{causal}$ because the softmax is on the union of $A_{unmasked}$ and $A_{future}$.
 
 To calculate the true $out_{future}^{*}$, you have
 
