@@ -51,7 +51,7 @@ $A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\_
 
 $future\\_dim$ is a scalar hyperparameter that defines how many masked values to predict, per token. In the example above, $future\\_dim = 2$. Note that $future\\_dim$ only represents the max value. In fact, note that, in the figure above, $q_4$ can only predict $k_5$.
 
-Let's also define $A_{omni} = A_{future} \cup A_{masked}$. Here's a visualization guide for all the different $A$'s.
+Let's also define $A_{omni} = A_{future} \cup A_{unmasked}$. Here's a visualization guide for all the different $A$'s.
 
 [ADD VISUALIZATION HERE]
 
@@ -67,7 +67,7 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-Because the model needs to both predict $A_{future}$ and $V_{future}$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V_{future}$. Instead, it becomes much simpler to predict the contributions of $(A_{future}, V_{future})$ to the attention output if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{omni}$ is the output of attention matrix without any mask over $A_{future}$
+Because the model needs to both predict $A_{future}$ and $V_{future}$, it is expensive to do both (because it would require two losses) and, as stated before, tricky to do $V_{future}$. Instead, it becomes much simpler to predict the contributions of $(A_{future}, V_{future})$ to the attention output if no mask $M$ had been applied in the first place. Then, a single loss is computed. In other words, assuming that $out_{omni}$ is the output of attention matrix without any mask over $A_{future}$ (therefore it becomes $A_{omni}$)
 
 $out_{omni} = softmax(A_{omni}) \cdot V$
 
@@ -93,20 +93,20 @@ $$
 & Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices] \\
 & out_{unmasked} = Softmax\\\_A_{unmasked} \cdot V \\
 & out_{future} = Softmax\\\_A_{future} \cdot V_{future} \\
-& out_{full} = out_{future} + out_{unmasked}
+& out_{omni} = out_{future} + out_{unmasked}
 \end{aligned}
 $$
 
-Note that $A_{causal}$ and $A_{future}$ have different shapes, so merging the two requires padding operations, which is denoted by $\cup$.
+Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations, which is denoted by $\cup$.
 
 To calculate the true $out_{future}^{*}$, you have
 
 $$
 \begin{aligned}
-& A_{omni} = A[A_{unmasked}.indices \cup A_{future}.indices]  \\
-& Softmax\\\_A_{omni} = softmax(A_{omni})  \\
-& Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices]  \\
-& out_{future}^{*} = Softmax\\\_A_{future} \cdot V
+& A_{omni}^{*} = A[A_{unmasked}.indices \cup A_{future}.indices]  \\
+& Softmax\\\_A_{omni}^{*} = softmax(A_{omni}^{*})  \\
+& Softmax\\\_A_{future}^{*} = Softmax\\\_A_{omni}^{*}[A_{future}.indices]  \\
+& out_{future}^{*} = Softmax\\\_A_{future}^{*} \cdot V
 \end{aligned}
 $$
 
