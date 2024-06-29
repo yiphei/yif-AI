@@ -58,17 +58,19 @@ $$
 \end{aligned}
 $$
 
-Presumably, the model performance would improve if it could use $out_{masked}$. Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
+Presumably, the model performance would improve if it could use $out_{masked}$. Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". Furthermore, instead of predicting the entire $out_{masked}$, the model can predict part of it, which is equivalent to limiting the target $out_{masked}$. $future\\_dim$ is a scalar hyperparameter that defines how many masked values in $out_{masked}$ to predict, per token. In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares). So $future\\_dim = 2$.
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
+Note that $future\\_dim$ only represents the max value. In fact, in the figure above, $q_4$ can only predict $k_5$.
+
 Let's call the blue part $A_{future}$, formally defined as
 
 $A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\_dim, context\\_size)$
 
-$future\\_dim$ is a scalar hyperparameter that defines how many masked values to predict, per token. In the example above, $future\\_dim = 2$. Note that $future\\_dim$ only represents the max value. In fact, note that, in the figure above, $q_4$ can only predict $k_5$. Because of this hyperparameter, instead of $out_{masked}$, the target becomes $out_{future}$ (a "subset" of $out_{masked}$).
+And the output of the blue part $out_{future}$ becomes the target model prediction.
 
 Let's also define $A_{omni} = A_{future} \cup A_{unmasked}$. Here's a visualization guide for all the different $A$'s.
 
