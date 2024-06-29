@@ -10,5 +10,5 @@ if __name__ == "__main__":
     train(
         FutureAttentionTransformer,
         "future_attention_transformer/",
-        "future_attention_transformer",
+        "future_attention_transformer_v1",
     )
