@@ -92,8 +92,8 @@ At the high-level, there are two parallel computations with some shared computat
 
 |||
 |----------|----------|
-| $$A = Q \cdot K^{T}$$ | |
-| $$A_{unmasked} = A[A_{unmasked}.indices]$$ | $A_{future} = Q \cdot K_{future}^{T}$ |
+| $$A = Q \cdot K^{T}$$ | $A_{future} = Q \cdot K_{future}^{T}$ |
+| $$A_{unmasked} = A[A_{unmasked}.indices]$$ | |
 | $$A_{omni} = A_{unmasked} \cup A_{future}$$ | |
 | $$Softmax\\\_A_{omni} = softmax(A_{omni})$$ | |
 | $$Softmax\\\_A_{unmasked} = Softmax\\\_A_{omni}[A_{unmasked}.indices]$$ | $$Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices]$$ |
