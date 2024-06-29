@@ -81,9 +81,9 @@ Since we need to indirectly predict $A_{future}$, we should reuse $Q$ but need d
 $$
 \begin{aligned}
 & A = Q \cdot K^{T}  \\
-& A_{causal} = A[M.indices]  \\
+& A_{causal} = A[A_{unmasked}.indices]  \\
 & A_{future} = Q \cdot K_{future}^{T}  \\
-& A_{full} = A_{causal} + A_{future} \\
+& A_{full} = A_{causal} \cup A_{future} \\
 & Softmax\\\_A_{full} = softmax(A_{full}) \\
 & Softmax\\\_A_{causal} = Softmax\\\_A_{full}[A_{causal}.indices] \\
 & Softmax\\\_A_{future} = Softmax\\\_A_{full}[A_{future}.indices] \\
@@ -92,13 +92,13 @@ $$
 & out_{full} = out_{future} + out_{causal}
 \end{aligned}
 $$
+Note that $A_{causal}$ and $A_{future}$ have different shapes, so merging the two requires padding operations, which is denoted by $\cup$.
 
 To calculate the true $out_{future}^{*}$, you have
 
 $$
 \begin{aligned}
-& A = Q \cdot K^{T}  \\
-& A_{target} = A[A_{unmasked}.indices + A_{future}.indices]  \\
+& A_{target} = A[A_{unmasked}.indices \cup A_{future}.indices]  \\
 & Softmax\\\_A_{target} = softmax(A_{target})  \\
 & Softmax\\\_A_{future} = Softmax\\\_A_{target}[A_{future}.indices]  \\
 & out_{future}^{*} = Softmax\\\_A_{future} \cdot V
