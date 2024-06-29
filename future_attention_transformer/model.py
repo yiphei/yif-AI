@@ -12,7 +12,7 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, SubModuleStats)
 
 
-class FutureXLossType(str, Enum):
+class FutureAttnLossType(str, Enum):
     MSE = "MSE"
     COSINE = "COSINE"
 
@@ -22,27 +22,27 @@ class FutureXLossType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return FutureXLossType.MSE
+            return FutureAttnLossType.MSE
         elif num == 2:
-            return FutureXLossType.COSINE
+            return FutureAttnLossType.COSINE
         else:
-            raise ValueError("Invalid future x loss number")
+            raise ValueError("Invalid FutureAttnLossType number")
 
 
 @dataclass
 class ModelConfig(BaseModelConfig):
     start_layer: int = 1  # layer at which to start using future attention
     future_dim: int = None  # number of future tokens to attend to
-    future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE
+    future_attn_loss_type: Union[FutureAttnLossType, int] = FutureAttnLossType.COSINE
     use_future_x_loss: bool = True
     detach_future_x: Optional[bool] = False
     end_layer: Optional[int] = None
-    future_x_loss_coeff: Optional[float] = 1.0
+    future_attn_loss_coeff: Optional[float] = 1.0
 
     def __post_init__(self):
-        if type(self.future_x_loss_type) == int:
-            self.future_x_loss_type = FutureXLossType.get_type_from_int(
-                self.future_x_loss_type
+        if type(self.future_attn_loss_type) == int:
+            self.future_attn_loss_type = FutureAttnLossType.get_type_from_int(
+                self.future_attn_loss_type
             )
 
         if self.future_dim is None:
@@ -61,7 +61,7 @@ class ModelConfig(BaseModelConfig):
 
         assert 1 <= self.future_dim <= (self.context_size - 1)
 
-        assert self.future_x_loss_coeff > 0
+        assert self.future_attn_loss_coeff > 0
 
         if self.detach_future_x is None:
             assert not self.use_future_x_loss
@@ -94,7 +94,7 @@ class DynamicLinear(nn.Module):
 
 
 class FutureMultiAttentionHead(SubModuleStats):
-    extra_stats = ["future_loss"]
+    extra_stats = ["future_attn_loss"]
 
     def __init__(
         self,
@@ -104,7 +104,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         context_size,
         dropout_rate,
         future_dim,
-        future_x_loss_type,
+        future_attn_loss_type,
         detach_future_x,
     ):
         super().__init__()
@@ -114,7 +114,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.n_head = n_head
         self.head_size = dim_in // n_head
         self.future_dim = future_dim
-        self.future_x_loss_type = future_x_loss_type
+        self.future_attn_loss_type = future_attn_loss_type
         self.detach_future_x = detach_future_x or False
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
@@ -233,11 +233,11 @@ class FutureMultiAttentionHead(SubModuleStats):
             if self.detach_future_x:
                 true_future_x = true_future_x.detach()
 
-            if self.future_x_loss_type == FutureXLossType.MSE:
-                self.future_loss = F.mse_loss(future_x, true_future_x)
-            elif self.future_x_loss_type == FutureXLossType.COSINE:
+            if self.future_attn_loss_type == FutureAttnLossType.MSE:
+                self.future_attn_loss = F.mse_loss(future_x, true_future_x)
+            elif self.future_attn_loss_type == FutureAttnLossType.COSINE:
                 cosine_sim = F.cosine_similarity(future_x, true_future_x, dim=-1)
-                self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
+                self.future_attn_loss = (1 - (1 + cosine_sim) / 2).mean()
 
         return new_x
 
@@ -257,7 +257,7 @@ class TransformerBlock(nn.Module):
                 config.context_size,
                 config.dropout_rate,
                 config.future_dim,
-                config.future_x_loss_type,
+                config.future_attn_loss_type,
                 config.detach_future_x,
             )
         else:
@@ -283,7 +283,7 @@ class TransformerBlock(nn.Module):
 
 class FutureAttentionTransformer(BaseModel):
     model_config_cls = ModelConfig
-    extra_stats = ["scaled_future_loss"]
+    extra_stats = ["scaled_future_attn_loss"]
 
     def _init_model(self, config: ModelConfig):
         assert (
@@ -338,13 +338,13 @@ class FutureAttentionTransformer(BaseModel):
 
             if self.training:
                 self.aggregate_sub_module_stats()
-                self.scaled_future_loss = (
-                    self.config.future_x_loss_coeff * self.future_loss
+                self.scaled_future_attn_loss = (
+                    self.config.future_attn_loss_coeff * self.future_attn_loss
                 )
 
             loss = F.cross_entropy(logits, targets.view(-1))
             if self.training and self.config.use_future_x_loss:
-                loss += self.scaled_future_loss
+                loss += self.scaled_future_attn_loss
 
         return (logits, loss)
 
