@@ -80,7 +80,26 @@ $A = Q \cdot K^{T}$
 
 Since we need to indirectly predict $A_{pred}$, we should reuse $Q$ but need different $K_{pred}$ and $V_{pred}$. There are many ways to construct $K_{pred}$ and $V_{pred}$, but here they are learnable weights, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
 
+<div style="display: flex;">
+  <div style="flex: 1;">
+    
+$$
+\begin{aligned}
+& out_{enc} \coloneqq \text{encoder output (detached)} \\
+\end{aligned}
+$$
 
+  </div>
+  <div style="flex: 1;">
+
+$$
+\begin{aligned}
+& out_{enc} \coloneqq \text{encoder output (detached)} \\
+\end{aligned}
+$$
+
+  </div>
+</div>
 
 
 
