@@ -37,7 +37,7 @@ $$
 \end{aligned}
 $$
 
-This concludes the attention mechanism. In a canonical attention layer, there are other subsequent operations on $out_{causal}$ that follow (e.g. dropout, residual projection, etc.), but those are not of concern here.
+This concludes the attention mechanism. Although other subsequent operations on $out_{causal}$ usually follow (e.g. dropout, residual projection, etc.), those are not of concern here.
 
 Before proceeding, let's identify two subsets of the original $A$
 
@@ -48,7 +48,7 @@ $$
 \end{aligned}
 $$
 
-Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. To be precise, these affinities are encapsulated in $out_{masked}$,
+Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. Subsequent operations transformer these affinities into $out_{masked}$, like so              
 
 $$
 \begin{aligned}
@@ -58,7 +58,7 @@ $$
 \end{aligned}
 $$
 
-Since the masked part can't be directly used, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
+Presumably, the model performance would improve if $out_{masked}$ were available. Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
