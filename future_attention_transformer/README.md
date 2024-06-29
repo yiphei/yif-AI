@@ -53,11 +53,20 @@ Now, the masked part $A_{masked}$ contains good signal on the affinities between
 $$
 \begin{aligned}
 & out = softmax(A) \cdot V \\
-& out_{masked} = softmax(A_{masked}) \cdot V \\
 \end{aligned}
 $$
 
-From this, observe that $out_{causal} = out - out_{masked}$. Therefore, the causal mask is equivalent to subtracting $out_{masked}$ from $out$. Since the masked part can't be directly used, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
+and
+
+$$
+\begin{aligned}
+& Softmax\\\_A = softmax(A) \\
+& Softmax\\\_A_{masked} = Softmax\\\_A[A_{masked}.indices] \\
+& out_{masked} = Softmax\\\_A_{masked} \cdot V \\
+\end{aligned}
+$$
+
+From this, observe that $out_{causal} = out - out_{masked}$ (perhaps not immediately obvious if you don't write out the element-wise operations). Therefore, applying the causal mask is equivalent to subtracting $out_{masked}$ from $out$. Since the masked part can't be directly used, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares).
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
