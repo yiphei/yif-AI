@@ -78,30 +78,22 @@ $Q$, $K$, and $V$. $A$ is already computed by $Q$ and $K$
 
 $A = Q \cdot K^{T}$
 
-Since we need to indirectly predict $A_{pred}$, we should reuse $Q$ but need different $K_{pred}$ and $V_{pred}$. There are many ways to construct $K_{pred}$ and $V_{pred}$, but here they are learnable weights, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
-
-<div style="display: flex; flex-direction: row;">
-  <div style="flex: 1;">
+Since we need to indirectly predict $A_{future}$, we should reuse $Q$ but need different $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but here they are learnable weights, not computed tensors, of shape $T\times context\\_size$. All of this sums up to
     
 $$
 \begin{aligned}
-& out_{enc} \coloneqq \text{encoder output (detached)} \\
-& aaa \coloneqq \text{encoder output (detached)}
+& A = Q \cdot K^{T}  \\
+& A_{causal} = A[M]  \\
+& A_{future} = Q \cdot K_{future}^{T}  \\
+& A_{full} = A_{causal} + A_{future} \\
+& Softmax\_A_{full} = softmax(A_{full}) \\
+& Softmax\_A_{causal} = Softmax\_A_{full}[indices] \\
+& Softmax\_A_{future} = Softmax\_A_{full}[indices] \\
+& out_{causal} = Softmax\_A_{causal} \cdot V \\
+& out_{future} = Softmax\_A_{future} \cdot V \\
+& out_{full} = out_{future} + out_{causal}
 \end{aligned}
 $$
-
-  </div>
-  <div style="flex: 1;">
-
-$$
-\begin{aligned}
-& out_{enc} \coloneqq \text{encoder output (detached)} \\
-& aaa \coloneqq \text{encoder output (detached)}
-\end{aligned}
-$$
-
-  </div>
-</div>
 
 
 
