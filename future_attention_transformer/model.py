@@ -168,26 +168,25 @@ class FutureMultiAttentionHead(SubModuleStats):
 
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
         if self.training:
-            with torch.no_grad():
-                true_attn = attn.masked_fill(
-                    self.full_tril[:, :, :T, :T_w_future] == 0,
-                    float("-inf"),
-                )
-                true_attn = F.softmax(true_attn, dim=-1)
-                true_future_attn = true_attn[:, :, :T, 1:]
-                true_future_attn = true_future_attn.masked_fill(
-                    self.future_tril[
-                        :,
-                        :,
-                        :T,
-                        : T_w_future - 1,
-                    ]
-                    != 0,
-                    0.0,
-                )
-                true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
-                if self.detach_future_x:
-                    true_future_x = true_future_x.detach()
+            true_attn = attn.masked_fill(
+                self.full_tril[:, :, :T, :T_w_future] == 0,
+                float("-inf"),
+            )
+            true_attn = F.softmax(true_attn, dim=-1)
+            true_future_attn = true_attn[:, :, :T, 1:]
+            true_future_attn = true_future_attn.masked_fill(
+                self.future_tril[
+                    :,
+                    :,
+                    :T,
+                    : T_w_future - 1,
+                ]
+                != 0,
+                0.0,
+            )
+            true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
+            if self.detach_future_x:
+                true_future_x = true_future_x.detach()
 
         causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.future_dim, self.context_size - T)
