@@ -58,7 +58,7 @@ $$
 \end{aligned}
 $$
 
-Presumably, the model performance would improve if it could use $out_{masked}$ (e.g. add it to $out_{causal}$). Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ and then use it. Subsequently, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new **future attention loss**. Furthermore, instead of predicting the full $out_{masked}$, the model can predict part of it, which is equivalent to limiting how much of $A_{masked}$ is considered. Let's call $out_{future}$ and $A_{future}$ the subsets of $out_{masked}$ and $A_{masked}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $A_{masked}$ to consider, per token. Stated formally, 
+Presumably, the model performance would improve if it could use $out_{masked}$ (e.g. add it to $out_{causal}$). Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ (and indirectly predict $A_{masked}$) and then use it. Subsequently, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new **future attention loss**. Furthermore, instead of predicting the full $out_{masked}$, the model can predict part of it, which is equivalent to limiting how much of $A_{masked}$ is considered. Let's call $out_{future}$ and $A_{future}$ the subsets of $out_{masked}$ and $A_{masked}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $A_{masked}$ to consider, per token. Stated formally, 
 
 $$
 \begin{aligned}
@@ -88,7 +88,7 @@ Lastly, because the softmax of the attention matrix is later matrix multiplied w
 
 $out = softmax(A) \cdot V$
 
-then $V$ also needs to be adjusted to match $softmax(A)$'s shape.
+then $V$ also needs to be adjusted to match $Softmax\\\_A_{future}$'s shape.
 
 ## Architecture
 
@@ -96,7 +96,7 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future Attention Head
 
-Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$. To predict $out_{future}$, $Q$ should be reused but different $K$ and $V$ are needed. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but a simple way is to have them as model parameters, not computed tensors, of shape $T\times context\\_size$. Then, the computational graph becomes
+Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$. To predict $out_{future}$, as many of the three operands as possible should be reused. $Q$ can be reused but different $K$ and $V$ are needed to match $A_{future}$ $Softmax\\\_A_{future}$'s shape. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but a simple way is to have them as model parameters, not computed tensors, of shape $T\times context\\_size$. Then, the computational graph becomes
 
 |||
 |----------|----------|
