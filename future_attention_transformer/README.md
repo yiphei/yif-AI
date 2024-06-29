@@ -103,10 +103,10 @@ To calculate the true $out_{future}^{*}$, you have
 
 $$
 \begin{aligned}
-& A_{omni}^{*} = A[A_{unmasked}.indices \cup A_{future}.indices]  \\
-& Softmax\\\_A_{omni}^{*} = softmax(A_{omni}^{*})  \\
-& Softmax\\\_A_{future}^{*} = Softmax\\\_A_{omni}^{*}[A_{future}.indices]  \\
-& out_{future}^{*} = Softmax\\\_A_{future}^{*} \cdot V
+& A_{omni}^{\*} = A[A_{unmasked}.indices \cup A_{future}.indices]  \\
+& Softmax\\\_A_{omni}^{\*} = softmax(A_{omni}^{\*})  \\
+& Softmax\\\_A_{future}^{\*} = Softmax\\\_A_{omni}^{\*}[A_{future}.indices]  \\
+& out_{future}^{\*} = Softmax\\\_A_{future}^{\*} \cdot V
 \end{aligned}
 $$
 
