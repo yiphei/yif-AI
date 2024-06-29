@@ -62,7 +62,7 @@ Presumably, the model performance would improve if it could use $out_{masked}$ (
 
 $$
 \begin{aligned}
-& A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\_dim, context\\_size) \\
+& A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\\_dim, context\\\_size) \\
 & Softmax\\\_A = softmax(A) \\
 & Softmax\\\_A_{masked} = Softmax\\\_A[A_{future}.indices] \\
 & out_{future} = Softmax\\\_A_{future} \cdot V \\
