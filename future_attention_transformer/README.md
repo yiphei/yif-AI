@@ -86,6 +86,7 @@ Since we need to indirectly predict $A_{pred}$, we should reuse $Q$ but need dif
 $$
 \begin{aligned}
 & out_{enc} \coloneqq \text{encoder output (detached)} \\
+& aaa \coloneqq \text{encoder output (detached)}
 \end{aligned}
 $$
 
@@ -95,6 +96,7 @@ $$
 $$
 \begin{aligned}
 & out_{enc} \coloneqq \text{encoder output (detached)} \\
+& aaa \coloneqq \text{encoder output (detached)}
 \end{aligned}
 $$
 
