@@ -55,7 +55,7 @@ Because $A_{causal}$ is later matrix multiplied with $V$ to produce the attentio
 
 $out_{causal} = softmax(A_{causal}) \cdot V$
 
-then "future" $V$ values ($V_{future}$) need to predicted along with $A_{future}$. $V_{future}$ is trickier because, unlike $A_{future}$ where the target future lies in the last dimension, $V$ has the target future in the penultimate dimension. 
+then "future" $V$ values ($V_{future}$) need to predicted along with $A_{future}$. $V_{future}$ is trickier to predict because, unlike $A_{future}$ where the target future lies in the last dimension, $V$ has the target future in the penultimate dimension. 
 
 ## Architecture
 
