@@ -1,7 +1,7 @@
 # Future Attention Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signal on the affinities between present and future tokens. This project investigates how the masked part can be leveraged to improve model performance while still respecting temporal causality.
+Decoder-only transformer models apply a causal mask in attention layers to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signal on the affinities between present and future tokens. This project investigates how the masked part can be leveraged to improve model performance while still respecting temporal causality.
 
 ## Motivations
 
@@ -58,7 +58,7 @@ $$
 \end{aligned}
 $$
 
-Presumably, the model performance would improve if it could use $out_{masked}$ (e.g. add it to $out_{causal}$). Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ (and indirectly predict $A_{masked}$) and then use it. Subsequently, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new **future attention loss**. Furthermore, instead of predicting the full $out_{masked}$, the model can predict part of it, which is equivalent to limiting how much of $A_{masked}$ is considered. Let's call $out_{future}$ and $A_{future}$ the subsets of $out_{masked}$ and $A_{masked}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $A_{masked}$ to consider, per token. Stated formally, 
+Presumably, the model performance would improve if it could use $out_{masked}$ (e.g. add it to $out_{causal}$). Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ (thus indirectly predicting $A_{masked}$ also). Subsequently, the $out_{masked}$ predictions can be optimized against the true $out_{masked}^{\*}$ (which can be easily derived) with a new **future attention loss**. Furthermore, instead of predicting the full $out_{masked}$, the model can predict part of it, which is equivalent to limiting how much of $A_{masked}$ is considered. Let's call $out_{future}$ and $A_{future}$ the subsets of $out_{masked}$ and $A_{masked}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $A_{masked}$ to consider, per token. Stated formally, 
 
 $$
 \begin{aligned}
@@ -78,7 +78,7 @@ In the figure below, for instance, the model considers the affinity of each pres
 
 **Note:** $future\\_dim$ only represents the max value. In fact, in the figure above, $q_4$ can only predict $k_5$.
 
-Here's a visualization guide for all the different $A$'s defined thus far.
+Here's a visual guide for all the different $A$'s defined thus far.
 
 [ADD VISUALIZATION HERE]
 
@@ -92,11 +92,11 @@ then $V$ also needs to be adjusted to match $Softmax\\\_A_{future}$'s shape.
 
 ## Architecture
 
-At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi attention head block that also predicts $out_{future}$. A loss is created from all $out_{future}$ predictions and added to the final model loss.
+At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi attention head block that also predicts $out_{future}$. A new loss is created from all $out_{future}$ predictions and added to the final model loss.
 
 ### Future Attention Head
 
-Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$. In predicting $out_{future}$, as many of the three operands as possible should be reused. In this case, $Q$ can be reused but different $K$ and $V$ are needed to match $A_{future}$ and $Softmax\\\_A_{future}$'s shape. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but a simple way is to have them as model parameters, not computed tensors, of shape $T\times context\\_size$. Then, the computational graph becomes
+Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$. In predicting $out_{future}$, as many of these three operands as possible should be reused. In this case, $Q$ can be reused but different $K$ and $V$ are needed to match $A_{future}$ and $Softmax\\\_A_{future}$'s shape, respectively. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but a simple way is to have them as model parameters, not computed tensors, of shape $n_head \times context\\_size \times head_size$. Then, the computational graph becomes
 
 |||
 |----------|----------|
