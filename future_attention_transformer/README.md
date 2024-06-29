@@ -5,7 +5,7 @@ Decoder-only transformer models apply a causal mask to enable parallel training 
 
 ## Motivations
 
-In the canonical decoder transformer, the attention layer computes an attention matrix $A$ for each head, like the figure below.
+In the canonical decoder-only transformer, the attention layer computes an attention matrix $A$ for each head, like the figure below.
 
 <div align="center">
   <img src="assets/unmasked.svg" alt="sdasd" width="400">
@@ -58,23 +58,30 @@ $$
 \end{aligned}
 $$
 
-Presumably, the model performance would improve if it could use $out_{masked}$. Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ and then use it. Then, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new "future loss". Furthermore, instead of predicting the entire $out_{masked}$, the model can also predict part of it, which is equivalent to limiting how much of $A_{masked}$ is used. Let's call $out_{future}$ and $A_{future}$ the subsets of $out_{masked}$ and $A_{masked}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $out_{masked}$ to consider, per token. To formalize the definition, 
+Presumably, the model performance would improve if it could use $out_{masked}$ (e.g. add it to $out_{causal}$). Since $out_{masked}$ can't be directly used because of masking, the model can instead predict $out_{masked}$ and then use it. Subsequently, these predictions can be optimized against the true $out_{masked}^{\*}$ with a new **future loss**. Furthermore, instead of predicting the entire $out_{masked}$, the model can also predict part of it, which is equivalent to limiting how much of $A_{masked}$ is considered. Let's call $out_{future}$ and $A_{future}$ the subsets of $out_{masked}$ and $A_{masked}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $out_{masked}$ to consider, per token. Stated formally, 
 
-$A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\_dim, context\\_size)$
+$$
+\begin{aligned}
+& A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\_dim, context\\_size) \\
+& Softmax\\\_A = softmax(A) \\
+& Softmax\\\_A_{masked} = Softmax\\\_A[A_{future}.indices] \\
+& out_{future} = Softmax\\\_A_{future} \cdot V \\
+\end{aligned}
+$$
 
-In the figure below, for instance, the model can predict the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares). So $future\\_dim = 2$.
+In the figure below, for instance, the model considers the affinity of each token to the next two tokens (the blue squares) while the rest is masked away (the red squares). So $future\\_dim = 2$.
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
-Note that $future\\_dim$ only represents the max value. In fact, in the figure above, $q_4$ can only predict $k_5$.
+Note: $future\\_dim$ only represents the max value. In fact, in the figure above, $q_4$ can only predict $k_5$.
 
-Lastly, let's also define $A_{omni} = A_{future} \cup A_{unmasked}$. Here's a visualization guide for all the different $A$'s.
+Lastly, let's also define $A_{omni} = A_{future} \cup A_{unmasked}$. Here's a visualization guide for all the different $A$'s define thus far.
 
 [ADD VISUALIZATION HERE]
 
-(The reason for explicitly defining all these different attention matrices is because the implementation is very indexing-heavy)
+(The reason for the explicit definition of all these different attention matrices is the indexing-heavy nature of the implementation presented below)
 
 Because the softmax of the attention matrix is later matrix multiplied with $V$ to produce the attention output $out$
 
