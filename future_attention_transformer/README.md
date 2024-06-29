@@ -69,7 +69,7 @@ $out_{no\\_mask} = softmax(A) \cdot V$
 
 Then, predicting the output contribution is equivalent to predicting
 
-$out_{future} = out_{no\\_mask} - out_{causal}$
+$out_{future} = out_{no\\\_mask} - out_{causal}$
 
 Now, the attention mechanism is based on three operands:
 $Q$, $K$, and $V$. $A$ is already computed by $Q$ and $K$
@@ -84,11 +84,11 @@ $$
 & A_{causal} = A[M]  \\
 & A_{future} = Q \cdot K_{future}^{T}  \\
 & A_{full} = A_{causal} + A_{future} \\
-& Softmax\_A_{full} = softmax(A_{full}) \\
-& Softmax\_A_{causal} = Softmax\_A_{full}[indices] \\
-& Softmax\_A_{future} = Softmax\_A_{full}[indices] \\
-& out_{causal} = Softmax\_A_{causal} \cdot V \\
-& out_{future} = Softmax\_A_{future} \cdot V \\
+& Softmax\\\_A_{full} = softmax(A_{full}) \\
+& Softmax\\\_A_{causal} = Softmax\\\_A_{full}[indices] \\
+& Softmax\\\_A_{future} = Softmax\\\_A_{full}[indices] \\
+& out_{causal} = Softmax\\\_A_{causal} \cdot V \\
+& out_{future} = Softmax\\\_A_{future} \cdot V \\
 & out_{full} = out_{future} + out_{causal}
 \end{aligned}
 $$
