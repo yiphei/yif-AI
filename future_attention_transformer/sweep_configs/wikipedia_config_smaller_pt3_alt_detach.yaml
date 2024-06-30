@@ -1,5 +1,5 @@
 program: future_attention_transformer/training_script.py
-name: wikipedia_config_smaller_pt3_cosine
+name: wikipedia_config_smaller_pt3_alt_detach
 project: future_attention_transformer_v1
 method: grid
 metric:
@@ -25,7 +25,7 @@ parameters:
             end_layer:
                 value: 28
             future_attn_loss_type:
-                value: 2
+                value: 1
             use_future_attn_loss:
                 value: True
             future_dim:
