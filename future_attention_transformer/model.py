@@ -219,12 +219,12 @@ class FutureMultiAttentionHead(SubModuleStats):
         new_x = self.dropout_2(new_x)
 
         if self.training:
-            true_attn = attn.masked_fill(
+            true_omni_attn = attn.masked_fill(
                 self.omni_tril[:, :, :T, :T_w_future] == 0,
                 float("-inf"),
             )
-            true_attn = F.softmax(true_attn, dim=-1)
-            true_future_attn = true_attn[:, :, :T, 1:]
+            true_omni_attn = F.softmax(true_omni_attn, dim=-1)
+            true_future_attn = true_omni_attn[:, :, :T, 1:]
             true_future_attn = true_future_attn.masked_fill(
                 self.future_tril[
                     :,
