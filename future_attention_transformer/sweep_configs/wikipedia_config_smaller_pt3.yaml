@@ -29,7 +29,7 @@ parameters:
             use_future_attn_loss:
                 value: True
             future_dim:
-                values: [25, 75]
+                values: [25, 50]
             detach_ground_truth:
                 values: [True, False]
             future_attn_loss_coeff:
