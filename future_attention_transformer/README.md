@@ -108,7 +108,7 @@ Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$
 | $$out_{unmasked} = Softmax\\\_A_{unmasked} \cdot V$$ | $$out_{future} = Softmax\\\_A_{future} \cdot V_{future}$$ |
 | $$out_{omni} = out_{future} + out_{unmasked}$$ | |
 
-Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations, which are denoted by $\cup$. Also note that $out_{unmasked} \neq out_{causal}$ because the former's softmax is on the union of $A_{unmasked}$ and $A_{future}$.
+Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations that are hard to express in LaTeX. Also note that $out_{unmasked} \neq out_{causal}$ because the former's softmax is on the union of $A_{unmasked}$ and $A_{future}$.
 
 Then, deriving the true $out_{future}^{*}$ simply becomes
 
