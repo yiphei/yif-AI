@@ -70,19 +70,19 @@ class ModelConfig(BaseModelConfig):
 
 
 class DynamicLinear(nn.Module):
-    def __init__(self, head_dim, in_dim, out_dim, use_bias):
+    def __init__(self, n_head, dim_in, dim_out, use_bias):
         super().__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.weight = nn.Parameter(torch.randn(head_dim, in_dim, out_dim))
+        self.dim_in = dim_in
+        self.dim_out = dim_out
+        self.weight = nn.Parameter(torch.randn(n_head, dim_in, dim_out))
         torch.nn.init.normal_(self.weight, mean=0.0, std=0.02)
         self.bias = (
-            nn.Parameter(torch.zeros(head_dim, 1, out_dim)) if use_bias else None
+            nn.Parameter(torch.zeros(n_head, 1, dim_out)) if use_bias else None
         )
 
     def forward(self, x, max_in_size=None, max_out_size=None):
-        max_in_size = max_in_size or self.in_dim
-        max_out_size = max_out_size or self.out_dim
+        max_in_size = max_in_size or self.dim_in
+        max_out_size = max_out_size or self.dim_out
 
         weight = self.weight[:, :max_in_size, :max_out_size]
         bias = self.bias[:, :, :max_out_size] if self.bias is not None else None
