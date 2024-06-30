@@ -1,7 +1,7 @@
 # Future Attention Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Decoder-only transformer models apply a causal mask in attention layers to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signal on the affinities between present and future tokens. This project investigates how the masked part can be leveraged to improve model performance while still respecting temporal causality.
+Decoder-only transformer models apply a causal mask in attention layers to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signals on the affinities between present and future tokens. This project investigates how the masked part can be leveraged to improve model performance while still respecting temporal causality.
 
 ## Motivations
 
@@ -58,7 +58,7 @@ $$
 \end{aligned}
 $$
 
-Presumably, the model performance would improve if it could make use of $out_{masked}$ (i.e. add it to $out_{causal}$). Since the true $out_{masked}$ can't be used because of masking, the model can instead predict $out_{masked}$, thus indirectly predicting $A_{masked}$ as well. From the $out_{masked}$ predictions, a new **future attention loss** can be formulated with the true $out_{masked}^{\*}$ (which can be easily derived) as ground truth. Furthermore, instead of predicting the full $out_{masked}$, the model can predict part of it, which is equivalent to limiting how much of $A_{masked}$ is considered. Let's call $out_{future}$ and $A_{future}$ the subsets of $out_{masked}$ and $A_{masked}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $A_{masked}$ to consider, per token. Stated formally, 
+Presumably, the model performance would improve if it could make use of $out_{masked}$ (i.e. add it to $out_{causal}$). Since the true $out_{masked}$ can't be used because of masking, the model can instead predict $out_{masked}$, thus indirectly predicting $A_{masked}$ as well. From the $out_{masked}$ predictions, a new **future attention loss** can be formulated, with the true $out_{masked}^{\*}$ (which can be easily derived) as ground truth. Furthermore, instead of predicting the full $out_{masked}$, the model can predict part of it, which is equivalent to predicting a subset of $A_{masked}$. Therefore, rather than predicting $out_{masked}$ and $A_{masked}$, the predictive targets become their subsets $out_{future}$ and $A_{future}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $A_{masked}$ to predict, per token. Stated formally, 
 
 $$
 \begin{aligned}
@@ -76,11 +76,13 @@ In the figure below, for instance, the model considers the affinity of each pres
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
-**Note:** $future\\_dim$ only represents the max value. In fact, in the figure above, $q_4$ can only predict $k_5$.
+**Note:** $future\\_dim$ only represents the max value. In fact, in the figure above, $T_4$ can only predict $q_4k_5$.
 
-Here's a visual guide for all the different $A$'s defined thus far.
+Here's a visual guide for all the different attention matrices defined thus far.
 
-[ADD VISUALIZATION HERE]
+<div align="center">
+  <img src="assets/all_attentions.svg" alt="sdasd" width="100%">
+</div>
 
 (The reason for the explicit definition of all these different attention matrices is the indexing-heavy nature of the implementation presented below)
 
@@ -92,7 +94,7 @@ then $V$ also needs to be adjusted to match $Softmax\\\_A_{future}$'s shape.
 
 ## Architecture
 
-At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi attention head block that also predicts $out_{future}$. A new loss is created from all $out_{future}$ predictions and added to the final model loss.
+At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi-headed attention block that also predicts $out_{future}$. A new loss is created from all $out_{future}$ predictions, in addition to the regular next token prediction loss.
 
 ### Future Attention Head
 
@@ -108,9 +110,9 @@ Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$
 | $$out_{unmasked} = Softmax\\\_A_{unmasked} \cdot V$$ | $$out_{future} = Softmax\\\_A_{future} \cdot V_{future}$$ |
 | $$out_{omni} = out_{future} + out_{unmasked}$$ | |
 
-Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations, which are denoted by $\cup$. Also note that $out_{unmasked} \neq out_{causal}$ because the former's softmax is on the union of $A_{unmasked}$ and $A_{future}$.
+Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations that are hard to express in LaTeX. Also, note that $out_{unmasked} \neq out_{causal}$ because the former's softmax is on the union of $A_{unmasked}$ and $A_{future}$.
 
-Then, deriving the true $out_{future}^{*}$ is simply
+Then, deriving the true $out_{future}^{*}$ simply becomes
 
 $$
 \begin{aligned}

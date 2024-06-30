@@ -12,9 +12,9 @@ from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, SubModuleStats)
 
 
-class FutureXLossType(str, Enum):
+class FutureAttnLossType(str, Enum):
     MSE = "MSE"
-    COSINE_SIM = "COSINE_SIM"
+    COSINE = "COSINE"
 
     def __str__(self):
         return self.value
@@ -22,34 +22,34 @@ class FutureXLossType(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return FutureXLossType.MSE
+            return FutureAttnLossType.MSE
         elif num == 2:
-            return FutureXLossType.COSINE_SIM
+            return FutureAttnLossType.COSINE
         else:
-            raise ValueError("Invalid future x loss number")
+            raise ValueError("Invalid FutureAttnLossType number")
 
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    start_layer: int = 1  # layer at which to start using future attention
-    future_dim: int = None  # number of future tokens to attend to
-    future_x_loss_type: Union[FutureXLossType, int] = FutureXLossType.COSINE_SIM
-    use_future_x_loss: bool = True
-    detach_future_x: Optional[bool] = False
+    start_layer: int = 1
+    future_dim: int = None
+    future_attn_loss_type: Union[FutureAttnLossType, int] = FutureAttnLossType.COSINE
+    use_future_attn_loss: bool = True
+    detach_future_ground_truth: Optional[bool] = False
     end_layer: Optional[int] = None
-    future_x_loss_coeff: Optional[float] = 1.0
+    future_attn_loss_coeff: Optional[float] = 1.0
 
     def __post_init__(self):
-        if type(self.future_x_loss_type) == int:
-            self.future_x_loss_type = FutureXLossType.get_type_from_int(
-                self.future_x_loss_type
+        if type(self.future_attn_loss_type) == int:
+            self.future_attn_loss_type = FutureAttnLossType.get_type_from_int(
+                self.future_attn_loss_type
             )
 
         if self.future_dim is None:
             self.future_dim = self.context_size - 1
 
         if self.end_layer is None:
-            self.end_layer = self.start_layer
+            self.end_layer = self.n_layer
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
@@ -61,31 +61,29 @@ class ModelConfig(BaseModelConfig):
 
         assert 1 <= self.future_dim <= (self.context_size - 1)
 
-        assert self.future_x_loss_coeff > 0
+        assert self.future_attn_loss_coeff > 0
 
-        if self.detach_future_x is None:
-            assert not self.use_future_x_loss
+        if self.detach_future_ground_truth is None:
+            assert not self.use_future_attn_loss
         else:
-            assert self.use_future_x_loss
+            assert self.use_future_attn_loss
 
 
 class DynamicLinear(nn.Module):
-    def __init__(self, head_dim, in_dim, out_dim, use_bias):
+    def __init__(self, n_head, dim_in, dim_out, use_bias):
         super().__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.weight = nn.Parameter(torch.randn(head_dim, in_dim, out_dim))
+        self.dim_in = dim_in
+        self.dim_out = dim_out
+        self.weight = nn.Parameter(torch.randn(n_head, dim_in, dim_out))
         torch.nn.init.normal_(self.weight, mean=0.0, std=0.02)
-        self.bias = (
-            nn.Parameter(torch.zeros(head_dim, 1, out_dim)) if use_bias else None
-        )
+        self.bias = nn.Parameter(torch.zeros(n_head, 1, dim_out)) if use_bias else None
 
-    def forward(self, x, max_in_size=None, max_out_size=None):
-        max_in_size = max_in_size or self.in_dim
-        max_out_size = max_out_size or self.out_dim
+    def forward(self, x, max_dim_in_size=None, max_dim_out_size=None):
+        max_dim_in_size = max_dim_in_size or self.dim_in
+        max_dim_out_size = max_dim_out_size or self.dim_out
 
-        weight = self.weight[:, :max_in_size, :max_out_size]
-        bias = self.bias[:, :, :max_out_size] if self.bias is not None else None
+        weight = self.weight[:, :max_dim_in_size, :max_dim_out_size]
+        bias = self.bias[:, :, :max_dim_out_size] if self.bias is not None else None
 
         x = x @ weight
         if bias is not None:
@@ -94,7 +92,7 @@ class DynamicLinear(nn.Module):
 
 
 class FutureMultiAttentionHead(SubModuleStats):
-    extra_stats = ["future_loss"]
+    extra_stats = ["future_attn_loss"]
 
     def __init__(
         self,
@@ -104,8 +102,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         context_size,
         dropout_rate,
         future_dim,
-        future_x_loss_type,
-        detach_future_x,
+        future_attn_loss_type,
+        detach_future_ground_truth,
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -114,8 +112,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         self.n_head = n_head
         self.head_size = dim_in // n_head
         self.future_dim = future_dim
-        self.future_x_loss_type = future_x_loss_type
-        self.detach_future_x = detach_future_x or False
+        self.future_attn_loss_type = future_attn_loss_type
+        self.detach_future_ground_truth = detach_future_ground_truth or False
 
         self.batch_attn_weights = nn.Linear(dim_in, dim_in * 3, bias=use_bias)
         self.future_k_weights = DynamicLinear(
@@ -148,7 +146,7 @@ class FutureMultiAttentionHead(SubModuleStats):
             ).view(1, 1, context_size, context_size - 1),
         )
         self.register_buffer(
-            "full_tril",
+            "omni_tril",
             torch.tril(
                 torch.ones(context_size, context_size).view(
                     1, 1, context_size, context_size
@@ -166,29 +164,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
+        # causal attention
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
-        if self.training:
-            with torch.no_grad():
-                true_attn = attn.masked_fill(
-                    self.full_tril[:, :, :T, :T_w_future] == 0,
-                    float("-inf"),
-                )
-                true_attn = F.softmax(true_attn, dim=-1)
-                true_future_attn = true_attn[:, :, :T, 1:]
-                true_future_attn = true_future_attn.masked_fill(
-                    self.future_tril[
-                        :,
-                        :,
-                        :T,
-                        : T_w_future - 1,
-                    ]
-                    != 0,
-                    0.0,
-                )
-                true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
-                if self.detach_future_x:
-                    true_future_x = true_future_x.detach()
-
         causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.future_dim, self.context_size - T)
         if pad_size > 0:
@@ -196,7 +173,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         else:
             padded_causal_attn = causal_attn
 
-        future_attn = self.future_k_weights(q, max_out_size=T_w_future - 1) * (
+        # future attention
+        future_attn = self.future_k_weights(q, max_dim_out_size=T_w_future - 1) * (
             self.head_size**-0.5
         )
         future_attn = future_attn.masked_fill(
@@ -205,28 +183,33 @@ class FutureMultiAttentionHead(SubModuleStats):
         )
         padded_future_attn = F.pad(future_attn, (1, 0), "constant", 0)
 
-        full_attn = padded_causal_attn + padded_future_attn
-        full_attn = full_attn.masked_fill(
-            self.full_tril[:, :, :T, :T_w_future] == 0,
+        # merge attentions
+        omni_attn = padded_causal_attn + padded_future_attn
+        omni_attn = omni_attn.masked_fill(
+            self.omni_tril[:, :, :T, :T_w_future] == 0,
             float("-inf"),
         )
-        softmax_full_attn = F.softmax(full_attn, dim=-1)
-        softmax_full_attn = self.dropout_1(softmax_full_attn)
+        softmax_omni_attn = F.softmax(omni_attn, dim=-1)
+        softmax_omni_attn = self.dropout_1(softmax_omni_attn)
 
-        softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
+        # extract causal and future softmax attentions
+        softmax_causal_attn = softmax_omni_attn[:, :, :T, :T]
         softmax_causal_attn = softmax_causal_attn.masked_fill(
             self.causal_tril[:, :, :T, :T] == 0, 0.0
         )
-        softmax_future_attn = softmax_full_attn[:, :, :T, 1:T_w_future]
+        softmax_future_attn = softmax_omni_attn[:, :, :T, 1:T_w_future]
         softmax_future_attn = softmax_future_attn.masked_fill(
             self.future_tril[:, :, :T, : T_w_future - 1] != 0,
             0.0,
         )
 
+        # calculate attention outputs
         causal_x = softmax_causal_attn @ v
         future_x = self.future_v_weights(
-            softmax_future_attn, max_in_size=T_w_future - 1
+            softmax_future_attn, max_dim_in_size=T_w_future - 1
         )
+
+        # combine attention outputs
         new_x = causal_x + future_x
         new_x = new_x.transpose(1, 2).contiguous().view(B, T, C)
 
@@ -234,11 +217,31 @@ class FutureMultiAttentionHead(SubModuleStats):
         new_x = self.dropout_2(new_x)
 
         if self.training:
-            if self.future_x_loss_type == FutureXLossType.MSE:
-                self.future_loss = F.mse_loss(future_x, true_future_x)
-            elif self.future_x_loss_type == FutureXLossType.COSINE_SIM:
+            true_omni_attn = attn.masked_fill(
+                self.omni_tril[:, :, :T, :T_w_future] == 0,
+                float("-inf"),
+            )
+            true_omni_attn = F.softmax(true_omni_attn, dim=-1)
+            true_future_attn = true_omni_attn[:, :, :T, 1:]
+            true_future_attn = true_future_attn.masked_fill(
+                self.future_tril[
+                    :,
+                    :,
+                    :T,
+                    : T_w_future - 1,
+                ]
+                != 0,
+                0.0,
+            )
+            true_future_x = true_future_attn @ v[:, :, 1:T_w_future, :]
+            if self.detach_future_ground_truth:
+                true_future_x = true_future_x.detach()
+
+            if self.future_attn_loss_type == FutureAttnLossType.MSE:
+                self.future_attn_loss = F.mse_loss(future_x, true_future_x)
+            elif self.future_attn_loss_type == FutureAttnLossType.COSINE:
                 cosine_sim = F.cosine_similarity(future_x, true_future_x, dim=-1)
-                self.future_loss = (1 - (1 + cosine_sim) / 2).mean()
+                self.future_attn_loss = (1 - (1 + cosine_sim) / 2).mean()
 
         return new_x
 
@@ -258,8 +261,8 @@ class TransformerBlock(nn.Module):
                 config.context_size,
                 config.dropout_rate,
                 config.future_dim,
-                config.future_x_loss_type,
-                config.detach_future_x,
+                config.future_attn_loss_type,
+                config.detach_future_ground_truth,
             )
         else:
             self.multi_attn_head = MultiAttentionHead(
@@ -284,7 +287,7 @@ class TransformerBlock(nn.Module):
 
 class FutureAttentionTransformer(BaseModel):
     model_config_cls = ModelConfig
-    extra_stats = ["scaled_future_loss"]
+    extra_stats = ["scaled_future_attn_loss"]
 
     def _init_model(self, config: ModelConfig):
         assert (
@@ -339,13 +342,13 @@ class FutureAttentionTransformer(BaseModel):
 
             if self.training:
                 self.aggregate_sub_module_stats()
-                self.scaled_future_loss = (
-                    self.config.future_x_loss_coeff * self.future_loss
+                self.scaled_future_attn_loss = (
+                    self.config.future_attn_loss_coeff * self.future_attn_loss
                 )
 
             loss = F.cross_entropy(logits, targets.view(-1))
-            if self.training and self.config.use_future_x_loss:
-                loss += self.scaled_future_loss
+            if self.training and self.config.use_future_attn_loss:
+                loss += self.scaled_future_attn_loss
 
         return (logits, loss)
 
