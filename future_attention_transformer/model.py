@@ -186,20 +186,20 @@ class FutureMultiAttentionHead(SubModuleStats):
         padded_future_attn = F.pad(future_attn, (1, 0), "constant", 0)
 
         # merge attentions
-        full_attn = padded_causal_attn + padded_future_attn
-        full_attn = full_attn.masked_fill(
+        omni_attn = padded_causal_attn + padded_future_attn
+        omni_attn = omni_attn.masked_fill(
             self.omni_tril[:, :, :T, :T_w_future] == 0,
             float("-inf"),
         )
-        softmax_full_attn = F.softmax(full_attn, dim=-1)
-        softmax_full_attn = self.dropout_1(softmax_full_attn)
+        softmax_omni_attn = F.softmax(omni_attn, dim=-1)
+        softmax_omni_attn = self.dropout_1(softmax_omni_attn)
 
         # extract causal and future softmax attentions
-        softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
+        softmax_causal_attn = softmax_omni_attn[:, :, :T, :T]
         softmax_causal_attn = softmax_causal_attn.masked_fill(
             self.causal_tril[:, :, :T, :T] == 0, 0.0
         )
-        softmax_future_attn = softmax_full_attn[:, :, :T, 1:T_w_future]
+        softmax_future_attn = softmax_omni_attn[:, :, :T, 1:T_w_future]
         softmax_future_attn = softmax_future_attn.masked_fill(
             self.future_tril[:, :, :T, : T_w_future - 1] != 0,
             0.0,
