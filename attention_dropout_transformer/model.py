@@ -24,7 +24,7 @@ class RegularizingLambdaConfig:
         assert self.max_lambda > 0
 
         if self.min_lambda is not None:
-            self.min_lambda >= 0
+            assert self.min_lambda >= 0
             assert self.min_lambda < self.max_lambda
             assert self.exp_coefficient is not None
 
