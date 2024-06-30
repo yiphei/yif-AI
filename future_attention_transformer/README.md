@@ -92,7 +92,7 @@ then $V$ also needs to be adjusted to match $Softmax\\\_A_{future}$'s shape.
 
 ## Architecture
 
-At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi attention head block that also predicts $out_{future}$. A new loss is created from all $out_{future}$ predictions and added to the final model loss.
+At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi-headed attention block that also predicts $out_{future}$. A new loss is created from all $out_{future}$ predictions and added to the final model loss.
 
 ### Future Attention Head
 
