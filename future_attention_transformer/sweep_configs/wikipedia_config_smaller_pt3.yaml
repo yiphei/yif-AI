@@ -30,7 +30,7 @@ parameters:
                 value: True
             future_dim:
                 values: [25, 50]
-            detach_ground_truth:
+            detach_future_ground_truth:
                 values: [True, False]
             future_attn_loss_coeff:
                 value: 1
