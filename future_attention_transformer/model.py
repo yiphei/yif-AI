@@ -49,7 +49,7 @@ class ModelConfig(BaseModelConfig):
             self.future_dim = self.context_size - 1
 
         if self.end_layer is None:
-            self.end_layer = self.start_layer
+            self.end_layer = self.n_layer
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
