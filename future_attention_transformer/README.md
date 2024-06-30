@@ -81,7 +81,7 @@ In the figure below, for instance, the model considers the affinity of each pres
 Here's a visual guide for all the different $A$'s defined thus far.
 
 <div align="center">
-  <img src="assets/all_attentions.svg" alt="sdasd" width="400">
+  <img src="assets/all_attentions.svg" alt="sdasd" width="100%">
 </div>
 
 (The reason for the explicit definition of all these different attention matrices is the indexing-heavy nature of the implementation presented below)
