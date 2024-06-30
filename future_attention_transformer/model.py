@@ -76,9 +76,7 @@ class DynamicLinear(nn.Module):
         self.dim_out = dim_out
         self.weight = nn.Parameter(torch.randn(n_head, dim_in, dim_out))
         torch.nn.init.normal_(self.weight, mean=0.0, std=0.02)
-        self.bias = (
-            nn.Parameter(torch.zeros(n_head, 1, dim_out)) if use_bias else None
-        )
+        self.bias = nn.Parameter(torch.zeros(n_head, 1, dim_out)) if use_bias else None
 
     def forward(self, x, max_dim_in_size=None, max_dim_out_size=None):
         max_dim_in_size = max_dim_in_size or self.dim_in
