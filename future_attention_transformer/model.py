@@ -166,8 +166,8 @@ class FutureMultiAttentionHead(SubModuleStats):
         q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
 
+        # causal attention
         attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
-
         causal_attn = attn.masked_fill(self.causal_tril[:, :, :T, :T] == 0, 0.0)
         pad_size = min(self.future_dim, self.context_size - T)
         if pad_size > 0:
@@ -175,6 +175,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         else:
             padded_causal_attn = causal_attn
 
+        # future attention
         future_attn = self.future_k_weights(q, max_dim_out_size=T_w_future - 1) * (
             self.head_size**-0.5
         )
@@ -184,6 +185,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         )
         padded_future_attn = F.pad(future_attn, (1, 0), "constant", 0)
 
+        # merge attentions
         full_attn = padded_causal_attn + padded_future_attn
         full_attn = full_attn.masked_fill(
             self.omni_tril[:, :, :T, :T_w_future] == 0,
@@ -192,6 +194,7 @@ class FutureMultiAttentionHead(SubModuleStats):
         softmax_full_attn = F.softmax(full_attn, dim=-1)
         softmax_full_attn = self.dropout_1(softmax_full_attn)
 
+        # extract causal and future softmax attentions
         softmax_causal_attn = softmax_full_attn[:, :, :T, :T]
         softmax_causal_attn = softmax_causal_attn.masked_fill(
             self.causal_tril[:, :, :T, :T] == 0, 0.0
@@ -202,10 +205,13 @@ class FutureMultiAttentionHead(SubModuleStats):
             0.0,
         )
 
+        # calculate attention outputs
         causal_x = softmax_causal_attn @ v
         future_x = self.future_v_weights(
             softmax_future_attn, max_dim_in_size=T_w_future - 1
         )
+
+        # combine attention outputs
         new_x = causal_x + future_x
         new_x = new_x.transpose(1, 2).contiguous().view(B, T, C)
 
