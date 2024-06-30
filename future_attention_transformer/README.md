@@ -1,7 +1,7 @@
 # Future Attention Transformer [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Decoder-only transformer models apply a causal mask in attention layers to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signal on the affinities between present and future tokens. This project investigates how the masked part can be leveraged to improve model performance while still respecting temporal causality.
+Decoder-only transformer models apply a causal mask in attention layers to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signals on the affinities between present and future tokens. This project investigates how the masked part can be leveraged to improve model performance while still respecting temporal causality.
 
 ## Motivations
 
@@ -110,7 +110,7 @@ Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$
 | $$out_{unmasked} = Softmax\\\_A_{unmasked} \cdot V$$ | $$out_{future} = Softmax\\\_A_{future} \cdot V_{future}$$ |
 | $$out_{omni} = out_{future} + out_{unmasked}$$ | |
 
-Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations that are hard to express in LaTeX. Also note that $out_{unmasked} \neq out_{causal}$ because the former's softmax is on the union of $A_{unmasked}$ and $A_{future}$.
+Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations that are hard to express in LaTeX. Also, note that $out_{unmasked} \neq out_{causal}$ because the former's softmax is on the union of $A_{unmasked}$ and $A_{future}$.
 
 Then, deriving the true $out_{future}^{*}$ simply becomes
 
