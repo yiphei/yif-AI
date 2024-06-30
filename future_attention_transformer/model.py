@@ -80,12 +80,12 @@ class DynamicLinear(nn.Module):
             nn.Parameter(torch.zeros(n_head, 1, dim_out)) if use_bias else None
         )
 
-    def forward(self, x, max_in_size=None, max_out_size=None):
-        max_in_size = max_in_size or self.dim_in
-        max_out_size = max_out_size or self.dim_out
+    def forward(self, x, max_dim_in_size=None, max_dim_out_size=None):
+        max_dim_in_size = max_dim_in_size or self.dim_in
+        max_dim_out_size = max_dim_out_size or self.dim_out
 
-        weight = self.weight[:, :max_in_size, :max_out_size]
-        bias = self.bias[:, :, :max_out_size] if self.bias is not None else None
+        weight = self.weight[:, :max_dim_in_size, :max_dim_out_size]
+        bias = self.bias[:, :, :max_dim_out_size] if self.bias is not None else None
 
         x = x @ weight
         if bias is not None:
