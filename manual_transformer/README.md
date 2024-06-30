@@ -1,1 +1,0 @@
-Manual implementation of the Transformer architecture for fun.
