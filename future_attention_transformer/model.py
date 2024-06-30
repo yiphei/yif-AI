@@ -31,8 +31,8 @@ class FutureAttnLossType(str, Enum):
 
 @dataclass
 class ModelConfig(BaseModelConfig):
-    start_layer: int = 1  # layer at which to start using future attention
-    future_dim: int = None  # number of future tokens to attend to
+    start_layer: int = 1
+    future_dim: int = None
     future_attn_loss_type: Union[FutureAttnLossType, int] = FutureAttnLossType.COSINE
     use_future_attn_loss: bool = True
     detach_ground_truth: Optional[bool] = False
