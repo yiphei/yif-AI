@@ -76,7 +76,7 @@ In the figure below, for instance, the model considers the affinity of each pres
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
 </div>
 
-**Note:** $future\\_dim$ only represents the max value. In fact, in the figure above, $q_4$ can only predict $k_5$.
+**Note:** $future\\_dim$ only represents the max value. In fact, in the figure above, $T_4$ can only predict $q_4k_5$.
 
 Here's a visual guide for all the different attention matrices defined thus far.
 
