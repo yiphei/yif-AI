@@ -274,9 +274,12 @@ class AttentionDropout(SubModuleStats):
                 complement_mask = 1 - dropout_mask.detach()
                 noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
 
-                scaling = torch.where(
-                    noise >= complement_mask, complement_mask, complement_mask - 1
-                )
+                # scaling = torch.where(
+                #     noise >= complement_mask, complement_mask, complement_mask - 1
+                # )
+                # scaling = complement_mask * (noise >= complement_mask).float() + (complement_mask - 1) * (noise < complement_mask).float()
+                scaling = torch.lerp(complement_mask - 1, complement_mask, (noise >= complement_mask).float())
+
                 dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
                     dtype=torch.float16
                 )
