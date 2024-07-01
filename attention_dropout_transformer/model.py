@@ -107,15 +107,15 @@ class ModelConfig(BaseModelConfig):
         if self.end_layer > self.n_layer or self.end_layer < 1:
             raise ValueError("end_layer must be <= n_layer and >= 1")
 
-        if (
-            self.use_dropout_entropy_in_loss
-            and self.attention_dropout_config.rounding_type is not None
-            and self.attention_dropout_config.rounding_type in [RoundingType.NOISE_AND_LINEAR, RoundingType.LINEAR]
-        ):
-            # This is because dropout entropy is always zero with rounding_type 2 or 3
-            raise ValueError(
-                "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
-            )
+        # if (
+        #     self.use_dropout_entropy_in_loss
+        #     and self.attention_dropout_config.rounding_type is not None
+        #     and self.attention_dropout_config.rounding_type in [RoundingType.NOISE_AND_LINEAR, RoundingType.LINEAR]
+        # ):
+        #     # This is because dropout entropy is always zero with rounding_type 2 or 3
+        #     raise ValueError(
+        #         "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
+        #     )
 
         if (
             not self.use_dropout_entropy_in_loss
