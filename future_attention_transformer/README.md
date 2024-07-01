@@ -137,7 +137,7 @@ $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{future}, out_{futu
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-The MSE planning loss outperformed cosine dissimilarity planning loss in both validation loss and matched it in train loss. Both had $future_dim = 50$.
+The MSE planning loss outperformed cosine dissimilarity planning loss in both validation loss and matched it in train loss. Both had $future\\\_dim = 50$.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
