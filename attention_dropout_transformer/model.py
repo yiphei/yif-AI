@@ -178,7 +178,6 @@ class AttentionDropout(SubModuleStats):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 4, bias=config.use_bias
         )
-        self.uniform = torch.distributions.Uniform(torch.tensor(0.0), torch.tensor(1.0))
 
         self.dropout_entropy_context = (
             nullcontext() if use_dropout_entropy_in_loss else torch.no_grad()
@@ -272,10 +271,12 @@ class AttentionDropout(SubModuleStats):
                 )
             elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
-                noise = self.uniform.sample(dropout_mask.shape).to(dropout_mask.device)
+                noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
+
                 scaling = torch.where(
                     noise >= complement_mask, complement_mask, complement_mask - 1
                 )
+
                 dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
                     dtype=torch.float16
                 )
