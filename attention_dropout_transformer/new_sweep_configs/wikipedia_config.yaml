@@ -41,7 +41,7 @@ parameters:
                     shift_init:
                         values: [0,1.57079632,3.14159265]
                     use_canonical_entropy:
-                        value: True
+                        value: False
                     use_detached_x_in_dropout_mask:
                         values: [True, False]
     batch_size: 
