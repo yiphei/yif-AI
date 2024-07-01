@@ -156,7 +156,7 @@ Compared to a canonical decoder-only transformer (baseline), the new model outpe
 | **FCS=11 MSE** [(config)](#fcs11-mse) | **2.782** | **3.34** | 15,763,500 |
 | **baseline** [(config)](#baseline) | 2.789 | 3.391 | 16,036,800 |
 
-Two more baselines were compared: "smaller baseline" and "0.3 dropout baseline". "smaller baseline" was a baseline smaller (i.e. fewer parameters) than "FCS=11 MSE". Usually, smaller models perform better in validation loss because they overfit less, so the new model's better validation loss could just be explained by its smaller size. By also outperforming "smaller baseline", then the new model's better validation loss can't be attributed to any size explanation. "0.3 dropout baseline" was a baseline with 0.3 dropout. By outperforming it, the new model also demonstrated its superiority over dropout.
+Two more baselines were compared: "smaller baseline" and "0.3 dropout baseline". "smaller baseline" was a baseline smaller (i.e. fewer parameters) than "FCS=11 MSE". Usually, smaller models perform better in validation loss because they overfit less, so the new model's better validation loss could perhaps be explained by its smaller size. By also outperforming "smaller baseline", then the new model's better validation loss can't be attributed to any size explanation. "0.3 dropout baseline" was a baseline with 0.3 dropout. By outperforming it, the new model also demonstrated its superiority over dropout.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">

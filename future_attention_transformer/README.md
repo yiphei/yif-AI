@@ -1,41 +1,133 @@
 # Future Attention Transformer [WIP readme]
-> NB: LaTeX here is optimized for Github's Markdown, so please view it on Github.
+> NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Decoder-only transformer models apply a causal mask to enable parallel training with teacher forcing. This creates an imbalance in compute per context length and throws away good learning signal. The model presented here demonstrates a way to remedy these two issues.
+Decoder-only transformer models apply a causal mask in attention layers to enable parallel training with teacher forcing. However, the causally masked part of the attention matrix contains good signals on the affinities between present and future tokens. This project investigates how the masked part can be leveraged to improve model performance while still respecting temporal causality.
 
 ## Motivations
 
-In the canonical decoder's multi attention head, an attention matrix is calculated for every head
+In the canonical decoder-only transformer, the attention layer computes an attention matrix $A$ for each head, like the figure below.
 
 <div align="center">
-  <img src="assets/matrix_2.png" alt="sdasd" width="400">
+  <img src="assets/unmasked.svg" alt="sdasd" width="400">
 </div>
 
-and an upper-right triangular mask is applied on it to respect temporal causality.
+Because transformer models are trained in a parallel way, a causal mask $M$ must be applied to the attention matrix $A$ to prevent the model from peeking at future tokens and thus from cheating. Stated more formally,
+
+$$
+\begin{aligned}
+& A_{causal}[i,j] = 
+\begin{cases} 
+A[i,j] & \text{if } M[i,j] = 1 \\
+-\infty & \text{if } M[i,j] = 0
+\end{cases} \\
+\end{aligned}
+$$
+
+The result of masking is illustrated in the figure below (the masked positions are depicted with red squares).
 
 <div align="center">
-  <img src="assets/matrix_3.png" alt="sdasd" width="400">
+  <img src="assets/causal_mask.svg" alt="sdasd" width="400">
 </div>
 
-This is necessary to permit parallel training because you don't want the model to cheat by exposing it the answers. However, it creates two issues. First, it creates an imbalance of compute per token: bigger contexts have more compute. This is not bad per se but the benefit of imposing it by design is not obvious. Second, the masked part of the attention matrix contains good signal on the affinity of earlier tokens to future tokens. This signal can be used for training as a loss.
+Afterwards, the following concludes the attention mechanism
 
-We can ask the model to indirectly "predict" the masked upper right triangle of the attention matrix by having it compute the output contribution from it. That would be like predicting the "future" (beyond just the next token) since that's precisely what the mask removes. In other words, asumming that $out_{full}$ is the output of the attention operation if no mask were applied to the attention matrix (also known as $out_{encoder}$) and $out_{decoder}$ is the output if a mask were applied, then we are asking the model to compute $out_{future} = out_{full/encoder} - out_{decoder}$. Once that is computed, we return the final output of the attention operation as $out_{future} + out_{decoder}$. Moreover, as alluded to earlier, we can calculate a future attention loss on $out_{future}$ since we know the true $out_{future}^{*}$ (calculating $out_{future}^{*}$ is straight-forward but too convoluted to express briefly verbally or mathematically, so the code is your best friend here). This future attention loss is then aggregated over all heads and added to the model's final loss.
+$$
+\begin{aligned}
+& out_{causal} = softmax(A_{causal}) \cdot V \\
+\end{aligned}
+$$
+
+**Note:** although other subsequent operations on $out_{causal}$ usually follow (e.g. dropout, residual projection, etc.), those are not of concern here.
+
+Before proceeding, let's identify two subsets of the original $A$
+
+$$
+\begin{aligned}
+& A_{unmasked}[i,j] = A[i,j] \text{ where } (i,j) \in \\{ (i,j) \mid M[i,j] = 1 \\} \\
+& A_{masked}[i,j] = A[i,j] \text{ where } (i,j) \in \\{ (i,j) \mid M[i,j] = 0 \\}
+\end{aligned}
+$$
+
+Now, the masked part $A_{masked}$ contains good signal on the affinities between present and future tokens. If no mask $M$ were applied, subsequent operations would transform these affinities into $out_{masked}$, like so              
+
+$$
+\begin{aligned}
+& Softmax\\\_A = softmax(A) \\
+& Softmax\\\_A_{masked} = Softmax\\\_A[A_{masked}.indices] \\
+& out_{masked} = Softmax\\\_A_{masked} \cdot V \\
+\end{aligned}
+$$
+
+Presumably, the model performance would improve if it could make use of $out_{masked}$ (i.e. add it to $out_{causal}$). Since the true $out_{masked}$ can't be used because of masking, the model can instead predict $out_{masked}$, thus indirectly predicting $A_{masked}$ as well. From the $out_{masked}$ predictions, a new **future attention loss** can be formulated, with the true $out_{masked}^{\*}$ (which can be easily derived) as ground truth. Furthermore, instead of predicting the full $out_{masked}$, the model can predict part of it, which is equivalent to predicting a subset of $A_{masked}$. Therefore, rather than predicting $out_{masked}$ and $A_{masked}$, the predictive targets become their subsets $out_{future}$ and $A_{future}$, respectively. Then, let $future\\\_dim$ be the scalar hyperparameter that defines how many masked values in $A_{masked}$ to predict, per token. Stated formally, 
+
+$$
+\begin{aligned}
+& A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\\_dim, context\\\_size) \\
+& A_{omni} = A_{future} \cup A_{unmasked} \\\\[0.4cm]
+& Softmax\\\_A_{omni} = softmax(A_{omni}) \\
+& Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices] \\
+& out_{future} = Softmax\\\_A_{future} \cdot V \\
+\end{aligned}
+$$
+
+In the figure below, for instance, the model considers the affinity of each present token to the next two future tokens (the blue squares) while the rest is masked away (the red squares). Here, $future\\_dim = 2$.
+
+<div align="center">
+  <img src="assets/future_mask.svg" alt="sdasd" width="400">
+</div>
+
+**Note:** $future\\_dim$ only represents the max value. In fact, in the figure above, $T_4$ can only predict $q_4k_5$.
+
+Here's a visual guide for all the different attention matrices defined thus far.
+
+<div align="center">
+  <img src="assets/all_attentions.svg" alt="sdasd" width="100%">
+</div>
+
+(The reason for the explicit definition of all these different attention matrices is the indexing-heavy nature of the implementation presented below)
+
+Lastly, because the softmax of the attention matrix is later matrix multiplied with $V$ to produce the attention output $out$
+
+$out = softmax(A) \cdot V$
+
+then $V$ also needs to be adjusted to match $Softmax\\\_A_{future}$'s shape.
 
 ## Architecture
 
-At the high-level, the architecture is just the canonical decoder-only transformer but with a modified multi attention head block that also predicts the contribution from the masked part of the attention matrix. Finally, a future attention loss is computed for every $out_{future}$, which is added to the final model loss.
+At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi-headed attention block that also predicts $out_{future}$. A new loss is created from all $out_{future}$ predictions, in addition to the regular next token prediction loss.
 
 ### Future Attention Head
 
-In the regular attention head, attention works by computing $Q$, $K$, and $V$ tensors. That continues to be the case here, with $out_{decoder}$ as the output of the cannonical attention operation with a masked attention matrix. In parallel, the model also computes $out_{future}$. To do so, we need to first determine how much of the masked part (the "future") we want to predict, which is represented by the hyperparameter $future\\\_dim$. $future\_dim$ demarcates the part of the masked upper-right triangle that starts from first diagonal where values are masked till the $future\\\_dim^{th}$ diagonal. The range of $future\\\_dim$ is $\in [1, context\\\_size-1]$ since there are $context\\\_size-1$ diagonals in the masked triangle. 
+Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$. In predicting $out_{future}$, as many of these three operands as possible should be reused. In this case, $Q$ can be reused but different $K$ and $V$ are needed to match $A_{future}$ and $Softmax\\\_A_{future}$'s shape, respectively. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but a simple way is to have them as model parameters, not computed tensors, of shape $(n\\_head \times context\\_size \times head\\_size)$. Then, the computational graph becomes
 
-Afterwards, you need $K_{future}$ and $V_{future}$, while reusing $Q$. There are many ways to obtain these two but the easier way is to have $K_{future}$ and $V_{future}$ as model parameters (and not computed tensors like $Q$, $K$, and $V$), each of size $E\text{x}(context\\\_size-1)$. Then, you compute a "future" attention matrix $Attn_{future} = Q \cdot K_{future}[:,:,:,min(T+future\\\_dim, context\\\_size)-1]$. After, compute the full attention matrix $Attn_{full} = Attn_{decoder} + Attn_{future}$, where $Attn_{decoder}$ is just the regular decoder-only masked attention (though $Attn_{decoder} + Attn_{future}$ is not precise because there are padding operations to have the shapes match, but it's tedious to explain verbally so please see the code). Perform the softmax on $Attn_{full}$ to get $AttnSoftmax_{full}$ and separate $AttnSoftmax_{full}$ into the individual contributions $AttnSoftmax_{decoder}$ and $AttnSoftmax_{future}$. Finally, compute $out_{decoder}= AttnSoftmax_{decoder} \cdot V$, then $out_{future}= AttnSoftmax_{future} \cdot V_{future}[:,:,:min(T+future\\\_dim, context\\\_size)-1,:]$, and get the final output $out = out_{decoder} + out_{future}$. 
+|||
+|----------|----------|
+| $$A = Q \cdot K^{T}$$ | $A_{future} = Q \cdot K_{future}^{T}$ |
+| $$A_{unmasked} = A[A_{unmasked}.indices]$$ | |
+| $$A_{omni} = A_{unmasked} \cup A_{future}$$ | |
+| $$Softmax\\\_A_{omni} = softmax(A_{omni})$$ | |
+| $$Softmax\\\_A_{unmasked} = Softmax\\\_A_{omni}[A_{unmasked}.indices]$$ | $$Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices]$$ |
+| $$out_{unmasked} = Softmax\\\_A_{unmasked} \cdot V$$ | $$out_{future} = Softmax\\\_A_{future} \cdot V_{future}$$ |
+| $$out_{omni} = out_{future} + out_{unmasked}$$ | |
 
-The future attention loss is computed between $out_{future}$ and $out_{future}^{*}$. Two types of loss are experimented. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the future attention loss with MSE is just
+Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations that are hard to express in LaTeX. Also, note that $out_{unmasked} \neq out_{causal}$ because the former's softmax is on the union of $A_{unmasked}$ and $A_{future}$.
+
+Then, deriving the true $out_{future}^{*}$ simply becomes
+
+$$
+\begin{aligned}
+& A_{omni}^{\*} = A[A_{unmasked}.indices \cup A_{future}.indices]  \\
+& Softmax\\\_A_{omni}^{\*} = softmax(A_{omni}^{\*})  \\
+& Softmax\\\_A_{future}^{\*} = Softmax\\\_A_{omni}^{\*}[A_{future}.indices]  \\
+& out_{future}^{\*} = Softmax\\\_A_{future}^{\*} \cdot V
+\end{aligned}
+$$
+
+The future attention loss is computed between $out_{future}$ and $out_{future}^{*}$. Two types of loss are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the future attention loss with MSE is given by
 
 $$future\\\_attn\\\_loss = MSE(out_{future}, out_{future}^{*})$$
 
-and with cosine dissimilarity is
+and with cosine dissimilarity is given by
 
 $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{future}, out_{future}^{*}) + 1}{2}$$
 

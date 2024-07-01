@@ -24,7 +24,7 @@ class RegularizingLambdaConfig:
         assert self.max_lambda > 0
 
         if self.min_lambda is not None:
-            self.min_lambda >= 0
+            assert self.min_lambda >= 0
             assert self.min_lambda < self.max_lambda
             assert self.exp_coefficient is not None
 
@@ -109,8 +109,8 @@ class ModelConfig(BaseModelConfig):
 
         if (
             self.use_dropout_entropy_in_loss
-            and self.attention_dropout_config.rounding_type
-            and self.attention_dropout_config.rounding_type in [2, 3]
+            and self.attention_dropout_config.rounding_type is not None
+            and self.attention_dropout_config.rounding_type in [RoundingType.NOISE_AND_LINEAR, RoundingType.LINEAR]
         ):
             # This is because dropout entropy is always zero with rounding_type 2 or 3
             raise ValueError(
