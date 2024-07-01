@@ -153,8 +153,8 @@ The MSE planning loss outperformed cosine dissimilarity planning loss in both va
 
 |   | Train loss | Val loss | Future attention loss |
 |---|----------|----------|----------|
-| **future_dim = 50 Cosine** [(config)](#) | 3.017 | 3.423| 0.2589 |
-| **future_dim = 50 MSE** [(config)](#) | 3.017 | **3.419** | 0.07681 |
+| **future_dim = 50 Cosine** [(config)](#future_dim--50-cosine) | 3.017 | 3.423| 0.2589 |
+| **future_dim = 50 MSE** [(config)](#future_dim--50-mse) | 3.017 | **3.419** | 0.07681 |
 
 
 
@@ -174,8 +174,8 @@ The MSE planning loss outperformed cosine dissimilarity planning loss in both va
 
 |   | Train loss | Val loss | Future attention loss |
 |---|----------|----------|----------|
-| **future_dim = 50 MSE** [(config)](#) | **3.017** | **3.419** | 0.07681 |
-| **future_dim = 100 MSE** [(config)](#) | 3.025 | 3.421 | 0.08633 |
+| **future_dim = 50 MSE** [(config)](#future_dim--50-mse) | **3.017** | **3.419** | 0.07681 |
+| **future_dim = 100 MSE** [(config)](#future_dim--100-mse) | 3.025 | 3.421 | 0.08633 |
 
 
 [text here]
@@ -193,9 +193,9 @@ The MSE planning loss outperformed cosine dissimilarity planning loss in both va
 
 |   | Train loss | Val loss | Size (params) |
 |---|----------|----------|----------|
-| **future_dim = 50 MSE** [(config)](#) | 3.017 | 3.419 | 15,817,248 |
-| **baseline** [(config)](#) | **2.937** | 3.424 | 16,036,800 |
-| **smaller baseline** [(config)](#) | 2.958 | **3.416** | 15,441,192 |
+| **future_dim = 50 MSE** [(config)](#future_dim--50-mse) | 3.017 | 3.419 | 15,817,248 |
+| **baseline** [(config)](#baseline) | **2.937** | 3.424 | 16,036,800 |
+| **smaller baseline** [(config)](#smaller-baseline) | 2.958 | **3.416** | 15,441,192 |
 
 ## Next steps
 
