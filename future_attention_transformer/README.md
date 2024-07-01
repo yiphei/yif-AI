@@ -197,37 +197,6 @@ The MSE planning loss outperformed cosine dissimilarity planning loss in both va
 | **baseline** [(config)](#) | **2.937** | 3.424 | 16,036,800 |
 | **smaller baseline** [(config)](#) | 2.958 | **3.416** | 15,441,192 |
 
----------------------------
-
-
-Different future dim were also experimented. Remember: the higher the future dim, the father in the future each token tries to predict. Naturally, one would expect that the bigger future dim is, the better. Indeed, that is true. The highest future dim of 199 performed the best (with a max context size of 200).
-
-<div style="display: flex; overflow-x: auto; white-space: nowrap;">
-  <img src="assets/dim_train_loss.svg" alt="Image 1" style="width: 45%;"/>
-  <img src="assets/dim_val_loss.svg" alt="Image 2" style="width: 45%;"/>
-    <img src="assets/dim_future_loss.svg" alt="Image 2" style="width: 45%;"/>
-</div>
-
-|   | Train loss | Val loss | Future Attention loss |
-|---|----------|----------|----------|
-| **with future_dim = 50** | 2.96 | 3.413 | 0.2665 |
-| **with future_dim = 100** | 2.957 | 3.412 | 0.2559 |
-| **with future_dim = 150** | 2.957 | 3.415 | 0.2574 |
-| **with future_dim = 199** | **2.954** | **3.408** | 0.249 |
-
-Compared to a canonical decoder-only transformer (baseline), it outperformed it in validation loss but underformed in train loss. [TO CONFIRM] Both completed in the similar amount of time with the similar memory demands. [TO CONFIRM] The baseline did have more parameters because it was hard to exactly match the new model's.
-
-<div style="display: flex; overflow-x: auto; white-space: nowrap;">
-  <img src="assets/base_train_loss.svg" alt="Image 1" style="width: 45%;"/>
-  <img src="assets/base_val_loss.svg" alt="Image 2" style="width: 45%;"/>
-</div>
-
-|   | Train loss | Val loss |
-|---|----------|----------|
-| **future attention transformer** | 2.954 | **3.408** |
-| **baseline** | **2.934** | 3.449 |
-
-
 ## Next steps
 
 These are some improvements to look forward to:
@@ -238,3 +207,12 @@ These are some improvements to look forward to:
 ## Conclusions
 
 TODO
+
+---
+## Appendix
+### Run configs
+#### "future_dim = 50 Cosine"
+#### "future_dim = 50 MSE"
+#### "future_dim = 100 MSE"
+#### "baseline"
+#### "smaller baseline"
