@@ -137,18 +137,26 @@ $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{future}, out_{futu
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-First, the two types of future attention loss were compared. Cosine-dissimilarity did better in validation loss while MSE did better in train loss.
+The MSE planning loss outperformed cosine dissimilarity planning loss in both validation loss and matched it in train loss. Both had $future_dim = 50$.
 
-<div style="display: flex; overflow-x: auto; white-space: nowrap;">
-  <img src="assets/train_loss.svg" alt="Image 1" style="width: 45%;"/>
-  <img src="assets/val_loss.svg" alt="Image 2" style="width: 45%;"/>
-    <img src="assets/future_loss.svg" alt="Image 2" style="width: 45%;"/>
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+    <img src="assets/loss_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/loss_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/loss_future_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
 </div>
+<br>
 
-|   | Train loss | Val loss | Future Attention loss |
+|   | Train loss | Val loss | Future attention loss |
 |---|----------|----------|----------|
-| **with cosine-dissimilarity future attention loss** | 2.954 | **3.408** | 0.2478 |
-| **with MSE future attention loss** | **2.953** | 3.411 | 0.1635 |
+| **future_dim = 50 Cosine** [(config)](#) | 3.017 | 3.423| 0.2589 |
+| **future_dim = 50 MSE** [(config)](#) | 3.017 | **3.419** | 0.07681 |
+
+---------------------------
 
 
 Different future dim were also experimented. Remember: the higher the future dim, the father in the future each token tries to predict. Naturally, one would expect that the bigger future dim is, the better. Indeed, that is true. The highest future dim of 199 performed the best (with a max context size of 200).
