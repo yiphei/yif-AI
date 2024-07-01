@@ -24,16 +24,26 @@ parameters:
                 value: 1
             end_layer:
                 value: 26
-            future_x_loss_type:
-                values: [1, 2]
-            use_future_x_loss:
+            use_dropout_entropy_in_loss:
                 value: True
-            future_dim:
-                values: [50, 100]
-            detach_future_x:
-                values: [True, False]
-            future_x_loss_coeff:
-                value: 1
+            use_dropout_l1_norm_in_loss:
+                value: False
+            attention_dropout_config:
+                parameters:
+                    softmax_dim:
+                        value: 1
+                    use_bias:
+                        value: False
+                    n_head:
+                        value: 9
+                    rounding_type:
+                        values: [null, 1, 2, 3]
+                    shift_init:
+                        values: [0,1.57079632,3.14159265]
+                    use_canonical_entropy:
+                        value: True
+                    use_detached_x_in_dropout_mask:
+                        values: [True, False]
     batch_size: 
         value: 50
     train_steps: 
