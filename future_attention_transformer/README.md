@@ -177,6 +177,26 @@ The MSE planning loss outperformed cosine dissimilarity planning loss in both va
 | **future_dim = 50 MSE** [(config)](#) | **3.017** | **3.419** | 0.07681 |
 | **future_dim = 100 MSE** [(config)](#) | 3.025 | 3.421 | 0.08633 |
 
+
+[text here]
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+    <img src="assets/baseline_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/baseline_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | Size (params) |
+|---|----------|----------|----------|
+| **future_dim = 50 MSE** [(config)](#) | 3.017 | **3.419** | 15,817,248 |
+| **baseline** [(config)](#) | **2.937** | 3.424 | 16,036,800 |
+| **smaller baseline** [(config)](#) | 2.958 | 3.416 | 15,441,192 |
+
 ---------------------------
 
 
