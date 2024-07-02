@@ -123,13 +123,15 @@ $$
 \end{aligned}
 $$
 
-The future attention loss is computed between $out_{future}$ and $out_{future}^{*}$. Two types of loss are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the future attention loss with MSE is given by
+The future attention loss is computed between $out_{future}$ and $out_{future}^{*}$, for every attention head block. Two types of loss are considered. One is mean squared error, and the other is cosine dissimilarity. Cosine dissimilarity is cosine similarity normalized such that zero represents most similarity and 1 most dissimilarity. So the future attention loss with MSE is given by
 
 $$future\\\_attn\\\_loss = MSE(out_{future}, out_{future}^{*})$$
 
 and with cosine dissimilarity is given by
 
 $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{future}, out_{future}^{*}) + 1}{2}$$
+
+Once all $future\\\_attn\\\_loss$'s are computed, it gets aggregated with a mean and added to the model loss.
 
 ## Results
 
