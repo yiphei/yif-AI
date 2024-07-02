@@ -227,7 +227,7 @@ I believe the results were poor for two reasons: 1) bad $K_{future}$ and $V_{fut
 
 For 2), the future attention loss uses $out_{future}^{\*}$ as ground truth, which is basically a hidden state and thus very transient. Moreover, since different model layers specialize in different things, the $out_{future}^{\*}$ of each attention block is probably very different from the others, further aggravated by $out_{future}^{\*}$'s transience. All of this, coupled with the future attention loss being computed for all $L$ layers, means that, instead of a single "future attention" objective function, there are essentially $L$ orthogonally different objective functions. Indeed, all future attention loss charts either show increasing loss or some equilibrium point, and none showed convergence towards zero loss.
 
-The first reason is amenable to change, but the second one is probaly inevitable. Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
+The first reason is amenable to change, but the second one is probably inevitable. Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
 ---
 ## Appendix
