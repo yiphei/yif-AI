@@ -70,7 +70,7 @@ $$
 \end{aligned}
 $$
 
-In the figure below, for instance, the model considers the affinity of each present token to the next two future tokens (the blue squares) while the rest is masked away (the red squares). Here, $future\\_dim = 2$.
+In the figure below, for instance, the model tries to predict the affinity of each present token to the next two future tokens (the blue squares) while the rest is masked away (the red squares). Here, $future\\_dim = 2$.
 
 <div align="center">
   <img src="assets/future_mask.svg" alt="sdasd" width="400">
