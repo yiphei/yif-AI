@@ -31,6 +31,21 @@ class FutureAttnLossType(str, Enum):
 
 @dataclass
 class ModelConfig(BaseModelConfig):
+    """The default field values are the suggested ones for the best performance.
+    Fine-tuning future_attn_loss_coeff and future_dim may improve performance.
+
+    NB: there are more hyperparameters here than described in the README. This is because
+        either they were found to be detrimental or were trivial additions.
+
+    Args:
+        start_layer: the first layer to apply future attention
+        future_dim: the size of A_{masked} to predict
+        future_attn_loss_type: the type of loss applied to future attention
+        use_future_attn_loss: whether to add future attention loss to the model loss
+        detach_future_ground_truth: whether to detach the future attention ground truth
+        end_layer: the last layer to apply future attention
+        future_attn_loss_coeff: the scaling coefficient for the future attention loss
+    """
     start_layer: int = 1
     future_dim: int = None
     future_attn_loss_type: Union[FutureAttnLossType, int] = FutureAttnLossType.MSE
