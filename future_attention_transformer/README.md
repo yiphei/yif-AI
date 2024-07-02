@@ -62,7 +62,7 @@ Presumably, the model performance would improve if it could make use of $out_{ma
 
 $$
 \begin{aligned}
-& A_{future}[i,j] = A_{masked}[i,j] \text{  where  } i < j \leq min(i + future\\\_dim, context\\\_size) \\
+& A_{future}[i,j] = A_{masked}[i,j] \text{  where  } (i,j) \in \\{ (i,j) \mid i < j \leq min(i + future\\\_dim, context\\\_size) \\} \\\\
 & A_{omni} = A_{future} \cup A_{unmasked} \\\\[0.4cm]
 & Softmax\\\_A_{omni} = softmax(A_{omni}) \\
 & Softmax\\\_A_{future} = Softmax\\\_A_{omni}[A_{future}.indices] \\
