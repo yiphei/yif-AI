@@ -137,7 +137,7 @@ $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{future}, out_{futu
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-The MSE future attention loss outperformed cosine dissimilarity planning loss in validation loss and matched it in train loss. Both had $future\\\_dim = 50$.
+The MSE future attention loss outperformed cosine dissimilarity in validation loss and matched it in train loss. Both had $future\\\_dim = 50$.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -199,13 +199,22 @@ Finally, the new model was compared with a canonical decoder-only transformer (b
 ## Next steps
 
 These are some improvements to look forward to:
-- Have $K_{future}$ and $V_{future}$ be computed tokens (just like $Q$, $K$, and $V$) – instead of being free parameters – and in an parameter efficient way
-- Explore other ways to compute the future attention loss
-- Try bigger models, at least GPT-2 size
+- have $K_{future}$ and $V_{future}$ be computed tensors (just like $Q$, $K$, and $V$). Should also do this in a parameter count efficient way (ideally reusing or closely deriving from $K$ and $V$)
+- instead of MSE and cosine dissimilarity, consider other loss types
+- try bigger models, at least GPT-2 size
+- run training for longer to observe long-term behavior
+- try different datasets
+- try it on non-language tasks
 
 ## Conclusions
 
-TODO
+This project was inspired by an accident where I forgot to apply the causal mask to a model. My overjoy for the spectacular model performance quickly dissolved upon the discovery of the bug. Yet, I wondered if there were a way to respect temporal causality while still taking advantage of the full attention matrix. Unfortunately, the results of this project proved not. 
+
+I believe the results were poor for two reasons: 1) bad $K_{future}$ and $V_{future}$ construction, and 2) future attention loss formulation. For 1), remember that the attention mechanism only makes sense when using in-context information, which is why $Q$, $K$, and $V$ are all computed tensors. However, the parametrization of $K_{future}$ and $V_{future}$ essentially deprived them of in-context information. Therefore, $K_{future}$ and $V_{future}$ probaly had to compress all possible $K$ and $V$ values into their weights and/or heavily relied on $Q$. Furthermore, it probably doesn't even make sense to predict the masked attention with another attention operation.
+
+For 2), the future attention loss uses $out_{future}^{\*}$ as ground truth. $out_{future}^{\*}$ is basically a hidden state, making it very transient. Moreover, the $out_{future}^{\*}$ of each block is probably very different from the other, aggravated further by the transient nature. This, coupled with loss calculation for all $b$ attention blocks, essentially creates essentially $b$ orthogonally different object functions, all optimizing for different (transient) things. Results indicate that this probably disrupted learning too much. Indeed, all the future attention loss charts either show increasing loss or some equilibrium point, and none showed convergence towards zero loss.
+
+The first reason is amenable to change, but the second one is probaly fatale. 
 
 ---
 ## Appendix
