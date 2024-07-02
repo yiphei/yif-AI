@@ -137,7 +137,7 @@ $$future\\\_attn\\\_loss = 1- \frac{cosine\\\_similarity(out_{future}, out_{futu
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-The MSE planning loss outperformed cosine dissimilarity planning loss in both validation loss and matched it in train loss. Both had $future\\\_dim = 50$.
+The MSE future attention loss outperformed cosine dissimilarity planning loss in validation loss and matched it in train loss. Both had $future\\\_dim = 50$.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -157,8 +157,7 @@ The MSE planning loss outperformed cosine dissimilarity planning loss in both va
 | **future_dim = 50 MSE** [(config)](#future_dim--50-mse) | 3.017 | **3.419** | 0.07681 |
 
 
-
-[text here]
+With MSE future attention loss, the performances of $future\\\_dim = 50$ and $future\\\_dim = 100$ were compared. Intuitively, larger $future\\\_dim$ should result in better performance, but $future\\\_dim = 100$ underperformed across the board.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -178,7 +177,7 @@ The MSE planning loss outperformed cosine dissimilarity planning loss in both va
 | **future_dim = 100 MSE** [(config)](#future_dim--100-mse) | 3.025 | 3.421 | 0.08633 |
 
 
-[text here]
+Finally, the new model was compared with a canonical decoder-only transformer (baseline). There were two versions of the baseline: "baseline" and "smaller baseline". "baseline" had more parameters than the new model. "smaller baseline" had fewer parameters. The new model outperformed "baseline" in validation loss but underperformed "smaller baseline".
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
