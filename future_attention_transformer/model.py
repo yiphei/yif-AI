@@ -33,9 +33,9 @@ class FutureAttnLossType(str, Enum):
 class ModelConfig(BaseModelConfig):
     start_layer: int = 1
     future_dim: int = None
-    future_attn_loss_type: Union[FutureAttnLossType, int] = FutureAttnLossType.COSINE
+    future_attn_loss_type: Union[FutureAttnLossType, int] = FutureAttnLossType.MSE
     use_future_attn_loss: bool = True
-    detach_future_ground_truth: Optional[bool] = False
+    detach_future_ground_truth: Optional[bool] = True
     end_layer: Optional[int] = None
     future_attn_loss_coeff: Optional[float] = 1.0
 
