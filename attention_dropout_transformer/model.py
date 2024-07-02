@@ -430,7 +430,7 @@ class AttentionDropoutTransformer(BaseModel):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
 
-            additional_loss = torch.tensor(0.0, device=device)
+            additional_loss = None
             if self.training:
                 self.aggregate_sub_module_stats()
                 if self.is_first_minibatch:
@@ -442,15 +442,22 @@ class AttentionDropoutTransformer(BaseModel):
                     )
 
                 if self.config.use_dropout_entropy_in_loss:
-                    additional_loss += (
+                    additional_loss = (
                         self.dropout_entropy * self.dropout_entropy_lambda
                     )
                 if self.config.use_dropout_l1_norm_in_loss:
-                    additional_loss += (
+                    if additional_loss is None:
+                        additional_loss = (
                         self.dropout_l1_norm * self.dropout_l1_norm_lambda
                     )
+                    else:
+                        additional_loss += (
+                            self.dropout_l1_norm * self.dropout_l1_norm_lambda
+                        )
 
-            loss = F.cross_entropy(logits, targets.view(-1)) + additional_loss
+            loss = F.cross_entropy(logits, targets.view(-1))
+            if additional_loss is not None:
+                loss += additional_loss
         return (logits, loss)
 
     def estimate_mfu(self, fwdbwd_per_iter, dt):
