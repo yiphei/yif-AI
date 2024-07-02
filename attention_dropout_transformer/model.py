@@ -442,14 +442,12 @@ class AttentionDropoutTransformer(BaseModel):
                     )
 
                 if self.config.use_dropout_entropy_in_loss:
-                    additional_loss = (
-                        self.dropout_entropy * self.dropout_entropy_lambda
-                    )
+                    additional_loss = self.dropout_entropy * self.dropout_entropy_lambda
                 if self.config.use_dropout_l1_norm_in_loss:
                     if additional_loss is None:
                         additional_loss = (
-                        self.dropout_l1_norm * self.dropout_l1_norm_lambda
-                    )
+                            self.dropout_l1_norm * self.dropout_l1_norm_lambda
+                        )
                     else:
                         additional_loss += (
                             self.dropout_l1_norm * self.dropout_l1_norm_lambda
