@@ -206,7 +206,7 @@ Finally, the new model was compared with a canonical decoder-only transformer (b
 ## Next steps
 
 These are some improvements to look forward to:
-- have $K_{future}$ and $V_{future}$ be computed tensors (just like $Q$, $K$, and $V$). Should also do this in a parameter count efficient way (ideally reusing or closely deriving from $K$ and $V$)
+- have $K_{future}$ and $V_{future}$ be computed values (just like $Q$, $K$, and $V$). Should also do this in a parameter count efficient way (ideally reusing or closely deriving from $K$ and $V$)
 - instead of MSE and cosine dissimilarity, consider other loss types
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
@@ -219,7 +219,7 @@ This project was inspired by an accident where I forgot to apply the causal mask
 
 I believe the results were poor for two reasons: 1) bad $K_{future}$ and $V_{future}$ construction, and 2) bad future attention loss formulation. For 1), remember that the attention mechanism only makes sense when using in-context information, which is why $Q$, $K$, and $V$ are all computed values. However, the parametrization of $K_{future}$ and $V_{future}$ deprive them of in-context information. Therefore, $K_{future}$ and $V_{future}$ probably have to compress all possible $K$ and $V$ values into their weights and/or heavily rely on $Q$. Furthermore, it may not even make sense to predict the masked attention with another attention operation.
 
-For 2), the future attention loss uses $out_{future}^{\*}$ as ground truth, which is basically a hidden state and thus very transient. Moreover, since different model layers specialize in different things, the $out_{future}^{\*}$ of each layer is probably very different from the other ones, further aggravated by $out_{future}^{\*}$'s transience. All of this, coupled with the future attention loss being aggregated across all $L$ layers, means that, instead of a single objective function, there are essentially $L$ orthogonally different object functions. Indeed, all the future attention loss charts either show increasing loss or some equilibrium point, and none showed convergence towards zero loss.
+For 2), the future attention loss uses $out_{future}^{\*}$ as ground truth, which is basically a hidden state and thus very transient. Moreover, since different model layers specialize in different things, the $out_{future}^{\*}$ of each attention block is probably very different from the others, further aggravated by $out_{future}^{\*}$'s transience. All of this, coupled with the future attention loss being aggregated across all $L$ layers, means that, instead of a single objective function, there are essentially $L$ orthogonally different object functions. Indeed, all the future attention loss charts either show increasing loss or some equilibrium point, and none showed convergence towards zero loss.
 
 The first reason is amenable to change, but the second one is probaly fatal. Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
