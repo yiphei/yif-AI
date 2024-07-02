@@ -46,6 +46,7 @@ class ModelConfig(BaseModelConfig):
         end_layer: the last layer to apply future attention
         future_attn_loss_coeff: the scaling coefficient for the future attention loss
     """
+
     start_layer: int = 1
     future_dim: int = None
     future_attn_loss_type: Union[FutureAttnLossType, int] = FutureAttnLossType.MSE
