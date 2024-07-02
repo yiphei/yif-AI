@@ -113,6 +113,7 @@ Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$
 <div align="center">
   <em>The two columns serve to highlight symmetrical operations. The order of operations goes from top to bottom</em>
 </div>
+<br>
 
 Note that $A_{unmasked}$ and $A_{future}$ have different shapes, so merging the two requires padding operations that are hard to express in LaTeX. Also, note that $out_{unmasked} \neq out_{causal}$ because the former's softmax is on the union of $A_{unmasked}$ and $A_{future}$.
 
