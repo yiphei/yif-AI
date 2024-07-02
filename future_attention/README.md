@@ -97,7 +97,7 @@ then $V$ also needs to be adjusted to match $Softmax\\\_A_{future}$'s shape.
 At the high-level, the architecture consists of a canonical decoder-only transformer with a modified multi-headed attention block that also predicts $out_{future}$. A new loss is created from all $out_{future}$ predictions, in addition to the regular next token prediction loss.
 
 <div align="center">
-  <img src="assets/decoder_diagram.svg" alt="sdasd" width="50%">
+  <img src="assets/decoder_diagram.svg" alt="sdasd" width="40%">
 </div>
 
 ### Future (Multi-headed) Attention
