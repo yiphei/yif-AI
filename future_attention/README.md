@@ -102,7 +102,7 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Future (Multi-headed) Attention
 
-Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$. In predicting $out_{future}$, as many of these three operands as possible should be reused. In this case, $Q$ can be reused but different $K$ and $V$ are needed to match $A_{future}$ and $Softmax\\\_A_{future}$'s shape, respectively. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but a simple way is to have them as model parameters, not computed tensors, of shape $(n\\_head \times context\\_size \times head\\_size)$. Parametrizing $K_{future}$ and $V_{future}$ is unideal because it deprives them of in-context information, but other solutions that I could think of either added too many parameters or too many operations. 
+Remember that the attention mechanism requires three operands: $Q$, $K$, and $V$. In predicting $out_{future}$, as many of these three operands as possible should be reused. In this case, $Q$ can be reused but different $K$ and $V$ are needed to match $A_{future}$ and $Softmax\\\_A_{future}$'s shape, respectively. Let's call these $K_{future}$ and $V_{future}$. There are many ways to construct $K_{future}$ and $V_{future}$, but a simple way is to have them as model parameters, not computed tensors, of shape $(n\\\_head \times context\\\_size \times head\\\_size)$. Parametrizing $K_{future}$ and $V_{future}$ is unideal because it deprives them of in-context information, but other solutions that I could think of either added too many parameters or too many operations. 
 
 Once $K_{future}$ and $V_{future}$ are defined, the forward pass of an attention block becomes
 
