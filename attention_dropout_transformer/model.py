@@ -243,8 +243,8 @@ class AttentionDropout(SubModuleStats):
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x, embed):
-        embed = self.embed_ln(embed)
-        dropout_embed = embed.detach() if self.config.use_detached_x_in_dropout_mask else x
+        dropout_embed = embed.detach() if self.config.use_detached_x_in_dropout_mask else embed
+        dropout_embed = self.embed_ln(dropout_embed)
 
         B, T, C = dropout_embed.shape
         q, k, v = self.batch_attn_weights(dropout_embed).split(self.embed_dim, dim=2)
@@ -326,7 +326,10 @@ class FeedForward(nn.Module):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        x = self.dropout(x, embed)
+        if isinstance(self.dropout, AttentionDropout):
+            x = self.dropout(x, embed)
+        else:
+            x = self.dropout(x)
         return x
 
 
