@@ -182,6 +182,7 @@ class AttentionDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
+        self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         self.dropout_entropy_context = (
             nullcontext() if use_dropout_entropy_in_loss else torch.no_grad()
@@ -241,11 +242,12 @@ class AttentionDropout(SubModuleStats):
         # and low l1 norm because there is more curvature towards 0.
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
-    def forward(self, x):
-        dropout_x = x.detach() if self.config.use_detached_x_in_dropout_mask else x
+    def forward(self, x, embed):
+        embed = self.embed_ln(embed)
+        dropout_embed = embed.detach() if self.config.use_detached_x_in_dropout_mask else x
 
-        B, T, C = dropout_x.shape
-        q, k, v = self.batch_attn_weights(dropout_x).split(self.embed_dim, dim=2)
+        B, T, C = dropout_embed.shape
+        q, k, v = self.batch_attn_weights(dropout_embed).split(self.embed_dim, dim=2)
         k = k.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
@@ -320,11 +322,11 @@ class FeedForward(nn.Module):
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
-    def forward(self, x):
+    def forward(self, x, embed):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        x = self.dropout(x)
+        x = self.dropout(x, embed)
         return x
 
 
@@ -347,9 +349,9 @@ class TransformerBlock(nn.Module):
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, x):
+    def forward(self, x, embed):
         x = x + self.multi_attn_head(self.ln1(x))
-        x = x + self.feed_forward(self.ln2(x))
+        x = x + self.feed_forward(self.ln2(x), embed)
         return x
 
 
@@ -365,8 +367,8 @@ class AttentionDropoutTransformer(BaseModel):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
-        self.transformer_blocks = nn.Sequential(
-            *[
+        self.transformer_blocks = nn.ModuleList(
+            [
                 TransformerBlock(
                     config,
                     (i + 1) >= (config.start_layer) and (i + 1) <= (config.end_layer),
@@ -419,8 +421,10 @@ class AttentionDropoutTransformer(BaseModel):
         )
         embed = token_embed + pos_embed
         embed = self.dropout(embed)
-        out = self.transformer_blocks(embed)
-        out = self.ln(out)
+        x = embed
+        for transformer_block in self.transformer_blocks:
+            x = transformer_block(x, embed)
+        out = self.ln(x)
 
         if targets is None:
             loss = None
