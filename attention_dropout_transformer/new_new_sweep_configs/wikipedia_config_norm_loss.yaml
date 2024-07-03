@@ -25,9 +25,9 @@ parameters:
             end_layer:
                 value: 26
             use_dropout_entropy_in_loss:
-                value: True
-            use_dropout_l1_norm_in_loss:
                 value: False
+            use_dropout_l1_norm_in_loss:
+                value: True
             attention_dropout_config:
                 parameters:
                     softmax_dim:
