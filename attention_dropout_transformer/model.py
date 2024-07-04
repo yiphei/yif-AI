@@ -446,21 +446,21 @@ class AttentionDropoutTransformer(BaseModel):
                     self.dropout_entropy_lambda = self.get_dropout_lambda(
                         self.config.dropout_entropy_lambda, device
                     )
-                    self.dropout_l1_norm_lambda = self.get_dropout_lambda(
-                        self.config.dropout_l1_norm_lambda, device
-                    )
+                    # self.dropout_l1_norm_lambda = self.get_dropout_lambda(
+                    #     self.config.dropout_l1_norm_lambda, device
+                    # )
 
                 if self.config.use_dropout_entropy_in_loss:
                     additional_loss = self.dropout_entropy * self.dropout_entropy_lambda
-                if self.config.use_dropout_l1_norm_in_loss:
-                    if additional_loss is None:
-                        additional_loss = (
-                            self.dropout_l1_norm * self.dropout_l1_norm_lambda
-                        )
-                    else:
-                        additional_loss += (
-                            self.dropout_l1_norm * self.dropout_l1_norm_lambda
-                        )
+                # if self.config.use_dropout_l1_norm_in_loss:
+                #     if additional_loss is None:
+                #         additional_loss = (
+                #             self.dropout_l1_norm * self.dropout_l1_norm_lambda
+                #         )
+                #     else:
+                #         additional_loss += (
+                #             self.dropout_l1_norm * self.dropout_l1_norm_lambda
+                #         )
 
             loss = F.cross_entropy(logits, targets.view(-1))
             if additional_loss is not None:
