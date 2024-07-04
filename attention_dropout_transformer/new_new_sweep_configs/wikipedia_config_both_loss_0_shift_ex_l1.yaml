@@ -28,6 +28,10 @@ parameters:
                 value: True
             use_dropout_l1_norm_in_loss:
                 value: True
+            dropout_l1_norm_lambda:
+                parameters:
+                    max_lambda:
+                        value: 2
             attention_dropout_config:
                 parameters:
                     softmax_dim:
