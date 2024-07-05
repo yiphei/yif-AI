@@ -5,13 +5,13 @@ Dropout is a very effective yet simple regularization technique. However, its ra
 
 ## Motivations
 
-Dropout is a very popular technique that regularizes the model training to be more robust against overfitting and thus yielding improved generalization. It simply works by randomly setting some values of a tensor to zero, with the ratio of zero values determined by a hyperparameter. When a value is set to zero, it becomes effectively detached from the computational graph, thus all the parameters that contributed to that value won't receive gradients from it. In doing so, Dropout essentially creates a subgraph of the model, and due to the randomness, every forward pass results in a different (transient) subgraph. Then, the final pre-trained model becomes the ensemble of all the different subgraphs Dropout created. Furthermore, observe that this outcome is not so conceptually removed from MoE's outcome. Each subgraph can be loosely though of an expert, so Dropout also (very weakly) partitions the model into different experts, like MoE.
+Dropout is a very popular technique that regularizes the model training to be more robust against overfitting and thus yielding improved generalization. It simply works by randomly setting some values of a tensor to zero, with the ratio of zero values determined by a hyperparameter. When a value is set to zero, it becomes effectively detached from the computational graph, thus all the parameters that contributed to that value won't receive gradients from it. In doing so, Dropout essentially creates a subgraph of the model, and due to the randomness, every forward pass results in a different (transient) subgraph. Then, the final pre-trained model constitutes the ensemble of all the different subgraphs Dropout created. Furthermore, observe that this outcome is not so conceptually removed from MoE's outcome. Each subgraph can be loosely though of an expert, so Dropout (very weakly) partitions the model into different experts, like MoE.
 
-Yet, unlike MoE, the random implementation means that 1) it cannot be used during inference and 2) it is invariant to input. 1) limits the benefit of Dropout to pre-training only. 2) is one big reason why MoE yields better performance than Dropout. To overcome this, Dropout needs to be parametrized to enable the model to learn the best dropout for every input. Only then can dropout become a strong competitor to MoE.
+Yet, unlike MoE, the random implementation means that 1) it cannot be used during inference and 2) it is invariant to input. 1) limits the benefit of Dropout to pre-training only, but 2) is the larger reason why MoE yields better performance than Dropout. To overcome this, Dropout needs to be parametrized to enable the model to learn the best dropout for every input. Only then can dropout become a strong competitor to MoE.
 
 ## Architecture
 
-At the high-level, the architecture consists of a canonical decoder-only transformer with a modified dropout module. Two dropout-specific losses are introduced to encourage low dropout entropy and dropout L1 norm.
+At the high-level, the architecture consists of a canonical decoder-only transformer with a modified dropout module. Two dropout-specific losses are introduced to encourage low dropout entropy and dropout L1 norm, in addition to next token prediction loss.
 
 <div align="center">
   <img src="assets/decoder_diagram.svg" alt="sdasd" width="40%">
@@ -19,9 +19,9 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### LearnedDropout
 
-At the high level, the LearnedDropout computes a dropout mask $\mathbf{m}$ from the input $X$ and applies it onto the same input. The crux is in the mask's computation. In the regular dropout module, the dropout mask $\mathbf{m}$ is simply a randomly generated tensor of zeroes and ones, with the number of zeroes determined by the dropout rate hyperparameter. In **LearnedDropout**, the function that generates the mask needs to be differentiable. In this implementation, the function is two-fold.
+Like every dropout, LearnedDropout computes a dropout mask $\mathbf{m}$ of 0s and 1s that is applied to the dropout input. The crux lies in the mask's computation. The canonical dropout randomly generates the dropout mask $\mathbf{m}$ from a Bernoulli distribution, with the probablity of 0 determined by the dropout rate hyperparameter. To enable learning, **LearnedDropout** needs to generate the mask in a differentiable way.
 
-First, there is a canonical multi-headed attention operation. For a dropout to be effective, it needs to understand the dependences between tokens. Stated more formally, etc.
+First, the dropout input is passed through a multi-headed attention operation. For a dropout to be effective, it needs to understand the dependences between tokens. Stated more formally, etc.
 
 [insert latex]
 
