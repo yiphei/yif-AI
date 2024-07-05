@@ -175,6 +175,8 @@ class AttentionDropout(SubModuleStats):
         self.context_size = context_size
         self.config = config
         self.head_size = embed_dim // config.n_head
+        self.use_dropout_entropy_in_loss = use_dropout_entropy_in_loss
+        self.use_dropout_l1_norm_in_loss = use_dropout_l1_norm_in_loss
 
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
@@ -184,12 +186,12 @@ class AttentionDropout(SubModuleStats):
         )
         self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
-        self.dropout_entropy_context = (
-            nullcontext() if use_dropout_entropy_in_loss else torch.no_grad()
-        )
-        self.dropout_l1_norm_context = (
-            nullcontext() if use_dropout_l1_norm_in_loss else torch.no_grad()
-        )
+        # self.dropout_entropy_context = (
+        #     nullcontext() if use_dropout_entropy_in_loss else torch.no_grad()
+        # )
+        # self.dropout_l1_norm_context = (
+        #     nullcontext() if use_dropout_l1_norm_in_loss else torch.no_grad()
+        # )
         self.entropy_fn = (
             self.canonical_entropy
             if config.use_canonical_entropy
@@ -207,11 +209,13 @@ class AttentionDropout(SubModuleStats):
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
 
     def update_stats(self, dropout_mask):
-        with self.dropout_entropy_context:
-            self.dropout_entropy = self.entropy_fn(dropout_mask)
-        with self.dropout_l1_norm_context:
-            # TODO: change this to a simple sum
-            self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / dropout_mask.numel()
+        self.dropout_entropy = self.entropy_fn(dropout_mask)
+        self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / dropout_mask.numel()
+
+        if self.use_dropout_entropy_in_loss:
+            self.dropout_entropy = self.dropout_entropy.detach()
+        if self.use_dropout_l1_norm_in_loss:
+            self.dropout_l1_norm = self.dropout_l1_norm.detach()
 
         with torch.no_grad():
             self.dropout_near_one_percent = (
