@@ -5,13 +5,13 @@ Virtually all autoregressive transformer models are trained with the singular ob
 
 ## Motivations
 
-Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token via the attention mechanism. Yet, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I restrict planning to anything that happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
+Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token via the attention mechanism. Yet, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I define planning as anything that happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
 
-This project explores how planning many steps beyond the next token can be formulated as an objective function during training, in addition to the regular next token prediction. Why planning? The (perhaps anthropomorphic) intuition is that deliberate planning can improve downstream next token prediction. After all, planning for $n$ future tokens includes the next token. Why as a new objective function though? Because that is perhaps the simplest and best way to induce any model behavior.
+This project explores how planning many steps beyond the next token can be formulated as an objective function during training, in addition to the regular next token prediction. Why planning? The (perhaps anthropomorphic) intuition is that deliberate planning can improve downstream next token prediction. After all, planning for $n$ future tokens includes the next token. Why as a new objective function? Because that is perhaps the simplest and best way to induce any model behavior.
 
 ## Architecture
 
-At the high level, the architecture consists of an encoder-decoder transformer adapted for end-to-end autoregressive tasks (for those who have read my other model *Auto-regressive Encoder-Decoder Transformer*, it shares the same core architecture but it doesn't have the positional embedding subtraction). The encoder-decoder separation is necessary for the formulation of the planning objective.
+At the high level, the architecture consists of an encoder-decoder transformer adapted for end-to-end autoregressive tasks (for those who have read my other model *Auto-regressive Encoder-Decoder Transformer*, it shares the same core architecture but without the positional embedding subtraction). The encoder-decoder separation is necessary for the formulation of the planning objective.
 
 ### Encoder-Decoder
 
@@ -93,7 +93,7 @@ The second option is to just ignore the tokens $\\{x_i \mid context\\\_size - \d
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-The MSE planning loss outperformed cosine dissimilarity planning loss in both validation and train loss. Both had $\delta = 11$. MSE also strictly outperformed an equivalent model without planning loss, and cosine dissimilariry outperformed the same equivalent model in train loss but fell marginally short in validation loss. In general, the planning loss proved beneficial to model performance. 
+The MSE planning loss outperformed cosine dissimilarity planning loss in both validation and train loss. Both had $\delta = 11$ (chosen arbitrarily). MSE also strictly outperformed an equivalent model without planning loss, and cosine dissimilariry outperformed the same equivalent model in train loss but fell marginally short in validation loss. In general, the planning loss proved beneficial to model performance. 
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
