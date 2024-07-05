@@ -21,11 +21,11 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 Like every dropout, LearnedDropout computes a dropout mask $\mathbf{m}$ of 0s and 1s that is applied to the dropout input. The crux lies in the mask's computation. The canonical dropout randomly generates the dropout mask $\mathbf{m}$ from a Bernoulli distribution, with the probablity of 0 determined by the dropout rate hyperparameter. To enable learning, **LearnedDropout** needs to generate the mask in a differentiable way.
 
-First, the dropout input is passed through a multi-headed attention operation. For a dropout to be effective, it needs to understand the dependences between tokens. Stated more formally, etc.
+First, for a dropout to be effective, it needs to understand the dependencies between tokens. Therefore, the dropout input is passed through a multi-headed attention operation. Stated more formally, etc.
 
 [insert latex]
 
-Then, the output of attention needs to be mapped to 0s and 1s. there are many ways to do so. Here, it is a two-fold part. The first part is mapping it to the 0.5 * cos(out) + 0.5 function. This function lies in the [0,1] domain. Moreover, the recurrent property reduces the risk of getting stuck in a local minima, at the potential cost of worse convergence. Then, the output is scaled to be closer to 0 and 1. This is important because the dropout needs to remain a purely selective/filter layer, not computational.
+Then, the attention output needs to be mapped to 0s and 1s. There are many ways to do so, and a two-fold function is implemented here. The first part is mapping it to the 0.5 * cos(out) + 0.5 function. This function lies in the [0,1] domain, and its recurrent property reduces the risk of getting stuck in a local minima, at the potential cost of worse convergence. However, 0.5 * cos(out) + 0.5 does not guarantees 1s and 0s, so the second part scales the output to be closer to 0 and 1. This is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
 
 ### Dropout penalties
 
