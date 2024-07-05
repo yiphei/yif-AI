@@ -1,5 +1,5 @@
 # Learned Dropout [WIP readme]
-> NB: LaTeX is optimized for Github's Markdown. 
+> NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
 Dropout is a very effective and simple technique that reduces overfitting and thus improve model generalization. However, its random implementation relegates it to model training only and makes it invariant to input. Here, I present LearnedDropout, a parametrized dropout that learns the best dropout for each input (i.e. variant to input). This makes LearnedDropout very close to MoE, and perhaps even better than it.
 
