@@ -86,7 +86,7 @@ When $i > context\\\_size - \delta$, an index out-of-bounds error will occur. To
 
 The second option is to just ignore the tokens $\\{x_i \mid context\\\_size - \delta < i \leq context\\\_size\\}$ for the planning loss, meaning there will be only $|context\\\_size - \delta|$ planning contexts evaluated for the planning loss. Doing so essentially limits the length (i.e. T dimension) of $E_{present}$, $E_{future}$, $E_{plan}$ and $out_{enc}$ to $|context\\\_size - \delta|$ in planning loss calculations, thereby restricting the planning optimization scope. This second option is chosen for simplicity.
 
-Neither option affects the calculations for next token prediction loss.
+Neither option affects the calculations for the next token prediction loss.
 
 ## Results
 
