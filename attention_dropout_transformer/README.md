@@ -21,11 +21,11 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 Like every dropout implementation, LearnedDropout computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X$. The crux lies in the mask's $M$ computation. The canonical dropout randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, **LearnedDropout** needs to generate the mask in a fully differentiable way, at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$.
 
-First, for a dropout to be effective, it needs to understand the dependencies between tokens. Therefore, the dropout input is passed through a multi-headed attention operation. Stated more formally,
+First, for a dropout to be highly variant to input $X$, it needs to compute the dependencies between inputs ${x_i \mid x_i \in X}$ (i.e. T dimension). Therefore, the dropout input is passed through a multi-headed attention operation (without residual connection and other superflous operations). Stated more formally,
 
 $$
 \begin{aligned}
-& W_{Q}, W_{K} ,W_{V} \coloneqq \text{attention operand weights} \\
+& W_{Q}, W_{K} ,W_{V} \coloneqq \text{attention weights} \\
 & X \coloneqq \text{input of attention layer}\\\\[0.5cm]
 & Q = X \cdot W_{Q} \\
 & K = X \cdot W_{K} \\
@@ -35,13 +35,13 @@ $$
 \end{aligned}
 $$
 
-Afterwards, the attention output $out_{attn}$ needs to be mapped to $\[0, 1\]$. For this, the following cosine function is used
+Afterwards, the attention output $out_{attn}$ needs to be mapped to $\[0, 1\]$. For this, the following cosine function is employed
 
 $$M =  0.5 \cos(out_{attn}) + 0.5$$
 
-This function lies in the $\[0,1\]$ range, and its recurrent property reduces the risk of getting stuck in a local minima, at the potential cost of worse convergence. 
+This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of becoming stuck in a local minima, at the cost of worse convergence.
 
-Lastly, a scaling function brings $M$ closer to $\{0,1\}$. This scaling is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
+Lastly, a scaling function is applied to bring $M$ closer to $\\{0,1\\}$. This scaling is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
 
 ### Penalty terms
 
