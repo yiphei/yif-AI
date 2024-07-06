@@ -211,9 +211,9 @@ class AttentionDropout(SubModuleStats):
         self.dropout_entropy = self.entropy_fn(dropout_mask)
         self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / dropout_mask.numel()
 
-        if self.use_dropout_entropy_in_loss:
+        if not self.use_dropout_entropy_in_loss:
             self.dropout_entropy = self.dropout_entropy.detach()
-        if self.use_dropout_l1_norm_in_loss:
+        if not self.use_dropout_l1_norm_in_loss:
             self.dropout_l1_norm = self.dropout_l1_norm.detach()
 
         with torch.no_grad():
