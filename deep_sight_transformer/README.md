@@ -5,7 +5,7 @@ Virtually all autoregressive transformer models are trained with the singular ob
 
 ## Motivations
 
-Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token via the attention mechanism. Yet, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I define planning as anything that happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
+Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token via the attention mechanism. Yet, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I narrowly define planning as anything that happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
 
 This project explores how planning many steps beyond the next token can be formulated as an objective function during training, in addition to the regular next token prediction. Why focus on planning? The (perhaps anthropomorphic) intuition is that deliberate planning can improve next token prediction. After all, planning for $n$ future tokens includes the next token. Why as a new objective function? Because that is perhaps the simplest and best way to induce any model behavior.
 
