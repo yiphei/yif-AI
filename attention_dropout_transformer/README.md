@@ -1,35 +1,47 @@
 # Learned Dropout [WIP readme]
-> NB: LaTeX is optimized for Github's Markdown. 
+> NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Current SOTA LLMs have one frequent thing in common: they use Mixture of Experts (MoE). However, all MoE implementations require setting, in some form or other, a hyperparameter of how many experts to use, at pre-training time. This is limiting because it requires determining the hyperparamter value, which is usually found with a rather ad-hoc process. Ideally, the model itself learns the best number of experts. To this end, I created a new module that helps a model achieve MoE without the explicit constraint of number of experts.
+Dropout is a very effective yet simple regularization technique. However, its random implementation relegates it to model training only and renders it invariant to input. Here, I present LearnedDropout, a parametrized dropout module that learns the best dropout for each unique input (i.e. variant to input). Furthermore, LearnedDropout represents a strong contender to MoE (Mixture of Experts).
 
 ## Motivations
 
-MoE is not a new concept. In fact, a popular precursor to MoE was ensemble models. Both helped improve models' performance. Presently, notable models that use MoE include OpenAI GPT-4, Mixtral 8x7B, xAI Grok-1, and Google Gemini.
+Dropout is a very popular technique that regularizes the model training to be more robust against overfitting and thus yielding improved generalization. It simply works by randomly setting some values of a tensor to zero, with the ratio of zero values determined by a hyperparameter. When a value is set to zero, it becomes effectively detached from the computational graph, thus all the parameters that contributed to that value will have a gradient of 0 w.r.t. that value. In doing so, Dropout essentially creates a subgraph of the model (setting values to zeroes effectively turns off part of the model), and given the randomness, every forward pass results in a different (transient) subgraph. Then, the final pre-trained model constitutes the ensemble of all the different subgraphs Dropout created. Furthermore, observe that this outcome is not so conceptually removed from MoE's outcome. Each subgraph can be loosely though of an expert, and through these subgraphs, Dropout (very weakly) partitions the model into different experts, like MoE.
 
-What makes MoE so popular? First of all, at the intuitive level, it mimics how intelligence is organized in the real world. Across all scale levels, intelligence is specialized. For instance, at the societal level, intelligence specialization manifests in highly specialized modern economies. At the biological level, it has been known that the brain contains regions specialized in specific tasks. Empirically, MoE have demonstrated a range of benefits: cheaper training & inference, increased model capacity, more efficient parameters, and improved generalization.
-
-Now, all present MoE implementations require a hyperparameter that specifies how many experts to use per forward pass. This value is unchanged for inference. The goal of the new module introduced here is to remove this hyperparameter, permitting the model to learn the best number of experts per token type, not per forward pass. The “per token type” part is important because it means that two different tokens can have different numbers of experts being used.
-
-Before I proceed on this was implemented, I want to briefly review Dropout. Dropout is a very popular and simple training technique that regularizes the model training to be more robust against overfitting and thus yielding improved generalization. It simply works by randomly setting some weights of the model to zero, so they will be ignored during backprop. In doing so, Dropout essentially creates a different (transient) subgraph of the model on every forward pass. The final pre-trained model can then be understood as the ensemble of all the different subgraphs, each of which can be thought of an expert. Therefore, using Dropout is one way to indirectly get MoE. But again, you have to set a hyperparameter for the dropout rate, and Dropout is not activated at inference time.
-
-The new module borrows the Dropout idea but allows the model to learn the best weights to dropout. This new module remains active at inference time.
+Yet, unlike MoE, the random implementation means that 1) it cannot be used during inference and 2) it is invariant to input. 1) limits the benefit of Dropout to pre-training only, but 2) is the larger reason why MoE produces better performance than Dropout. To overcome these deficits, Dropout needs to be parametrized to enable the model to learn the best dropout, for every input. This will make it a compelling alternative to MoE.
 
 ## Architecture
 
-The architecture consists of a vanilla transformer architecture with the new **LearnedDropout** module applied instead of the regular one. The specific vanilla transformer implementation is largely borrowed from the awesome https://github.com/karpathy/nanoGPT/blob/master/model.py. The new module is applied in the same places as the regular dropout was.
+At the high-level, the architecture consists of a canonical decoder-only transformer with a modified dropout module. Two dropout-specific losses are introduced to encourage low dropout entropy and low dropout L1 norm, in addition to next token prediction loss.
 
-### LearnedDropout (LD)
+<div align="center">
+  <img src="assets/decoder_diagram.svg" alt="sdasd" width="40%">
+</div>
 
-At the high level, the LearnedDropout implementation computes a dropout mask $\mathbf{m}$ from the input $X$ and applies it onto the same input. The key part is how this dropout mask is computed. In the regular dropout module, the dropout mask $\mathbf{m}$ is simply a randomly generated tensor of zeroes and ones, with the number of zeroes determined by the dropout rate hyperparamter. In **LearnedDropout**, the mask is generated by a differentiable function that contains free parameters $\mathrm{A}$ and $\mathrm{B}$. More precisely, given a input token $X \in \mathbb{R}^{N}$, the dropout mask $\mathbf{m}$ for that token becomes
+### Learned Dropout
 
-$$\mathbf{m} =  0.5 \cos(\mathrm{A} \odot X_{\text{detach}} + \mathrm{B}) + 0.5$$
+Like every dropout implementation, LearnedDropout computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X$. The crux lies in the mask's $M$ computation. The canonical Dropout randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, **LearnedDropout** needs to generate the mask in a fully differentiable way, at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$.
 
-where $\mathrm{A} \in \mathbb{R}^{N}$ and $\mathrm{B} \in \mathbb{R}^{N}$ are free parameters in the module that the model learns, and $X_{\text{detach}}$ is $X$ detached from the gradient graph so that $\mathrm{A}$ and $\mathrm{B}$ themselves dont affect $X$'s gradients. Once the mask is computed, you just apply it to $X$
+First, for a dropout to be highly variant to input $X$, it needs to compute the dependencies between inputs $\\{x_i \mid x_i \in X\\}$ (i.e. T dimension). Therefore, the dropout input is passed through a multi-headed attention operation (without residual connection and other superflous operations). Stated more formally,
 
-$$ X \leftarrow X \odot \mathbf{m}$$
+$$
+\begin{aligned}
+& W_{Q}, W_{K} ,W_{V} \coloneqq \text{attention weights} \\
+& X \coloneqq \text{input of attention layer}\\\\[0.5cm]
+& Q = X \cdot W_{Q} \\
+& K = X \cdot W_{K} \\
+& V = X \cdot W_{V} \\
+& Attn = Q \cdot K^{T} \\
+& out_{attn} = softmax(Attn) \cdot V \\
+\end{aligned}
+$$
 
-The two $0.5$ scalars in the cosine functions serve to bound the function domain to $[0,1]$, and the parameters $\mathrm{A}$ and $\mathrm{B}$ change the angular frequency and phase angle of the cosine function, respectively. 
+Afterwards, the attention output $out_{attn}$ needs to be mapped to $\[0, 1\]$. For this, the following cosine function is employed
+
+$$M =  0.5 \cos(out_{attn}) + 0.5$$
+
+This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of becoming stuck in a local minima, at the cost of worse convergence.
+
+Lastly, a scaling function is applied to bring $M$ closer to $\\{0,1\\}$. This scaling is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
 
 ### Penalty terms
 
@@ -53,15 +65,3 @@ Intuitively, one should desire for fewer experts (i.e. more dropout) active per 
 $$ L_1(\mathbf{m}) = |\mathbf{m}|_1$$
 
 which encourages more dropout (more zeroes, fewer ones).
-
-#### Additional LearnedDropout hyperparameters
-
-TODO
-
-## Analysis/experiments
-
-TODO
-
-## Conclusions
-
-TODO
