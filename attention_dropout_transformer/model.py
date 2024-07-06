@@ -34,8 +34,9 @@ class RegularizingLambdaConfig:
 
 class RoundingType(str, Enum):
     SIGMOID = "SIGMOID"
+    SIGMOID_DETACH = "SIGMOID_DETACH"
     NOISE_AND_LINEAR = "NOISE_AND_LINEAR"
-    LINEAR = "LINEAR"
+    NOISE_AND_LINEAR_DETACH = "NOISE_AND_LINEAR_DETACH"
 
     def __str__(self):
         return self.value
@@ -45,9 +46,11 @@ class RoundingType(str, Enum):
         if num == 1:
             return RoundingType.SIGMOID
         elif num == 2:
-            return RoundingType.NOISE_AND_LINEAR
+            return RoundingType.SIGMOID_DETACH
         elif num == 3:
-            return RoundingType.LINEAR
+            return RoundingType.NOISE_AND_LINEAR
+        elif num == 4:
+            return RoundingType.NOISE_AND_LINEAR_DETACH
         else:
             raise ValueError("Invalid rounding type number")
 
@@ -278,23 +281,25 @@ class AttentionDropout(SubModuleStats):
                 dropout_mask = torch.sigmoid(
                     self.config.sigmoid_scale * (dropout_mask - 0.5)
                 )
-            elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
-                complement_mask = 1 - dropout_mask.detach()
-                noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
+            elif self.config.rounding_type == RoundingType.SIGMOID_DETACH:
+                complement_dropout_mask = torch.sigmoid(
+                    self.config.sigmoid_scale * (dropout_mask.detach() - 0.5)
+                ) - dropout_mask.detach()
+                dropout_mask = dropout_mask + complement_dropout_mask
+            elif self.config.rounding_type in [RoundingType.NOISE_AND_LINEAR, RoundingType.NOISE_AND_LINEAR_DETACH]:
+                if self.config.rounding_type == RoundingType.NOISE_AND_LINEAR or (self.config.rounding_type == RoundingType.NOISE_AND_LINEAR_DETACH and self.training):
+                    complement_mask = 1 - dropout_mask.detach()
+                    noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
 
-                scaling = torch.where(
-                    noise >= complement_mask, complement_mask, complement_mask - 1
-                )
+                    scaling = torch.where(
+                        noise >= complement_mask, complement_mask, complement_mask - 1
+                    )
+                elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR_DETACH and not self.training:
+                    complement_mask = 1 - dropout_mask.detach()
+                    scaling = torch.where(
+                        dropout_mask >= 0.5, complement_mask, complement_mask - 1
+                    )
 
-                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
-                    dtype=torch.float16
-                )
-
-            elif self.config.rounding_type == RoundingType.LINEAR:
-                complement_mask = 1 - dropout_mask.detach()
-                scaling = torch.where(
-                    dropout_mask >= 0.5, complement_mask, complement_mask - 1
-                )
                 dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
                     dtype=torch.float16
                 )
