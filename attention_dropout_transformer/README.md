@@ -26,7 +26,7 @@ First, for a dropout to be effective, it needs to understand the dependencies be
 $$
 \begin{aligned}
 & W_{Q}, W_{K} ,W_{V} \coloneqq \text{attention operand weights} \\
-& X \coloneqq \text{input of attention layer} \\
+& X \coloneqq \text{input of attention layer}\\\\[0.5cm]
 & Q = X \cdot W_{Q} \\
 & K = X \cdot W_{K} \\
 & V = X \cdot W_{V} \\
