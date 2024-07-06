@@ -204,8 +204,8 @@ These are some further things to look forward to:
 - instead of MSE and cosine dissimilarity, consider other disaffinity scores
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
-- evaluate different datasets
-- evaluate it on non-language tasks
+- evaluate on different datasets
+- evaluate on non-language tasks
 - using relative positional embeddings like Rotary Position Embedding, instead of absolute ones, should make option one in [A note on $E_{future}$](#a-note-on-e_future) more palatable
 
 ## Conclusions

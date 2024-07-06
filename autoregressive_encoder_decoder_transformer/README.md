@@ -188,8 +188,8 @@ These are some further things to look forward to:
 - LayerNorm normalization of $E$ before averaging allows the model to learn non-uniform aggregation of $E$. It's worth exploring other ways of doing so, like convolution or even plain matmul
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
-- evaluate different datasets
-- evaluate it on non-language tasks
+- evaluate on different datasets
+- evaluate on non-language tasks
 - dropout is known to improve validation loss, but it was not used here for simplicity, except in the baseline. The new architecture should also be tested with dropout
 - absolute positional embeddings are used in the model. Positional embedding subtraction should be tested with relative positional embeddings as well, like Rotary Position Embedding
 
