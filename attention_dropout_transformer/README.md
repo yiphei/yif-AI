@@ -19,9 +19,17 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### LearnedDropout
 
-Like every dropout, LearnedDropout computes a dropout mask $M \in \{0, 1\}$ that is applied to the dropout input. The crux lies in the mask's computation. The canonical dropout randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, **LearnedDropout** needs to generate the mask in a differentiable way. The differentiation forces the relaxation of $M$ from $M \in \{0, 1\}$ to $M \in \[0, 1\]$
+Like every dropout, LearnedDropout computes a dropout mask $M \in \{0, 1\}$ that is applied to the dropout input. The crux lies in the mask's computation. The canonical dropout randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, **LearnedDropout** needs to generate the mask in a differentiable way. The differentiation forces the relaxation of $M$ from $M \in \{0, 1\}$ to $M \in \[0, 1\]$.
 
 First, for a dropout to be effective, it needs to understand the dependencies between tokens. Therefore, the dropout input is passed through a multi-headed attention operation. Stated more formally, etc.
+
+$$
+\begin{aligned}
+& Q, K ,V \coloneqq \text{operands of attention} \\
+& Attn = Q \cdot K^{T} \\
+& out_{attn} = softmax(Attn) \cdot V \\
+\end{aligned}
+$$
 
 [insert latex]
 
