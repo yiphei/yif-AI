@@ -35,7 +35,11 @@ $$
 \end{aligned}
 $$
 
-Then, the attention output needs to be mapped to 0s and 1s. There are many ways to do so, and a two-fold function is implemented here. The first part is mapping it to the 0.5 * cos(out) + 0.5 function. This function lies in the [0,1] domain, and its recurrent property reduces the risk of getting stuck in a local minima, at the potential cost of worse convergence. However, 0.5 * cos(out) + 0.5 does not guarantees 1s and 0s, so the second part scales the output to be closer to 0 and 1. This is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
+Afterwards, the attention output $out_{attn}$ needs to be mapped to $\[0, 1\]$. There are many ways to do so, and a two-fold function is implemented here. The first part is mapping it to the cosine function
+
+$$M =  0.5 \cos(out_{attn}) + 0.5$$
+
+This function lies in the $\[0,1\]$ domain, and its recurrent property reduces the risk of getting stuck in a local minima, at the potential cost of worse convergence. However, 0.5 * cos(out) + 0.5 does not guarantees 1s and 0s, so the second part scales the output to be closer to 0 and 1. This is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
 
 ### Dropout penalties
 
