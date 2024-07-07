@@ -216,8 +216,8 @@ These are some improvements to look forward to:
 - instead of MSE and cosine dissimilarity, consider other loss types
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
-- evaluate different datasets
-- evaluate it on non-language tasks
+- evaluate on different datasets
+- evaluate on non-language tasks
 
 ## Conclusions
 
