@@ -53,6 +53,26 @@ class RoundingType(str, Enum):
             return RoundingType.NOISE_AND_LINEAR_DETACH
         else:
             raise ValueError("Invalid rounding type number")
+        
+class MaskInputType(str, Enum):
+    HIDDEN_STATE = "HIDDEN_STATE"
+    HIDDEN_STATE_W_LN = "HIDDEN_STATE_W_LN"
+    EMBED = "EMBED"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return MaskInputType.HIDDEN_STATE
+        elif num == 2:
+            return MaskInputType.HIDDEN_STATE_W_LN
+        elif num == 3:
+            return MaskInputType.EMBED
+        else:
+            raise ValueError("Invalid rounding type number")
+
 
 
 @dataclass
@@ -65,6 +85,7 @@ class AttentionDropoutConfig:
     shift_init: float = torch.pi / 2
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
+    mask_input_type: Union[MaskInputType, int] = MaskInputType.EMBED
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
@@ -72,6 +93,9 @@ class AttentionDropoutConfig:
 
         if type(self.rounding_type) == int:
             self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
+
+        if type(self.mask_input_type) == int:
+            self.mask_input_type = MaskInputType.get_type_from_int(self.mask_input_type)
 
         if (
             self.rounding_type not in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
@@ -250,13 +274,20 @@ class AttentionDropout(SubModuleStats):
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x, embed):
-        dropout_embed = (
-            embed.detach() if self.config.use_detached_x_in_dropout_mask else embed
-        )
-        dropout_embed = self.embed_ln(dropout_embed)
+        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE, MaskInputType.HIDDEN_STATE_W_LN]:
+            dropout_input = x
+        elif self.config.mask_input_type == MaskInputType.EMBED:
+            dropout_input = embed
 
-        B, T, C = dropout_embed.shape
-        q, k, v = self.batch_attn_weights(dropout_embed).split(self.embed_dim, dim=2)
+
+        dropout_input = (
+            dropout_input.detach() if self.config.use_detached_x_in_dropout_mask else dropout_input
+        )
+        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE_W_LN, MaskInputType.EMBED]:
+            dropout_input = self.embed_ln(dropout_input)
+
+        B, T, C = dropout_input.shape
+        q, k, v = self.batch_attn_weights(dropout_input).split(self.embed_dim, dim=2)
         k = k.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         q = q.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
