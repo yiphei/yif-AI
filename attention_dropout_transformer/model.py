@@ -211,7 +211,8 @@ class AttentionDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        self.embed_ln = LayerNorm(embed_dim, config.use_bias)
+        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE_W_LN, MaskInputType.EMBED]:
+            self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         # self.dropout_entropy_context = (
         #     nullcontext() if use_dropout_entropy_in_loss else torch.no_grad()
