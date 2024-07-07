@@ -1,15 +1,15 @@
 import random
 from contextlib import contextmanager, nullcontext
 from enum import StrEnum, EnumMeta
-from dataclasses import field, dataclass
+from dataclasses import field
 import numpy as np
 import torch
-
+from typing import Type, Any
 
 class AutoMappedEnumMeta(EnumMeta):
-    def __new__(metacls, cls, bases, classdict, start=1):
+    def __new__(metacls, cls, bases, classdict):
         enum_class = super().__new__(metacls, cls, bases, classdict)
-        enum_class._int_to_enum = {i + start: item for i, item in enumerate(enum_class, start=start)}
+        enum_class._int_to_enum = {i: item for i, item in enumerate(enum_class, start=1)}
         return enum_class
 
     def from_int(cls, num):
@@ -38,11 +38,6 @@ def dataclass_enum_field(enum_class: Type[AutoMappedEnum]):
                 raise TypeError(f"Expected int or {enum_class.__name__}, got {type(value).__name__}")
 
     return field(default=enum_class(next(iter(enum_class._int_to_enum.values()))), metadata={'converter': EnumConverter()})
-
-@dataclass
-class AttentionDropoutConfig:
-    enum_val: SomeEnum = enum_field(SomeEnum)
-
 
 
 def get_default_device():
