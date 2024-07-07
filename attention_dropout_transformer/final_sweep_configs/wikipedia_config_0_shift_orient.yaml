@@ -31,7 +31,7 @@ parameters:
             dropout_l1_norm_lambda:
                 parameters:
                     max_lambda:
-                        values: [1, 4]
+                        value: 1
             attention_dropout_config:
                 parameters:
                     softmax_dim:
