@@ -41,9 +41,9 @@ $$M =  0.5 \cos(out_{attn} + B) + 0.5$$
 
 where $B$ is a bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of dropout becoming stuck in a local minima, though at the cost of worse convergence.
 
-Lastly, a scaling function is applied to bring $M$ closer to $\\{0,1\\}$. This scaling is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
+Lastly, a scaling function is applied to bring $M$ closer to $\\{0,1\\}$. This scaling is important because, otherwise, the model might use the module for computational ends (e.g. scaling). LearnedDropout must remain a purely selective module. There are two scaling methods used. TODO
 
-At the end, the output of the module is an element-wise product between $X$ and $M$
+At the end, the output of the module is the element-wise product between $X$ and $M$
 
 $$ out_{dropout} =  X \odot M $$
 
