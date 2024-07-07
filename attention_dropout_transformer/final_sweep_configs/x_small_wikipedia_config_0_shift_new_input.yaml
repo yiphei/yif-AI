@@ -1,6 +1,6 @@
 program: attention_dropout_transformer/training_script.py
 name: x_small_wikipedia_config_0_shift_new_input
-project: final_attention_dropout_transformer
+project: final_attention_dropout_transformer_cross
 method: grid
 metric:
   goal: minimize
