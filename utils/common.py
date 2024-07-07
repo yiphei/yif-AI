@@ -1,8 +1,48 @@
 import random
 from contextlib import contextmanager, nullcontext
-
+from enum import StrEnum, EnumMeta
+from dataclasses import field, dataclass
 import numpy as np
 import torch
+
+
+class AutoMappedEnumMeta(EnumMeta):
+    def __new__(metacls, cls, bases, classdict, start=1):
+        enum_class = super().__new__(metacls, cls, bases, classdict)
+        enum_class._int_to_enum = {i + start: item for i, item in enumerate(enum_class, start=start)}
+        return enum_class
+
+    def from_int(cls, num):
+        if num in cls._int_to_enum:
+            return cls._int_to_enum[num]
+        else:
+            raise ValueError(f"Invalid integer for {cls.__name__}: {num}")
+
+class AutoMappedEnum(StrEnum, metaclass=AutoMappedEnumMeta):
+    pass
+
+
+def dataclass_enum_field(enum_class: Type[AutoMappedEnum]):
+    class EnumConverter:
+        _value: Any
+
+        def __get__(self, instance, owner):
+            return self._value
+
+        def __set__(self, instance, value):
+            if isinstance(value, int):
+                self._value = enum_class.from_int(value)
+            elif isinstance(value, enum_class):
+                self._value = value
+            else:
+                raise TypeError(f"Expected int or {enum_class.__name__}, got {type(value).__name__}")
+
+    return field(default=enum_class(next(iter(enum_class._int_to_enum.values()))), metadata={'converter': EnumConverter()})
+
+@dataclass
+class AttentionDropoutConfig:
+    enum_val: SomeEnum = enum_field(SomeEnum)
+
 
 
 def get_default_device():
