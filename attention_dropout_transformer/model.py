@@ -75,7 +75,7 @@ class MaskInputType(str, Enum):
 
 
 class FreqOrientation(str, Enum):
-    VERTICAL = "VERICAL"
+    VERTICAL = "VERTICAL"
     HORIZONTAL = "HORIZONTAL"
 
     def __str__(self):
