@@ -1,6 +1,6 @@
 program: attention_dropout_transformer/training_script.py
 name: wikipedia_config_both_loss_0_shift
-project: attention_dropout_transformer_embed
+project: final_attention_dropout_transformer
 method: grid
 metric:
   goal: minimize
@@ -37,13 +37,15 @@ parameters:
                     n_head:
                         value: 9
                     rounding_type:
-                        values: [null, 1, 2]
+                        values: [2, 4]
                     shift_init:
                         value: 0
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
                         values: [True, False]
+                    mask_input_type:
+                        values: [1,2,3]
     batch_size: 
         value: 50
     train_steps: 
