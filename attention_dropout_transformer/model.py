@@ -74,6 +74,21 @@ class MaskInputType(str, Enum):
             raise ValueError("Invalid rounding type number")
 
 
+class FreqOrientation(str, Enum):
+    VERTICAL = "VERICAL"
+    HORIZONTAL = "HORIZONTAL"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def get_type_from_int(cls, num):
+        if num == 1:
+            return FreqOrientation.VERTICAL
+        elif num == 2:
+            return FreqOrientation.HORIZONTAL
+        else:
+            raise ValueError("Invalid rounding type number")
 
 @dataclass
 class AttentionDropoutConfig:
@@ -86,6 +101,7 @@ class AttentionDropoutConfig:
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
     mask_input_type: Union[MaskInputType, int] = MaskInputType.EMBED
+    freq_orientation: Union[FreqOrientation, int] = FreqOrientation.VERTICAL
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
@@ -96,6 +112,9 @@ class AttentionDropoutConfig:
 
         if type(self.mask_input_type) == int:
             self.mask_input_type = MaskInputType.get_type_from_int(self.mask_input_type)
+
+        if type(self.freq_orientation) == int:
+            self.freq_orientation = FreqOrientation.get_type_from_int(self.freq_orientation)
 
         if (
             self.rounding_type not in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
