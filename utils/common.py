@@ -1,10 +1,9 @@
 import random
 from contextlib import contextmanager, nullcontext
 from enum import StrEnum, EnumMeta
-from dataclasses import field
+from dataclasses import dataclass, fields
 import numpy as np
 import torch
-from typing import Type, Any
 
 class AutoMappedEnumMeta(EnumMeta):
     def __new__(metacls, cls, bases, classdict):
@@ -21,23 +20,25 @@ class AutoMappedEnumMeta(EnumMeta):
 class AutoMappedEnum(StrEnum, metaclass=AutoMappedEnumMeta):
     pass
 
+# this doesnt work
+def auto_enum_dataclass(cls):
+    cls = dataclass(cls)  # Apply the dataclass decorator first
+    original_post_init = getattr(cls, '__post_init__', None)
 
-def dataclass_enum_field(enum_class: Type[AutoMappedEnum]):
-    class EnumConverter:
-        _value: Any
+    def __post_init__(self):
+        for f in fields(self):
+            if issubclass(f.type, AutoMappedEnum):
+                value = getattr(self, f.name)
+                if isinstance(value, int):
+                    setattr(self, f.name, f.type.from_int(value))
+                elif not isinstance(value, f.type):
+                    raise TypeError(f"Expected int or {f.type.__name__}, got {type(value).__name__}")
+        
+        if original_post_init is not None:
+            original_post_init(self)
 
-        def __get__(self, instance, owner):
-            return self._value
-
-        def __set__(self, instance, value):
-            if isinstance(value, int):
-                self._value = enum_class.from_int(value)
-            elif isinstance(value, enum_class):
-                self._value = value
-            else:
-                raise TypeError(f"Expected int or {enum_class.__name__}, got {type(value).__name__}")
-
-    return field(default=enum_class(next(iter(enum_class._int_to_enum.values()))), metadata={'converter': EnumConverter()})
+    setattr(cls, '__post_init__', __post_init__)
+    return cls
 
 
 def get_default_device():
