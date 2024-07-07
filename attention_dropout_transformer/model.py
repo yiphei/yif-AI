@@ -211,8 +211,11 @@ class AttentionDropout(SubModuleStats):
         self.use_dropout_entropy_in_loss = use_dropout_entropy_in_loss
         self.use_dropout_l1_norm_in_loss = use_dropout_l1_norm_in_loss
 
-        self.batch_attn_weights = nn.Linear(
-            embed_dim, embed_dim * 3, bias=config.use_bias
+        self.kv_weights = nn.Linear(
+            embed_dim, embed_dim * 2, bias=config.use_bias
+        )
+        self.q_weights = nn.Linear(
+            embed_dim, embed_dim, bias=config.use_bias
         )
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
@@ -296,10 +299,12 @@ class AttentionDropout(SubModuleStats):
             dropout_input = self.embed_ln(dropout_input)
 
         B, T, C = dropout_input.shape
-        q, k, v = self.batch_attn_weights(dropout_input).split(self.embed_dim, dim=2)
+        k, v = self.batch_attn_weights(x).split(self.embed_dim, dim=2)
         k = k.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
-        q = q.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
+
+        q = self.q_weights(dropout_input)
+        q = q.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
 
         if self.config.softmax_dim == 1:
             dropout_values = F.scaled_dot_product_attention(
