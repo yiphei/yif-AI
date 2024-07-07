@@ -11,7 +11,7 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.transformer_modules import (BaseModel, LayerNorm,
-                                       MultiAttentionHead, SubModuleStats)
+                                       MultiAttentionHead, SubModuleStats, TransformerBlock as CanonicalTransformerBlock)
 
 
 @dataclass
@@ -421,6 +421,11 @@ class AttentionDropoutTransformer(BaseModel):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
+
+        self.embed_transform = CanonicalTransformerBlock(
+            config.n_embed, config.n_head, config.use_bias, config.context_size, config.dropout_rate
+            )
+
         self.transformer_blocks = nn.ModuleList(
             [
                 TransformerBlock(
@@ -475,9 +480,12 @@ class AttentionDropoutTransformer(BaseModel):
         )
         embed = token_embed + pos_embed
         embed = self.dropout(embed)
+
+        dropout_embed = self.embed_transform(embed)
+
         x = embed
         for transformer_block in self.transformer_blocks:
-            x = transformer_block(x, embed)
+            x = transformer_block(x, dropout_embed)
         out = self.ln(x)
 
         if targets is None:
