@@ -230,9 +230,15 @@ class AttentionDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        self.freq = nn.Parameter(
-            torch.full((embed_dim,), 1, dtype=torch.float32)
-        )
+        if self.config.freq_orientation == FreqOrientation.HORIZONTAL:
+            self.freq = nn.Parameter(
+                torch.full((embed_dim,), 1, dtype=torch.float32)
+            )
+        elif self.config.freq_orientation == FreqOrientation.VERTICAL:
+            self.freq = nn.Parameter(
+                torch.full((context_size,1), 1, dtype=torch.float32)
+            )
+
         if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE_W_LN, MaskInputType.EMBED]:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
@@ -325,7 +331,10 @@ class AttentionDropout(SubModuleStats):
             dropout_values = causal_attn @ v
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
-        dropout_mask = 0.5 * torch.cos(self.freq * dropout_values + self.shift) + 0.5
+        if self.config.freq_orientation == FreqOrientation.HORIZONTAL:
+            dropout_mask = 0.5 * torch.cos(self.freq * dropout_values + self.shift) + 0.5
+        elif self.config.freq_orientation == FreqOrientation.VERTICAL:
+            dropout_mask = 0.5 * torch.cos(self.freq[:T, :] * dropout_values + self.shift) + 0.5
 
         if self.training:
             self.update_stats(dropout_mask)
