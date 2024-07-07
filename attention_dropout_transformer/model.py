@@ -74,7 +74,7 @@ class MaskInputType(str, Enum):
             raise ValueError("Invalid rounding type number")
 
 
-class FreqOrientation(str, Enum):
+class Orientation(str, Enum):
     VERTICAL = "VERTICAL"
     HORIZONTAL = "HORIZONTAL"
 
@@ -84,9 +84,9 @@ class FreqOrientation(str, Enum):
     @classmethod
     def get_type_from_int(cls, num):
         if num == 1:
-            return FreqOrientation.VERTICAL
+            return Orientation.VERTICAL
         elif num == 2:
-            return FreqOrientation.HORIZONTAL
+            return Orientation.HORIZONTAL
         else:
             raise ValueError("Invalid rounding type number")
 
@@ -101,7 +101,8 @@ class AttentionDropoutConfig:
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
     mask_input_type: Union[MaskInputType, int] = MaskInputType.EMBED
-    freq_orientation: Union[FreqOrientation, int] = FreqOrientation.VERTICAL
+    freq_orientation: Union[Orientation, int] = Orientation.VERTICAL
+    shift_orientation: Union[Orientation, int] = Orientation.HORIZONTAL
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
@@ -114,7 +115,10 @@ class AttentionDropoutConfig:
             self.mask_input_type = MaskInputType.get_type_from_int(self.mask_input_type)
 
         if type(self.freq_orientation) == int:
-            self.freq_orientation = FreqOrientation.get_type_from_int(self.freq_orientation)
+            self.freq_orientation = Orientation.get_type_from_int(self.freq_orientation)
+
+        if type(self.shift_orientation) == int:
+            self.shift_orientation = Orientation.get_type_from_int(self.shift_orientation)
 
         if (
             self.rounding_type not in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
@@ -227,14 +231,19 @@ class AttentionDropout(SubModuleStats):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
-        self.shift = nn.Parameter(
-            torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
-        )
-        if self.config.freq_orientation == FreqOrientation.HORIZONTAL:
+        if self.config.shift_orientation == Orientation.HORIZONTAL:
+            self.shift = nn.Parameter(
+                torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
+            )
+        elif self.config.shift_orientation == Orientation.VERTICAL:
+            self.shift = nn.Parameter(
+                torch.full((context_size,1), config.shift_init, dtype=torch.float32)
+            )
+        if self.config.freq_orientation == Orientation.HORIZONTAL:
             self.freq = nn.Parameter(
                 torch.full((embed_dim,), 1, dtype=torch.float32)
             )
-        elif self.config.freq_orientation == FreqOrientation.VERTICAL:
+        elif self.config.freq_orientation == Orientation.VERTICAL:
             self.freq = nn.Parameter(
                 torch.full((context_size,1), 1, dtype=torch.float32)
             )
@@ -331,10 +340,17 @@ class AttentionDropout(SubModuleStats):
             dropout_values = causal_attn @ v
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
-        if self.config.freq_orientation == FreqOrientation.HORIZONTAL:
-            dropout_mask = 0.5 * torch.cos(self.freq * dropout_values + self.shift) + 0.5
-        elif self.config.freq_orientation == FreqOrientation.VERTICAL:
-            dropout_mask = 0.5 * torch.cos(self.freq[:T, :] * dropout_values + self.shift) + 0.5
+
+
+        adjusted_freq = self.freq
+        adjusted_shift = self.shift
+
+        if self.config.shift_orientation == Orientation.VERTICAL:
+            adjusted_shift = self.shift[:T, :]
+        if self.config.freq_orientation == Orientation.VERTICAL:
+            adjusted_freq = self.freq[:T, :]
+
+        dropout_mask = 0.5 * torch.cos(adjusted_freq * dropout_values + adjusted_shift) + 0.5
 
         if self.training:
             self.update_stats(dropout_mask)
