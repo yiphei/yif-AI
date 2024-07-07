@@ -19,9 +19,9 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Learned Dropout
 
-Like every dropout implementation, the new LearnedDropout module computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X$. The crux lies in the mask's computation. The canonical Dropout module randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, LearnedDropout needs to generate the mask in a fully differentiable way, at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$.
+Like every dropout implementation, the new LearnedDropout module computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X = \\{x_1, x_2, ..., x_n\\}$. The crux lies in the mask's computation. The canonical Dropout module randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, LearnedDropout needs to generate the mask in a fully differentiable way, at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$.
 
-First, for a dropout to be highly variant to input $X$, it needs to compute the dependencies between inputs $\\{x_i \mid x_i \in X\\}$ (i.e. T dimension). Therefore, the dropout input is passed through a multi-headed attention operation (without residual connection and other superflous operations). Stated more formally,
+First, for a dropout to be highly variant to input $X$, it needs to compute the dependencies between the input constituents $\\{x_i \mid x_i \in X\\}$ (i.e. T dimension). Therefore, a multi-headed attention operation is computed on the dropout input (without residual connection and other superflous operations). Stated more formally,
 
 $$
 \begin{aligned}
@@ -37,9 +37,9 @@ $$
 
 Afterwards, the attention output $out_{attn}$ needs to be mapped to $\[0, 1\]$. For this, the following cosine function is employed
 
-$$M =  0.5 \cos(out_{attn}) + 0.5$$
+$$M =  0.5 \cos(out_{attn} + B) + 0.5$$
 
-This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of becoming stuck in a local minima, at the cost of worse convergence.
+where $B$ is a bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of becoming stuck in a local minima, at the cost of worse convergence.
 
 Lastly, a scaling function is applied to bring $M$ closer to $\\{0,1\\}$. This scaling is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
 
