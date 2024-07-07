@@ -5,9 +5,9 @@ Dropout is a very effective yet simple regularization technique. However, its ra
 
 ## Motivations
 
-Dropout is a very popular technique that regularizes the model training to be more robust against overfitting and thus yielding improved generalization. It simply works by randomly setting some values of a tensor to zero, with the ratio of zero values determined by a hyperparameter. When a value is set to zero, it becomes effectively detached from the computational graph, thus all the parameters that contributed to that value will have a gradient of 0 w.r.t. that value. In doing so, Dropout essentially creates a subgraph of the model (setting values to zeroes effectively turns off part of the model), and given the randomness, every forward pass results in a different (transient) subgraph. Then, the final pre-trained model constitutes the ensemble of all the different subgraphs Dropout created. Furthermore, observe that this outcome is not so conceptually removed from MoE's outcome. Each subgraph can be loosely though of an expert, and through these subgraphs, Dropout (very weakly) partitions the model into different experts, like MoE.
+Dropout is a very popular technique that regularizes the model training to be more robust against overfitting and thus yields improved generalization. It simply works by randomly setting some values of a tensor to zero, with the ratio of zero values determined by a hyperparameter. When a value is set to zero, it becomes effectively detached from the computational graph, so all the parameters that contributed to that value will have a gradient of 0 w.r.t. that value. In doing so, Dropout essentially creates a subgraph of the model because setting values to zeroes practically turns off part of the model. Given the randomness, every forward pass results in a different (transient) subgraph. Then, the final pre-trained model constitutes the ensemble of all the different subgraphs Dropout created. Furthermore, observe that this outcome is not so conceptually removed from MoE's outcome. Each subgraph can be loosely though of an expert, and through these subgraphs, Dropout (very weakly) partitions the model into different experts, like MoE.
 
-Yet, unlike MoE, the random implementation means that 1) it cannot be used during inference and 2) it is invariant to input. 1) limits the benefit of Dropout to pre-training only, but 2) is the larger reason why MoE produces better performance than Dropout. To overcome these deficits, Dropout needs to be parametrized to enable the model to learn the best dropout, for every input. This will make it a compelling alternative to MoE.
+Yet, unlike MoE, the random implementation means that 1) it cannot be used during inference and 2) it is invariant to input. 1) limits the benefit of Dropout to pre-training only, but 2) is the larger reason why MoE produces better performance than Dropout. To overcome these deficits, Dropout needs to be parametrized to enable the model to learn the best dropout, for every unique input. This should make it a compelling alternative to MoE.
 
 ## Architecture
 
@@ -19,14 +19,14 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Learned Dropout
 
-Like every dropout implementation, LearnedDropout computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X$. The crux lies in the mask's $M$ computation. The canonical Dropout randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, **LearnedDropout** needs to generate the mask in a fully differentiable way, at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$.
+Like every dropout implementation, the new LearnedDropout module computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X = \\{x_1, x_2, \ldots, x_n\\}$. The crux lies in the mask $M$'s computation. The canonical Dropout module randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, LearnedDropout needs to generate the mask in a fully differentiable way, at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$.
 
-First, for a dropout to be highly variant to input $X$, it needs to compute the dependencies between inputs $\\{x_i \mid x_i \in X\\}$ (i.e. T dimension). Therefore, the dropout input is passed through a multi-headed attention operation (without residual connection and other superflous operations). Stated more formally,
+First, for a dropout to be highly variant to input $X$, it needs to leverage the dependencies between the input constituents $\\{x_i \mid x_i \in X\\}$ (i.e. T dimension). Therefore, a multi-headed attention operation is performed on the dropout input (without residual connection and other secondary operations). Stated more formally,
 
 $$
 \begin{aligned}
 & W_{Q}, W_{K} ,W_{V} \coloneqq \text{attention weights} \\
-& X \coloneqq \text{input of attention layer}\\\\[0.5cm]
+& X \coloneqq \text{input of LearnedDropout}\\\\[0.5cm]
 & Q = X \cdot W_{Q} \\
 & K = X \cdot W_{K} \\
 & V = X \cdot W_{V} \\
@@ -37,11 +37,15 @@ $$
 
 Afterwards, the attention output $out_{attn}$ needs to be mapped to $\[0, 1\]$. For this, the following cosine function is employed
 
-$$M =  0.5 \cos(out_{attn}) + 0.5$$
+$$M =  0.5 \cos(out_{attn} + B) + 0.5$$
 
-This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of becoming stuck in a local minima, at the cost of worse convergence.
+where $B$ is a bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of dropout becoming stuck in a local minima, though at the cost of worse convergence.
 
-Lastly, a scaling function is applied to bring $M$ closer to $\\{0,1\\}$. This scaling is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
+Lastly, a scaling function is applied to bring $M$ closer to $\\{0,1\\}$. This scaling is important because, otherwise, the model might use the module for computational ends (e.g. scaling). LearnedDropout must remain a purely selective module. There are two scaling methods used. TODO
+
+At the end, the output of the module is the element-wise product between $X$ and $M$
+
+$$ out_{dropout} =  X \odot M $$
 
 ### Penalty terms
 
