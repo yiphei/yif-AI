@@ -49,7 +49,7 @@ parameters:
                     use_detached_x_in_dropout_mask:
                         values: [True, False]
                     mask_input_type:
-                        values: [4,5]
+                        value: 3
     batch_size: 
         value: 50
     train_steps: 
