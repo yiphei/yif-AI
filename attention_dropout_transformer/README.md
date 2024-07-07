@@ -43,7 +43,7 @@ where $B$ is a bias term. This function lies in the $\[0,1\]$ range, and its rec
 
 Lastly, a scaling function is applied to bring $M$ closer to $\\{0,1\\}$. This scaling is important because the dropout needs to remain a purely selective/filter layer, not computational. There are two scaling methods used. TODO
 
-At the end, the output of the layer is $M$ applied element-wise to $X$
+At the end, the output of the module is an element-wise product between $X$ and $M$
 
 $$ out_{dropout} =  X \odot M $$
 
