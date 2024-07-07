@@ -299,7 +299,7 @@ class AttentionDropout(SubModuleStats):
             dropout_input = self.embed_ln(dropout_input)
 
         B, T, C = dropout_input.shape
-        k, v = self.batch_attn_weights(x).split(self.embed_dim, dim=2)
+        k, v = self.kv_weights(x).split(self.embed_dim, dim=2)
         k = k.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
 
