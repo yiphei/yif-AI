@@ -15,7 +15,7 @@ parameters:
             n_embed: 
                 value: 144
             n_layer: 
-                value: 26
+                value: 25
             n_head: 
                 value: 9
             dropout_rate:
@@ -23,7 +23,7 @@ parameters:
             start_layer:
                 value: 1
             end_layer:
-                value: 26
+                value: 25
             use_dropout_entropy_in_loss:
                 value: True
             use_dropout_l1_norm_in_loss:
