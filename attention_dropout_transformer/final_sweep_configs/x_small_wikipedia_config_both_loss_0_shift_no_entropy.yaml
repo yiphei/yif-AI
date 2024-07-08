@@ -25,7 +25,7 @@ parameters:
             end_layer:
                 value: 26
             use_dropout_entropy_in_loss:
-                value: True
+                value: False
             use_dropout_l1_norm_in_loss:
                 value: True
             dropout_l1_norm_lambda:
