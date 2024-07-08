@@ -58,8 +58,6 @@ class MaskInputType(str, Enum):
     HIDDEN_STATE = "HIDDEN_STATE"
     HIDDEN_STATE_W_LN = "HIDDEN_STATE_W_LN"
     EMBED = "EMBED"
-    EMBED_HIDDEN = "EMBED_HIDDEN"
-    EMBED_HIDDEN_LN = "EMBED_HIDDEN_LN"
 
     def __str__(self):
         return self.value
@@ -72,10 +70,6 @@ class MaskInputType(str, Enum):
             return MaskInputType.HIDDEN_STATE_W_LN
         elif num == 3:
             return MaskInputType.EMBED
-        elif num == 4:
-            return MaskInputType.EMBED_HIDDEN
-        elif num == 5:
-            return MaskInputType.EMBED_HIDDEN_LN
         else:
             raise ValueError("Invalid rounding type number")
 
@@ -217,7 +211,7 @@ class AttentionDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE_W_LN, MaskInputType.EMBED, MaskInputType.EMBED_HIDDEN_LN]:
+        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE_W_LN, MaskInputType.EMBED]:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         # self.dropout_entropy_context = (
@@ -285,14 +279,12 @@ class AttentionDropout(SubModuleStats):
             dropout_input = x
         elif self.config.mask_input_type == MaskInputType.EMBED:
             dropout_input = embed
-        elif self.config.mask_input_type in [MaskInputType.EMBED_HIDDEN, MaskInputType.EMBED_HIDDEN_LN]:
-            dropout_input = x + embed
 
 
         dropout_input = (
             dropout_input.detach() if self.config.use_detached_x_in_dropout_mask else dropout_input
         )
-        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE_W_LN, MaskInputType.EMBED, MaskInputType.EMBED_HIDDEN_LN]:
+        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE_W_LN, MaskInputType.EMBED]:
             dropout_input = self.embed_ln(dropout_input)
 
         B, T, C = dropout_input.shape
