@@ -354,25 +354,19 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
-        if use_attention_dropout:
-            self.dropout = AttentionDropout(
-                config.n_embed,
-                config.context_size,
-                config.attention_dropout_config,
-                config.use_dropout_entropy_in_loss,
-                config.use_dropout_l1_norm_in_loss,
-            )
-        else:
-            self.dropout = nn.Dropout(config.dropout_rate)
+        self.dropout = AttentionDropout(
+            config.n_embed,
+            config.context_size,
+            config.attention_dropout_config,
+            config.use_dropout_entropy_in_loss,
+            config.use_dropout_l1_norm_in_loss,
+        )
 
     def forward(self, x, embed):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        if isinstance(self.dropout, AttentionDropout):
-            x = self.dropout(x, embed)
-        else:
-            x = self.dropout(x)
+        x = self.dropout(x, embed)
         return x
 
 
@@ -412,7 +406,7 @@ class MultiAttentionHead(nn.Module):
             print("Using flash attention.")
             self.using_flash = True
 
-    def forward(self, x):
+    def forward(self, x, embed):
         B, T, C = x.shape
 
         q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
@@ -437,7 +431,7 @@ class MultiAttentionHead(nn.Module):
             new_x.transpose(1, 2).contiguous().view(B, T, C)
         )  # B,H,T,S -> B,T,H,S -> B,T,C
         new_x = self.residual_proj(new_x)
-        new_x = self.dropout_2(new_x)
+        new_x = self.dropout_2(new_x, embed)
         return new_x
 
 class TransformerBlock(nn.Module):
@@ -461,7 +455,7 @@ class TransformerBlock(nn.Module):
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, x, embed):
-        x = x + self.multi_attn_head(self.ln1(x))
+        x = x + self.multi_attn_head(self.ln1(x), embed)
         x = x + self.feed_forward(self.ln2(x), embed)
         return x
 
