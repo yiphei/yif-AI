@@ -113,8 +113,8 @@ class AttentionDropoutConfig:
 class ModelConfig(BaseModelConfig):
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
-    start_layer: int  # layer at which to start using attention dropout
     attention_dropout_config: AttentionDropoutConfig
+    start_layer: Optional[int] = None
     end_layer: Optional[int] = None
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
@@ -124,8 +124,11 @@ class ModelConfig(BaseModelConfig):
             self.attention_dropout_config = AttentionDropoutConfig(
                 **self.attention_dropout_config
             )
+
+        if self.start_layer is None:
+            self.start_layer = 1
         if self.end_layer is None:
-            self.end_layer = self.start_layer
+            self.end_layer = self.n_layer
 
         if self.start_layer > self.end_layer:
             raise ValueError("start_layer must be <= end_layer")
@@ -133,16 +136,6 @@ class ModelConfig(BaseModelConfig):
             raise ValueError("start_layer must be <= n_layer and >= 1")
         if self.end_layer > self.n_layer or self.end_layer < 1:
             raise ValueError("end_layer must be <= n_layer and >= 1")
-
-        # if (
-        #     self.use_dropout_entropy_in_loss
-        #     and self.attention_dropout_config.rounding_type is not None
-        #     and self.attention_dropout_config.rounding_type in [RoundingType.NOISE_AND_LINEAR, RoundingType.LINEAR]
-        # ):
-        #     # This is because dropout entropy is always zero with rounding_type 2 or 3
-        #     raise ValueError(
-        #         "rounding_type cannot be 2 or 3 if use_dropout_entropy_in_loss"
-        #     )
 
         if (
             not self.use_dropout_entropy_in_loss
@@ -217,12 +210,6 @@ class AttentionDropout(SubModuleStats):
         ]:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
-        # self.dropout_entropy_context = (
-        #     nullcontext() if use_dropout_entropy_in_loss else torch.no_grad()
-        # )
-        # self.dropout_l1_norm_context = (
-        #     nullcontext() if use_dropout_l1_norm_in_loss else torch.no_grad()
-        # )
         self.entropy_fn = (
             self.canonical_entropy
             if config.use_canonical_entropy
