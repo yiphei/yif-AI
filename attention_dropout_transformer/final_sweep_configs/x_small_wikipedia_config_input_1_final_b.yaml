@@ -41,7 +41,7 @@ parameters:
                     n_head:
                         value: 9
                     rounding_type:
-                        value: 4
+                        value: 3
                     shift_init:
                         value: 3.14159265
                     use_canonical_entropy:
