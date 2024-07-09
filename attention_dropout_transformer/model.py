@@ -55,6 +55,7 @@ class MaskInputType(str, Enum):
     HIDDEN_STATE = "HIDDEN_STATE"
     HIDDEN_STATE_W_LN = "HIDDEN_STATE_W_LN"
     EMBED = "EMBED"
+    EMBED_PLUS_HIDDEN = "EMBED_PLUS_HIDDEN"
 
     def __str__(self):
         return self.value
@@ -67,6 +68,8 @@ class MaskInputType(str, Enum):
             return MaskInputType.HIDDEN_STATE_W_LN
         elif num == 3:
             return MaskInputType.EMBED
+        elif num == 4:
+            return MaskInputType.EMBED_PLUS_HIDDEN
         else:
             raise ValueError("Invalid rounding type number")
 
@@ -207,6 +210,7 @@ class AttentionDropout(SubModuleStats):
         if self.config.mask_input_type in [
             MaskInputType.HIDDEN_STATE_W_LN,
             MaskInputType.EMBED,
+            MaskInputType.EMBED_PLUS_HIDDEN
         ]:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
@@ -270,7 +274,7 @@ class AttentionDropout(SubModuleStats):
             MaskInputType.HIDDEN_STATE_W_LN,
         ]:
             dropout_input = x
-        elif self.config.mask_input_type == MaskInputType.EMBED:
+        elif self.config.mask_input_type in [MaskInputType.EMBED, MaskInputType.EMBED_PLUS_HIDDEN]:
             dropout_input = embed
 
         dropout_input = (
@@ -281,8 +285,12 @@ class AttentionDropout(SubModuleStats):
         if self.config.mask_input_type in [
             MaskInputType.HIDDEN_STATE_W_LN,
             MaskInputType.EMBED,
+            MaskInputType.EMBED_PLUS_HIDDEN,
         ]:
             dropout_input = self.embed_ln(dropout_input)
+
+        if self.config.mask_input_type == MaskInputType.EMBED_PLUS_HIDDEN:
+            dropout_input = dropout_input + x
 
         B, T, C = dropout_input.shape
         q, k, v = self.batch_attn_weights(dropout_input).split(self.embed_dim, dim=2)
