@@ -4,7 +4,7 @@ from enum import StrEnum
 from dataclasses import dataclass, fields
 import numpy as np
 import torch
-from typing import get_type_hints
+from typing import get_type_hints, get_args, get_origin
 
 class IntMappedEnum(StrEnum):
     @classmethod
@@ -25,13 +25,21 @@ def custom_dataclass(_cls=None, **kwargs):
 
             for field in fields(self):
                 hint = hints[field.name]
+                origin = get_origin(hint)
+                actual_type = hint
+
+                if origin is not None:
+                    actual_args = get_args(hint)
+                    if actual_args:
+                        # Naively assume the first argument is the type of interest
+                        actual_type = actual_args[0]
                 
-                if isinstance(hint, type) and issubclass(hint, IntMappedEnum):
+                if isinstance(actual_type, type) and issubclass(actual_type, IntMappedEnum):
                     value = getattr(self, field.name)
                     if isinstance(value, int):
-                        setattr(self, field.name, hint.from_int(value))
+                        setattr(self, field.name, actual_type.from_int(value))
                     elif isinstance(value, str):
-                        setattr(self, field.name, hint(value))
+                        setattr(self, field.name, actual_type(value))
             
             if sub_post_init:
                 sub_post_init(self)
