@@ -6,8 +6,7 @@ N_EMBED = 90
 N_LAYER = 3
 N_HEAD = 3
 USE_BIAS = False
-DROPOUT_RATE = 0.1
-START_LAYER = 3
+DROPOUT_RATE = 0
 USE_DROPOUT_ENTROPY_IN_LOSS = True
 USE_DROPOUT_L1_NORM_IN_LOSS = False
 DROPOUT_ENTROPY_LAMBDA = {
@@ -20,8 +19,6 @@ ATTENTION_DROPOUT_CONFIG = {
     "softmax_dim": 1,
     "n_head": 3,
     "use_canonical_entropy": False,
-    "rounding_type": 1,
-    "sigmoid_scale": 100,
     "use_detached_x_in_dropout_mask": False,
 }
 
