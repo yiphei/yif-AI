@@ -31,7 +31,9 @@ parameters:
             dropout_l1_norm_lambda:
                 parameters:
                     max_lambda:
-                        value: 0.1
+                        value: 1
+                    exp_coefficient:
+                        value: 0.00008
             attention_dropout_config:
                 parameters:
                     softmax_dim:
