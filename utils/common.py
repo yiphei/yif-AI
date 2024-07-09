@@ -1,24 +1,15 @@
 import random
 from contextlib import contextmanager, nullcontext
-from enum import StrEnum, EnumMeta
+from enum import StrEnum
 from dataclasses import dataclass, fields
 import numpy as np
 import torch
 
-class AutoMappedEnumMeta(EnumMeta):
-    def __new__(metacls, cls, bases, classdict):
-        enum_class = super().__new__(metacls, cls, bases, classdict)
-        enum_class._int_to_enum = {i: item for i, item in enumerate(enum_class, start=1)}
-        return enum_class
-
-    def from_int(cls, num):
-        if num in cls._int_to_enum:
-            return cls._int_to_enum[num]
-        else:
-            raise ValueError(f"Invalid integer for {cls.__name__}: {num}")
-
-class AutoMappedEnum(StrEnum, metaclass=AutoMappedEnumMeta):
-    pass
+class AutoMappedEnum(StrEnum):
+    @classmethod
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.int_mapping = {i: member for i, member in enumerate(cls, start=1)}
 
 # this doesnt work
 def auto_enum_dataclass(cls):
