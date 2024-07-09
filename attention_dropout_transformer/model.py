@@ -50,7 +50,8 @@ class RoundingType(str, Enum):
             return RoundingType.NOISE_AND_LINEAR
         else:
             raise ValueError("Invalid rounding type number")
-        
+
+
 class MaskInputType(str, Enum):
     HIDDEN_STATE = "HIDDEN_STATE"
     HIDDEN_STATE_W_LN = "HIDDEN_STATE_W_LN"
@@ -69,7 +70,6 @@ class MaskInputType(str, Enum):
             return MaskInputType.EMBED
         else:
             raise ValueError("Invalid rounding type number")
-
 
 
 @dataclass
@@ -212,7 +212,10 @@ class AttentionDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE_W_LN, MaskInputType.EMBED]:
+        if self.config.mask_input_type in [
+            MaskInputType.HIDDEN_STATE_W_LN,
+            MaskInputType.EMBED,
+        ]:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         # self.dropout_entropy_context = (
@@ -276,16 +279,23 @@ class AttentionDropout(SubModuleStats):
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x, embed):
-        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE, MaskInputType.HIDDEN_STATE_W_LN]:
+        if self.config.mask_input_type in [
+            MaskInputType.HIDDEN_STATE,
+            MaskInputType.HIDDEN_STATE_W_LN,
+        ]:
             dropout_input = x
         elif self.config.mask_input_type == MaskInputType.EMBED:
             dropout_input = embed
 
-
         dropout_input = (
-            dropout_input.detach() if self.config.use_detached_x_in_dropout_mask else dropout_input
+            dropout_input.detach()
+            if self.config.use_detached_x_in_dropout_mask
+            else dropout_input
         )
-        if self.config.mask_input_type in [MaskInputType.HIDDEN_STATE_W_LN, MaskInputType.EMBED]:
+        if self.config.mask_input_type in [
+            MaskInputType.HIDDEN_STATE_W_LN,
+            MaskInputType.EMBED,
+        ]:
             dropout_input = self.embed_ln(dropout_input)
 
         B, T, C = dropout_input.shape
