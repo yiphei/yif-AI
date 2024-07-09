@@ -9,8 +9,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
-from utils.transformer_modules import (BaseModel, LayerNorm,
-                                       SubModuleStats)
+from utils.transformer_modules import BaseModel, LayerNorm, SubModuleStats
 
 
 @dataclass
@@ -210,7 +209,7 @@ class AttentionDropout(SubModuleStats):
         if self.config.mask_input_type in [
             MaskInputType.HIDDEN_STATE_W_LN,
             MaskInputType.EMBED,
-            MaskInputType.EMBED_PLUS_HIDDEN
+            MaskInputType.EMBED_PLUS_HIDDEN,
         ]:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
@@ -274,7 +273,10 @@ class AttentionDropout(SubModuleStats):
             MaskInputType.HIDDEN_STATE_W_LN,
         ]:
             dropout_input = x
-        elif self.config.mask_input_type in [MaskInputType.EMBED, MaskInputType.EMBED_PLUS_HIDDEN]:
+        elif self.config.mask_input_type in [
+            MaskInputType.EMBED,
+            MaskInputType.EMBED_PLUS_HIDDEN,
+        ]:
             dropout_input = embed
 
         dropout_input = (
@@ -380,7 +382,14 @@ class FeedForward(nn.Module):
 
 class MultiAttentionHead(nn.Module):
     def __init__(
-        self, dim_in, n_head, use_bias, context_size, dropout_rate=0, use_flash=True, config = None
+        self,
+        dim_in,
+        n_head,
+        use_bias,
+        context_size,
+        dropout_rate=0,
+        use_flash=True,
+        config=None,
     ):
         super().__init__()
         assert dim_in % n_head == 0
@@ -393,12 +402,13 @@ class MultiAttentionHead(nn.Module):
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=use_bias)
 
         self.dropout_1 = nn.Dropout(dropout_rate)
-        self.dropout_2 = AttentionDropout(                
+        self.dropout_2 = AttentionDropout(
             config.n_embed,
-                config.context_size,
-                config.attention_dropout_config,
-                config.use_dropout_entropy_in_loss,
-                config.use_dropout_l1_norm_in_loss,)
+            config.context_size,
+            config.attention_dropout_config,
+            config.use_dropout_entropy_in_loss,
+            config.use_dropout_l1_norm_in_loss,
+        )
 
         self.using_flash = False
         if not hasattr(F, "scaled_dot_product_attention") or not use_flash:
@@ -441,6 +451,7 @@ class MultiAttentionHead(nn.Module):
         new_x = self.residual_proj(new_x)
         new_x = self.dropout_2(new_x, embed)
         return new_x
+
 
 class TransformerBlock(nn.Module):
     def __init__(
