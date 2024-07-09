@@ -77,6 +77,7 @@ class MaskInputType(str, Enum):
 class Orientation(str, Enum):
     VERTICAL = "VERTICAL"
     HORIZONTAL = "HORIZONTAL"
+    NONE = "NONE"
 
     def __str__(self):
         return self.value
@@ -87,6 +88,8 @@ class Orientation(str, Enum):
             return Orientation.VERTICAL
         elif num == 2:
             return Orientation.HORIZONTAL
+        elif num == 3:
+            return Orientation.NONE
         else:
             raise ValueError("Invalid rounding type number")
 
@@ -340,17 +343,21 @@ class AttentionDropout(SubModuleStats):
             dropout_values = causal_attn @ v
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
+        
+        transformed_values = dropout_values
+        if self.config.freq_orientation != Orientation.NONE:
+            adjusted_freq = self.freq
+            if self.config.freq_orientation == Orientation.VERTICAL:
+                adjusted_freq = self.freq[:T, :]
+            transformed_values = adjusted_freq * transformed_values
+        
+        if self.config.shift_orientation != Orientation.NONE:
+            adjusted_shift = self.shift
+            if self.config.shift_orientation == Orientation.VERTICAL:
+                adjusted_shift = self.shift[:T, :]
+            transformed_values = transformed_values + adjusted_shift
 
-
-        adjusted_freq = self.freq
-        adjusted_shift = self.shift
-
-        if self.config.shift_orientation == Orientation.VERTICAL:
-            adjusted_shift = self.shift[:T, :]
-        if self.config.freq_orientation == Orientation.VERTICAL:
-            adjusted_freq = self.freq[:T, :]
-
-        dropout_mask = 0.5 * torch.cos(adjusted_freq * dropout_values + adjusted_shift) + 0.5
+        dropout_mask = 0.5 * torch.cos(transformed_values) + 0.5
 
         if self.training:
             self.update_stats(dropout_mask)
