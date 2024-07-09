@@ -20,15 +20,6 @@ class AutoMappedEnum(StrEnum):
 class EnumFieldDescriptor:
     def __init__(self, enum_class: Type[AutoMappedEnum]):
         self.enum_class = enum_class
-        self.name = None
-
-    def __set_name__(self, owner, name):
-        self.name = name
-
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        return instance.__dict__.get(self.name)
 
     def __set__(self, instance, value):
         if isinstance(value, int):
