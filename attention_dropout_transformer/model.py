@@ -95,14 +95,18 @@ class AttentionDropoutConfig:
             self.mask_input_type = MaskInputType.get_type_from_int(self.mask_input_type)
 
         if (
-            self.rounding_type not in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
+            self.rounding_type
+            not in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
             and self.sigmoid_scale is not None
         ):
             raise ValueError(
                 "sigmoid_slope can only be set if rounding_type is SIGMOID"
             )
 
-        if self.rounding_type in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH] and self.sigmoid_scale is None:
+        if (
+            self.rounding_type in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
+            and self.sigmoid_scale is None
+        ):
             self.sigmoid_scale = 60
 
 
@@ -311,9 +315,12 @@ class AttentionDropout(SubModuleStats):
                     self.config.sigmoid_scale * (dropout_mask - 0.5)
                 )
             elif self.config.rounding_type == RoundingType.SIGMOID_DETACH:
-                complement_dropout_mask = torch.sigmoid(
-                    self.config.sigmoid_scale * (dropout_mask.detach() - 0.5)
-                ) - dropout_mask.detach()
+                complement_dropout_mask = (
+                    torch.sigmoid(
+                        self.config.sigmoid_scale * (dropout_mask.detach() - 0.5)
+                    )
+                    - dropout_mask.detach()
+                )
                 dropout_mask = dropout_mask + complement_dropout_mask
             elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
                 if self.training:
