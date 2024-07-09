@@ -1,5 +1,5 @@
 program: attention_dropout_transformer/training_script.py
-name: x_small_wikipedia_config_both_loss_0_shift_no_entropy_more_inputs
+name: x_small_wikipedia_config_input_1_3_final
 project: final_attention_dropout_transformer
 method: grid
 metric:
