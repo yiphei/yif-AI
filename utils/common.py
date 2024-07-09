@@ -1,10 +1,12 @@
 import random
 from contextlib import contextmanager, nullcontext
-from enum import StrEnum
 from dataclasses import dataclass, fields
+from enum import StrEnum
+from typing import get_args, get_origin, get_type_hints
+
 import numpy as np
 import torch
-from typing import get_type_hints, get_args, get_origin
+
 
 class IntMappedEnum(StrEnum):
     @classmethod
@@ -12,14 +14,15 @@ class IntMappedEnum(StrEnum):
         super().__init_subclass__(**kwargs)
         cls.int_mapping = {i: member for i, member in enumerate(cls, start=1)}
 
-
     @classmethod
     def from_int(cls, value: int):
         return cls.int_mapping[value]
 
+
 def custom_dataclass(_cls=None, **kwargs):
     def wrap(cls):
-        sub_post_init = getattr(cls, '__post_init__', None)
+        sub_post_init = getattr(cls, "__post_init__", None)
+
         def enum_post_init(self):
             hints = get_type_hints(cls)
 
@@ -33,24 +36,27 @@ def custom_dataclass(_cls=None, **kwargs):
                     if actual_args:
                         # Naively assume the first argument is the type of interest
                         actual_type = actual_args[0]
-                
-                if isinstance(actual_type, type) and issubclass(actual_type, IntMappedEnum):
+
+                if isinstance(actual_type, type) and issubclass(
+                    actual_type, IntMappedEnum
+                ):
                     value = getattr(self, field.name)
                     if isinstance(value, int):
                         setattr(self, field.name, actual_type.from_int(value))
                     elif isinstance(value, str):
                         setattr(self, field.name, actual_type(value))
-            
+
             if sub_post_init:
                 sub_post_init(self)
 
-        setattr(cls, '__post_init__', enum_post_init)
-        cls = dataclass(cls, **kwargs)        
+        setattr(cls, "__post_init__", enum_post_init)
+        cls = dataclass(cls, **kwargs)
         return cls
 
     if _cls is None:
         return wrap
     return wrap(_cls)
+
 
 def get_default_device():
     if torch.cuda.is_available():
