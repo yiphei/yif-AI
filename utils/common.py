@@ -12,6 +12,11 @@ class AutoMappedEnum(StrEnum):
         super().__init_subclass__(**kwargs)
         cls.int_mapping = {i: member for i, member in enumerate(cls, start=1)}
 
+
+    @classmethod
+    def from_int(cls, value: int):
+        return cls.int_mapping[value]
+
 class EnumFieldDescriptor:
     def __init__(self, enum_class: Type[AutoMappedEnum]):
         self.enum_class = enum_class
@@ -27,7 +32,7 @@ class EnumFieldDescriptor:
 
     def __set__(self, instance, value):
         if isinstance(value, int):
-            value = self.enum_class.int_mapping[value]
+            value = self.enum_class.from_int(value)
         elif isinstance(value, str):
             value = self.enum_class(value)
         elif not isinstance(value, self.enum_class):
