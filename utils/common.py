@@ -21,6 +21,9 @@ class EnumFieldDescriptor:
     def __init__(self, enum_class: Type[AutoMappedEnum]):
         self.enum_class = enum_class
 
+    def __set_name__(self, owner, name):
+        self.name = name
+
     def __set__(self, instance, value):
         if isinstance(value, int):
             value = self.enum_class.from_int(value)
@@ -37,7 +40,9 @@ def adapted_dataclass(_cls=None, **kwargs):
         
         for name, hint in hints.items():
             if isinstance(hint, type) and issubclass(hint, AutoMappedEnum):
-                setattr(cls, name, EnumFieldDescriptor(hint))
+                descriptor = EnumFieldDescriptor(hint)
+                descriptor.__set_name__(cls, name)
+                setattr(cls, name, descriptor)
         
         return cls
 
