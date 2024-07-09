@@ -1,7 +1,7 @@
 import random
 from contextlib import contextmanager, nullcontext
 from enum import StrEnum
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 import numpy as np
 import torch
 from typing import Type, get_type_hints
@@ -48,27 +48,6 @@ def adapted_dataclass(_cls=None, **kwargs):
     if _cls is None:
         return wrap
     return wrap(_cls)
-
-# this doesnt work
-def auto_enum_dataclass(cls):
-    cls = dataclass(cls)  # Apply the dataclass decorator first
-    original_post_init = getattr(cls, '__post_init__', None)
-
-    def __post_init__(self):
-        for f in fields(self):
-            if issubclass(f.type, AutoMappedEnum):
-                value = getattr(self, f.name)
-                if isinstance(value, int):
-                    setattr(self, f.name, f.type.from_int(value))
-                elif not isinstance(value, f.type):
-                    raise TypeError(f"Expected int or {f.type.__name__}, got {type(value).__name__}")
-        
-        if original_post_init is not None:
-            original_post_init(self)
-
-    setattr(cls, '__post_init__', __post_init__)
-    return cls
-
 
 def get_default_device():
     if torch.cuda.is_available():
