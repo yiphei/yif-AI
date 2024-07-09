@@ -25,13 +25,13 @@ parameters:
             end_layer:
                 value: 26
             use_dropout_entropy_in_loss:
-                value: True
+                value: False
             use_dropout_l1_norm_in_loss:
                 value: True
             dropout_l1_norm_lambda:
                 parameters:
                     max_lambda:
-                        value: 1
+                        value: 0.1
             attention_dropout_config:
                 parameters:
                     softmax_dim:
@@ -41,7 +41,7 @@ parameters:
                     n_head:
                         value: 9
                     rounding_type:
-                        values: [2, 4]
+                        value: 4
                     shift_init:
                         value: 0
                     use_canonical_entropy:
@@ -51,13 +51,13 @@ parameters:
                     mask_input_type:
                         value: 3
                     freq_orientation:
-                        values: [1,2]
+                        values: [1,2,3]
                     shift_orientation:
-                        values: [1,2]
+                        values: [1,2,3]
     batch_size: 
         value: 50
     train_steps: 
-        value: 9000
+        value: 12000
     lr: 
         value: 9e-4
     warmup_iters:
