@@ -18,6 +18,9 @@ class IntMappedEnum(StrEnum):
 
     @classmethod
     def from_int(cls, value: int):
+        if value not in cls.int_mapping:
+            raise ValueError(f"Invalid integer value for {cls.__name__}: {value}")
+
         return cls.int_mapping[value]
 
 
