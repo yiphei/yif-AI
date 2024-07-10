@@ -15,7 +15,6 @@ DROPOUT_ENTROPY_LAMBDA = {
 }
 ATTENTION_DROPOUT_CONFIG = {
     "use_bias": False,
-    "shift_init": torch.pi / 2,
     "softmax_dim": 1,
     "n_head": 3,
     "use_canonical_entropy": False,

@@ -80,7 +80,7 @@ class AttentionDropoutConfig:
     softmax_dim: int = 1
     rounding_type: Optional[Union[RoundingType, int]] = RoundingType.NOISE_AND_LINEAR
     sigmoid_scale: Optional[float] = None
-    shift_init: float = torch.pi / 2
+    shift_init: float = 0
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
     mask_input_type: Union[MaskInputType, int] = MaskInputType.EMBED
