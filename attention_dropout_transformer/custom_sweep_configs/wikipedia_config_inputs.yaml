@@ -47,9 +47,9 @@ parameters:
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
-                        value: False
+                        values: [True, False]
                     mask_input_type:
-                        value: [1,3,4]
+                        values: [3,4]
     batch_size: 
         value: 50
     train_steps: 
