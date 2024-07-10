@@ -1,81 +1,34 @@
 import math
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional, Union
+from typing import Optional
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
+from utils.common import IntMappedEnum, custom_dataclass
 from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, TransformerBlock)
 
 
-class PlanningLossType(str, Enum):
+class PlanningLossType(IntMappedEnum):
     NONE = "NONE"
     MSE = "MSE"
     COSINE = "COSINE"
     COSINE_SIM = "LOG_COSINE"
 
-    def __str__(self):
-        return self.value
 
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return PlanningLossType.NONE
-        elif num == 2:
-            return PlanningLossType.MSE
-        elif num == 3:
-            return PlanningLossType.COSINE
-        elif num == 4:
-            return PlanningLossType.COSINE_SIM
-        else:
-            raise ValueError("Invalid PlanningLossType number")
-
-
-class PlanningContextLayerNormType(str, Enum):
+class PlanningContextLayerNormType(IntMappedEnum):
     NONE = "NONE"
     PRE_AGGR = "PRE_AGGR"
     POST_AGGR = "POST_AGGR"
     BOTH = "BOTH"
 
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return PlanningContextLayerNormType.NONE
-        elif num == 2:
-            return PlanningContextLayerNormType.PRE_AGGR
-        elif num == 3:
-            return PlanningContextLayerNormType.POST_AGGR
-        elif num == 4:
-            return PlanningContextLayerNormType.BOTH
-        else:
-            raise ValueError("Invalid PlanningContextLayerNormType number")
-
-
-class FutureContextAggregationType(str, Enum):
+class FutureContextAggregationType(IntMappedEnum):
     AVG = "AVG"
     DECAY = "DECAY"
     DECAY_W_NORMALIZE = "DECAY_W_NORMALIZE"
-
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return FutureContextAggregationType.AVG
-        elif num == 2:
-            return FutureContextAggregationType.DECAY
-        elif num == 3:
-            return FutureContextAggregationType.DECAY_W_NORMALIZE
-        else:
-            raise ValueError("Invalid FutureContextAggregationType number")
 
 
 @dataclass
@@ -84,27 +37,13 @@ class CrossAttentionConfig:
     n_head: int
 
 
-class PresentFutureContextAggregationType(str, Enum):
+class PresentFutureContextAggregationType(IntMappedEnum):
     EQUAL = "EQUAL"
     CONTEXT_SIZE = "CONTEXT_SIZE"
     NONE = "NONE"  # this means that present context is excluded from planning context
 
-    def __str__(self):
-        return self.value
 
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return PresentFutureContextAggregationType.EQUAL
-        elif num == 2:
-            return PresentFutureContextAggregationType.CONTEXT_SIZE
-        elif num == 3:
-            return PresentFutureContextAggregationType.NONE
-        else:
-            raise ValueError("Invalid PresentFutureContextAggregationType number")
-
-
-@dataclass
+@custom_dataclass
 class ModelConfig(BaseModelConfig):
     """The default field values are the suggested ones for the best performance.
     Fine-tuning planning_loss_coeff and future_context_size may improve performance.
@@ -133,43 +72,20 @@ class ModelConfig(BaseModelConfig):
     cross_attn_config: CrossAttentionConfig = None
     future_context_size: Optional[int] = None
     present_future_context_aggregation_type: Optional[
-        Union[PresentFutureContextAggregationType, int]
+        PresentFutureContextAggregationType
     ] = PresentFutureContextAggregationType.EQUAL
-    planning_loss_type: Union[PlanningLossType, int] = PlanningLossType.MSE
+    planning_loss_type: PlanningLossType = PlanningLossType.MSE
     planning_loss_coeff: Optional[float] = 1
-    planning_context_ln_type: Optional[Union[PlanningContextLayerNormType, int]] = (
+    planning_context_ln_type: Optional[PlanningContextLayerNormType] = (
         PlanningContextLayerNormType.POST_AGGR
     )
     future_context_aggregation_type: Optional[
-        Union[FutureContextAggregationType, int]
+        FutureContextAggregationType
     ] = FutureContextAggregationType.DECAY
 
     def __post_init__(self):
         if self.future_context_size is not None:
             assert 1 < self.future_context_size < self.context_size
-
-        if type(self.present_future_context_aggregation_type) == int:
-            self.present_future_context_aggregation_type = (
-                PresentFutureContextAggregationType.get_type_from_int(
-                    self.present_future_context_aggregation_type
-                )
-            )
-        if type(self.future_context_aggregation_type) == int:
-            self.future_context_aggregation_type = (
-                FutureContextAggregationType.get_type_from_int(
-                    self.future_context_aggregation_type
-                )
-            )
-        if type(self.planning_loss_type) == int:
-            self.planning_loss_type = PlanningLossType.get_type_from_int(
-                self.planning_loss_type
-            )
-        if type(self.planning_context_ln_type) == int:
-            self.planning_context_ln_type = (
-                PlanningContextLayerNormType.get_type_from_int(
-                    self.planning_context_ln_type
-                )
-            )
 
         if self.planning_loss_type != PlanningLossType.NONE:
             if self.planning_loss_coeff is None:
