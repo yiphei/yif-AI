@@ -1,20 +1,23 @@
 import random
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, fields
-from enum import StrEnum
+from enum import EnumMeta, Enum
 from typing import get_args, get_origin, get_type_hints
 
 import numpy as np
 import torch
 
 
-class IntMappedEnum(StrEnum):
+class IntMappedEnumMeta(EnumMeta):
+    def __init__(cls, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls.int_mapping = {i: member for i, member in enumerate(cls, start=1)}
+
+class IntMappedEnum(Enum, metaclass=IntMappedEnumMeta):
     """A custom enum that serves custom_dataclass logic"""
 
-    @classmethod
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        cls.int_mapping = {i: member for i, member in enumerate(cls, start=1)}
+    def __str__(self):
+        return str(self.value)
 
     @classmethod
     def from_int(cls, value: int):
