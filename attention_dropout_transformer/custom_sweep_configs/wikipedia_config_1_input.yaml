@@ -43,7 +43,7 @@ parameters:
                     rounding_type:
                         value: 3
                     shift_init:
-                        value: 3.14159265
+                        value: 0
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
