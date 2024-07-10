@@ -1,5 +1,5 @@
 program: future_attention_transformer/training_script.py
-name: wikipedia_config
+name: testttt_config
 project: future_attention_transformer_v1
 method: grid
 metric:
@@ -11,44 +11,44 @@ parameters:
             use_bias:
                 value: False
             context_size:
-                value: 200
-            n_embed: 
-                value: 150
-            n_layer: 
-                value: 26
-            n_head: 
                 value: 10
+            n_embed: 
+                value: 10
+            n_layer: 
+                value: 1
+            n_head: 
+                value: 2
             dropout_rate:
                 value: 0
             start_layer:
                 value: 1
             end_layer:
-                value: 26
-            future_x_loss_type:
+                value: 1
+            future_attn_loss_type:
                 values: [1, 2]
-            use_future_x_loss:
+            use_future_attn_loss:
                 value: True
             future_dim:
-                values: [50, 100]
-            detach_future_x:
+                values: [5, 9]
+            detach_future_ground_truth:
                 values: [True, False]
-            future_x_loss_coeff:
+            future_attn_loss_coeff:
                 value: 1
     batch_size: 
-        value: 50
+        value: 1
     train_steps: 
-        value: 9000
+        value: 10000
     lr: 
         value: 9e-4
     warmup_iters:
-        value: 300
+        value: 10
     min_lr: 
         value: 9e-5
     gradient_accumulation_steps: 
-        value: 16
+        value: 1
     lr_decay_iters: 
-        value: 700000
+        value: 20
     est_interval: 
-        value: 500
+        value: 10
     est_steps: 
-        value: 200
+        value: 10

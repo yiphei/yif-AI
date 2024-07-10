@@ -170,6 +170,8 @@ class BaseModel(nn.Module):
                 self.extra_stats = list(stat_to_module_class.keys())
             else:
                 sub_module_stats = list(stat_to_module_class.keys())
+                print(self.extra_stats)
+                print(sub_module_stats)
                 assert len(set(self.extra_stats) & set(sub_module_stats)) == 0
                 self.extra_stats.extend(sub_module_stats)
 
