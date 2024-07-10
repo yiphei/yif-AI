@@ -25,6 +25,7 @@ class PlanningContextLayerNormType(IntMappedEnum):
     POST_AGGR = "POST_AGGR"
     BOTH = "BOTH"
 
+
 class FutureContextAggregationType(IntMappedEnum):
     AVG = "AVG"
     DECAY = "DECAY"
@@ -79,9 +80,9 @@ class ModelConfig(BaseModelConfig):
     planning_context_ln_type: Optional[PlanningContextLayerNormType] = (
         PlanningContextLayerNormType.POST_AGGR
     )
-    future_context_aggregation_type: Optional[
-        FutureContextAggregationType
-    ] = FutureContextAggregationType.DECAY
+    future_context_aggregation_type: Optional[FutureContextAggregationType] = (
+        FutureContextAggregationType.DECAY
+    )
 
     def __post_init__(self):
         if self.future_context_size is not None:
