@@ -1,35 +1,22 @@
 import math
-from dataclasses import dataclass
-from enum import Enum
-from typing import Optional, Union
+from typing import Optional
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
+from utils.common import IntMappedEnum, custom_dataclass
 from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, SubModuleStats)
 
 
-class FutureAttnLossType(str, Enum):
+class FutureAttnLossType(IntMappedEnum):
     MSE = "MSE"
     COSINE = "COSINE"
 
-    def __str__(self):
-        return self.value
 
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return FutureAttnLossType.MSE
-        elif num == 2:
-            return FutureAttnLossType.COSINE
-        else:
-            raise ValueError("Invalid FutureAttnLossType number")
-
-
-@dataclass
+@custom_dataclass
 class ModelConfig(BaseModelConfig):
     """The default field values are the suggested ones for the best performance.
     Fine-tuning future_attn_loss_coeff and future_dim may improve performance.
@@ -49,18 +36,13 @@ class ModelConfig(BaseModelConfig):
 
     start_layer: int = 1
     future_dim: int = None
-    future_attn_loss_type: Union[FutureAttnLossType, int] = FutureAttnLossType.MSE
+    future_attn_loss_type: FutureAttnLossType = FutureAttnLossType.MSE
     use_future_attn_loss: bool = True
     detach_future_ground_truth: Optional[bool] = True
     end_layer: Optional[int] = None
     future_attn_loss_coeff: Optional[float] = 1.0
 
     def __post_init__(self):
-        if type(self.future_attn_loss_type) == int:
-            self.future_attn_loss_type = FutureAttnLossType.get_type_from_int(
-                self.future_attn_loss_type
-            )
-
         if self.future_dim is None:
             self.future_dim = self.context_size - 1
 
