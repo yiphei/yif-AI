@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
-from utils.common import custom_dataclass, IntMappedEnum
+from utils.common import IntMappedEnum, custom_dataclass
 from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, SubModuleStats)
 

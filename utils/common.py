@@ -1,7 +1,7 @@
 import random
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, fields
-from enum import EnumMeta, Enum
+from enum import Enum, EnumMeta
 from typing import get_args, get_origin, get_type_hints
 
 import numpy as np
@@ -12,6 +12,7 @@ class IntMappedEnumMeta(EnumMeta):
     def __init__(cls, *args, **kwargs):
         super().__init__(*args, **kwargs)
         cls.int_mapping = {i: member for i, member in enumerate(cls, start=1)}
+
 
 class IntMappedEnum(Enum, metaclass=IntMappedEnumMeta):
     """A custom enum that serves custom_dataclass logic"""
