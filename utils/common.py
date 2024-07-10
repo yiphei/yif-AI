@@ -9,6 +9,8 @@ import torch
 
 
 class IntMappedEnum(StrEnum):
+    """A custom enum that serves custom_dataclass logic
+    """
     @classmethod
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -20,6 +22,11 @@ class IntMappedEnum(StrEnum):
 
 
 def custom_dataclass(_cls=None, **kwargs):
+    """A dataclass wrapper that allows IntMappedEnum fields to be initialized, in addition to
+    an enum member, with either an integer or string, and casts all of them to the corresponding
+    enum member. This flexibility, especially the integer values, is useful for visualizing 
+    field values in wandb.
+    """
     def wrap(cls):
         sub_post_init = getattr(cls, "__post_init__", None)
 
