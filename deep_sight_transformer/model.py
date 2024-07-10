@@ -1,5 +1,4 @@
 import math
-from dataclasses import dataclass
 from typing import Optional
 
 import torch
@@ -32,7 +31,7 @@ class FutureContextAggregationType(IntMappedEnum):
     DECAY_W_NORMALIZE = "DECAY_W_NORMALIZE"
 
 
-@dataclass
+@custom_dataclass
 class CrossAttentionConfig:
     use_bias: bool
     n_head: int
