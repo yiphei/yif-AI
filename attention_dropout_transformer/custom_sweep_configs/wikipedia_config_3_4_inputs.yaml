@@ -1,5 +1,5 @@
 program: attention_dropout_transformer/training_script.py
-name: wikipedia_config_inputs
+name: wikipedia_config_3_4_inputs
 project: final_attention_dropout_transformer_every
 method: grid
 metric:
