@@ -45,6 +45,7 @@ class MaskInputType(IntMappedEnum):
 
 @custom_dataclass
 class AttentionDropoutConfig:
+    include_shift_in_saved = False
     use_bias: Optional[bool] = None
     n_head: Optional[int] = None
     softmax_dim: int = 1
@@ -260,11 +261,17 @@ class AttentionDropout(SubModuleStats):
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
 
+        if self.config.include_shift_in_saved:
+            dropout_values = dropout_values + self.shift
+
         if prev_saved_dropout_values is not None:
             dropout_values = dropout_values + prev_saved_dropout_values
         saved_dropout_values = dropout_values
 
-        dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
+        if not self.config.include_shift_in_saved:
+            dropout_values = dropout_values + self.shift
+
+        dropout_mask = 0.5 * torch.cos(dropout_values) + 0.5
 
         if self.training:
             self.update_stats(dropout_mask)
