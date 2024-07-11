@@ -10,5 +10,5 @@ if __name__ == "__main__":
     train(
         AttentionDropoutTransformer,
         "attention_dropout_transformer/",
-        "final_attention_dropout_transformer",
+        "final_attention_dropout_transformer_connection",
     )

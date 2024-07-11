@@ -1,6 +1,6 @@
 program: attention_dropout_transformer/training_script.py
 name: wikipedia_config_input_1_final_comparison
-project: final_attention_dropout_transformer
+project: final_attention_dropout_transformer_connection
 method: grid
 metric:
   goal: minimize
