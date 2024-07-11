@@ -88,11 +88,6 @@ class ModelConfig(BaseModelConfig):
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
 
     def __post_init__(self):
-        if type(self.attention_dropout_config) == dict:
-            self.attention_dropout_config = AttentionDropoutConfig(
-                **self.attention_dropout_config
-            )
-
         if self.attention_dropout_config.n_head is None:
             self.attention_dropout_config.n_head = self.n_head
         if self.attention_dropout_config.use_bias is None:
@@ -131,17 +126,8 @@ class ModelConfig(BaseModelConfig):
             ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss"),
         ]:
             attr_value = getattr(self, attr_name)
-            if attr_value is not None:
-                if type(attr_value) not in [dict, RegularizingLambdaConfig]:
-                    raise ValueError(
-                        f"{attr_name} must be a dict or RegularizingLambdaConfig"
-                    )
-
-                if type(attr_value) == dict:
-                    setattr(self, attr_name, RegularizingLambdaConfig(**attr_value))
-            else:
-                if getattr(self, flag_attr_name):
-                    setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
+            if attr_value is None and getattr(self, flag_attr_name):
+                setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
 
 
 class AttentionDropout(SubModuleStats):
