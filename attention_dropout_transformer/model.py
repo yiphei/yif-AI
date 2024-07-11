@@ -1,4 +1,5 @@
 import math
+from dataclasses import field
 from typing import Optional
 
 import numpy as np
@@ -44,15 +45,15 @@ class MaskInputType(IntMappedEnum):
 
 @custom_dataclass
 class AttentionDropoutConfig:
-    use_bias: bool
-    n_head: int
+    use_bias: Optional[bool] = None
+    n_head: Optional[int] = None
     softmax_dim: int = 1
     rounding_type: Optional[RoundingType] = RoundingType.NOISE_AND_LINEAR
     sigmoid_scale: Optional[float] = None
     shift_init: float = 0
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
-    mask_input_type: MaskInputType = MaskInputType.EMBED
+    mask_input_type: MaskInputType = MaskInputType.HIDDEN_STATE
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
@@ -76,9 +77,11 @@ class AttentionDropoutConfig:
 
 @custom_dataclass
 class ModelConfig(BaseModelConfig):
-    use_dropout_entropy_in_loss: bool
-    use_dropout_l1_norm_in_loss: bool
-    attention_dropout_config: AttentionDropoutConfig
+    attention_dropout_config: AttentionDropoutConfig = field(
+        default_factory=AttentionDropoutConfig
+    )
+    use_dropout_entropy_in_loss: bool = False
+    use_dropout_l1_norm_in_loss: bool = True
     start_layer: Optional[int] = None
     end_layer: Optional[int] = None
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
@@ -89,6 +92,11 @@ class ModelConfig(BaseModelConfig):
             self.attention_dropout_config = AttentionDropoutConfig(
                 **self.attention_dropout_config
             )
+
+        if self.attention_dropout_config.n_head is None:
+            self.attention_dropout_config.n_head = self.n_head
+        if self.attention_dropout_config.use_bias is None:
+            self.attention_dropout_config.use_bias = self.use_bias
 
         if self.start_layer is None:
             self.start_layer = 1
