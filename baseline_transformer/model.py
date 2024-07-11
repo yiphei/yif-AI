@@ -1,5 +1,5 @@
 import math
-from dataclasses import KW_ONLY, dataclass
+from dataclasses import KW_ONLY
 from typing import Optional
 
 import torch
@@ -7,9 +7,9 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from utils.transformer_modules import BaseModel, LayerNorm, TransformerBlock
+from utils.common import custom_dataclass
 
-
-@dataclass
+@custom_dataclass
 class ModelConfig:
     context_size: int
     n_embed: int

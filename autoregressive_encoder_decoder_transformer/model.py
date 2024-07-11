@@ -1,124 +1,52 @@
 import math
-from dataclasses import dataclass
-from enum import Enum
-from typing import Optional, Union
+from typing import Optional
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
+from utils.common import IntMappedEnum, custom_dataclass
 from utils.transformer_modules import (BaseModel, FeedForward, LayerNorm,
                                        MultiAttentionHead, TransformerBlock)
 
 
-class OrderType(str, Enum):
+class OrderType(IntMappedEnum):
     ORIGINAL = "ORIGINAL"
     ALT = "ALT"
 
-    def __str__(self):
-        return self.value
 
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return OrderType.ORIGINAL
-        elif num == 2:
-            return OrderType.ALT
-        else:
-            raise ValueError("Invalid order type number")
-
-
-class SubPosEmbedType(str, Enum):
+class SubPosEmbedType(IntMappedEnum):
     NO = "NO"
     YES_NO_LN = "YES_NO_LN"
     YES_LN = "YES_LN"
 
-    def __str__(self):
-        return self.value
 
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return SubPosEmbedType.NO
-        elif num == 2:
-            return SubPosEmbedType.YES_NO_LN
-        elif num == 3:
-            return SubPosEmbedType.YES_LN
-        else:
-            raise ValueError("Invalid sub pos embed type number")
-
-
-class EmbeddingLossType(str, Enum):
+class EmbeddingLossType(IntMappedEnum):
     NONE = "NONE"
     MSE = "MSE"
     COSINE = "COSINE"
     LOG_COSINE = "LOG_COSINE"
 
-    def __str__(self):
-        return self.value
 
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return EmbeddingLossType.NONE
-        elif num == 2:
-            return EmbeddingLossType.MSE
-        elif num == 3:
-            return EmbeddingLossType.COSINE
-        elif num == 4:
-            return EmbeddingLossType.LOG_COSINE
-        else:
-            raise ValueError("Invalid embedding loss type number")
-
-
-class DetachType(str, Enum):
+class DetachType(IntMappedEnum):
     NONE = "NONE"
     EMBEDDING = "EMBEDDING"
     ENCODER_OUT = "ENCODER_OUT"
 
-    def __str__(self):
-        return self.value
 
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return DetachType.NONE
-        elif num == 2:
-            return DetachType.EMBEDDING
-        elif num == 3:
-            return DetachType.ENCODER_OUT
-        else:
-            raise ValueError("Invalid detach type number")
-
-
-class EmbeddingLayerNormType(str, Enum):
+class EmbeddingLayerNormType(IntMappedEnum):
     NONE = "NONE"
     INIT = "INIT"
     AVG_CUM_SUM = "AVG_CUM_SUM"
 
-    def __str__(self):
-        return self.value
-
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return EmbeddingLayerNormType.NONE
-        elif num == 2:
-            return EmbeddingLayerNormType.INIT
-        elif num == 3:
-            return EmbeddingLayerNormType.AVG_CUM_SUM
-        else:
-            raise ValueError("Invalid embedding layer norm type number")
-
-
-@dataclass
+@custom_dataclass
 class CrossAttentionConfig:
     use_bias: bool
     n_head: int
 
 
-@dataclass
+@custom_dataclass
 class ModelConfig(BaseModelConfig):
     """The default field values are the suggested ones for the best performance.
     Fine-tuning embedding_loss_coeff may improve performance.
@@ -151,35 +79,18 @@ class ModelConfig(BaseModelConfig):
 
     cross_attn_config: CrossAttentionConfig = None
     add_pos_embed_to_decoder: bool = False
-    sub_pos_embed_to_decoder: Union[SubPosEmbedType, int] = SubPosEmbedType.YES_NO_LN
+    sub_pos_embed_to_decoder: SubPosEmbedType = SubPosEmbedType.YES_NO_LN
     use_ln_on_encoder_out: Optional[bool] = True
     add_ln_before_decoder_ff: bool = False
-    order_type: Union[OrderType, int] = OrderType.ORIGINAL
-    embedding_loss_type: Union[EmbeddingLossType, int] = EmbeddingLossType.MSE
-    detach_type: Optional[Union[DetachType, int]] = DetachType.ENCODER_OUT
+    order_type: OrderType = OrderType.ORIGINAL
+    embedding_loss_type: EmbeddingLossType = EmbeddingLossType.MSE
+    detach_type: Optional[DetachType] = DetachType.ENCODER_OUT
     embedding_loss_coeff: Optional[float] = 1
-    embedding_ln_type: Optional[Union[EmbeddingLayerNormType, int]] = (
+    embedding_ln_type: Optional[EmbeddingLayerNormType] = (
         EmbeddingLayerNormType.INIT
     )
 
     def __post_init__(self):
-        if type(self.order_type) == int:
-            self.order_type = OrderType.get_type_from_int(self.order_type)
-        if type(self.embedding_loss_type) == int:
-            self.embedding_loss_type = EmbeddingLossType.get_type_from_int(
-                self.embedding_loss_type
-            )
-        if type(self.detach_type) == int:
-            self.detach_type = DetachType.get_type_from_int(self.detach_type)
-        if type(self.embedding_ln_type) == int:
-            self.embedding_ln_type = EmbeddingLayerNormType.get_type_from_int(
-                self.embedding_ln_type
-            )
-        if type(self.sub_pos_embed_to_decoder) == int:
-            self.sub_pos_embed_to_decoder = SubPosEmbedType.get_type_from_int(
-                self.sub_pos_embed_to_decoder
-            )
-
         if self.embedding_loss_type != EmbeddingLossType.NONE:
             if self.embedding_loss_coeff is None:
                 self.embedding_loss_coeff = 1.0
