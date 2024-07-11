@@ -1,4 +1,5 @@
 import math
+from dataclasses import field
 from typing import Optional
 
 import numpy as np
@@ -6,7 +7,6 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from dataclasses import field
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.common import IntMappedEnum, custom_dataclass
 from utils.transformer_modules import (BaseModel, LayerNorm,
@@ -77,7 +77,9 @@ class AttentionDropoutConfig:
 
 @custom_dataclass
 class ModelConfig(BaseModelConfig):
-    attention_dropout_config: AttentionDropoutConfig = field(default_factory=AttentionDropoutConfig)
+    attention_dropout_config: AttentionDropoutConfig = field(
+        default_factory=AttentionDropoutConfig
+    )
     use_dropout_entropy_in_loss: bool = False
     use_dropout_l1_norm_in_loss: bool = True
     start_layer: Optional[int] = None
