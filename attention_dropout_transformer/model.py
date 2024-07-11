@@ -1,7 +1,5 @@
 import math
-from dataclasses import dataclass
-from enum import Enum
-from typing import Optional, Union
+from typing import Optional
 
 import numpy as np
 import torch
@@ -9,10 +7,12 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
-from utils.transformer_modules import BaseModel, LayerNorm, SubModuleStats
+from utils.common import IntMappedEnum, custom_dataclass
+from utils.transformer_modules import (BaseModel, LayerNorm,
+                                       MultiAttentionHead, SubModuleStats)
 
 
-@dataclass
+@custom_dataclass
 class RegularizingLambdaConfig:
     min_lambda: float = None
     max_lambda: float = 1.0
@@ -30,70 +30,34 @@ class RegularizingLambdaConfig:
             assert self.exp_coefficient < 1
 
 
-class RoundingType(str, Enum):
+class RoundingType(IntMappedEnum):
     SIGMOID = "SIGMOID"
     SIGMOID_DETACH = "SIGMOID_DETACH"
     NOISE_AND_LINEAR = "NOISE_AND_LINEAR"
 
-    def __str__(self):
-        return self.value
 
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return RoundingType.SIGMOID
-        elif num == 2:
-            return RoundingType.SIGMOID_DETACH
-        elif num == 3:
-            return RoundingType.NOISE_AND_LINEAR
-        else:
-            raise ValueError("Invalid rounding type number")
-
-
-class MaskInputType(str, Enum):
+class MaskInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
     HIDDEN_STATE_W_LN = "HIDDEN_STATE_W_LN"
     EMBED = "EMBED"
     EMBED_PLUS_HIDDEN = "EMBED_PLUS_HIDDEN"
 
-    def __str__(self):
-        return self.value
 
-    @classmethod
-    def get_type_from_int(cls, num):
-        if num == 1:
-            return MaskInputType.HIDDEN_STATE
-        elif num == 2:
-            return MaskInputType.HIDDEN_STATE_W_LN
-        elif num == 3:
-            return MaskInputType.EMBED
-        elif num == 4:
-            return MaskInputType.EMBED_PLUS_HIDDEN
-        else:
-            raise ValueError("Invalid rounding type number")
-
-
-@dataclass
+@custom_dataclass
 class AttentionDropoutConfig:
     use_bias: bool
     n_head: int
     softmax_dim: int = 1
-    rounding_type: Optional[Union[RoundingType, int]] = RoundingType.NOISE_AND_LINEAR
+    rounding_type: Optional[RoundingType] = RoundingType.NOISE_AND_LINEAR
     sigmoid_scale: Optional[float] = None
     shift_init: float = 0
     use_canonical_entropy: bool = False
     use_detached_x_in_dropout_mask: bool = False
-    mask_input_type: Union[MaskInputType, int] = MaskInputType.EMBED
+    mask_input_type: MaskInputType = MaskInputType.EMBED
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
         assert self.softmax_dim in [0, 1]
-
-        if type(self.rounding_type) == int:
-            self.rounding_type = RoundingType.get_type_from_int(self.rounding_type)
-
-        if type(self.mask_input_type) == int:
-            self.mask_input_type = MaskInputType.get_type_from_int(self.mask_input_type)
 
         if (
             self.rounding_type
@@ -111,7 +75,7 @@ class AttentionDropoutConfig:
             self.sigmoid_scale = 60
 
 
-@dataclass
+@custom_dataclass
 class ModelConfig(BaseModelConfig):
     use_dropout_entropy_in_loss: bool
     use_dropout_l1_norm_in_loss: bool
