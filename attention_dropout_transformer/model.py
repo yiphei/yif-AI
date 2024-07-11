@@ -358,7 +358,9 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x, embed, saved_dropout_values):
         x = x + self.multi_attn_head(self.ln1(x))
-        new_x, saved_dropout_values = self.feed_forward(self.ln2(x), embed, saved_dropout_values)
+        new_x, saved_dropout_values = self.feed_forward(
+            self.ln2(x), embed, saved_dropout_values
+        )
         x = x + new_x
         return x, saved_dropout_values
 
