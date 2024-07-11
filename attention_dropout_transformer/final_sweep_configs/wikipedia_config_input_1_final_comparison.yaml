@@ -34,6 +34,8 @@ parameters:
                         value: 0.1
             attention_dropout_config:
                 parameters:
+                    include_shift_in_saved:
+                        values: [True, False]
                     softmax_dim:
                         value: 1
                     use_bias:
