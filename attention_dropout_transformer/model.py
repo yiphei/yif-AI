@@ -45,7 +45,7 @@ class MaskInputType(IntMappedEnum):
 
 @custom_dataclass
 class AttentionDropoutConfig:
-    include_shift_in_saved = False
+    include_shift_in_saved: bool = False
     use_bias: Optional[bool] = None
     n_head: Optional[int] = None
     softmax_dim: int = 1
