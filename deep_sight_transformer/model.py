@@ -103,8 +103,6 @@ class ModelConfig(BaseModelConfig):
             assert self.future_context_size is None
             assert self.present_future_context_aggregation_type is None
 
-        if type(self.cross_attn_config) == dict:
-            self.cross_attn_config = CrossAttentionConfig(**self.cross_attn_config)
         if self.cross_attn_config is None:
             self.cross_attn_config = CrossAttentionConfig(
                 use_bias=self.use_bias, n_head=self.n_head * 2
