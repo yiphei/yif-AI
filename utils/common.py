@@ -1,6 +1,6 @@
 import random
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum, EnumMeta
 from typing import get_args, get_origin, get_type_hints
 
@@ -60,6 +60,10 @@ def custom_dataclass(_cls=None, **kwargs):
                         setattr(self, field.name, actual_type.from_int(value))
                     elif isinstance(value, str):
                         setattr(self, field.name, actual_type(value))
+                elif is_dataclass(actual_type):
+                    value = getattr(self, field.name)
+                    if isinstance(value, dict):
+                        setattr(self, field.name, actual_type(**value))
 
             if sub_post_init:
                 sub_post_init(self)
