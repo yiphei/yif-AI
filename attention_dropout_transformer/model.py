@@ -185,7 +185,7 @@ class AttentionDropout(SubModuleStats):
 
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
 
-    def update_stats(self, dropout_mask):
+    def update_stats(self, dropout_mask, prev_saved_dropout_values):
         self.dropout_entropy = self.entropy_fn(dropout_mask)
         self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / dropout_mask.numel()
 
@@ -223,7 +223,7 @@ class AttentionDropout(SubModuleStats):
         # and low l1 norm because there is more curvature towards 0.
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
-    def forward(self, x, embed):
+    def forward(self, x, embed, prev_saved_dropout_values):
         if self.config.mask_input_type in [
             MaskInputType.HIDDEN_STATE,
             MaskInputType.HIDDEN_STATE_W_LN,
@@ -259,6 +259,10 @@ class AttentionDropout(SubModuleStats):
             dropout_values = causal_attn @ v
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
+
+        dropout_values = dropout_values + prev_saved_dropout_values
+        saved_dropout_values = dropout_values
+
         dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
 
         if self.training:
@@ -296,7 +300,7 @@ class AttentionDropout(SubModuleStats):
                 )
 
         new_x = x * dropout_mask
-        return new_x
+        return new_x, saved_dropout_values
 
 
 class FeedForward(nn.Module):
@@ -324,14 +328,13 @@ class FeedForward(nn.Module):
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
+        self.saved_dropout_values = None
+
     def forward(self, x, embed):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        if isinstance(self.dropout, AttentionDropout):
-            x = self.dropout(x, embed)
-        else:
-            x = self.dropout(x)
+        x, self.saved_dropout_values = self.dropout(x, embed, self.saved_dropout_values)
         return x
 
 
