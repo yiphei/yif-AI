@@ -6,8 +6,9 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from utils.transformer_modules import BaseModel, LayerNorm, TransformerBlock
 from utils.common import custom_dataclass
+from utils.transformer_modules import BaseModel, LayerNorm, TransformerBlock
+
 
 @custom_dataclass
 class ModelConfig:

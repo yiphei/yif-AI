@@ -40,6 +40,7 @@ class EmbeddingLayerNormType(IntMappedEnum):
     INIT = "INIT"
     AVG_CUM_SUM = "AVG_CUM_SUM"
 
+
 @custom_dataclass
 class CrossAttentionConfig:
     use_bias: bool
@@ -86,9 +87,7 @@ class ModelConfig(BaseModelConfig):
     embedding_loss_type: EmbeddingLossType = EmbeddingLossType.MSE
     detach_type: Optional[DetachType] = DetachType.ENCODER_OUT
     embedding_loss_coeff: Optional[float] = 1
-    embedding_ln_type: Optional[EmbeddingLayerNormType] = (
-        EmbeddingLayerNormType.INIT
-    )
+    embedding_ln_type: Optional[EmbeddingLayerNormType] = EmbeddingLayerNormType.INIT
 
     def __post_init__(self):
         if self.embedding_loss_type != EmbeddingLossType.NONE:
