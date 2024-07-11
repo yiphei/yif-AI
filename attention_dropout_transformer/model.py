@@ -185,7 +185,7 @@ class AttentionDropout(SubModuleStats):
 
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
 
-    def update_stats(self, dropout_mask, prev_saved_dropout_values):
+    def update_stats(self, dropout_mask):
         self.dropout_entropy = self.entropy_fn(dropout_mask)
         self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / dropout_mask.numel()
 
@@ -260,7 +260,8 @@ class AttentionDropout(SubModuleStats):
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
 
-        dropout_values = dropout_values + prev_saved_dropout_values
+        if prev_saved_dropout_values is not None:
+            dropout_values = dropout_values + prev_saved_dropout_values
         saved_dropout_values = dropout_values
 
         dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
@@ -328,14 +329,12 @@ class FeedForward(nn.Module):
         else:
             self.dropout = nn.Dropout(config.dropout_rate)
 
-        self.saved_dropout_values = None
-
-    def forward(self, x, embed):
+    def forward(self, x, embed, saved_dropout_values):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        x, self.saved_dropout_values = self.dropout(x, embed, self.saved_dropout_values)
-        return x
+        x, saved_dropout_values = self.dropout(x, embed, saved_dropout_values)
+        return x, saved_dropout_values
 
 
 class TransformerBlock(nn.Module):
@@ -357,10 +356,11 @@ class TransformerBlock(nn.Module):
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, x, embed):
+    def forward(self, x, embed, saved_dropout_values):
         x = x + self.multi_attn_head(self.ln1(x))
-        x = x + self.feed_forward(self.ln2(x), embed)
-        return x
+        new_x, saved_dropout_values = self.feed_forward(self.ln2(x), embed, saved_dropout_values)
+        x = x + new_x
+        return x, saved_dropout_values
 
 
 class AttentionDropoutTransformer(BaseModel):
@@ -430,8 +430,9 @@ class AttentionDropoutTransformer(BaseModel):
         embed = token_embed + pos_embed
         embed = self.dropout(embed)
         x = embed
+        saved_dropout_values = None
         for transformer_block in self.transformer_blocks:
-            x = transformer_block(x, embed)
+            x, saved_dropout_values = transformer_block(x, embed, saved_dropout_values)
         out = self.ln(x)
 
         if targets is None:
