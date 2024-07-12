@@ -45,6 +45,7 @@ class MaskInputType(IntMappedEnum):
 
 @custom_dataclass
 class AttentionDropoutConfig:
+    use_all_dropout: bool = False
     use_bias: Optional[bool] = None
     n_head: Optional[int] = None
     softmax_dim: int = 1
@@ -354,18 +355,22 @@ class MultiAttentionHead(nn.Module):
         self.head_size = dim_in // n_head
         self.n_head = n_head
         self.dropout_rate = dropout_rate
+        self.use_all_dropout = config.attention_dropout_config.use_all_dropout
 
         self.batch_attn_weights = nn.Linear(self.dim_in, self.dim_in * 3, bias=use_bias)
         self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=use_bias)
 
         self.dropout_1 = nn.Dropout(dropout_rate)
-        self.dropout_2 = AttentionDropout(
-            config.n_embed,
-            config.context_size,
-            config.attention_dropout_config,
-            config.use_dropout_entropy_in_loss,
-            config.use_dropout_l1_norm_in_loss,
-        )
+        if self.use_all_dropout:
+            self.dropout_2 = AttentionDropout(
+                config.n_embed,
+                config.context_size,
+                config.attention_dropout_config,
+                config.use_dropout_entropy_in_loss,
+                config.use_dropout_l1_norm_in_loss,
+            )
+        else:
+            self.dropout_2 = nn.Dropout(dropout_rate)
 
         self.using_flash = False
         if not hasattr(F, "scaled_dot_product_attention") or not use_flash:
@@ -406,7 +411,10 @@ class MultiAttentionHead(nn.Module):
             new_x.transpose(1, 2).contiguous().view(B, T, C)
         )  # B,H,T,S -> B,T,H,S -> B,T,C
         new_x = self.residual_proj(new_x)
-        new_x = self.dropout_2(new_x, embed)
+        if self.use_all_dropout:
+            new_x = self.dropout_2(new_x, embed)
+        else:
+            new_x = self.dropout_2(new_x)
         return new_x
 
 
