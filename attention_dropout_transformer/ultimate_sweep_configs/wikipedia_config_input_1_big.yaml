@@ -17,7 +17,7 @@ parameters:
             n_layer: 
                 value: 26
             n_head: 
-                value: 9
+                value: 10
             dropout_rate:
                 value: 0
             start_layer:
@@ -41,7 +41,7 @@ parameters:
                     use_bias:
                         value: False
                     n_head:
-                        value: 9
+                        value: 10
                     rounding_type:
                         value: 3
                     shift_init:
