@@ -138,7 +138,7 @@ class AttentionDropout(SubModuleStats):
         "dropout_near_one_percent",
         "dropout_near_zero_percent",
         "dropout_change_rate_from_prev",
-        "active_dropout_percent",
+        # "active_dropout_percent",
     ]
 
     def __init__(
@@ -550,28 +550,29 @@ class AttentionDropoutTransformer(BaseModel):
         return (logits, loss)
 
     def estimate_mfu(self, fwdbwd_per_iter, dt):
-        N = self.get_num_params(True)
-        L, H, Q, T = (
-            self.config.n_layer,
-            self.config.n_head,
-            self.config.n_embed // self.config.n_head,
-            self.config.context_size,
-        )
-        flops_per_token = 6 * N + 12 * L * H * Q * T
+        # N = self.get_num_params(True)
+        # L, H, Q, T = (
+        #     self.config.n_layer,
+        #     self.config.n_head,
+        #     self.config.n_embed // self.config.n_head,
+        #     self.config.context_size,
+        # )
+        # flops_per_token = 6 * N + 12 * L * H * Q * T
 
-        # this is contributed by the attention dropout
-        flops_per_token += (
-            (self.running_active_dropout_percent)
-            * 12
-            * self.config.n_embed
-            * self.config.context_size
-            * (self.config.end_layer - self.config.start_layer + 1)
-        )
+        # # this is contributed by the attention dropout
+        # flops_per_token += (
+        #     (self.running_active_dropout_percent)
+        #     * 12
+        #     * self.config.n_embed
+        #     * self.config.context_size
+        #     * (self.config.end_layer - self.config.start_layer + 1)
+        # )
 
-        flops_per_fwdbwd = flops_per_token * T
-        flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
-        flops_achieved = flops_per_iter * (1.0 / dt)  # per second
-        return flops_achieved
+        # flops_per_fwdbwd = flops_per_token * T
+        # flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
+        # flops_achieved = flops_per_iter * (1.0 / dt)  # per second
+        # return flops_achieved
+        return None
 
     def dump_extra_stats(self):
         extra_stats = super().dump_extra_stats()
