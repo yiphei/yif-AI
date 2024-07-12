@@ -203,9 +203,9 @@ class AttentionDropout(SubModuleStats):
             self.dropout_near_zero_percent = (
                 dropout_mask < 0.1
             ).sum() / dropout_mask.numel()
-            self.active_dropout_percent = (
-                dropout_mask > 0.05
-            ).sum() / dropout_mask.numel()
+            # self.active_dropout_percent = (
+            #     dropout_mask > 0.05
+            # ).sum() / dropout_mask.numel()
 
             if self.prev_dropout_mask.nelement() != 0:
                 matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
