@@ -35,6 +35,7 @@ class RoundingType(IntMappedEnum):
     SIGMOID_DETACH = "SIGMOID_DETACH"
     NOISE_AND_LINEAR = "NOISE_AND_LINEAR"
 
+
 class MaskInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
     HIDDEN_STATE_W_LN = "HIDDEN_STATE_W_LN"
@@ -45,6 +46,7 @@ class MaskInputType(IntMappedEnum):
 class L1NormLossType(IntMappedEnum):
     LINEAR = "LINEAR"
     SQUARED = "SQUARED"
+
 
 @custom_dataclass
 class AttentionDropoutConfig:
@@ -203,7 +205,7 @@ class AttentionDropout(SubModuleStats):
         if l1_loss_type == L1NormLossType.LINEAR:
             return lambda x: torch.norm(x, p=1)
         elif l1_loss_type == L1NormLossType.SQUARED:
-            return lambda x: torch.norm((x ** 2)/2, p=1)
+            return lambda x: torch.norm((x**2) / 2, p=1)
         else:
             raise ValueError(f"Unknown l1_loss_type: {l1_loss_type}")
 
@@ -401,7 +403,7 @@ class MultiAttentionHead(nn.Module):
                 config.attention_dropout_config,
                 config.use_dropout_entropy_in_loss,
                 config.use_dropout_l1_norm_in_loss,
-                config.l1_norm_loss_type
+                config.l1_norm_loss_type,
             )
         else:
             self.dropout_2 = nn.Dropout(dropout_rate)
