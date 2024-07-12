@@ -138,6 +138,7 @@ class AttentionDropout(SubModuleStats):
         "dropout_near_one_percent",
         "dropout_near_zero_percent",
         "dropout_change_rate_from_prev",
+        "rounded_dropout_l1_norm",
         # "active_dropout_percent",
     ]
 
@@ -214,6 +215,12 @@ class AttentionDropout(SubModuleStats):
                     1 - (matching_0s.sum() + matching_1s.sum()) / dropout_mask.numel()
                 )
             self.prev_dropout_mask = dropout_mask.clone()
+
+    def update_rounded_stats(self, rounded_dropout_mask):
+        self.rounded_dropout_l1_norm = torch.norm(rounded_dropout_mask, p=1) / rounded_dropout_mask.numel()
+
+        if not self.use_dropout_l1_norm_in_loss:
+            self.rounded_dropout_l1_norm = self.rounded_dropout_l1_norm.detach()
 
     def canonical_entropy(self, dropout_mask):
         # the small constant is for numerical stability
@@ -304,6 +311,9 @@ class AttentionDropout(SubModuleStats):
                     dtype=torch.float16
                 )
                 dropout_mask = dropout_mask.to(dtype=torch.float32)
+        
+        if self.training:
+            self.update_rounded_stats(dropout_mask)
 
         new_x = x * dropout_mask
         return new_x
