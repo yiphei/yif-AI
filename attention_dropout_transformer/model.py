@@ -290,7 +290,6 @@ class AttentionDropout(SubModuleStats):
                 complement_mask = 1 - dropout_mask.detach()
                 if self.training:
                     noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
-
                     scaling = torch.where(
                         noise >= complement_mask, complement_mask, complement_mask - 1
                     )
