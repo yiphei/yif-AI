@@ -35,13 +35,16 @@ class RoundingType(IntMappedEnum):
     SIGMOID_DETACH = "SIGMOID_DETACH"
     NOISE_AND_LINEAR = "NOISE_AND_LINEAR"
 
-
 class MaskInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
     HIDDEN_STATE_W_LN = "HIDDEN_STATE_W_LN"
     EMBED = "EMBED"
     EMBED_PLUS_HIDDEN = "EMBED_PLUS_HIDDEN"
 
+
+class L1NormLossType(IntMappedEnum):
+    LINEAR = "LINEAR"
+    SQUARED = "SQUARED"
 
 @custom_dataclass
 class AttentionDropoutConfig:
@@ -83,6 +86,7 @@ class ModelConfig(BaseModelConfig):
     )
     use_dropout_entropy_in_loss: bool = False
     use_dropout_l1_norm_in_loss: bool = True
+    l1_norm_loss_type: Optional[L1NormLossType] = L1NormLossType.LINEAR
     start_layer: Optional[int] = None
     end_layer: Optional[int] = None
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
@@ -105,6 +109,11 @@ class ModelConfig(BaseModelConfig):
             raise ValueError("start_layer must be <= n_layer and >= 1")
         if self.end_layer > self.n_layer or self.end_layer < 1:
             raise ValueError("end_layer must be <= n_layer and >= 1")
+
+        if not self.use_dropout_l1_norm_in_loss and self.l1_norm_loss_type is not None:
+            raise ValueError(
+                "l1_loss_type is set but use_dropout_l1_norm_in_loss is False"
+            )
 
         if (
             not self.use_dropout_entropy_in_loss
@@ -149,6 +158,7 @@ class AttentionDropout(SubModuleStats):
         config,
         use_dropout_entropy_in_loss,
         use_dropout_l1_norm_in_loss,
+        l1_norm_loss_type,
     ):
         super().__init__()
         assert embed_dim % config.n_head == 0
@@ -177,6 +187,7 @@ class AttentionDropout(SubModuleStats):
             if config.use_canonical_entropy
             else self.alternate_entropy
         )
+        self.l1_norm_fn = self.get_l1_loss_fn(l1_norm_loss_type)
         self.register_buffer(
             "tril",
             torch.tril(
@@ -188,9 +199,17 @@ class AttentionDropout(SubModuleStats):
 
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
 
+    def get_l1_loss_fn(self, l1_loss_type):
+        if l1_loss_type == L1NormLossType.LINEAR:
+            return lambda x: torch.norm(x, p=1)
+        elif l1_loss_type == L1NormLossType.SQUARED:
+            return lambda x: torch.norm((x ** 2)/2, p=1)
+        else:
+            raise ValueError(f"Unknown l1_loss_type: {l1_loss_type}")
+
     def update_stats(self, dropout_mask):
         self.dropout_entropy = self.entropy_fn(dropout_mask)
-        self.dropout_l1_norm = torch.norm(dropout_mask, p=1) / dropout_mask.numel()
+        self.dropout_l1_norm = self.l1_norm_fn(dropout_mask) / dropout_mask.numel()
 
         if not self.use_dropout_entropy_in_loss:
             self.dropout_entropy = self.dropout_entropy.detach()
@@ -341,6 +360,7 @@ class FeedForward(nn.Module):
             config.attention_dropout_config,
             config.use_dropout_entropy_in_loss,
             config.use_dropout_l1_norm_in_loss,
+            config.l1_norm_loss_type,
         )
 
     def forward(self, x, embed):
@@ -381,6 +401,7 @@ class MultiAttentionHead(nn.Module):
                 config.attention_dropout_config,
                 config.use_dropout_entropy_in_loss,
                 config.use_dropout_l1_norm_in_loss,
+                config.l1_norm_loss_type
             )
         else:
             self.dropout_2 = nn.Dropout(dropout_rate)
