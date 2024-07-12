@@ -298,9 +298,12 @@ class AttentionDropout(SubModuleStats):
                         dropout_mask >= 0.5, complement_mask, complement_mask - 1
                     )
 
+                # scaling + dropout_mask should produce either 0s or 1s, but because of
+                # precision, it may not. Reducing the precision helps.
                 dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
                     dtype=torch.float16
                 )
+                dropout_mask = dropout_mask.to(dtype=torch.float32)
 
         new_x = x * dropout_mask
         return new_x
