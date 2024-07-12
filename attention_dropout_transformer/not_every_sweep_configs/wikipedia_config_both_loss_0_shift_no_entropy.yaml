@@ -1,6 +1,6 @@
 program: attention_dropout_transformer/training_script.py
-name: wikipedia_config
-project: attention_dropout_transformer_v1
+name: wikipedia_config_both_loss_0_shift_no_entropy
+project: final_attention_dropout_transformer
 method: grid
 metric:
   goal: minimize
@@ -25,9 +25,13 @@ parameters:
             end_layer:
                 value: 26
             use_dropout_entropy_in_loss:
-                value: True
-            use_dropout_l1_norm_in_loss:
                 value: False
+            use_dropout_l1_norm_in_loss:
+                value: True
+            dropout_l1_norm_lambda:
+                parameters:
+                    max_lambda:
+                        value: 1
             attention_dropout_config:
                 parameters:
                     softmax_dim:
@@ -37,13 +41,15 @@ parameters:
                     n_head:
                         value: 9
                     rounding_type:
-                        values: [null, 1, 2, 3]
+                        values: [2, 4]
                     shift_init:
-                        values: [0,1.57079632,3.14159265]
+                        value: 0
                     use_canonical_entropy:
                         value: False
                     use_detached_x_in_dropout_mask:
                         values: [True, False]
+                    mask_input_type:
+                        value: 3
     batch_size: 
         value: 50
     train_steps: 

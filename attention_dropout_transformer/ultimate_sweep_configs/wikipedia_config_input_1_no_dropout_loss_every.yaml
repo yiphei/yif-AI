@@ -1,0 +1,68 @@
+program: attention_dropout_transformer/training_script.py
+name: wikipedia_config_input_1_no_dropout_loss_every
+project: ultimate_attention_dropout_transformer
+method: grid
+metric:
+  goal: minimize
+  name: est_val_loss
+parameters:
+    model_config:
+        parameters:
+            use_bias:
+                value: False
+            context_size:
+                value: 200
+            n_embed: 
+                value: 135
+            n_layer: 
+                value: 26
+            n_head: 
+                value: 9
+            dropout_rate:
+                value: 0
+            start_layer:
+                value: 1
+            end_layer:
+                value: 26
+            use_dropout_entropy_in_loss:
+                value: False
+            use_dropout_l1_norm_in_loss:
+                value: False
+            attention_dropout_config:
+                parameters:
+                    use_all_dropout:
+                        value: True
+                    softmax_dim:
+                        value: 1
+                    use_bias:
+                        value: False
+                    n_head:
+                        value: 9
+                    rounding_type:
+                        value: 3
+                    shift_init:
+                        value: 0
+                    use_canonical_entropy:
+                        value: False
+                    use_detached_x_in_dropout_mask:
+                        value: False
+                    mask_input_type:
+                        value: 1
+    batch_size: 
+        value: 50
+    train_steps: 
+        value: 26000
+    lr: 
+        value: 9e-4
+    warmup_iters:
+        value: 300
+    min_lr: 
+        value: 9e-5
+    gradient_accumulation_steps: 
+        value: 16
+    lr_decay_iters: 
+        value: 700000
+    est_interval: 
+        value: 500
+    est_steps: 
+        value: 200

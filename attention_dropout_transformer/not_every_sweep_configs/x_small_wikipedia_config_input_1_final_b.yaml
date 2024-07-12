@@ -1,6 +1,6 @@
 program: attention_dropout_transformer/training_script.py
-name: wikipedia_config_softmax_0
-project: attention_dropout_transformer
+name: x_small_wikipedia_config_input_1_final_b
+project: final_attention_dropout_transformer
 method: grid
 metric:
   goal: minimize
@@ -13,41 +13,47 @@ parameters:
             context_size:
                 value: 200
             n_embed: 
-                value: 200
+                value: 144
             n_layer: 
-                value: 10
+                value: 26
             n_head: 
-                value: 10
+                value: 9
             dropout_rate:
                 value: 0
             start_layer:
-                value: 6
+                value: 1
             end_layer:
-                value: 6
+                value: 26
             use_dropout_entropy_in_loss:
-                value: True
-            use_dropout_l1_norm_in_loss:
                 value: False
+            use_dropout_l1_norm_in_loss:
+                value: True
+            dropout_l1_norm_lambda:
+                parameters:
+                    max_lambda:
+                        value: 0.1
             attention_dropout_config:
                 parameters:
+                    softmax_dim:
+                        value: 1
                     use_bias:
                         value: False
-                    softmax_dim:
-                        value: 0
                     n_head:
-                        value: 10
+                        value: 9
                     rounding_type:
-                        values: [null, 1, 2, 3]
+                        value: 3
                     shift_init:
-                        values: [0,1.57079632,3.14159265]
+                        value: 3.14159265
                     use_canonical_entropy:
-                        value: True
+                        value: False
                     use_detached_x_in_dropout_mask:
-                        values: [True, False]
+                        value: False
+                    mask_input_type:
+                        value: 1
     batch_size: 
         value: 50
     train_steps: 
-        value: 9000
+        value: 18000
     lr: 
         value: 9e-4
     warmup_iters:
