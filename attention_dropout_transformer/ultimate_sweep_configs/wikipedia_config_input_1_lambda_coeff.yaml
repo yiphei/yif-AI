@@ -28,6 +28,8 @@ parameters:
                 value: False
             use_dropout_l1_norm_in_loss:
                 value: True
+            l1_norm_loss_type:
+                value: 2
             dropout_l1_norm_lambda:
                 parameters:
                     max_lambda:
