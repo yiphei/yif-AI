@@ -238,12 +238,10 @@ class AttentionDropout(SubModuleStats):
             self.prev_dropout_mask = dropout_mask.clone()
 
     def update_rounded_stats(self, rounded_dropout_mask):
-        self.rounded_dropout_l1_norm = (
-            torch.norm(rounded_dropout_mask, p=1) / rounded_dropout_mask.numel()
-        )
-
-        if not self.use_dropout_l1_norm_in_loss:
-            self.rounded_dropout_l1_norm = self.rounded_dropout_l1_norm.detach()
+        with torch.no_grad():
+            self.rounded_dropout_l1_norm = (
+                torch.norm(rounded_dropout_mask, p=1) / rounded_dropout_mask.numel()
+            )
 
     def canonical_entropy(self, dropout_mask):
         # the small constant is for numerical stability
