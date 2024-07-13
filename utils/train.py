@@ -140,21 +140,14 @@ class TrainConfig:
 DEFAULT_BUCKET = "dropout-transformer"
 
 
-def get_data_batch_loader(data_iter, data_loader, data_sampler, iter_num, device):
-    new_data_iter = None
-    try:
-        x, y = next(data_iter)
-    except StopIteration:
-        if data_sampler is not None:
-            data_sampler.set_epoch(iter_num)
-        new_data_iter = iter(data_loader)
-        x, y = next(new_data_iter)
+def get_data_batch_loader(data_iter, data_loader, device):
+    x, y = next(data_iter)
 
     if data_loader.pin_memory is True:
         x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
     else:
         x, y = x.to(device), y.to(device)
-    return x, y, new_data_iter
+    return x, y
 
 
 def get_torch_save_dict(raw_model, optimizer, train_config, iter_num, best_val_loss):
@@ -178,25 +171,19 @@ def estimate_loss(
     ctx,
     train_data_batch_args,
     val_data_batch_args,
-    iter_num,
 ):
     mean_accuracy_losses = []
     mean_losses = []
     model.eval()
-    new_data_iters = []
     for args in [train_data_batch_args, val_data_batch_args]:
-        original_data_iter = args[0]
         data_iter = args[0]
         data_loader = args[1]
-        data_sampler = args[2]
         accuracy_losses = torch.zeros(est_steps, device=device)
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
-            xb, yb, new_data_iter = get_data_batch_loader(
-                data_iter, data_loader, data_sampler, iter_num, device
+            xb, yb = get_data_batch_loader(
+                data_iter, data_loader, device
             )
-            if new_data_iter is not None:
-                data_iter = new_data_iter
 
             with ctx(i, False, False):
                 logits, loss = model(xb, yb)
@@ -205,11 +192,10 @@ def estimate_loss(
 
             accuracy_losses[i] = raw_model.get_accuracy_loss(logits, yb)
 
-        new_data_iters.append(data_iter if original_data_iter != data_iter else None)
         mean_accuracy_losses.append(accuracy_losses.mean().item())
         mean_losses.append(losses.mean().item())
     model.train()
-    return (mean_accuracy_losses, mean_losses, new_data_iters)
+    return (mean_accuracy_losses, mean_losses)
 
 
 def save_model_artifact(filenames, model_dict, dir_path, s3_client):
@@ -522,11 +508,9 @@ def _train(
 
     raw_model = model.module if using_DDP else model
     model.train()
-    X, Y, _ = get_data_batch_loader(
+    X, Y = get_data_batch_loader(
         curr_train_iter,
         train_data_loader,
-        train_sampler,
-        -1,
         DEVICE,
     )
     if is_master_process and args.profile and args.profile_model:
@@ -545,21 +529,15 @@ def _train(
             (
                 (train_accuracy_loss, val_accuracy_loss),
                 (train_loss, val_loss),
-                (new_train_iter, new_val_iter),
             ) = estimate_loss(
                 model,
                 raw_model,
                 TRAIN_CONFIG.est_steps,
                 DEVICE,
                 ctx,
-                (curr_train_iter, train_data_loader, train_sampler),
-                (curr_val_iter, val_data_loader, val_sampler),
-                iter_num,
+                (curr_train_iter, train_data_loader),
+                (curr_val_iter, val_data_loader),
             )
-            if new_train_iter is not None:
-                curr_train_iter = new_train_iter
-            if new_val_iter is not None:
-                curr_val_iter = new_val_iter
 
             should_save_best_val_loss_checkpoint = False
             if best_val_loss is None or val_loss <= best_val_loss:
@@ -617,15 +595,11 @@ def _train(
                 running_loss += loss.item()
 
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
-            X, Y, new_train_iter = get_data_batch_loader(
+            X, Y = get_data_batch_loader(
                 curr_train_iter,
                 train_data_loader,
-                train_sampler,
-                -1,
                 DEVICE,
             )
-            if new_train_iter is not None:
-                curr_train_iter = new_train_iter
             # backward pass, with gradient scaling if training in fp16
             scaler.scale(loss).backward()
 
