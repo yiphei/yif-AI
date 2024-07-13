@@ -181,9 +181,7 @@ def estimate_loss(
         accuracy_losses = torch.zeros(est_steps, device=device)
         losses = torch.zeros(est_steps, device=device)
         for i in range(est_steps):
-            xb, yb = get_data_batch_loader(
-                data_iter, data_loader, device
-            )
+            xb, yb = get_data_batch_loader(data_iter, data_loader, device)
 
             with ctx(i, False, False):
                 logits, loss = model(xb, yb)
