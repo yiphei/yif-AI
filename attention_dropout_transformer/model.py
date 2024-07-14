@@ -225,13 +225,13 @@ class LearnedDropout(SubModuleStats):
                     self.config.sigmoid_scale * (dropout_mask - 0.5)
                 )
             elif self.config.mask_rounding_type == MaskRoundingType.SIGMOID_DETACH:
-                complement_dropout_mask = (
+                dropout_mask_scaling = (
                     torch.sigmoid(
                         self.config.sigmoid_scale * (dropout_mask.detach() - 0.5)
                     )
                     - dropout_mask.detach()
                 )
-                dropout_mask = dropout_mask + complement_dropout_mask
+                dropout_mask = dropout_mask + dropout_mask_scaling
             elif self.config.mask_rounding_type == MaskRoundingType.NOISE_AND_LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
                 if self.training:
