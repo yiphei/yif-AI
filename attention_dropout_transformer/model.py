@@ -360,14 +360,13 @@ class TransformerBlock(nn.Module):
             config.context_size,
             config.dropout_rate,
             True,
-            config,
         )
         self.feed_forward = FeedForward(config)
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, x, embed):
-        x = x + self.multi_attn_head(self.ln1(x), embed)
+        x = x + self.multi_attn_head(self.ln1(x))
         x = x + self.feed_forward(self.ln2(x), embed)
         return x
 
