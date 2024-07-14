@@ -9,7 +9,7 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.common import IntMappedEnum, custom_dataclass
-from utils.transformer_modules import BaseModel, LayerNorm, SubModuleStats
+from utils.transformer_modules import BaseModel, LayerNorm, SubModuleStats, MultiAttentionHead
 
 
 @custom_dataclass
@@ -38,10 +38,7 @@ class RoundingType(IntMappedEnum):
 
 class MaskInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
-    HIDDEN_STATE_W_LN = "HIDDEN_STATE_W_LN"
     EMBED = "EMBED"
-    EMBED_PLUS_HIDDEN = "EMBED_PLUS_HIDDEN"
-
 
 class L1NormLossType(IntMappedEnum):
     LINEAR = "LINEAR"
@@ -150,7 +147,6 @@ class AttentionDropout(SubModuleStats):
         "dropout_near_zero_percent",
         "dropout_change_rate_from_prev",
         "rounded_dropout_l1_norm",
-        # "active_dropout_percent",
     ]
 
     def __init__(
@@ -177,11 +173,7 @@ class AttentionDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        if self.config.mask_input_type in [
-            MaskInputType.HIDDEN_STATE_W_LN,
-            MaskInputType.EMBED,
-            MaskInputType.EMBED_PLUS_HIDDEN,
-        ]:
+        if self.config.mask_input_type == MaskInputType.EMBED:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         self.entropy_fn = (
@@ -225,9 +217,6 @@ class AttentionDropout(SubModuleStats):
             self.dropout_near_zero_percent = (
                 dropout_mask < 0.1
             ).sum() / dropout_mask.numel()
-            # self.active_dropout_percent = (
-            #     dropout_mask > 0.05
-            # ).sum() / dropout_mask.numel()
 
             if self.prev_dropout_mask.nelement() != 0:
                 matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
@@ -254,31 +243,17 @@ class AttentionDropout(SubModuleStats):
         return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
 
     def forward(self, x, embed):
-        if self.config.mask_input_type in [
-            MaskInputType.HIDDEN_STATE,
-            MaskInputType.HIDDEN_STATE_W_LN,
-        ]:
+        if self.config.mask_input_type == MaskInputType.HIDDEN_STATE:
             dropout_input = x
-        elif self.config.mask_input_type in [
-            MaskInputType.EMBED,
-            MaskInputType.EMBED_PLUS_HIDDEN,
-        ]:
+        elif self.config.mask_input_type == MaskInputType.EMBED:
             dropout_input = embed
+            dropout_input = self.embed_ln(dropout_input)
 
         dropout_input = (
             dropout_input.detach()
             if self.config.use_detached_x_in_dropout_mask
             else dropout_input
         )
-        if self.config.mask_input_type in [
-            MaskInputType.HIDDEN_STATE_W_LN,
-            MaskInputType.EMBED,
-            MaskInputType.EMBED_PLUS_HIDDEN,
-        ]:
-            dropout_input = self.embed_ln(dropout_input)
-
-        if self.config.mask_input_type == MaskInputType.EMBED_PLUS_HIDDEN:
-            dropout_input = dropout_input + x
 
         B, T, C = dropout_input.shape
         q, k, v = self.batch_attn_weights(dropout_input).split(self.embed_dim, dim=2)
@@ -344,7 +319,6 @@ class FeedForward(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
-        use_attention_dropout=False,
     ):
         super().__init__()
         self.linear = nn.Linear(
@@ -370,93 +344,10 @@ class FeedForward(nn.Module):
         x = self.dropout(x, embed)
         return x
 
-
-class MultiAttentionHead(nn.Module):
-    def __init__(
-        self,
-        dim_in,
-        n_head,
-        use_bias,
-        context_size,
-        dropout_rate=0,
-        use_flash=True,
-        config=None,
-    ):
-        super().__init__()
-        assert dim_in % n_head == 0
-        self.dim_in = dim_in
-        self.head_size = dim_in // n_head
-        self.n_head = n_head
-        self.dropout_rate = dropout_rate
-        self.use_all_dropout = config.attention_dropout_config.use_all_dropout
-
-        self.batch_attn_weights = nn.Linear(self.dim_in, self.dim_in * 3, bias=use_bias)
-        self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=use_bias)
-
-        self.dropout_1 = nn.Dropout(dropout_rate)
-        if self.use_all_dropout:
-            self.dropout_2 = AttentionDropout(
-                config.n_embed,
-                config.context_size,
-                config.attention_dropout_config,
-                config.use_dropout_entropy_in_loss,
-                config.use_dropout_l1_norm_in_loss,
-                config.l1_norm_loss_type,
-            )
-        else:
-            self.dropout_2 = nn.Dropout(dropout_rate)
-
-        self.using_flash = False
-        if not hasattr(F, "scaled_dot_product_attention") or not use_flash:
-            self.register_buffer(
-                "tril",
-                torch.tril(
-                    torch.ones(context_size, context_size).view(
-                        1, 1, context_size, context_size
-                    )
-                ),
-            )
-        else:
-            print("Using flash attention.")
-            self.using_flash = True
-
-    def forward(self, x, embed):
-        B, T, C = x.shape
-
-        q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
-        k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
-        q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
-        v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
-
-        if self.using_flash:
-            new_x = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
-            )
-        else:
-            attn = (q @ k.transpose(-2, -1)) * (
-                self.head_size**-0.5
-            )  # B,H,T,S @ B,H,S,T ->B, H, T, T
-            causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, float("-inf"))
-            causal_attn_probs = F.softmax(causal_attn, dim=-1)
-            causal_attn_probs = self.dropout_1(causal_attn_probs)
-            new_x = causal_attn_probs @ v  # B,H,T,T @ B,H,T,S -> B,H,T,S
-
-        new_x = (
-            new_x.transpose(1, 2).contiguous().view(B, T, C)
-        )  # B,H,T,S -> B,T,H,S -> B,T,C
-        new_x = self.residual_proj(new_x)
-        if self.use_all_dropout:
-            new_x = self.dropout_2(new_x, embed)
-        else:
-            new_x = self.dropout_2(new_x)
-        return new_x
-
-
 class TransformerBlock(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
-        use_attention_dropout=False,
     ):
         super().__init__()
         self.multi_attn_head = MultiAttentionHead(
@@ -468,7 +359,7 @@ class TransformerBlock(nn.Module):
             True,
             config,
         )
-        self.feed_forward = FeedForward(config, use_attention_dropout)
+        self.feed_forward = FeedForward(config)
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
@@ -493,10 +384,8 @@ class AttentionDropoutTransformer(BaseModel):
         self.transformer_blocks = nn.ModuleList(
             [
                 TransformerBlock(
-                    config,
-                    (i + 1) >= (config.start_layer) and (i + 1) <= (config.end_layer),
-                )
-                for i in range(config.n_layer)
+                    config                )
+                for _ in range(config.n_layer)
             ]
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
