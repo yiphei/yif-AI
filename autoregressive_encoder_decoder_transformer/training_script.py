@@ -1,3 +1,5 @@
+import os
+
 from utils.train import train
 
 try:
@@ -10,6 +12,6 @@ except ImportError:
 if __name__ == "__main__":
     train(
         AutoregressiveEncoderDecoderTransformer,
-        "autoregressive_encoder_decoder_transformer/",
+        f"{os.path.dirname(os.path.abspath(__file__))}/",
         "serial_encoder_decoder_transformer",
     )

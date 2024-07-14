@@ -660,9 +660,13 @@ def get_default_args(args, local_dir):
     elif args.platform_type == PlatformType.LOCAL:
         if args.checkpoint_path is None:
             args.checkpoint_path = local_dir + "model_checkpoints/"
+            if not os.path.exists(args.checkpoint_path):
+                os.makedirs(args.checkpoint_path)
         assert args.train is not None
         if args.model_path is None:
             args.model_path = local_dir + "model_weights/"
+            if not os.path.exists(args.model_path):
+                os.makedirs(args.model_path)
         if args.resume_from_checkpoint is None:
             args.resume_from_checkpoint = False
     elif args.platform_type in [PlatformType.LAMBDA, PlatformType.PAPERSPACE]:

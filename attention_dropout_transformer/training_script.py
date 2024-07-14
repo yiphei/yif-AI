@@ -1,3 +1,5 @@
+import os
+
 from utils.train import train
 
 try:
@@ -9,6 +11,6 @@ except ImportError:
 if __name__ == "__main__":
     train(
         AttentionDropoutTransformer,
-        "attention_dropout_transformer/",
+        f"{os.path.dirname(os.path.abspath(__file__))}/",
         "ultimate_attention_dropout_transformer",
     )

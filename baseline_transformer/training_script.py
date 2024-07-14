@@ -1,3 +1,5 @@
+import os
+
 from utils.train import train
 
 try:
@@ -10,6 +12,6 @@ except ImportError:
 if __name__ == "__main__":
     train(
         TransformerModel,
-        "baseline_transformer/",
+        f"{os.path.dirname(os.path.abspath(__file__))}/",
         "baseline_transformer",
     )
