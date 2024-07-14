@@ -14,21 +14,21 @@ from utils.transformer_modules import (BaseModel, LayerNorm,
 
 
 @custom_dataclass
-class RegularizingLambdaConfig:
-    min_lambda: float = None
-    max_lambda: float = 1.0
-    exp_coefficient: float = None
+class PenaltyCoeffConfig:
+    min_coeff: float = None
+    max_coeff: float = 1.0
+    exp_rate: float = None
 
     def __post_init__(self):
-        assert self.max_lambda > 0
+        assert self.max_coeff > 0
 
-        if self.min_lambda is not None:
-            assert self.min_lambda >= 0
-            assert self.min_lambda < self.max_lambda
-            assert self.exp_coefficient is not None
+        if self.min_coeff is not None:
+            assert self.min_coeff >= 0
+            assert self.min_coeff < self.max_coeff
+            assert self.exp_rate is not None
 
-        if self.exp_coefficient is not None:
-            assert self.exp_coefficient < 1
+        if self.exp_rate is not None:
+            assert self.exp_rate < 1
 
 
 class MaskRoundingType(IntMappedEnum):
@@ -85,8 +85,8 @@ class ModelConfig(BaseModelConfig):
     use_dropout_entropy_penalty: bool = False
     use_dropout_l1_norm_penalty: bool = True
     l1_norm_penalty_type: Optional[L1NormPenaltyType] = L1NormPenaltyType.SQUARED
-    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
-    dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
+    dropout_entropy_coeff_config: Optional[PenaltyCoeffConfig] = None
+    dropout_l1_norm_coeff_config: Optional[PenaltyCoeffConfig] = None
 
     def __post_init__(self):
         if self.learned_dropout_config.n_head is None:
@@ -104,27 +104,27 @@ class ModelConfig(BaseModelConfig):
 
         if (
             not self.use_dropout_entropy_penalty
-            and self.dropout_entropy_lambda is not None
+            and self.dropout_entropy_coeff_config is not None
         ):
             raise ValueError(
-                "dropout_entropy_lambda is set but use_dropout_entropy_penalty is False"
+                "dropout_entropy_coeff_config is set but use_dropout_entropy_penalty is False"
             )
 
         if (
             not self.use_dropout_l1_norm_penalty
-            and self.dropout_l1_norm_lambda is not None
+            and self.dropout_l1_norm_coeff_config is not None
         ):
             raise ValueError(
-                "dropout_l1_norm_lambda is set but use_dropout_l1_norm_penalty is False"
+                "dropout_l1_norm_coeff_config is set but use_dropout_l1_norm_penalty is False"
             )
 
         for attr_name, flag_attr_name in [
-            ("dropout_entropy_lambda", "use_dropout_entropy_penalty"),
-            ("dropout_l1_norm_lambda", "use_dropout_l1_norm_penalty"),
+            ("dropout_entropy_coeff_config", "use_dropout_entropy_penalty"),
+            ("dropout_l1_norm_coeff_config", "use_dropout_l1_norm_penalty"),
         ]:
             attr_value = getattr(self, attr_name)
             if attr_value is None and getattr(self, flag_attr_name):
-                setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
+                setattr(self, attr_name, PenaltyCoeffConfig(max_coeff=1))
 
 
 class LearnedDropout(SubModuleStats):
@@ -353,25 +353,25 @@ class AttentionDropoutTransformer(BaseModel):
                     p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
                 )
 
-        self.register_buffer("dropout_entropy_lambda", torch.empty(0), persistent=False)
-        self.register_buffer("dropout_l1_norm_lambda", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_entropy_coeff", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_l1_norm_coeff", torch.empty(0), persistent=False)
 
     @torch.compiler.disable()  # without this, torch.compile keeps recompiling this function. It's caused by self.training_step changing too frequently
-    def get_dropout_lambda(self, lambda_config, device):
-        if lambda_config is None:
+    def get_penalty_coeff(self, coeff_config, device):
+        if coeff_config is None:
             return torch.empty(0, device=device)
 
-        if lambda_config.exp_coefficient is None:
-            return torch.tensor(lambda_config.max_lambda, device=device)
+        if coeff_config.exp_rate is None:
+            return torch.tensor(coeff_config.max_coeff, device=device)
 
         assert self.training_step is not None
         intersect = (
-            lambda_config.min_lambda - 1 if lambda_config.min_lambda is not None else -1
+            coeff_config.min_coeff - 1 if coeff_config.min_coeff is not None else -1
         )
         return torch.tensor(
             min(
-                np.exp(lambda_config.exp_coefficient * self.training_step) + intersect,
-                lambda_config.max_lambda,
+                np.exp(coeff_config.exp_rate * self.training_step) + intersect,
+                coeff_config.max_coeff,
             ),
             device=device,
             dtype=torch.float32,  # need to set explicitly otherwise MPS will complain that it's float64
@@ -402,23 +402,23 @@ class AttentionDropoutTransformer(BaseModel):
             if self.training:
                 self.aggregate_sub_module_stats()
                 if self.is_first_minibatch:
-                    self.dropout_entropy_lambda = self.get_dropout_lambda(
-                        self.config.dropout_entropy_lambda, device
+                    self.dropout_entropy_coeff = self.get_penalty_coeff(
+                        self.config.dropout_entropy_coeff_config, device
                     )
-                    self.dropout_l1_norm_lambda = self.get_dropout_lambda(
-                        self.config.dropout_l1_norm_lambda, device
+                    self.dropout_l1_norm_coeff = self.get_penalty_coeff(
+                        self.config.dropout_l1_norm_coeff_config, device
                     )
 
                 if self.config.use_dropout_entropy_penalty:
-                    additional_loss = self.dropout_entropy * self.dropout_entropy_lambda
+                    additional_loss = self.dropout_entropy * self.dropout_entropy_coeff
                 if self.config.use_dropout_l1_norm_penalty:
                     if additional_loss is None:
                         additional_loss = (
-                            self.dropout_l1_norm * self.dropout_l1_norm_lambda
+                            self.dropout_l1_norm * self.dropout_l1_norm_coeff
                         )
                     else:
                         additional_loss += (
-                            self.dropout_l1_norm * self.dropout_l1_norm_lambda
+                            self.dropout_l1_norm * self.dropout_l1_norm_coeff
                         )
 
             loss = F.cross_entropy(logits, targets.view(-1))
@@ -453,8 +453,8 @@ class AttentionDropoutTransformer(BaseModel):
 
     def dump_extra_stats(self):
         extra_stats = super().dump_extra_stats()
-        if self.dropout_entropy_lambda.nelement() != 0:
-            extra_stats["dropout_entropy_lambda"] = self.dropout_entropy_lambda.item()
-        if self.dropout_l1_norm_lambda.nelement() != 0:
-            extra_stats["dropout_l1_norm_lambda"] = self.dropout_l1_norm_lambda.item()
+        if self.dropout_entropy_coeff.nelement() != 0:
+            extra_stats["dropout_entropy_coeff"] = self.dropout_entropy_coeff.item()
+        if self.dropout_l1_norm_coeff.nelement() != 0:
+            extra_stats["dropout_l1_norm_coeff"] = self.dropout_l1_norm_coeff.item()
         return extra_stats
