@@ -48,7 +48,7 @@ class L1NormLossType(IntMappedEnum):
 
 
 @custom_dataclass
-class AttentionDropoutConfig:
+class LearnedDropoutConfig:
     use_bias: Optional[bool] = None
     n_head: Optional[int] = None
     mask_rounding_type: Optional[MaskRoundingType] = MaskRoundingType.NOISE_AND_LINEAR
@@ -79,8 +79,8 @@ class AttentionDropoutConfig:
 
 @custom_dataclass
 class ModelConfig(BaseModelConfig):
-    attention_dropout_config: AttentionDropoutConfig = field(
-        default_factory=AttentionDropoutConfig
+    learned_dropout_config: LearnedDropoutConfig = field(
+        default_factory=LearnedDropoutConfig
     )
     use_dropout_entropy_in_loss: bool = False
     use_dropout_l1_norm_in_loss: bool = True
@@ -89,10 +89,10 @@ class ModelConfig(BaseModelConfig):
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
 
     def __post_init__(self):
-        if self.attention_dropout_config.n_head is None:
-            self.attention_dropout_config.n_head = self.n_head
-        if self.attention_dropout_config.use_bias is None:
-            self.attention_dropout_config.use_bias = self.use_bias
+        if self.learned_dropout_config.n_head is None:
+            self.learned_dropout_config.n_head = self.n_head
+        if self.learned_dropout_config.use_bias is None:
+            self.learned_dropout_config.use_bias = self.use_bias
 
         if not self.use_dropout_l1_norm_in_loss and self.l1_norm_loss_type is not None:
             raise ValueError(
@@ -124,7 +124,7 @@ class ModelConfig(BaseModelConfig):
                 setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
 
 
-class AttentionDropout(SubModuleStats):
+class LearnedDropout(SubModuleStats):
     extra_stats = [
         "dropout_entropy",
         "dropout_l1_norm",
@@ -291,10 +291,10 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
-        self.dropout = AttentionDropout(
+        self.dropout = LearnedDropout(
             config.n_embed,
             config.context_size,
-            config.attention_dropout_config,
+            config.learned_dropout_config,
             config.use_dropout_entropy_in_loss,
             config.use_dropout_l1_norm_in_loss,
             config.l1_norm_loss_type,
