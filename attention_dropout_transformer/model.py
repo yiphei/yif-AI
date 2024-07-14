@@ -270,20 +270,13 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
-        self.dropout = LearnedDropout(
-            config.n_embed,
-            config.context_size,
-            config.learned_dropout_config,
-            config.use_dropout_entropy_penalty,
-            config.use_dropout_l1_norm_penalty,
-            config.l1_norm_penalty_type,
-        )
+        self.dropout = nn.Dropout(config.dropout_rate)
 
     def forward(self, x, embed):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        x = self.dropout(x, embed)
+        x = self.dropout(x)
         return x
 
 
@@ -304,10 +297,19 @@ class TransformerBlock(nn.Module):
         self.feed_forward = FeedForward(config)
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
+        self.dropout = LearnedDropout(
+            config.n_embed,
+            config.context_size,
+            config.learned_dropout_config,
+            config.use_dropout_entropy_penalty,
+            config.use_dropout_l1_norm_penalty,
+            config.l1_norm_penalty_type,
+        )
 
     def forward(self, x, embed):
         x = x + self.multi_attn_head(self.ln1(x))
         x = x + self.feed_forward(self.ln2(x), embed)
+        x = self.dropout(x, embed)
         return x
 
 
