@@ -265,6 +265,39 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
     return training_context
 
 
+def create_aws_s3_dirs(
+    aws_access_key_id,
+    aws_secret_access_key,
+    current_model_path,
+    current_checkpoint_path,
+    sweep_id,
+    platform_type,
+    save_model,
+    save_checkpoint,
+):
+    new_model_path = current_model_path
+    new_checkpoint_path = current_checkpoint_path
+
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+    )
+    sweep_tag = f"_sweep_id_{str(sweep_id)}" if sweep_id else ""
+    training_run_dir = f"training/{platform_type.lower()}{sweep_tag}_training_run_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}/"
+    if current_model_path is None and save_model:
+        s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir + "model/")
+        new_model_path = training_run_dir + "model/"
+    if current_checkpoint_path is None and save_checkpoint:
+        s3_client.put_object(
+            Bucket=DEFAULT_BUCKET, Key=training_run_dir + "checkpoints/"
+        )
+        new_checkpoint_path = training_run_dir + "checkpoints/"
+    print(f"S3 folder is: {training_run_dir}")
+
+    return s3_client, new_model_path, new_checkpoint_path
+
+
 def _train(
     args,
     model_cls,
@@ -335,22 +368,16 @@ def _train(
         and (current_model_path is None or current_checkpoint_path is None)
         and (args.save_checkpoint or args.save_model)
     ):
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=args.aws_access_key_id,
-            aws_secret_access_key=args.aws_secret_access_key,
+        s3_client, current_model_path, current_checkpoint_path = create_aws_s3_dirs(
+            args.aws_access_key_id,
+            args.aws_secret_access_key,
+            current_model_path,
+            current_checkpoint_path,
+            args.sweep_id,
+            args.platform_type,
+            args.save_model,
+            args.save_checkpoint,
         )
-        sweep_tag = f"_sweep_id_{str(args.sweep_id)}" if args.sweep_id else ""
-        training_run_dir = f"training/{args.platform_type.lower()}{sweep_tag}_training_run_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}/"
-        if current_model_path is None and args.save_model:
-            s3_client.put_object(Bucket=DEFAULT_BUCKET, Key=training_run_dir + "model/")
-            current_model_path = training_run_dir + "model/"
-        if current_checkpoint_path is None and args.save_checkpoint:
-            s3_client.put_object(
-                Bucket=DEFAULT_BUCKET, Key=training_run_dir + "checkpoints/"
-            )
-            current_checkpoint_path = training_run_dir + "checkpoints/"
-        print(f"S3 folder is: {training_run_dir}")
 
     initialize_from_checkpoint = False
     ckpt_file_path = None
@@ -458,7 +485,7 @@ def _train(
             model, device_ids=[ddp_local_rank], broadcast_buffers=True
         )
 
-    # Empirically, this usually produces slightly worse results than not compiling, but it's usually worth it
+    # Compiling can produce slightly worse results, but it's usually worth it
     if TRAIN_CONFIG.compile and torch.cuda.is_available():
         print("compiling the model... (takes a ~minute)")
         if using_DDP:
