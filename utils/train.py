@@ -545,7 +545,6 @@ def _train(
                         "est_step": iter_num / TRAIN_CONFIG.est_interval - 1,
                     },
                     step=iter_num,
-                    # commit=True,
                 )
 
             filenames = (
@@ -615,7 +614,6 @@ def _train(
                     **raw_model.dump_extra_stats(),
                 },
                 step=iter_num,
-                # commit=False,
             )
         iter_num += 1
 
