@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 from contextlib import ExitStack, contextmanager
-from dataclasses import asdict, dataclass, field, fields, KW_ONLY
+from dataclasses import KW_ONLY, asdict, dataclass, field, fields
 from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
