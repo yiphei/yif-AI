@@ -1,5 +1,6 @@
-from utils.train import train
 import os
+
+from utils.train import train
 
 try:
     from autoregressive_encoder_decoder_transformer.model import \

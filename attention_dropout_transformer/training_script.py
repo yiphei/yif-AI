@@ -1,5 +1,7 @@
-from utils.train import train
 import os
+
+from utils.train import train
+
 try:
     from attention_dropout_transformer.model import AttentionDropoutTransformer
 except ImportError:

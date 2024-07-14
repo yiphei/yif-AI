@@ -1,5 +1,6 @@
-from utils.train import train
 import os
+
+from utils.train import train
 
 try:
     from deep_sight_transformer.model import DeepSight
