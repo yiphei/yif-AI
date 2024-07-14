@@ -31,7 +31,7 @@ class RegularizingLambdaConfig:
             assert self.exp_coefficient < 1
 
 
-class RoundingType(IntMappedEnum):
+class MaskRoundingType(IntMappedEnum):
     SIGMOID = "SIGMOID"
     SIGMOID_DETACH = "SIGMOID_DETACH"
     NOISE_AND_LINEAR = "NOISE_AND_LINEAR"
@@ -51,8 +51,7 @@ class L1NormLossType(IntMappedEnum):
 class AttentionDropoutConfig:
     use_bias: Optional[bool] = None
     n_head: Optional[int] = None
-    softmax_dim: int = 1
-    mask_rounding_type: Optional[RoundingType] = RoundingType.NOISE_AND_LINEAR
+    mask_rounding_type: Optional[MaskRoundingType] = MaskRoundingType.NOISE_AND_LINEAR
     sigmoid_scale: Optional[float] = None
     shift_init: float = 0
     use_detached_input: bool = False
@@ -60,11 +59,10 @@ class AttentionDropoutConfig:
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
-        assert self.softmax_dim in [0, 1]
 
         if (
             self.mask_rounding_type
-            not in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
+            not in [MaskRoundingType.SIGMOID, MaskRoundingType.SIGMOID_DETACH]
             and self.sigmoid_scale is not None
         ):
             raise ValueError(
@@ -73,7 +71,7 @@ class AttentionDropoutConfig:
 
         if (
             self.mask_rounding_type
-            in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
+            in [MaskRoundingType.SIGMOID, MaskRoundingType.SIGMOID_DETACH]
             and self.sigmoid_scale is None
         ):
             self.sigmoid_scale = 60
@@ -231,14 +229,9 @@ class AttentionDropout(SubModuleStats):
         q = q.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
 
-        if self.config.softmax_dim == 1:
-            dropout_values = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=None, is_causal=True
-            )
-        else:
-            attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
-            causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
-            dropout_values = causal_attn @ v
+        dropout_values = F.scaled_dot_product_attention(
+            q, k, v, attn_mask=None, is_causal=True
+        )
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
         dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
@@ -247,11 +240,11 @@ class AttentionDropout(SubModuleStats):
             self.update_stats(dropout_mask)
 
         if self.config.mask_rounding_type:
-            if self.config.mask_rounding_type == RoundingType.SIGMOID:
+            if self.config.mask_rounding_type == MaskRoundingType.SIGMOID:
                 dropout_mask = torch.sigmoid(
                     self.config.sigmoid_scale * (dropout_mask - 0.5)
                 )
-            elif self.config.mask_rounding_type == RoundingType.SIGMOID_DETACH:
+            elif self.config.mask_rounding_type == MaskRoundingType.SIGMOID_DETACH:
                 complement_dropout_mask = (
                     torch.sigmoid(
                         self.config.sigmoid_scale * (dropout_mask.detach() - 0.5)
@@ -259,7 +252,7 @@ class AttentionDropout(SubModuleStats):
                     - dropout_mask.detach()
                 )
                 dropout_mask = dropout_mask + complement_dropout_mask
-            elif self.config.mask_rounding_type == RoundingType.NOISE_AND_LINEAR:
+            elif self.config.mask_rounding_type == MaskRoundingType.NOISE_AND_LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
                 if self.training:
                     noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
