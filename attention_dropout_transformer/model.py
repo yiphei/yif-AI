@@ -94,7 +94,10 @@ class ModelConfig(BaseModelConfig):
         if self.learned_dropout_config.use_bias is None:
             self.learned_dropout_config.use_bias = self.use_bias
 
-        if not self.use_dropout_l1_norm_penalty and self.l1_norm_penalty_type is not None:
+        if (
+            not self.use_dropout_l1_norm_penalty
+            and self.l1_norm_penalty_type is not None
+        ):
             raise ValueError(
                 "l1_norm_penalty_type is set but use_dropout_l1_norm_penalty is False"
             )
