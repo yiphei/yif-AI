@@ -72,7 +72,8 @@ class AttentionDropoutConfig:
             )
 
         if (
-            self.mask_rounding_type in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
+            self.mask_rounding_type
+            in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
             and self.sigmoid_scale is None
         ):
             self.sigmoid_scale = 60
@@ -221,9 +222,7 @@ class AttentionDropout(SubModuleStats):
             dropout_input = self.embed_ln(dropout_input)
 
         dropout_input = (
-            dropout_input.detach()
-            if self.config.use_detached_input
-            else dropout_input
+            dropout_input.detach() if self.config.use_detached_input else dropout_input
         )
 
         B, T, C = dropout_input.shape
