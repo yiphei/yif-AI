@@ -84,7 +84,7 @@ class ModelConfig(BaseModelConfig):
     )
     use_dropout_entropy_in_loss: bool = False
     use_dropout_l1_norm_in_loss: bool = True
-    l1_norm_loss_type: Optional[L1NormLossType] = L1NormLossType.LINEAR
+    l1_norm_loss_type: Optional[L1NormLossType] = L1NormLossType.SQUARED
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
 
@@ -162,14 +162,6 @@ class LearnedDropout(SubModuleStats):
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         self.l1_norm_fn = self.get_l1_loss_fn(l1_norm_loss_type)
-        self.register_buffer(
-            "tril",
-            torch.tril(
-                torch.ones(context_size, context_size).view(
-                    1, 1, context_size, context_size
-                )
-            ),
-        )
 
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
 
@@ -232,7 +224,6 @@ class LearnedDropout(SubModuleStats):
         dropout_values = F.scaled_dot_product_attention(
             q, k, v, attn_mask=None, is_causal=True
         )
-
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
         dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
 
@@ -274,8 +265,7 @@ class LearnedDropout(SubModuleStats):
         if self.training:
             self.update_rounded_stats(dropout_mask)
 
-        new_x = x * dropout_mask
-        return new_x
+        return x * dropout_mask
 
 
 class FeedForward(nn.Module):
