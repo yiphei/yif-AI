@@ -37,7 +37,7 @@ class RoundingType(IntMappedEnum):
     NOISE_AND_LINEAR = "NOISE_AND_LINEAR"
 
 
-class MaskInputType(IntMappedEnum):
+class DropoutInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
     EMBED = "EMBED"
 
@@ -49,23 +49,21 @@ class L1NormLossType(IntMappedEnum):
 
 @custom_dataclass
 class AttentionDropoutConfig:
-    use_all_dropout: bool = False
     use_bias: Optional[bool] = None
     n_head: Optional[int] = None
     softmax_dim: int = 1
-    rounding_type: Optional[RoundingType] = RoundingType.NOISE_AND_LINEAR
+    mask_rounding_type: Optional[RoundingType] = RoundingType.NOISE_AND_LINEAR
     sigmoid_scale: Optional[float] = None
     shift_init: float = 0
-    use_canonical_entropy: bool = False
-    use_detached_x_in_dropout_mask: bool = False
-    mask_input_type: MaskInputType = MaskInputType.HIDDEN_STATE
+    use_detached_input: bool = False
+    dropout_input_type: DropoutInputType = DropoutInputType.HIDDEN_STATE
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
         assert self.softmax_dim in [0, 1]
 
         if (
-            self.rounding_type
+            self.mask_rounding_type
             not in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
             and self.sigmoid_scale is not None
         ):
@@ -74,7 +72,7 @@ class AttentionDropoutConfig:
             )
 
         if (
-            self.rounding_type in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
+            self.mask_rounding_type in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
             and self.sigmoid_scale is None
         ):
             self.sigmoid_scale = 60
@@ -88,8 +86,6 @@ class ModelConfig(BaseModelConfig):
     use_dropout_entropy_in_loss: bool = False
     use_dropout_l1_norm_in_loss: bool = True
     l1_norm_loss_type: Optional[L1NormLossType] = L1NormLossType.LINEAR
-    start_layer: Optional[int] = None
-    end_layer: Optional[int] = None
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
 
@@ -98,18 +94,6 @@ class ModelConfig(BaseModelConfig):
             self.attention_dropout_config.n_head = self.n_head
         if self.attention_dropout_config.use_bias is None:
             self.attention_dropout_config.use_bias = self.use_bias
-
-        if self.start_layer is None:
-            self.start_layer = 1
-        if self.end_layer is None:
-            self.end_layer = self.n_layer
-
-        if self.start_layer > self.end_layer:
-            raise ValueError("start_layer must be <= end_layer")
-        if self.start_layer > self.n_layer or self.start_layer < 1:
-            raise ValueError("start_layer must be <= n_layer and >= 1")
-        if self.end_layer > self.n_layer or self.end_layer < 1:
-            raise ValueError("end_layer must be <= n_layer and >= 1")
 
         if not self.use_dropout_l1_norm_in_loss and self.l1_norm_loss_type is not None:
             raise ValueError(
@@ -175,14 +159,9 @@ class AttentionDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        if self.config.mask_input_type == MaskInputType.EMBED:
+        if self.config.dropout_input_type == DropoutInputType.EMBED:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
-        self.entropy_fn = (
-            self.canonical_entropy
-            if config.use_canonical_entropy
-            else self.alternate_entropy
-        )
         self.l1_norm_fn = self.get_l1_loss_fn(l1_norm_loss_type)
         self.register_buffer(
             "tril",
@@ -204,7 +183,7 @@ class AttentionDropout(SubModuleStats):
             raise ValueError(f"Unknown l1_loss_type: {l1_loss_type}")
 
     def update_stats(self, dropout_mask):
-        self.dropout_entropy = self.entropy_fn(dropout_mask)
+        self.dropout_entropy = (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
         self.dropout_l1_norm = self.l1_norm_fn(dropout_mask) / dropout_mask.numel()
 
         if not self.use_dropout_entropy_in_loss:
@@ -234,26 +213,16 @@ class AttentionDropout(SubModuleStats):
                 torch.norm(rounded_dropout_mask, p=1) / rounded_dropout_mask.numel()
             )
 
-    def canonical_entropy(self, dropout_mask):
-        # the small constant is for numerical stability
-        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
-
-    def alternate_entropy(self, dropout_mask):
-        # the alternate entropy has the peak at > 0.5, while the canonical one has
-        # it < 0.5. In theory, this should be better for achieving both low entropy
-        # and low l1 norm because there is more curvature towards 0.
-        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
-
     def forward(self, x, embed):
-        if self.config.mask_input_type == MaskInputType.HIDDEN_STATE:
+        if self.config.dropout_input_type == DropoutInputType.HIDDEN_STATE:
             dropout_input = x
-        elif self.config.mask_input_type == MaskInputType.EMBED:
+        elif self.config.dropout_input_type == DropoutInputType.EMBED:
             dropout_input = embed
             dropout_input = self.embed_ln(dropout_input)
 
         dropout_input = (
             dropout_input.detach()
-            if self.config.use_detached_x_in_dropout_mask
+            if self.config.use_detached_input
             else dropout_input
         )
 
@@ -278,12 +247,12 @@ class AttentionDropout(SubModuleStats):
         if self.training:
             self.update_stats(dropout_mask)
 
-        if self.config.rounding_type:
-            if self.config.rounding_type == RoundingType.SIGMOID:
+        if self.config.mask_rounding_type:
+            if self.config.mask_rounding_type == RoundingType.SIGMOID:
                 dropout_mask = torch.sigmoid(
                     self.config.sigmoid_scale * (dropout_mask - 0.5)
                 )
-            elif self.config.rounding_type == RoundingType.SIGMOID_DETACH:
+            elif self.config.mask_rounding_type == RoundingType.SIGMOID_DETACH:
                 complement_dropout_mask = (
                     torch.sigmoid(
                         self.config.sigmoid_scale * (dropout_mask.detach() - 0.5)
@@ -291,7 +260,7 @@ class AttentionDropout(SubModuleStats):
                     - dropout_mask.detach()
                 )
                 dropout_mask = dropout_mask + complement_dropout_mask
-            elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
+            elif self.config.mask_rounding_type == RoundingType.NOISE_AND_LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
                 if self.training:
                     noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
