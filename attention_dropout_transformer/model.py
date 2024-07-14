@@ -50,6 +50,8 @@ class L1NormLossType(IntMappedEnum):
 
 @custom_dataclass
 class AttentionDropoutConfig:
+    use_shift: bool = True
+    use_freq: bool = True
     use_all_dropout: bool = False
     use_bias: Optional[bool] = None
     n_head: Optional[int] = None
@@ -174,9 +176,15 @@ class AttentionDropout(SubModuleStats):
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
         )
-        self.shift = nn.Parameter(
-            torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
-        )
+        if self.config.attention_dropout_config.use_shift:
+            self.shift = nn.Parameter(
+                torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
+            )
+        if self.config.attention_dropout_config.use_freq:
+            self.freq = nn.Parameter(
+                torch.full((embed_dim,), 1, dtype=torch.float32)
+            )
+
         if self.config.mask_input_type in [
             MaskInputType.HIDDEN_STATE_W_LN,
             MaskInputType.EMBED,
@@ -296,7 +304,12 @@ class AttentionDropout(SubModuleStats):
             dropout_values = causal_attn @ v
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
-        dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
+        
+        if self.config.attention_dropout_config.use_freq:
+            dropout_values = dropout_values * self.freq
+        if self.config.attention_dropout_config.use_shift:
+            dropout_values = dropout_values + self.shift
+        dropout_mask = 0.5 * torch.cos(dropout_values) + 0.5
 
         if self.training:
             self.update_stats(dropout_mask)
