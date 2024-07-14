@@ -9,7 +9,8 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.common import IntMappedEnum, custom_dataclass
-from utils.transformer_modules import BaseModel, LayerNorm, SubModuleStats, MultiAttentionHead
+from utils.transformer_modules import (BaseModel, LayerNorm,
+                                       MultiAttentionHead, SubModuleStats)
 
 
 @custom_dataclass
@@ -39,6 +40,7 @@ class RoundingType(IntMappedEnum):
 class MaskInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
     EMBED = "EMBED"
+
 
 class L1NormLossType(IntMappedEnum):
     LINEAR = "LINEAR"
@@ -344,6 +346,7 @@ class FeedForward(nn.Module):
         x = self.dropout(x, embed)
         return x
 
+
 class TransformerBlock(nn.Module):
     def __init__(
         self,
@@ -382,11 +385,7 @@ class AttentionDropoutTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.ModuleList(
-            [
-                TransformerBlock(
-                    config                )
-                for _ in range(config.n_layer)
-            ]
+            [TransformerBlock(config) for _ in range(config.n_layer)]
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
