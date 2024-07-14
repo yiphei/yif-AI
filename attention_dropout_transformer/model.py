@@ -102,22 +102,6 @@ class ModelConfig(BaseModelConfig):
                 "l1_norm_penalty_type is set but use_dropout_l1_norm_penalty is False"
             )
 
-        if (
-            not self.use_dropout_entropy_penalty
-            and self.dropout_entropy_coeff_config is not None
-        ):
-            raise ValueError(
-                "dropout_entropy_coeff_config is set but use_dropout_entropy_penalty is False"
-            )
-
-        if (
-            not self.use_dropout_l1_norm_penalty
-            and self.dropout_l1_norm_coeff_config is not None
-        ):
-            raise ValueError(
-                "dropout_l1_norm_coeff_config is set but use_dropout_l1_norm_penalty is False"
-            )
-
         for attr_name, flag_attr_name in [
             ("dropout_entropy_coeff_config", "use_dropout_entropy_penalty"),
             ("dropout_l1_norm_coeff_config", "use_dropout_l1_norm_penalty"),
@@ -125,6 +109,10 @@ class ModelConfig(BaseModelConfig):
             attr_value = getattr(self, attr_name)
             if attr_value is None and getattr(self, flag_attr_name):
                 setattr(self, attr_name, PenaltyCoeffConfig(max_coeff=1))
+            elif not getattr(self, flag_attr_name) and attr_value is not None:
+                raise ValueError(
+                    f"{attr_name} is set but {flag_attr_name} is False"
+                )
 
 
 class LearnedDropout(SubModuleStats):
