@@ -36,6 +36,10 @@ parameters:
                         value: 0.1
             attention_dropout_config:
                 parameters:
+                    use_shift:
+                        values: [True, False]
+                    use_freq:
+                        value: True
                     use_all_dropout:
                         value: False
                     softmax_dim:
