@@ -485,7 +485,7 @@ def _train(
             model, device_ids=[ddp_local_rank], broadcast_buffers=True
         )
 
-    # Empirically, this usually produces slightly worse results than not compiling, but it's usually worth it
+    # Compiling can produce slightly worse results, but it's usually worth it
     if TRAIN_CONFIG.compile and torch.cuda.is_available():
         print("compiling the model... (takes a ~minute)")
         if using_DDP:
