@@ -20,39 +20,29 @@ parameters:
                 value: 9
             dropout_rate:
                 value: 0
-            start_layer:
-                value: 1
-            end_layer:
-                value: 26
-            use_dropout_entropy_in_loss:
+            use_dropout_entropy_penalty:
                 value: False
-            use_dropout_l1_norm_in_loss:
+            use_dropout_l1_norm_penalty:
                 value: True
-            l1_norm_loss_type:
+            l1_norm_penalty_type:
                 value: 2
-            dropout_l1_norm_lambda:
+            dropout_l1_norm_coeff_config:
                 parameters:
-                    max_lambda:
+                    max_coeff:
                         value: 0.1
-            attention_dropout_config:
+            learned_dropout_config:
                 parameters:
-                    use_all_dropout:
-                        value: False
-                    softmax_dim:
-                        value: 1
                     use_bias:
                         value: False
                     n_head:
                         value: 9
-                    rounding_type:
+                    mask_rounding_type:
                         value: 3
                     shift_init:
                         value: 0
-                    use_canonical_entropy:
+                    use_detached_input:
                         value: False
-                    use_detached_x_in_dropout_mask:
-                        value: False
-                    mask_input_type:
+                    dropout_input_type:
                         value: 1
     batch_size: 
         value: 50
