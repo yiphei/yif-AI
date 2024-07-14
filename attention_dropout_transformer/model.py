@@ -9,73 +9,69 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.common import IntMappedEnum, custom_dataclass
-from utils.transformer_modules import BaseModel, LayerNorm, SubModuleStats
+from utils.transformer_modules import (BaseModel, LayerNorm,
+                                       MultiAttentionHead, SubModuleStats)
 
 
 @custom_dataclass
-class RegularizingLambdaConfig:
-    min_lambda: float = None
-    max_lambda: float = 1.0
-    exp_coefficient: float = None
+class PenaltyCoeffConfig:
+    min_coeff: float = None
+    max_coeff: float = 1.0
+    exp_rate: float = None
 
     def __post_init__(self):
-        assert self.max_lambda > 0
+        assert self.max_coeff > 0
 
-        if self.min_lambda is not None:
-            assert self.min_lambda >= 0
-            assert self.min_lambda < self.max_lambda
-            assert self.exp_coefficient is not None
+        if self.min_coeff is not None:
+            assert self.min_coeff >= 0
+            assert self.min_coeff < self.max_coeff
+            assert self.exp_rate is not None
 
-        if self.exp_coefficient is not None:
-            assert self.exp_coefficient < 1
+        if self.exp_rate is not None:
+            assert 0 < self.exp_rate < 1
 
 
-class RoundingType(IntMappedEnum):
+class MaskRoundingType(IntMappedEnum):
     SIGMOID = "SIGMOID"
     SIGMOID_DETACH = "SIGMOID_DETACH"
     NOISE_AND_LINEAR = "NOISE_AND_LINEAR"
 
 
-class MaskInputType(IntMappedEnum):
+class DropoutInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
-    HIDDEN_STATE_W_LN = "HIDDEN_STATE_W_LN"
     EMBED = "EMBED"
-    EMBED_PLUS_HIDDEN = "EMBED_PLUS_HIDDEN"
 
 
-class L1NormLossType(IntMappedEnum):
+class L1NormPenaltyType(IntMappedEnum):
     LINEAR = "LINEAR"
     SQUARED = "SQUARED"
 
 
 @custom_dataclass
-class AttentionDropoutConfig:
-    use_all_dropout: bool = False
+class LearnedDropoutConfig:
     use_bias: Optional[bool] = None
     n_head: Optional[int] = None
-    softmax_dim: int = 1
-    rounding_type: Optional[RoundingType] = RoundingType.NOISE_AND_LINEAR
+    mask_rounding_type: Optional[MaskRoundingType] = MaskRoundingType.NOISE_AND_LINEAR
     sigmoid_scale: Optional[float] = None
     shift_init: float = 0
-    use_canonical_entropy: bool = False
-    use_detached_x_in_dropout_mask: bool = False
-    mask_input_type: MaskInputType = MaskInputType.HIDDEN_STATE
+    use_detached_input: bool = False
+    dropout_input_type: DropoutInputType = DropoutInputType.HIDDEN_STATE
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
-        assert self.softmax_dim in [0, 1]
 
         if (
-            self.rounding_type
-            not in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
+            self.mask_rounding_type
+            not in [MaskRoundingType.SIGMOID, MaskRoundingType.SIGMOID_DETACH]
             and self.sigmoid_scale is not None
         ):
             raise ValueError(
-                "sigmoid_slope can only be set if rounding_type is SIGMOID"
+                "sigmoid_slope can only be set if mask_rounding_type is SIGMOID"
             )
 
         if (
-            self.rounding_type in [RoundingType.SIGMOID, RoundingType.SIGMOID_DETACH]
+            self.mask_rounding_type
+            in [MaskRoundingType.SIGMOID, MaskRoundingType.SIGMOID_DETACH]
             and self.sigmoid_scale is None
         ):
             self.sigmoid_scale = 60
@@ -83,66 +79,41 @@ class AttentionDropoutConfig:
 
 @custom_dataclass
 class ModelConfig(BaseModelConfig):
-    attention_dropout_config: AttentionDropoutConfig = field(
-        default_factory=AttentionDropoutConfig
+    learned_dropout_config: LearnedDropoutConfig = field(
+        default_factory=LearnedDropoutConfig
     )
-    use_dropout_entropy_in_loss: bool = False
-    use_dropout_l1_norm_in_loss: bool = True
-    l1_norm_loss_type: Optional[L1NormLossType] = L1NormLossType.LINEAR
-    start_layer: Optional[int] = None
-    end_layer: Optional[int] = None
-    dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
-    dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
+    use_dropout_entropy_penalty: bool = False
+    use_dropout_l1_norm_penalty: bool = True
+    l1_norm_penalty_type: Optional[L1NormPenaltyType] = L1NormPenaltyType.SQUARED
+    dropout_entropy_coeff_config: Optional[PenaltyCoeffConfig] = None
+    dropout_l1_norm_coeff_config: Optional[PenaltyCoeffConfig] = None
 
     def __post_init__(self):
-        if self.attention_dropout_config.n_head is None:
-            self.attention_dropout_config.n_head = self.n_head
-        if self.attention_dropout_config.use_bias is None:
-            self.attention_dropout_config.use_bias = self.use_bias
-
-        if self.start_layer is None:
-            self.start_layer = 1
-        if self.end_layer is None:
-            self.end_layer = self.n_layer
-
-        if self.start_layer > self.end_layer:
-            raise ValueError("start_layer must be <= end_layer")
-        if self.start_layer > self.n_layer or self.start_layer < 1:
-            raise ValueError("start_layer must be <= n_layer and >= 1")
-        if self.end_layer > self.n_layer or self.end_layer < 1:
-            raise ValueError("end_layer must be <= n_layer and >= 1")
-
-        if not self.use_dropout_l1_norm_in_loss and self.l1_norm_loss_type is not None:
-            raise ValueError(
-                "l1_loss_type is set but use_dropout_l1_norm_in_loss is False"
-            )
+        if self.learned_dropout_config.n_head is None:
+            self.learned_dropout_config.n_head = self.n_head
+        if self.learned_dropout_config.use_bias is None:
+            self.learned_dropout_config.use_bias = self.use_bias
 
         if (
-            not self.use_dropout_entropy_in_loss
-            and self.dropout_entropy_lambda is not None
+            not self.use_dropout_l1_norm_penalty
+            and self.l1_norm_penalty_type is not None
         ):
             raise ValueError(
-                "dropout_entropy_lambda is set but use_dropout_entropy_in_loss is False"
-            )
-
-        if (
-            not self.use_dropout_l1_norm_in_loss
-            and self.dropout_l1_norm_lambda is not None
-        ):
-            raise ValueError(
-                "dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False"
+                "l1_norm_penalty_type is set but use_dropout_l1_norm_penalty is False"
             )
 
         for attr_name, flag_attr_name in [
-            ("dropout_entropy_lambda", "use_dropout_entropy_in_loss"),
-            ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss"),
+            ("dropout_entropy_coeff_config", "use_dropout_entropy_penalty"),
+            ("dropout_l1_norm_coeff_config", "use_dropout_l1_norm_penalty"),
         ]:
             attr_value = getattr(self, attr_name)
             if attr_value is None and getattr(self, flag_attr_name):
-                setattr(self, attr_name, RegularizingLambdaConfig(max_lambda=1))
+                setattr(self, attr_name, PenaltyCoeffConfig(max_coeff=1))
+            elif not getattr(self, flag_attr_name) and attr_value is not None:
+                raise ValueError(f"{attr_name} is set but {flag_attr_name} is False")
 
 
-class AttentionDropout(SubModuleStats):
+class LearnedDropout(SubModuleStats):
     extra_stats = [
         "dropout_entropy",
         "dropout_l1_norm",
@@ -150,7 +121,6 @@ class AttentionDropout(SubModuleStats):
         "dropout_near_zero_percent",
         "dropout_change_rate_from_prev",
         "rounded_dropout_l1_norm",
-        # "active_dropout_percent",
     ]
 
     def __init__(
@@ -158,9 +128,9 @@ class AttentionDropout(SubModuleStats):
         embed_dim,
         context_size,
         config,
-        use_dropout_entropy_in_loss,
-        use_dropout_l1_norm_in_loss,
-        l1_norm_loss_type,
+        use_dropout_entropy_penalty,
+        use_dropout_l1_norm_penalty,
+        l1_norm_penalty_type,
     ):
         super().__init__()
         assert embed_dim % config.n_head == 0
@@ -168,8 +138,8 @@ class AttentionDropout(SubModuleStats):
         self.context_size = context_size
         self.config = config
         self.head_size = embed_dim // config.n_head
-        self.use_dropout_entropy_in_loss = use_dropout_entropy_in_loss
-        self.use_dropout_l1_norm_in_loss = use_dropout_l1_norm_in_loss
+        self.use_dropout_entropy_penalty = use_dropout_entropy_penalty
+        self.use_dropout_l1_norm_penalty = use_dropout_l1_norm_penalty
 
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
@@ -177,45 +147,28 @@ class AttentionDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        if self.config.mask_input_type in [
-            MaskInputType.HIDDEN_STATE_W_LN,
-            MaskInputType.EMBED,
-            MaskInputType.EMBED_PLUS_HIDDEN,
-        ]:
+        if self.config.dropout_input_type == DropoutInputType.EMBED:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
-        self.entropy_fn = (
-            self.canonical_entropy
-            if config.use_canonical_entropy
-            else self.alternate_entropy
-        )
-        self.l1_norm_fn = self.get_l1_loss_fn(l1_norm_loss_type)
-        self.register_buffer(
-            "tril",
-            torch.tril(
-                torch.ones(context_size, context_size).view(
-                    1, 1, context_size, context_size
-                )
-            ),
-        )
+        self.l1_norm_fn = self.get_l1_norm_penalty_fn(l1_norm_penalty_type)
 
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
 
-    def get_l1_loss_fn(self, l1_loss_type):
-        if l1_loss_type == L1NormLossType.LINEAR:
+    def get_l1_norm_penalty_fn(self, l1_norm_penalty_type):
+        if l1_norm_penalty_type == L1NormPenaltyType.LINEAR:
             return lambda x: torch.norm(x, p=1)
-        elif l1_loss_type == L1NormLossType.SQUARED:
+        elif l1_norm_penalty_type == L1NormPenaltyType.SQUARED:
             return lambda x: torch.norm((x**2) / 2, p=1)
         else:
-            raise ValueError(f"Unknown l1_loss_type: {l1_loss_type}")
+            raise ValueError(f"Unknown l1_norm_penalty_type: {l1_norm_penalty_type}")
 
     def update_stats(self, dropout_mask):
-        self.dropout_entropy = self.entropy_fn(dropout_mask)
+        self.dropout_entropy = (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
         self.dropout_l1_norm = self.l1_norm_fn(dropout_mask) / dropout_mask.numel()
 
-        if not self.use_dropout_entropy_in_loss:
+        if not self.use_dropout_entropy_penalty:
             self.dropout_entropy = self.dropout_entropy.detach()
-        if not self.use_dropout_l1_norm_in_loss:
+        if not self.use_dropout_l1_norm_penalty:
             self.dropout_l1_norm = self.dropout_l1_norm.detach()
 
         with torch.no_grad():
@@ -225,9 +178,6 @@ class AttentionDropout(SubModuleStats):
             self.dropout_near_zero_percent = (
                 dropout_mask < 0.1
             ).sum() / dropout_mask.numel()
-            # self.active_dropout_percent = (
-            #     dropout_mask > 0.05
-            # ).sum() / dropout_mask.numel()
 
             if self.prev_dropout_mask.nelement() != 0:
                 matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
@@ -243,42 +193,16 @@ class AttentionDropout(SubModuleStats):
                 torch.norm(rounded_dropout_mask, p=1) / rounded_dropout_mask.numel()
             )
 
-    def canonical_entropy(self, dropout_mask):
-        # the small constant is for numerical stability
-        return (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
-
-    def alternate_entropy(self, dropout_mask):
-        # the alternate entropy has the peak at > 0.5, while the canonical one has
-        # it < 0.5. In theory, this should be better for achieving both low entropy
-        # and low l1 norm because there is more curvature towards 0.
-        return ((dropout_mask - 1) * torch.log2((-dropout_mask + 1) + 1e-9)).mean()
-
     def forward(self, x, embed):
-        if self.config.mask_input_type in [
-            MaskInputType.HIDDEN_STATE,
-            MaskInputType.HIDDEN_STATE_W_LN,
-        ]:
+        if self.config.dropout_input_type == DropoutInputType.HIDDEN_STATE:
             dropout_input = x
-        elif self.config.mask_input_type in [
-            MaskInputType.EMBED,
-            MaskInputType.EMBED_PLUS_HIDDEN,
-        ]:
+        elif self.config.dropout_input_type == DropoutInputType.EMBED:
             dropout_input = embed
-
-        dropout_input = (
-            dropout_input.detach()
-            if self.config.use_detached_x_in_dropout_mask
-            else dropout_input
-        )
-        if self.config.mask_input_type in [
-            MaskInputType.HIDDEN_STATE_W_LN,
-            MaskInputType.EMBED,
-            MaskInputType.EMBED_PLUS_HIDDEN,
-        ]:
             dropout_input = self.embed_ln(dropout_input)
 
-        if self.config.mask_input_type == MaskInputType.EMBED_PLUS_HIDDEN:
-            dropout_input = dropout_input + x
+        dropout_input = (
+            dropout_input.detach() if self.config.use_detached_input else dropout_input
+        )
 
         B, T, C = dropout_input.shape
         q, k, v = self.batch_attn_weights(dropout_input).split(self.embed_dim, dim=2)
@@ -286,35 +210,29 @@ class AttentionDropout(SubModuleStats):
         q = q.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
         v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
 
-        if self.config.softmax_dim == 1:
-            dropout_values = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=None, is_causal=True
-            )
-        else:
-            attn = (q @ k.transpose(-2, -1)) * (self.head_size**-0.5)
-            causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, 0)
-            dropout_values = causal_attn @ v
-
+        dropout_values = F.scaled_dot_product_attention(
+            q, k, v, attn_mask=None, is_causal=True
+        )
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
         dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
 
         if self.training:
             self.update_stats(dropout_mask)
 
-        if self.config.rounding_type:
-            if self.config.rounding_type == RoundingType.SIGMOID:
+        if self.config.mask_rounding_type:
+            if self.config.mask_rounding_type == MaskRoundingType.SIGMOID:
                 dropout_mask = torch.sigmoid(
                     self.config.sigmoid_scale * (dropout_mask - 0.5)
                 )
-            elif self.config.rounding_type == RoundingType.SIGMOID_DETACH:
-                complement_dropout_mask = (
+            elif self.config.mask_rounding_type == MaskRoundingType.SIGMOID_DETACH:
+                dropout_mask_scaling = (
                     torch.sigmoid(
                         self.config.sigmoid_scale * (dropout_mask.detach() - 0.5)
                     )
                     - dropout_mask.detach()
                 )
-                dropout_mask = dropout_mask + complement_dropout_mask
-            elif self.config.rounding_type == RoundingType.NOISE_AND_LINEAR:
+                dropout_mask = dropout_mask + dropout_mask_scaling
+            elif self.config.mask_rounding_type == MaskRoundingType.NOISE_AND_LINEAR:
                 complement_mask = 1 - dropout_mask.detach()
                 if self.training:
                     noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
@@ -336,15 +254,13 @@ class AttentionDropout(SubModuleStats):
         if self.training:
             self.update_rounded_stats(dropout_mask)
 
-        new_x = x * dropout_mask
-        return new_x
+        return x * dropout_mask
 
 
 class FeedForward(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
-        use_attention_dropout=False,
     ):
         super().__init__()
         self.linear = nn.Linear(
@@ -354,13 +270,13 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
-        self.dropout = AttentionDropout(
+        self.dropout = LearnedDropout(
             config.n_embed,
             config.context_size,
-            config.attention_dropout_config,
-            config.use_dropout_entropy_in_loss,
-            config.use_dropout_l1_norm_in_loss,
-            config.l1_norm_loss_type,
+            config.learned_dropout_config,
+            config.use_dropout_entropy_penalty,
+            config.use_dropout_l1_norm_penalty,
+            config.l1_norm_penalty_type,
         )
 
     def forward(self, x, embed):
@@ -371,92 +287,10 @@ class FeedForward(nn.Module):
         return x
 
 
-class MultiAttentionHead(nn.Module):
-    def __init__(
-        self,
-        dim_in,
-        n_head,
-        use_bias,
-        context_size,
-        dropout_rate=0,
-        use_flash=True,
-        config=None,
-    ):
-        super().__init__()
-        assert dim_in % n_head == 0
-        self.dim_in = dim_in
-        self.head_size = dim_in // n_head
-        self.n_head = n_head
-        self.dropout_rate = dropout_rate
-        self.use_all_dropout = config.attention_dropout_config.use_all_dropout
-
-        self.batch_attn_weights = nn.Linear(self.dim_in, self.dim_in * 3, bias=use_bias)
-        self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=use_bias)
-
-        self.dropout_1 = nn.Dropout(dropout_rate)
-        if self.use_all_dropout:
-            self.dropout_2 = AttentionDropout(
-                config.n_embed,
-                config.context_size,
-                config.attention_dropout_config,
-                config.use_dropout_entropy_in_loss,
-                config.use_dropout_l1_norm_in_loss,
-                config.l1_norm_loss_type,
-            )
-        else:
-            self.dropout_2 = nn.Dropout(dropout_rate)
-
-        self.using_flash = False
-        if not hasattr(F, "scaled_dot_product_attention") or not use_flash:
-            self.register_buffer(
-                "tril",
-                torch.tril(
-                    torch.ones(context_size, context_size).view(
-                        1, 1, context_size, context_size
-                    )
-                ),
-            )
-        else:
-            print("Using flash attention.")
-            self.using_flash = True
-
-    def forward(self, x, embed):
-        B, T, C = x.shape
-
-        q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
-        k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
-        q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
-        v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
-
-        if self.using_flash:
-            new_x = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
-            )
-        else:
-            attn = (q @ k.transpose(-2, -1)) * (
-                self.head_size**-0.5
-            )  # B,H,T,S @ B,H,S,T ->B, H, T, T
-            causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, float("-inf"))
-            causal_attn_probs = F.softmax(causal_attn, dim=-1)
-            causal_attn_probs = self.dropout_1(causal_attn_probs)
-            new_x = causal_attn_probs @ v  # B,H,T,T @ B,H,T,S -> B,H,T,S
-
-        new_x = (
-            new_x.transpose(1, 2).contiguous().view(B, T, C)
-        )  # B,H,T,S -> B,T,H,S -> B,T,C
-        new_x = self.residual_proj(new_x)
-        if self.use_all_dropout:
-            new_x = self.dropout_2(new_x, embed)
-        else:
-            new_x = self.dropout_2(new_x)
-        return new_x
-
-
 class TransformerBlock(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
-        use_attention_dropout=False,
     ):
         super().__init__()
         self.multi_attn_head = MultiAttentionHead(
@@ -466,14 +300,13 @@ class TransformerBlock(nn.Module):
             config.context_size,
             config.dropout_rate,
             True,
-            config,
         )
-        self.feed_forward = FeedForward(config, use_attention_dropout)
+        self.feed_forward = FeedForward(config)
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
     def forward(self, x, embed):
-        x = x + self.multi_attn_head(self.ln1(x), embed)
+        x = x + self.multi_attn_head(self.ln1(x))
         x = x + self.feed_forward(self.ln2(x), embed)
         return x
 
@@ -491,13 +324,7 @@ class AttentionDropoutTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
         self.transformer_blocks = nn.ModuleList(
-            [
-                TransformerBlock(
-                    config,
-                    (i + 1) >= (config.start_layer) and (i + 1) <= (config.end_layer),
-                )
-                for i in range(config.n_layer)
-            ]
+            [TransformerBlock(config) for _ in range(config.n_layer)]
         )
         self.ln = LayerNorm(config.n_embed, config.use_bias)
         self.output_layer = nn.Linear(config.n_embed, config.alphabet_size, bias=False)
@@ -512,25 +339,25 @@ class AttentionDropoutTransformer(BaseModel):
                     p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
                 )
 
-        self.register_buffer("dropout_entropy_lambda", torch.empty(0), persistent=False)
-        self.register_buffer("dropout_l1_norm_lambda", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_entropy_coeff", torch.empty(0), persistent=False)
+        self.register_buffer("dropout_l1_norm_coeff", torch.empty(0), persistent=False)
 
     @torch.compiler.disable()  # without this, torch.compile keeps recompiling this function. It's caused by self.training_step changing too frequently
-    def get_dropout_lambda(self, lambda_config, device):
-        if lambda_config is None:
+    def get_penalty_coeff(self, coeff_config, device):
+        if coeff_config is None:
             return torch.empty(0, device=device)
 
-        if lambda_config.exp_coefficient is None:
-            return torch.tensor(lambda_config.max_lambda, device=device)
+        if coeff_config.exp_rate is None:
+            return torch.tensor(coeff_config.max_coeff, device=device)
 
         assert self.training_step is not None
         intersect = (
-            lambda_config.min_lambda - 1 if lambda_config.min_lambda is not None else -1
+            coeff_config.min_coeff - 1 if coeff_config.min_coeff is not None else -1
         )
         return torch.tensor(
             min(
-                np.exp(lambda_config.exp_coefficient * self.training_step) + intersect,
-                lambda_config.max_lambda,
+                np.exp(coeff_config.exp_rate * self.training_step) + intersect,
+                coeff_config.max_coeff,
             ),
             device=device,
             dtype=torch.float32,  # need to set explicitly otherwise MPS will complain that it's float64
@@ -561,23 +388,23 @@ class AttentionDropoutTransformer(BaseModel):
             if self.training:
                 self.aggregate_sub_module_stats()
                 if self.is_first_minibatch:
-                    self.dropout_entropy_lambda = self.get_dropout_lambda(
-                        self.config.dropout_entropy_lambda, device
+                    self.dropout_entropy_coeff = self.get_penalty_coeff(
+                        self.config.dropout_entropy_coeff_config, device
                     )
-                    self.dropout_l1_norm_lambda = self.get_dropout_lambda(
-                        self.config.dropout_l1_norm_lambda, device
+                    self.dropout_l1_norm_coeff = self.get_penalty_coeff(
+                        self.config.dropout_l1_norm_coeff_config, device
                     )
 
-                if self.config.use_dropout_entropy_in_loss:
-                    additional_loss = self.dropout_entropy * self.dropout_entropy_lambda
-                if self.config.use_dropout_l1_norm_in_loss:
+                if self.config.use_dropout_entropy_penalty:
+                    additional_loss = self.dropout_entropy * self.dropout_entropy_coeff
+                if self.config.use_dropout_l1_norm_penalty:
                     if additional_loss is None:
                         additional_loss = (
-                            self.dropout_l1_norm * self.dropout_l1_norm_lambda
+                            self.dropout_l1_norm * self.dropout_l1_norm_coeff
                         )
                     else:
                         additional_loss += (
-                            self.dropout_l1_norm * self.dropout_l1_norm_lambda
+                            self.dropout_l1_norm * self.dropout_l1_norm_coeff
                         )
 
             loss = F.cross_entropy(logits, targets.view(-1))
@@ -612,8 +439,8 @@ class AttentionDropoutTransformer(BaseModel):
 
     def dump_extra_stats(self):
         extra_stats = super().dump_extra_stats()
-        if self.dropout_entropy_lambda.nelement() != 0:
-            extra_stats["dropout_entropy_lambda"] = self.dropout_entropy_lambda.item()
-        if self.dropout_l1_norm_lambda.nelement() != 0:
-            extra_stats["dropout_l1_norm_lambda"] = self.dropout_l1_norm_lambda.item()
+        if self.dropout_entropy_coeff.nelement() != 0:
+            extra_stats["dropout_entropy_coeff"] = self.dropout_entropy_coeff.item()
+        if self.dropout_l1_norm_coeff.nelement() != 0:
+            extra_stats["dropout_l1_norm_coeff"] = self.dropout_l1_norm_coeff.item()
         return extra_stats
