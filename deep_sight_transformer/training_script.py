@@ -1,4 +1,5 @@
 from utils.train import train
+import os
 
 try:
     from deep_sight_transformer.model import DeepSight
@@ -9,6 +10,6 @@ except ImportError:
 if __name__ == "__main__":
     train(
         DeepSight,
-        "deep_sight_transformer/",
+        f"{os.path.dirname(os.path.abspath(__file__))}/",
         "future_encoder_transformer",
     )

@@ -1,4 +1,5 @@
 from utils.train import train
+import os
 
 try:
     from future_attention.model import FutureAttentionTransformer
@@ -9,6 +10,6 @@ except ImportError:
 if __name__ == "__main__":
     train(
         FutureAttentionTransformer,
-        "future_attention/",
+        f"{os.path.dirname(os.path.abspath(__file__))}/",
         "future_attention_transformer_v1",
     )
