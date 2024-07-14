@@ -181,9 +181,7 @@ class AttentionDropout(SubModuleStats):
                 torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
             )
         if self.config.attention_dropout_config.use_freq:
-            self.freq = nn.Parameter(
-                torch.full((embed_dim,), 1, dtype=torch.float32)
-            )
+            self.freq = nn.Parameter(torch.full((embed_dim,), 1, dtype=torch.float32))
 
         if self.config.mask_input_type in [
             MaskInputType.HIDDEN_STATE_W_LN,
@@ -304,7 +302,7 @@ class AttentionDropout(SubModuleStats):
             dropout_values = causal_attn @ v
 
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
-        
+
         if self.config.attention_dropout_config.use_freq:
             dropout_values = dropout_values * self.freq
         if self.config.attention_dropout_config.use_shift:
