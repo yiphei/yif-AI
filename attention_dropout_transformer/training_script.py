@@ -12,5 +12,5 @@ if __name__ == "__main__":
     train(
         AttentionDropoutTransformer,
         f"{os.path.dirname(os.path.abspath(__file__))}/",
-        "ultimate_attention_dropout_transformer",
+        "ultimate_attention_dropout_transformer_diff_loc",
     )
