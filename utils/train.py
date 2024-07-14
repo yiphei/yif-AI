@@ -265,10 +265,19 @@ def create_training_context(model, starting_training_step, device_type, ptdtype)
     return training_context
 
 
-def create_aws_s3_dirs(aws_access_key_id, aws_secret_access_key, current_model_path, current_checkpoint_path, sweep_id, platform_type, save_model, save_checkpoint):
+def create_aws_s3_dirs(
+    aws_access_key_id,
+    aws_secret_access_key,
+    current_model_path,
+    current_checkpoint_path,
+    sweep_id,
+    platform_type,
+    save_model,
+    save_checkpoint,
+):
     new_model_path = current_model_path
     new_checkpoint_path = current_checkpoint_path
-    
+
     s3_client = boto3.client(
         "s3",
         aws_access_key_id=aws_access_key_id,
@@ -287,6 +296,7 @@ def create_aws_s3_dirs(aws_access_key_id, aws_secret_access_key, current_model_p
     print(f"S3 folder is: {training_run_dir}")
 
     return s3_client, new_model_path, new_checkpoint_path
+
 
 def _train(
     args,
@@ -358,14 +368,16 @@ def _train(
         and (current_model_path is None or current_checkpoint_path is None)
         and (args.save_checkpoint or args.save_model)
     ):
-        s3_client, current_model_path, current_checkpoint_path = create_aws_s3_dirs(args.aws_access_key_id,
-                           args.aws_secret_access_key,
-                           current_model_path,
-                            current_checkpoint_path,
-                           args.sweep_id,
-                           args.platform_type,
-                           args.save_model,
-                           args.save_checkpoint)
+        s3_client, current_model_path, current_checkpoint_path = create_aws_s3_dirs(
+            args.aws_access_key_id,
+            args.aws_secret_access_key,
+            current_model_path,
+            current_checkpoint_path,
+            args.sweep_id,
+            args.platform_type,
+            args.save_model,
+            args.save_checkpoint,
+        )
 
     initialize_from_checkpoint = False
     ckpt_file_path = None
