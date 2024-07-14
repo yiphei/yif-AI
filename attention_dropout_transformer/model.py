@@ -28,7 +28,7 @@ class PenaltyCoeffConfig:
             assert self.exp_rate is not None
 
         if self.exp_rate is not None:
-            assert self.exp_rate < 1
+            assert 0 < self.exp_rate < 1
 
 
 class MaskRoundingType(IntMappedEnum):
