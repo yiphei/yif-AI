@@ -42,7 +42,7 @@ class DropoutInputType(IntMappedEnum):
     EMBED = "EMBED"
 
 
-class L1NormLossType(IntMappedEnum):
+class L1NormPenaltyType(IntMappedEnum):
     LINEAR = "LINEAR"
     SQUARED = "SQUARED"
 
@@ -82,9 +82,9 @@ class ModelConfig(BaseModelConfig):
     learned_dropout_config: LearnedDropoutConfig = field(
         default_factory=LearnedDropoutConfig
     )
-    use_dropout_entropy_in_loss: bool = False
-    use_dropout_l1_norm_in_loss: bool = True
-    l1_norm_loss_type: Optional[L1NormLossType] = L1NormLossType.SQUARED
+    use_dropout_entropy_penalty: bool = False
+    use_dropout_l1_norm_penalty: bool = True
+    l1_norm_penalty_type: Optional[L1NormPenaltyType] = L1NormPenaltyType.SQUARED
     dropout_entropy_lambda: Optional[RegularizingLambdaConfig] = None
     dropout_l1_norm_lambda: Optional[RegularizingLambdaConfig] = None
 
@@ -94,30 +94,30 @@ class ModelConfig(BaseModelConfig):
         if self.learned_dropout_config.use_bias is None:
             self.learned_dropout_config.use_bias = self.use_bias
 
-        if not self.use_dropout_l1_norm_in_loss and self.l1_norm_loss_type is not None:
+        if not self.use_dropout_l1_norm_penalty and self.l1_norm_penalty_type is not None:
             raise ValueError(
-                "l1_loss_type is set but use_dropout_l1_norm_in_loss is False"
+                "l1_norm_penalty_type is set but use_dropout_l1_norm_penalty is False"
             )
 
         if (
-            not self.use_dropout_entropy_in_loss
+            not self.use_dropout_entropy_penalty
             and self.dropout_entropy_lambda is not None
         ):
             raise ValueError(
-                "dropout_entropy_lambda is set but use_dropout_entropy_in_loss is False"
+                "dropout_entropy_lambda is set but use_dropout_entropy_penalty is False"
             )
 
         if (
-            not self.use_dropout_l1_norm_in_loss
+            not self.use_dropout_l1_norm_penalty
             and self.dropout_l1_norm_lambda is not None
         ):
             raise ValueError(
-                "dropout_l1_norm_lambda is set but use_dropout_l1_norm_in_loss is False"
+                "dropout_l1_norm_lambda is set but use_dropout_l1_norm_penalty is False"
             )
 
         for attr_name, flag_attr_name in [
-            ("dropout_entropy_lambda", "use_dropout_entropy_in_loss"),
-            ("dropout_l1_norm_lambda", "use_dropout_l1_norm_in_loss"),
+            ("dropout_entropy_lambda", "use_dropout_entropy_penalty"),
+            ("dropout_l1_norm_lambda", "use_dropout_l1_norm_penalty"),
         ]:
             attr_value = getattr(self, attr_name)
             if attr_value is None and getattr(self, flag_attr_name):
@@ -139,9 +139,9 @@ class LearnedDropout(SubModuleStats):
         embed_dim,
         context_size,
         config,
-        use_dropout_entropy_in_loss,
-        use_dropout_l1_norm_in_loss,
-        l1_norm_loss_type,
+        use_dropout_entropy_penalty,
+        use_dropout_l1_norm_penalty,
+        l1_norm_penalty_type,
     ):
         super().__init__()
         assert embed_dim % config.n_head == 0
@@ -149,8 +149,8 @@ class LearnedDropout(SubModuleStats):
         self.context_size = context_size
         self.config = config
         self.head_size = embed_dim // config.n_head
-        self.use_dropout_entropy_in_loss = use_dropout_entropy_in_loss
-        self.use_dropout_l1_norm_in_loss = use_dropout_l1_norm_in_loss
+        self.use_dropout_entropy_penalty = use_dropout_entropy_penalty
+        self.use_dropout_l1_norm_penalty = use_dropout_l1_norm_penalty
 
         self.batch_attn_weights = nn.Linear(
             embed_dim, embed_dim * 3, bias=config.use_bias
@@ -161,25 +161,25 @@ class LearnedDropout(SubModuleStats):
         if self.config.dropout_input_type == DropoutInputType.EMBED:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
-        self.l1_norm_fn = self.get_l1_loss_fn(l1_norm_loss_type)
+        self.l1_norm_fn = self.get_l1_norm_penalty_fn(l1_norm_penalty_type)
 
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
 
-    def get_l1_loss_fn(self, l1_loss_type):
-        if l1_loss_type == L1NormLossType.LINEAR:
+    def get_l1_norm_penalty_fn(self, l1_norm_penalty_type):
+        if l1_norm_penalty_type == L1NormPenaltyType.LINEAR:
             return lambda x: torch.norm(x, p=1)
-        elif l1_loss_type == L1NormLossType.SQUARED:
+        elif l1_norm_penalty_type == L1NormPenaltyType.SQUARED:
             return lambda x: torch.norm((x**2) / 2, p=1)
         else:
-            raise ValueError(f"Unknown l1_loss_type: {l1_loss_type}")
+            raise ValueError(f"Unknown l1_norm_penalty_type: {l1_norm_penalty_type}")
 
     def update_stats(self, dropout_mask):
         self.dropout_entropy = (dropout_mask * -torch.log2(dropout_mask + 1e-9)).mean()
         self.dropout_l1_norm = self.l1_norm_fn(dropout_mask) / dropout_mask.numel()
 
-        if not self.use_dropout_entropy_in_loss:
+        if not self.use_dropout_entropy_penalty:
             self.dropout_entropy = self.dropout_entropy.detach()
-        if not self.use_dropout_l1_norm_in_loss:
+        if not self.use_dropout_l1_norm_penalty:
             self.dropout_l1_norm = self.dropout_l1_norm.detach()
 
         with torch.no_grad():
@@ -285,9 +285,9 @@ class FeedForward(nn.Module):
             config.n_embed,
             config.context_size,
             config.learned_dropout_config,
-            config.use_dropout_entropy_in_loss,
-            config.use_dropout_l1_norm_in_loss,
-            config.l1_norm_loss_type,
+            config.use_dropout_entropy_penalty,
+            config.use_dropout_l1_norm_penalty,
+            config.l1_norm_penalty_type,
         )
 
     def forward(self, x, embed):
@@ -406,9 +406,9 @@ class AttentionDropoutTransformer(BaseModel):
                         self.config.dropout_l1_norm_lambda, device
                     )
 
-                if self.config.use_dropout_entropy_in_loss:
+                if self.config.use_dropout_entropy_penalty:
                     additional_loss = self.dropout_entropy * self.dropout_entropy_lambda
-                if self.config.use_dropout_l1_norm_in_loss:
+                if self.config.use_dropout_l1_norm_penalty:
                     if additional_loss is None:
                         additional_loss = (
                             self.dropout_l1_norm * self.dropout_l1_norm_lambda
