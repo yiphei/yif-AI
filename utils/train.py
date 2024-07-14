@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 from contextlib import ExitStack, contextmanager
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields, KW_ONLY
 from datetime import datetime
 from distutils.util import strtobool
 from enum import Enum
@@ -27,11 +27,6 @@ from utils.common import (create_autocast_context, get_default_device,
 from utils.data_loading import MapLocalDataset
 
 
-# This is a hack to circumvent the dataclass requirement that fields with non-default values must precede those with them
-def required_field_exception():
-    raise ValueError("Missing required property")
-
-
 class PlatformType(str, Enum):
     LOCAL = "LOCAL"
     SAGEMAKER = "SAGEMAKER"
@@ -44,28 +39,25 @@ class PlatformType(str, Enum):
 
 @dataclass
 class TrainConfig:
+    _: KW_ONLY
     model_config: Optional[dataclass]
     random_seed: int = field(default=1337)
     # Training
-    batch_size: int = field(
-        default_factory=required_field_exception
-    )  # this will be scaled by GRADIENT_ACCUMULATION_STEPS
-    train_steps: int = field(default_factory=required_field_exception)
-    gradient_accumulation_steps: int = field(
-        default_factory=required_field_exception
-    )  # used to simulate large batches. Must be a multiple of world_size (i.e. # of GPUs) if using DDP
+    batch_size: int
+    train_steps: int
+    gradient_accumulation_steps: int  # used to simulate large batches. Must be a multiple of world_size (i.e. # of GPUs) if using DDP
     # Optimizer
     lr: float = field(default=6e-4)  # max learning rate
     weight_decay: float = field(default=1e-1)
     beta1: float = field(default=0.9)
     beta2: float = field(default=0.95)
     decay_lr: bool = True
-    warmup_iters: int = field(default_factory=required_field_exception)
-    lr_decay_iters: int = field(default_factory=required_field_exception)
+    warmup_iters: int
+    lr_decay_iters: int
     min_lr: float = field(default=6e-5)
     # Estimation
-    est_interval: int = field(default_factory=required_field_exception)
-    est_steps: int = field(default_factory=required_field_exception)
+    est_interval: int
+    est_steps: int
     # Other
     dtype: str = field(
         default_factory=lambda: (
