@@ -46,7 +46,7 @@ Lastly, a scaling function is applied to bring $M$ to $\\{0,1\\}$ to satisfy $M 
 $$
 \begin{aligned}
 & N \coloneqq \text{a noise tensor where } N_\{i,j\} \sim Uniform[0,1] \\
-& M_{complement} =  (1 - M).detached() \\
+& M_{complement} =  (1 - M).detached()\\\\[0.2cm]
 & M_{rounded_{(i,j)}} = 
 \begin{cases} 
 M_{i,j} + M_{complement_{(i,j)}}  & \text{if } N_{i,j} >= M_{complement_{(i,j)}} \\
