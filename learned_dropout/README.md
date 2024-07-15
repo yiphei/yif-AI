@@ -55,7 +55,7 @@ M_{i,j} - M_{(i,j)}.detached()  & \text{if } N_{i,j} < M_{complement_{(i,j)}} \\
 \end{aligned}
 $$
 
-The detachment serves to reduce gradient magnitude. Also, the probabilistic rounding is only used during training. During evaluation or inference, the rounding simply becomes
+The detachment serves to reduce gradient magnitude. Also, the probabilistic rounding is only used during training. During evaluation or inference, the rounding becomes deterministic in the following way
 
 $$
 \begin{aligned}
@@ -73,10 +73,8 @@ $$ out_{dropout} =  X \odot M_{rounded} $$
 
 ### Dropout L1 norm penalty
 
-Intuitively, one should desire for more dropout (e.g. more 1s in $M$). This intuition stems from the Occam's razor or Minimum Description Length principle. This is analogous to desiring fewer experts per token in MoE. Yet, the model itself does not favor more dropout. In fact, the opposite would happen because the loss function will incentivize the model to use more compute, hence less dropout. To counter this, the Dropout L1 norm penalty is used. The L1 norm ${L_1}$ used here is
+Intuitively, more dropout (i.e. more 1s in $M$) is desirable. This intuition stems from the Occam's razor or Minimum Description Length principle. This is also analogous to desiring fewer experts per token in MoE. Yet, the model does not intrinsically favor more dropout. In fact, the opposite would happen because the next token prediction loss function incentivizes the model to use more compute, hence less dropout. To counter this, the Dropout L1 norm penalty is added to the final loss. The L1 norm ${L_1}$ is calculated in the following way
 
 $$ penalty\\\_L_{1}= \left|\frac{M^2}{2}\right|_1$$
 
-It is not the typical L1 norm function. The squaring and division serves to create an non-linear penalty. As $M$ values approach 0, then penalty should decrease much more. 
-
-This penalty term is added to the model loss.
+The squaring and division of $M$ serves to create an non-linear penalty. As $M$ values approach 0, the penalty should decay.
