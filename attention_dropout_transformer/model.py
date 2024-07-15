@@ -66,7 +66,7 @@ class LearnedDropoutConfig:
             and self.sigmoid_scale is not None
         ):
             raise ValueError(
-                "sigmoid_slope can only be set if mask_rounding_type is SIGMOID"
+                "sigmoid_scale can only be set if mask_rounding_type is SIGMOID"
             )
 
         if (
