@@ -19,9 +19,9 @@ At the high-level, the architecture consists of a canonical decoder-only transfo
 
 ### Learned Dropout
 
-Like every dropout implementation, the new LearnedDropout module computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X = \\{x_1, x_2, \ldots, x_n\\}$. The crux lies in the mask $M$'s computation. The canonical Dropout module randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, LearnedDropout needs to generate the mask in a fully differentiable way, at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$.
+Like every dropout implementation, the new LearnedDropout module computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X = \\{x_1, x_2, \ldots, x_n\\}$. The crux lies in the mask $M$'s computation. The canonical Dropout module randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, LearnedDropout needs to generate the mask in a fully differentiable way. Normally, differentiability comes at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$. However, the implementation here suffers no such fate.
 
-First, for a dropout to be highly variant to input $X$, it needs to leverage the dependencies between the input constituents $\\{x_i \mid x_i \in X\\}$ (i.e. T dimension). Therefore, a multi-headed attention operation is performed on the dropout input (without residual connection and other secondary operations). Stated more formally,
+First, for a dropout to be highly variant to input $X$, it needs to leverage the dependencies between the input constituents $\\{x_i \mid x_i \in X\\}$ (i.e. across the T dimension). Therefore, a multi-headed attention operation is performed on the dropout input (without residual connection and other secondary operations). Stated more formally,
 
 $$
 \begin{aligned}
@@ -39,9 +39,21 @@ Afterwards, the attention output $out_{attn}$ needs to be mapped to $\[0, 1\]$. 
 
 $$M =  0.5 \cos(out_{attn} + B) + 0.5$$
 
-where $B$ is a bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of dropout becoming stuck in a local minima, though at the cost of worse convergence.
+where $B \in \[0, \pi\]$ is a bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of dropout becoming stuck in a local minima, though at the cost of worse convergence.
 
-Lastly, a scaling function is applied to bring $M$ closer to $\\{0,1\\}$. This scaling is important because, otherwise, the model might use the module for computational ends (e.g. scaling). LearnedDropout must remain a purely selective module. There are two scaling methods used. TODO
+Lastly, a scaling function is applied to bring $M$ to $\\{0,1\\}$. This scaling is important because, otherwise, the model might use the module for computational ends (e.g. scaling). LearnedDropout must remain a purely selective module. Here, the scaling essentially rounds up or down with the probability proportional to the $M$ values. Stated formally,
+
+$$
+\begin{aligned}
+& noise \coloneqq \text{a noise tensor where } noise_{i,j} \sim Uniform[0,1] \\
+& M_rounded[i,j] = 
+\begin{cases} 
+1 & \text{if } noise[i,j] >= M[i,j] \\
+0 & \text{if } noise[i,j] < M[i,j] \\
+\end{cases} \\
+\end{aligned}
+$$
+
 
 At the end, the output of the module is the element-wise product between $X$ and $M$
 
