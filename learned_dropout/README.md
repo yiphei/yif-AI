@@ -75,6 +75,6 @@ $$ out_{dropout} =  X \odot M_{rounded} $$
 
 Intuitively, more dropout (i.e. more 1s in $M$) is desirable. This intuition stems from the Occam's razor or Minimum Description Length principle. This is also analogous to desiring fewer experts per token in MoE. Yet, the model does not intrinsically favor more dropout. In fact, the opposite would happen because the next token prediction loss function incentivizes the model to use as much compute as possible, hence less dropout. To counter this, a dropout ${L_1}$ norm penalty is added to the final loss. The penalty is calculated in the following way
 
-$$ penalty\\\_L_{1}= \left|\frac{M^2}{2}\right|_1$$
+$$ L_{1}\\\_norm\\\_penalty = \left|\frac{M^2}{2}\right|_1$$
 
 The squaring and division of $M$ serves to create an non-linear penalty. As $M$ values approach 0, the penalty should decay.
