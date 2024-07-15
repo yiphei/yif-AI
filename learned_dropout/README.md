@@ -11,7 +11,7 @@ Yet, unlike MoE, the random implementation means that 1) it cannot be used durin
 
 ## Architecture
 
-At the high-level, the architecture consists of a canonical decoder-only transformer with a modified dropout module. Two dropout-specific losses are introduced to encourage low dropout entropy and low dropout L1 norm, in addition to next token prediction loss.
+At the high-level, the architecture consists of a canonical decoder-only transformer with a new dropout module $LearnedDropout$. To encourage more dropout, a ${L_1}$ norm penalty is added to the model loss.
 
 <div align="center">
   <img src="assets/decoder_diagram.svg" alt="sdasd" width="40%">
