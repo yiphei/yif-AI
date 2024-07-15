@@ -39,7 +39,7 @@ parameters:
                     mask_rounding_type:
                         value: 3
                     shift_init:
-                        value: 0
+                        values: [1.57079, 3.14159]
                     use_detached_input:
                         value: False
                     dropout_input_type:
