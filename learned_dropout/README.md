@@ -47,10 +47,10 @@ $$
 \begin{aligned}
 & N \coloneqq \text{a noise tensor where } N_\{i,j\} \sim Uniform[0,1] \\
 & M_{complement} =  1 - M \\
-& M_{rounded}_{i,j} = 
+& M\\\_{rounded}\\\_{i,j} = 
 \begin{cases} 
-M_{i,j} + M_{complement}_{i,j}  & \text{if } N_{i,j} >= M_{complement}_{i,j} \\
-M_{i,j} - M_{i,j}  & \text{if } N_{i,j} < M_{complement}_{i,j} \\
+M_{i,j} + M\\\_{complement}\\\_{i,j}  & \text{if } N_{i,j} >= M\\\_{complement}\\\_{i,j} \\
+M_{i,j} - M_{i,j}  & \text{if } N_{i,j} < M\\\_{complement}\\\_{i,j} \\
 \end{cases} \\
 \end{aligned}
 $$
