@@ -311,7 +311,7 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class AttentionDropoutTransformer(BaseModel):
+class LearnedDropoutTransformer(BaseModel):
     model_config_cls = ModelConfig
 
     def _init_model(self, config: ModelConfig):

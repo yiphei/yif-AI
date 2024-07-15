@@ -1,5 +1,5 @@
 # This exists for Sagemaker to load the model and run inference.
-from learned_dropout.model import AttentionDropoutTransformer
+from learned_dropout.model import LearnedDropoutTransformer
 from utils.inference import input_fn as base_input_fn
 from utils.inference import model_fn as base_model_fn
 from utils.inference import output_fn as base_output_fn
@@ -7,7 +7,7 @@ from utils.inference import predict_fn as base_predict_fn
 
 
 def model_fn(model_dir, file_name=None):
-    return base_model_fn(model_dir, AttentionDropoutTransformer, file_name)
+    return base_model_fn(model_dir, LearnedDropoutTransformer, file_name)
 
 
 def input_fn(input_data, content_type):
