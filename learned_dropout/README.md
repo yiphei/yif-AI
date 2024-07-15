@@ -55,6 +55,18 @@ M_{i,j} - M_{(i,j)}.detached()  & \text{if } N_{i,j} < M_{complement_{(i,j)}} \\
 \end{aligned}
 $$
 
+The detachment serves to reduce gradient magnitude. Also, $N$ is only used during training. During evaluation or inference, the rounding simply becomes
+
+$$
+\begin{aligned}
+& M_{complement} =  (1 - M).detached() \\
+& M_{rounded_{(i,j)}} = 
+\begin{cases} 
+M_{i,j} + M_{complement_{(i,j)}}  & \text{if } M_{i,j} >= 0.5  \\
+M_{i,j} - M_{(i,j)}.detached()  & \text{if } M_{i,j} < 0.5  \\
+\end{cases} \\
+\end{aligned}
+$$
 
 At the end, the output of the module is the element-wise product between $X$ and $M$
 
