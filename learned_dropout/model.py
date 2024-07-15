@@ -159,6 +159,8 @@ class LearnedDropout(SubModuleStats):
             return lambda x: torch.norm(x, p=1)
         elif l1_norm_penalty_type == L1NormPenaltyType.SQUARED:
             return lambda x: torch.norm((x**2) / 2, p=1)
+        elif l1_norm_penalty_type is None:
+            return lambda x: torch.norm(x, p=1)
         else:
             raise ValueError(f"Unknown l1_norm_penalty_type: {l1_norm_penalty_type}")
 
