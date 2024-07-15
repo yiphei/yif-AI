@@ -41,7 +41,7 @@ $$M =  0.5 \cos(out_{attn} + B) + 0.5$$
 
 where $B \in \[0, \pi\]$ is a bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of dropout becoming stuck in a local minima, though at the cost of worse convergence.
 
-Lastly, a scaling function is applied to bring $M$ to $\\{0,1\\}$. This scaling is important because, otherwise, the model might use the module for computational ends (e.g. scaling). LearnedDropout must remain a purely selective module. Here, the scaling essentially rounds up or down with the probability proportional to the $M$ values. Stated formally,
+Lastly, a scaling function is applied to bring $M$ to $\\{0,1\\}$ to satisfy $M \in \\{0, 1\\}$. This scaling is important because, otherwise, the model might use the dropout module for computational ends (e.g. scaling of dropout input). LearnedDropout must remain a purely selective module. Here, the scaling essentially rounds up or down $M$ with a probability proportional to the $M$ values. Stated formally,
 
 $$
 \begin{aligned}
@@ -55,7 +55,7 @@ M_{i,j} - M_{(i,j)}.detached()  & \text{if } N_{i,j} < M_{complement_{(i,j)}} \\
 \end{aligned}
 $$
 
-The detachment serves to reduce gradient magnitude. Also, $N$ is only used during training. During evaluation or inference, the rounding simply becomes
+The detachment serves to reduce gradient magnitude. Also, the probabilistic rounding is only used during training. During evaluation or inference, the rounding simply becomes
 
 $$
 \begin{aligned}
@@ -67,9 +67,9 @@ $$
 \end{aligned}
 $$
 
-At the end, the output of the module is the element-wise product between $X$ and $M$
+At the end, the output of the module is the element-wise product between $X$ and $M_{rounded}$
 
-$$ out_{dropout} =  X \odot M $$
+$$ out_{dropout} =  X \odot M_{rounded} $$
 
 ### Penalty terms
 
