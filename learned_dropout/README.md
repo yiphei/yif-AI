@@ -73,7 +73,7 @@ $$ out_{dropout} =  X \odot M_{rounded} $$
 
 ### Dropout L1 norm penalty
 
-Intuitively, one should desire for more dropout (e.g. more 1s in $M$). This intuition stems from the Occam's razor or Minimum Description Length principle. Yet, solely adding learned dropout does not incentivize the model to favor more dropout. In fact, the opposite would happen because the loss function will incentivize the model to use less dropout. The Dropout L1 norm serves to counter the otherwise degenerate tendency. The L1 norm ${L_1}$ is just the canonical function
+Intuitively, one should desire for more dropout (e.g. more 1s in $M$). This intuition stems from the Occam's razor or Minimum Description Length principle. This is analogous to desiring fewer experts per token in MoE. Yet, the model itself does not favor more dropout. In fact, the opposite would happen because the loss function will incentivize the model to use more compute, hence less dropout. To counter this, the Dropout L1 norm penalty is used. The L1 norm ${L_1}$ is just the canonical function
 
 $$ L_1(\mathbf{m}) = |\mathbf{m}|_1$$
 
