@@ -24,6 +24,8 @@ parameters:
                 value: False
             use_dropout_l1_norm_penalty:
                 value: False
+            l1_norm_penalty_type:
+                value: null
             learned_dropout_config:
                 parameters:
                     use_bias:
