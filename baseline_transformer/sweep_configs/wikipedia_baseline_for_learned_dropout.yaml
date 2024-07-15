@@ -19,11 +19,11 @@ parameters:
             n_head: 
                 value: 12
             dropout_rate:
-                value: 0
+                values: [0, 0.1, 0.2, 0.3, 0.4]
     batch_size: 
         value: 50
     train_steps: 
-        value: 9000
+        value: 26000
     lr: 
         value: 9e-4
     warmup_iters:
