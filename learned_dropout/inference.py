@@ -1,5 +1,5 @@
 # This exists for Sagemaker to load the model and run inference.
-from attention_dropout_transformer.model import AttentionDropoutTransformer
+from learned_dropout.model import AttentionDropoutTransformer
 from utils.inference import input_fn as base_input_fn
 from utils.inference import model_fn as base_model_fn
 from utils.inference import output_fn as base_output_fn

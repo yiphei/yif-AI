@@ -3,7 +3,7 @@ import os
 from utils.train import train
 
 try:
-    from attention_dropout_transformer.model import AttentionDropoutTransformer
+    from learned_dropout.model import AttentionDropoutTransformer
 except ImportError:
     # I only upload the direct parent module to sagemaker, so I need a different import path
     from model import AttentionDropoutTransformer

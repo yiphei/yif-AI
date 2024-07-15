@@ -1,4 +1,4 @@
-from attention_dropout_transformer.inference import model_fn
+from learned_dropout.inference import model_fn
 from utils.sample import sample
 
 if __name__ == "__main__":
