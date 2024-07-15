@@ -41,7 +41,7 @@ $$M =  0.5 \cos(out_{attn} + B) + 0.5$$
 
 where $B \in \[0, \pi\]$ is a bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of dropout becoming stuck in a local minima, though at the cost of worse convergence.
 
-Lastly, a rounding is applied to bring $M$ to $\\{0,1\\}$ to satisfy $M \in \\{0, 1\\}$. This rounding is important because, otherwise, the model might use the dropout module for computational ends (e.g. scaling of $X$). LearnedDropout must remain a purely selective module. Here, the rounding rounds up or down $M$ with a probability proportional to the $M$ values. For instance, given $M_\{i,j\}$, $P(round_up) = M_\{i,j\}$ and $P(round_down) = 1-M_\{i,j\}$. Stated formally,
+Lastly, a rounding is applied to bring $M$ to $\\{0,1\\}$ to satisfy $M \in \\{0, 1\\}$. This rounding is important because, otherwise, the model might use the dropout module for computational ends (e.g. scaling of $X$). LearnedDropout must remain a purely selective module. Here, the rounding rounds up or down $M$ with a probability proportional to the $M$ values. For instance, given $M_\{i,j\}$, $P(round\\_up) = M_\{i,j\}$ and $P(round\\_down) = 1-M_\{i,j\}$. Stated formally,
 
 $$
 \begin{aligned}
