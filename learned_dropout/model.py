@@ -147,6 +147,7 @@ class LearnedDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
+        self.linear = nn.Linear(embed_dim, embed_dim, bias=config.use_bias)
         if self.config.dropout_input_type == DropoutInputType.EMBED:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
@@ -216,6 +217,7 @@ class LearnedDropout(SubModuleStats):
             q, k, v, attn_mask=None, is_causal=True
         )
         dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
+        dropout_values = self.linear(dropout_values)
         dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
 
         if self.training:
