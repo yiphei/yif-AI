@@ -41,7 +41,7 @@ $$M =  0.5 \cos(out_{attn} + B) + 0.5$$
 
 where $B \in \[0, \pi\]$ is a bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of dropout becoming stuck in a local minima, though at the cost of worse convergence.
 
-Lastly, a rounding is applied to bring $M$ to $\\{0,1\\}$ to satisfy $M \in \\{0, 1\\}$. This rounding is important because, otherwise, the model might use the dropout module for computational ends (e.g. scaling of $X$). $LearnedDropout$ must remain a purely selective module. Here, the rounding rounds up or down $M$ with a probability proportional to its values. For instance, given $M_\{i,j\}$, $P(M_{rounded_{(i,j)}}=1) = M_\{i,j\}$ and $P(M_{rounded_{(i,j)}}=0) = 1-M_\{i,j\}$. Stated formally,
+Lastly, a rounding is applied to bring $M$ to $\\{0,1\\}$ to satisfy $M \in \\{0, 1\\}$. The rounding is important because, otherwise, the model might use the dropout module for computational ends (e.g. scaling of $X$). $LearnedDropout$ must remain a purely selective module. Here, the rounding rounds up or down $M$ with a probability proportional to its values. For instance, given $M_\{i,j\}$, $P(M_{rounded_{(i,j)}}=1) = M_\{i,j\}$ and $P(M_{rounded_{(i,j)}}=0) = 1-M_\{i,j\}$. Stated formally,
 
 $$
 \begin{aligned}
@@ -73,8 +73,8 @@ $$ out_{dropout} =  X \odot M_{rounded} $$
 
 ### Dropout L1 norm penalty
 
-Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition stems from the Occam's razor or Minimum Description Length principle. This is also analogous to desiring fewer experts per token in MoE. Yet, the model does not intrinsically favor more dropout. In fact, the opposite would happen because the next token prediction loss function incentivizes the model to use as much compute as possible, hence less dropout. To counter this, a dropout ${L_1}$ norm penalty is added to the final loss, calculated in the following way
+Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition stems from the Occam's razor or Minimum Description Length principle. This is also analogous to desiring fewer experts per token in MoE. Yet, the model does not intrinsically favor more dropout. In fact, the opposite would happen because the next token prediction loss function incentivizes the model to use as much compute as possible, hence less dropout. To counter this, a dropout ${L_1}$ norm penalty is added to the final model loss, calculated in the following way
 
 $$ L_{1}\\\_norm\\\_penalty = \left|\frac{M^2}{2}\right|_1$$
 
-Note that the unrounded $M$ is used because it is more determinative of more dropout. The squaring of $M$ serves to create an non-linear penalty. As $M$ approaches 0, the penalty should decay. The scaling of $M$ serves to scale down the gradients.
+Note that the unrounded $M$ is used because it is more determinative of more dropout. The squaring of $M$ serves to create an non-linear penalty: as $M$ approaches 0, the penalty should decay. The scaling of $M$ serves to scale down the gradients.
