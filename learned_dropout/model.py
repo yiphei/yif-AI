@@ -235,7 +235,7 @@ class LearnedDropout(SubModuleStats):
                 )
                 dropout_mask = dropout_mask + dropout_mask_scaling
             elif self.config.mask_rounding_type == MaskRoundingType.NOISE_AND_LINEAR:
-                complement_mask = 1 - dropout_mask.detach()
+                complement_mask = 1 - dropout_mask
                 if self.training:
                     noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
                     scaling = torch.where(
