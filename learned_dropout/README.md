@@ -92,7 +92,7 @@ First, we evaluate the difference between including the L1 norm penalty and excl
 | **with penalty** [(config)](#) | **2.993** | 3.387 | 8.564e-9 |
 | **without penalty** [(config)](#) | 2.998 | **3.385** | 4.138e-9 |
 
-Then, we evaluate with different shift inits
+Then, we evaluate with different shift inits, all using the L1 norm penalty.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
