@@ -110,4 +110,4 @@ Then, we evaluate with different shift inits
 |---|----------|----------|----------|
 | **shift_init = 0** [(config)](#) | **2.937** | **3.384** | 0.6167 |
 | **shift_init = pi/2** [(config)](#) | 2.967 | 3.405 | 0.5955 |
-| **shift_init = pi** [(config)](#) | 3.005 | 3.457 | **0.2507** |
+| **shift_init = pi** [(config)](#) | 3.055 | 3.457 | **0.2507** |
