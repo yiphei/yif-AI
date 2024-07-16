@@ -49,8 +49,8 @@ $$
 & M_{complement} =  (1 - M).detached()\\\\[0.2cm]
 & M_{rounded_{(i,j)}} = 
 \begin{cases} 
-M_{i,j} + M_{complement_{(i,j)}}  & \text{if } N_{i,j} >= M_{complement_{(i,j)}} \\
-M_{i,j} - M_{(i,j)}.detached()  & \text{if } N_{i,j} < M_{complement_{(i,j)}} \\
+M_{i,j} + M_{complement_{(i,j)}}  & \text{if } N_{i,j} \leq M_{i,j} \\
+M_{i,j} - M_{(i,j)}.detached()  & \text{if } N_{i,j} > M_{i,j} \\
 \end{cases} \\
 \end{aligned}
 $$
