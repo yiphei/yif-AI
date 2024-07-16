@@ -73,7 +73,7 @@ $$ out_{dropout} =  X \odot M_{rounded} $$
 
 ### Dropout L1 norm penalty
 
-Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition stems from the Occam's razor or Minimum Description Length principle. This is also analogous to desiring fewer experts per token in MoE. Yet, the model does not intrinsically favor more dropout. In fact, the opposite would happen because the next token prediction loss function incentivizes the model to use as much compute as possible, hence less dropout. To counter this, a dropout ${L_1}$ norm penalty is added to the final model loss, calculated in the following way
+Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition stems from the Occam's razor or Minimum Description Length principle. This is also analogous to desiring fewer experts per token in MoE. Yet, the model does not intrinsically favor more dropout. In fact, the opposite could happen because the next token prediction loss function incentivizes the model to use as much compute as possible, hence less dropout. To counter this, a dropout ${L_1}$ norm penalty is added to the final model loss, calculated in the following way
 
 $$ L_{1}\\\_norm\\\_penalty = \left|\frac{M^2}{2}\right|_1$$
 
@@ -85,7 +85,7 @@ Note that the unrounded $M$ is used because it is deterministic. The squaring of
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-First, we evaluate the difference between including the L1 norm penalty and excluding it.
+First, the inclusion and exclusion of ${L_1}$ norm penalty were compared. Both had $B$ initialized to $0$. The inclusion of the penalty outperformed its exclusion in validation loss but underperformed it in train loss. Surprisingly, the penalty absence did not detract the model from having more dropout but its rate was much slower.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
