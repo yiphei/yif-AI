@@ -239,11 +239,11 @@ class LearnedDropout(SubModuleStats):
                 if self.training:
                     noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
                     scaling = torch.where(
-                        noise <= dropout_mask, complement_mask, - dropout_mask.detach()
+                        noise <= dropout_mask, complement_mask, -dropout_mask.detach()
                     )
                 else:
                     scaling = torch.where(
-                        dropout_mask >= 0.5, complement_mask, - dropout_mask.detach()
+                        dropout_mask >= 0.5, complement_mask, -dropout_mask.detach()
                     )
 
                 # scaling + dropout_mask should produce either 0s or 1s, but because of
