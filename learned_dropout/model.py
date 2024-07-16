@@ -9,8 +9,7 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.common import IntMappedEnum, custom_dataclass
-from utils.transformer_modules import (BaseModel, LayerNorm,
-                                       MultiAttentionHead, SubModuleStats)
+from utils.transformer_modules import (BaseModel, LayerNorm, SubModuleStats)
 
 
 @custom_dataclass
@@ -195,12 +194,9 @@ class LearnedDropout(SubModuleStats):
                 torch.norm(rounded_dropout_mask, p=1) / rounded_dropout_mask.numel()
             )
 
-    def forward(self, x, embed):
+    def forward(self, x):
         if self.config.dropout_input_type == DropoutInputType.HIDDEN_STATE:
             dropout_input = x
-        elif self.config.dropout_input_type == DropoutInputType.EMBED:
-            dropout_input = embed
-            dropout_input = self.embed_ln(dropout_input)
 
         dropout_input = (
             dropout_input.detach() if self.config.use_detached_input else dropout_input
@@ -285,8 +281,75 @@ class FeedForward(nn.Module):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        x = self.dropout(x, embed)
+        x = self.dropout(x)
         return x
+
+
+class MultiAttentionHead(nn.Module):
+    def __init__(
+        self, config, dim_in, n_head, use_bias, context_size, dropout_rate=0, use_flash=True
+    ):
+        super().__init__()
+        assert dim_in % n_head == 0
+        self.dim_in = dim_in
+        self.head_size = dim_in // n_head
+        self.n_head = n_head
+        self.dropout_rate = dropout_rate
+
+        self.batch_attn_weights = nn.Linear(self.dim_in, self.dim_in * 3, bias=use_bias)
+        self.residual_proj = nn.Linear(self.dim_in, self.dim_in, bias=use_bias)
+
+        self.dropout_1 = nn.Dropout(dropout_rate)
+        self.dropout_2 = LearnedDropout(
+            config.n_embed,
+            config.context_size,
+            config.learned_dropout_config,
+            config.use_dropout_entropy_penalty,
+            config.use_dropout_l1_norm_penalty,
+            config.l1_norm_penalty_type,
+        )
+
+        self.using_flash = False
+        if not hasattr(F, "scaled_dot_product_attention") or not use_flash:
+            self.register_buffer(
+                "tril",
+                torch.tril(
+                    torch.ones(context_size, context_size).view(
+                        1, 1, context_size, context_size
+                    )
+                ),
+            )
+        else:
+            print("Using flash attention.")
+            self.using_flash = True
+
+    def forward(self, x):
+        B, T, C = x.shape
+
+        q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
+        k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+
+        if self.using_flash:
+            new_x = F.scaled_dot_product_attention(
+                q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
+            )
+        else:
+            attn = (q @ k.transpose(-2, -1)) * (
+                self.head_size**-0.5
+            )  # B,H,T,S @ B,H,S,T ->B, H, T, T
+            causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, float("-inf"))
+            causal_attn_probs = F.softmax(causal_attn, dim=-1)
+            causal_attn_probs = self.dropout_1(causal_attn_probs)
+            new_x = causal_attn_probs @ v  # B,H,T,T @ B,H,T,S -> B,H,T,S
+
+        new_x = (
+            new_x.transpose(1, 2).contiguous().view(B, T, C)
+        )  # B,H,T,S -> B,T,H,S -> B,T,C
+        new_x = self.residual_proj(new_x)
+        new_x = self.dropout_2(new_x)
+        return new_x
 
 
 class TransformerBlock(nn.Module):
@@ -296,6 +359,7 @@ class TransformerBlock(nn.Module):
     ):
         super().__init__()
         self.multi_attn_head = MultiAttentionHead(
+            config,
             config.n_embed,
             config.n_head,
             config.use_bias,
