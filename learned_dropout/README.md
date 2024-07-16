@@ -102,7 +102,7 @@ First, we evaluate the difference between including the L1 norm penalty and excl
 |   | Train loss | Val loss | average % of 1s in $M_{rounded}$ |
 |---|----------|----------|----------|
 | **with penalty** [(config)](#) | 2.937 | **3.384** | **0.6167** |
-| **without penalty** [(config)](#) | **2.911** | 3.403 | 0.9609 |
+| **without penalty** [(config)](#without-penalty) | **2.911** | 3.403 | 0.9609 |
 
 Next, using the ${L_1}$ norm penalty, different initialization values for $B$ (named shift_init in the charts) are evaluated. The initialization with $0$ performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuition because initializing with $0$ means that $M$ starts with values closer to 1, and it is easier to go from no dropout to more dropout than viceversa.
 
