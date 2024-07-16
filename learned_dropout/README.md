@@ -148,8 +148,8 @@ Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
-    <img src="assets/dropout_train_loss.svg" alt="Image 1" style="width: 45%;"/>
-    <img src="assets/dropout_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/dropout_train_loss_a.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/dropout_val_loss_a.svg" alt="Image 2" style="width: 45%;"/>
   </div>
     <div align="center">
       <em>Safari may not render the charts above. Chrome is advised.</em>
