@@ -106,7 +106,7 @@ Then, we evaluate with different shift inits
 </div>
 <br>
 
-|   | Train loss | Val loss | $M_{rounded}$'s % of 1s |
+|   | Train loss | Val loss | average % of 1s in $M_{rounded}$ |
 |---|----------|----------|----------|
 | **shift_init = 0** [(config)](#) | **2.937** | **3.384** | 0.6167 |
 | **shift_init = pi/2** [(config)](#) | 2.967 | 3.405 | 0.5955 |
