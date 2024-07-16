@@ -130,3 +130,24 @@ Then, we compare against a baseline
 |---|----------|----------|----------|----------|
 | **shift_init = 0** [(config)](#) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#) | **2.845** | 3.475 | NA | 15,441,192 |
+
+Then, it is tested against more dropout
+
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+    <img src="assets/dropout_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/dropout_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | average % of 1s in $M_{rounded}$ | Size (params) |
+|---|----------|----------|----------|----------|
+| **shift_init = 0** [(config)](#) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
+| **baseline** [(config)](#) | **2.845** | 3.475 | NA | 15,441,192 |
+| **0.3 dropout baseline** [(config)](#) | 3.213 | 3.425 | NA | 15,441,192 |
+| **0.4 dropout baseline** [(config)](#) | 3.319 | 3.512 | NA | 15,441,192 |
