@@ -181,6 +181,37 @@ the new dropout can be implemented in a way that reduces the actual FLOPS,
 ---
 ## Appendix
 ### Run configs
+#### "without penalty"
+```
+{'lr': 0.0009,
+ 'beta1': 0.9,
+ 'beta2': 0.95,
+ 'min_lr': 9e-05,
+ 'decay_lr': True,
+ 'est_steps': 200,
+ 'batch_size': 50,
+ 'train_steps': 26000,
+ 'est_interval': 500,
+ 'model_config': {'n_head': 9,
+                  'n_embed': 144,
+                  'n_layer': 26,
+                  'use_bias': False,
+                  'context_size': 200,
+                  'dropout_rate': 0,
+                  'l1_norm_penalty_type': None,
+                  'learned_dropout_config': {'n_head': 9,
+                                             'use_bias': False,
+                                             'shift_init': 0,
+                                             'dropout_input_type': 1,
+                                             'mask_rounding_type': 3,
+                                             'use_detached_input': False},
+                  'use_dropout_entropy_penalty': False,
+                  'use_dropout_l1_norm_penalty': False},
+ 'warmup_iters': 300,
+ 'weight_decay': 0.1,
+ 'lr_decay_iters': 700000,
+ 'gradient_accumulation_steps': 16}
+```
 #### "shift_init = 0"
 ```
 {'lr': 0.0009,
