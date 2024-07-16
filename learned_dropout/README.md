@@ -77,7 +77,7 @@ Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition ste
 
 $$ L_{1}\\\_norm\\\_penalty = \left|\frac{M^2}{2}\right|_1$$
 
-Note that the unrounded $M$ is used because it is more determinative of more dropout. The squaring of $M$ serves to create an non-linear penalty: as $M$ approaches 0, the penalty should decay. The scaling of $M$ serves to scale down the gradients.
+Note that the unrounded $M$ is used because it is deterministic. The squaring of $M$ serves to create an non-linear penalty: as $M$ approaches 0, the penalty should decay. The decay and the $\frac{1}{2} scaling ensure that the next token prediction objective functions remains primary.
 
 ## Results
 
