@@ -152,3 +152,20 @@ Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 
 | **0.2 dropout baseline** [(config)](#) | 3.1 | **3.354** | NA | 15,441,192 |
 | **0.3 dropout baseline** [(config)](#) | 3.213 | 3.425 | NA | 15,441,192 |
 | **0.4 dropout baseline** [(config)](#) | 3.319 | 3.512 | NA | 15,441,192 |
+
+## Next steps
+
+These are some further things to look forward to:
+- instead of a single cosine function to map values to $\[0, 1\]$, use a Fourier series
+- try bigger models, at least GPT-2 size
+- run training for longer to observe long-term behavior
+- evaluate on different datasets
+- evaluate on non-language tasks
+
+## Results
+
+the new dropout can be implemented in a way that reduces the actual FLOPS, 
+
+---
+## Appendix
+### Run configs
