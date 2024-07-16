@@ -9,7 +9,7 @@ from torch.nn import functional as F
 
 from baseline_transformer.model import ModelConfig as BaseModelConfig
 from utils.common import IntMappedEnum, custom_dataclass
-from utils.transformer_modules import (BaseModel, LayerNorm, SubModuleStats)
+from utils.transformer_modules import BaseModel, LayerNorm, SubModuleStats
 
 
 @custom_dataclass
@@ -287,7 +287,14 @@ class FeedForward(nn.Module):
 
 class MultiAttentionHead(nn.Module):
     def __init__(
-        self, config, dim_in, n_head, use_bias, context_size, dropout_rate=0, use_flash=True
+        self,
+        config,
+        dim_in,
+        n_head,
+        use_bias,
+        context_size,
+        dropout_rate=0,
+        use_flash=True,
     ):
         super().__init__()
         assert dim_in % n_head == 0
