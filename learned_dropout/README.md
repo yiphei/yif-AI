@@ -5,9 +5,9 @@ Dropout is a very effective yet simple regularization technique. However, its ra
 
 ## Motivations
 
-$Dropout$ is a very popular technique that regularizes the model training to be more robust against overfitting and thus yields improved generalization. It simply works by randomly setting some values of a tensor to zero, with the ratio of zero values determined by a hyperparameter. When a value is set to zero, it becomes effectively detached from the computational graph, so all the parameters that contributed to that value will have a gradient of 0 w.r.t. that value. In doing so, $Dropout$ essentially creates a subgraph of the model because setting values to zeroes practically turns off part of the model. Given the randomness, every forward pass results in a different (transient) subgraph. Then, the final pre-trained model constitutes the ensemble of all the different subgraphs $Dropout$ created. Furthermore, observe that this outcome is not so conceptually removed from MoE's outcome. Each subgraph can be loosely though of an expert, and through these subgraphs, $Dropout$ (very weakly) partitions the model into different experts, like MoE.
+$Dropout$ is a very popular technique that regularizes the model training to be more robust against overfitting and thus yields improved generalization. It simply works by randomly setting some values of a tensor to zero, with the ratio of zero values determined by a hyperparameter. When a value is set to zero, it becomes effectively detached from the computational graph, so all the parameters that contributed to that value will have a gradient of 0 w.r.t. that value. In doing so, $Dropout$ essentially creates a subgraph of the model because setting values to zeroes practically turns off part of the model. Given the randomness, every forward pass results in a different (transient) subgraph. Then, the final pre-trained model constitutes the ensemble of all the different subgraphs $Dropout$ created. Furthermore, observe that this outcome is not so conceptually removed from MoE's outcome. Each subgraph can be loosely thought of an expert, and through these subgraphs, $Dropout$ (very weakly) partitions the model into different experts, like MoE.
 
-Yet, unlike MoE, the random implementation means that 1) it cannot be used during inference and 2) it is invariant to input. 1) limits the benefit of $Dropout$ to pre-training only, but 2) represents the larger reason why MoE produces better performance than $Dropout$. To overcome these deficits, $Dropout$ needs to be parametrized to enable the model to learn the best dropout, for every unique input. This should make it a compelling alternative to MoE.
+Yet, unlike MoE, the random implementation means that 1) it cannot be used during inference and 2) it is invariant to input. 1) limits the benefit of $Dropout$ to pre-training only, but 2) represents the larger reason why MoE produces better performance than $Dropout$. To overcome these deficits, $Dropout$ needs to be parametrized to permit the model to learn the best dropout, for every unique input. This should make it a compelling alternative to MoE.
 
 ## Architecture
 
@@ -39,7 +39,7 @@ Afterwards, the attention output $out_{attn}$ needs to be mapped to $\[0, 1\]$. 
 
 $$M =  0.5 \cos(out_{attn} + B) + 0.5$$
 
-where $B \in \[0, \pi\]$ is a bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of dropout becoming stuck in a local minimum, though at the cost of worse convergence.
+where $B \in \[0, \pi\]$ is a shift bias term. This function lies in the $\[0,1\]$ range, and its recurrent property eliminates the risk of dropout becoming stuck in a local minimum, though at the cost of worse convergence.
 
 Lastly, a rounding is applied to bring $M$ to $\\{0,1\\}$ to satisfy $M \in \\{0, 1\\}$. The rounding is important because, otherwise, the model might use the dropout module for computational ends (e.g. scaling of $X$). $LearnedDropout$ must remain a purely selective module. Here, the rounding rounds up or down $M$ with a probability proportional to its values. For instance, given $M_\{i,j\}$, $P(M_{rounded_{(i,j)}}=1) = M_\{i,j\}$ and $P(M_{rounded_{(i,j)}}=0) = 1-M_\{i,j\}$. Stated formally,
 
@@ -77,7 +77,7 @@ Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition ste
 
 $$ L_{1}\\\_norm\\\_penalty = \left|\frac{M^2}{2}\right|_1$$
 
-Note that the unrounded $M$ is used because it is deterministic. The squaring of $M$ serves to create an non-linear penalty: as $M$ approaches 0, the penalty should decay. The decay and the $\frac{1}{2}$ scaling ensure that the next token prediction objective functions remains primary.
+Note that the unrounded $M$ is used because it is deterministic. The squaring of $M$ serves to create an non-linear penalty: as $M$ approaches 0, the penalty should decay. The decay and the $\frac{1}{2}$ scaling ensure that the penalty does not take precedence over next token prediction.
 
 ## Results
 
@@ -85,7 +85,7 @@ Note that the unrounded $M$ is used because it is deterministic. The squaring of
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
 
-First, the inclusion and exclusion of ${L_1}$ norm penalty were compared. Both had $B$ initialized to $0$. The inclusion of the penalty outperformed its exclusion in validation loss but underperformed it in train loss. Surprisingly, the penalty absence did not detract the model from having more dropout but its rate was much slower.
+First, the inclusion and exclusion of ${L_1}$ norm penalty were compared. Both had the shift bias $B$ initialized to $0$. The inclusion of the penalty outperformed its exclusion in validation loss but underperformed it in train loss. Surprisingly, the penalty absence did not detract the model from having more dropout over time but at a much slower rate.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -104,7 +104,7 @@ First, the inclusion and exclusion of ${L_1}$ norm penalty were compared. Both h
 | **with penalty** [(config)](#) | 2.937 | **3.384** | **0.6167** |
 | **without penalty** [(config)](#without-penalty) | **2.911** | 3.403 | 0.9609 |
 
-Next, using the ${L_1}$ norm penalty, different initialization values for $B$ (named shift_init in the charts) are evaluated. The initialization with $0$ performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuition because initializing with $0$ means that $M$ starts with values closer to 1, and it is easier to go from no dropout to more dropout than viceversa.
+Next, using the ${L_1}$ norm penalty, different initialization values for the shift bias $B$ were evaluated. The $0$ initialization performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuition because initializing with $0$ means that $M$ starts with values closer to 1, and it is easier to go from no dropout to better dropout than viceversa.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
