@@ -149,5 +149,6 @@ Then, it is tested against more dropout
 |---|----------|----------|----------|----------|
 | **shift_init = 0** [(config)](#) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#) | **2.845** | 3.475 | NA | 15,441,192 |
+| **0.2 dropout baseline** [(config)](#) | 3.1 | 3.354 | NA | 15,441,192 |
 | **0.3 dropout baseline** [(config)](#) | 3.213 | 3.425 | NA | 15,441,192 |
 | **0.4 dropout baseline** [(config)](#) | 3.319 | 3.512 | NA | 15,441,192 |
