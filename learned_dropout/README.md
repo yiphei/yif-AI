@@ -111,3 +111,22 @@ Then, we evaluate with different shift inits, all using the L1 norm penalty.
 | **shift_init = 0** [(config)](#) | **2.937** | **3.384** | 0.6167 |
 | **shift_init = pi/2** [(config)](#) | 2.967 | 3.405 | 0.5955 |
 | **shift_init = pi** [(config)](#) | 3.055 | 3.457 | **0.2507** |
+
+Then, we compare against a baseline
+
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+    <img src="assets/baseline_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/baseline_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | average % of 1s in $M_{rounded}$ | Size (params) |
+|---|----------|----------|----------|----------|
+| **shift_init = 0** [(config)](#) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
+| **baseline** [(config)](#) | **2.845** | 3.475 | NA | 15,441,192 |
