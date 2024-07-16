@@ -199,7 +199,10 @@ class LearnedDropout(SubModuleStats):
     def forward(self, x, embed):
         if self.config.dropout_input_type == DropoutInputType.HIDDEN_STATE:
             dropout_input = x
-        elif self.config.dropout_input_type in [DropoutInputType.EMBED, DropoutInputType.EMBED_WITH_LN]:
+        elif self.config.dropout_input_type in [
+            DropoutInputType.EMBED,
+            DropoutInputType.EMBED_WITH_LN,
+        ]:
             dropout_input = embed
             if self.config.dropout_input_type == DropoutInputType.EMBED_WITH_LN:
                 dropout_input = self.embed_ln(dropout_input)
