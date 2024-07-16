@@ -92,7 +92,7 @@ First, we evaluate the difference between including the L1 norm penalty and excl
 | **with penalty** [(config)](#) | **2.993** | 3.387 | 8.564e-9 |
 | **without penalty** [(config)](#) | 2.998 | **3.385** | 4.138e-9 |
 
-Next, using the ${L_1}$ norm penalty, different initialization values for $B$ (named shift_init in the charts) are evaluated. The initialization with $0$ performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuitive because initializing with $0$ means that $M$ starts with values closer to 1, and it is easier to go from no dropout to more dropout than viceversa.
+Next, using the ${L_1}$ norm penalty, different initialization values for $B$ (named shift_init in the charts) are evaluated. The initialization with $0$ performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuition because initializing with $0$ means that $M$ starts with values closer to 1, and it is easier to go from no dropout to more dropout than viceversa.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
