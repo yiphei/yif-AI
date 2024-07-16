@@ -61,8 +61,8 @@ class LearnedDropoutConfig:
             the rest of the model
         mask_rounding_type: the type of rounding applied to the dropout mask.
             MaskRoundingType.NOISE_AND_LINEAR performed better.
-        sigmoid_scale: the scaling factor for the sigmoid rounding function. 
-            This is only used if mask_rounding_type is MaskRoundingType.SIGMOID or 
+        sigmoid_scale: the scaling factor for the sigmoid rounding function.
+            This is only used if mask_rounding_type is MaskRoundingType.SIGMOID or
             MaskRoundingType.SIGMOID_DETACH.
         shift_init: the initialization value for the shift bias parameter.
         use_detached_input: whether to detach the dropout input first.
@@ -108,7 +108,7 @@ class ModelConfig(BaseModelConfig):
 
     Args:
         learned_dropout_config: config for the LearnedDropout module.
-        use_dropout_entropy_penalty: whether to apply the (Shannon's information theory) 
+        use_dropout_entropy_penalty: whether to apply the (Shannon's information theory)
             entropy of dropout as penalty. This proved detrimental because it conflicts with
             l1 norm penalty.
         use_dropout_l1_norm_penalty: whether to apply the L1 norm penalty.
@@ -118,6 +118,7 @@ class ModelConfig(BaseModelConfig):
         dropout_l1_norm_coeff_config: config for the dropout L1 norm penalty coefficient.
             This may be fine-tuned for best performance.
     """
+
     learned_dropout_config: LearnedDropoutConfig = field(
         default_factory=LearnedDropoutConfig
     )
