@@ -67,6 +67,8 @@ $$
 \end{aligned}
 $$
 
+though one could retain the probabilistic rounding even for inference as a way to increase model temperature.
+
 In the end, the output of the module is the element-wise product between $X$ and $M_{rounded}$
 
 $$ out_{dropout} =  X \odot M_{rounded} $$
