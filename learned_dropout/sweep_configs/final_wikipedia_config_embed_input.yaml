@@ -41,9 +41,9 @@ parameters:
                     shift_init:
                         value: 0
                     use_detached_input:
-                        value: False
+                        values: [False, True]
                     dropout_input_type:
-                        value: 2
+                        values: [2, 3]
     batch_size: 
         value: 50
     train_steps: 
