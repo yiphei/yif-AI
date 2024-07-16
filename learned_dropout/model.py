@@ -40,6 +40,7 @@ class MaskRoundingType(IntMappedEnum):
 class DropoutInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
     EMBED = "EMBED"
+    EMBED_WITH_LN = "EMBED_WITH_LN"
 
 
 class L1NormPenaltyType(IntMappedEnum):
@@ -147,7 +148,7 @@ class LearnedDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        if self.config.dropout_input_type == DropoutInputType.EMBED:
+        if self.config.dropout_input_type == DropoutInputType.EMBED_WITH_LN:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         self.l1_norm_fn = self.get_l1_norm_penalty_fn(l1_norm_penalty_type)
@@ -198,9 +199,10 @@ class LearnedDropout(SubModuleStats):
     def forward(self, x, embed):
         if self.config.dropout_input_type == DropoutInputType.HIDDEN_STATE:
             dropout_input = x
-        elif self.config.dropout_input_type == DropoutInputType.EMBED:
+        elif self.config.dropout_input_type in [DropoutInputType.EMBED, DropoutInputType.EMBED_WITH_LN]:
             dropout_input = embed
-            dropout_input = self.embed_ln(dropout_input)
+            if self.config.dropout_input_type == DropoutInputType.EMBED_WITH_LN:
+                dropout_input = self.embed_ln(dropout_input)
 
         dropout_input = (
             dropout_input.detach() if self.config.use_detached_input else dropout_input
