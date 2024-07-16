@@ -108,8 +108,8 @@ Next, using the ${L_1}$ norm penalty, different initialization values for $B$ (n
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
-    <img src="assets/shift_train_loss.svg" alt="Image 1" style="width: 45%;"/>
-    <img src="assets/shift_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/shift_train_loss_a.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/shift_val_loss_a.svg" alt="Image 2" style="width: 45%;"/>
     <img src="assets/shift_l1_norm.svg" alt="Image 2" style="width: 45%;"/>
   </div>
     <div align="center">
