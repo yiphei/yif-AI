@@ -1,7 +1,7 @@
 # Learned Dropout [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Dropout is a very effective yet simple regularization technique. However, its random implementation relegates it to model training only and renders it invariant to input. Here, I present LearnedDropout, a parametrized dropout module that learns the best dropout for each unique input (i.e. variant to input). Furthermore, LearnedDropout represents a strong contender to MoE (Mixture of Experts).
+Dropout is a very effective yet simple regularization technique. However, its random implementation relegates it to model training only and renders it invariant to input. Here, I present $LearnedDropout$, a parametrized dropout module that learns the best dropout for each unique input (i.e. variant to input). Results demonstrate its efficacy and its competitiveness with both the canonical $Dropout$ and MoE (Mixture of Experts).
 
 ## Motivations
 
