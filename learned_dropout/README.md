@@ -61,7 +61,7 @@ $$
 \begin{aligned}
 & M_{rounded_{(i,j)}} = 
 \begin{cases} 
-1  & \text{if } M_{i,j} >= 0.5  \\
+1  & \text{if } M_{i,j} \geq 0.5  \\
 0  & \text{if } M_{i,j} < 0.5  \\
 \end{cases} \\
 \end{aligned}
