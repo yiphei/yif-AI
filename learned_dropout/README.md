@@ -178,6 +178,19 @@ These are some further things to look forward to:
 
 the new dropout can be implemented in a way that reduces the actual FLOPS, 
 
+## Citation
+
+If you use this codebase, or otherwise found my work valuable, please cite:
+
+```
+@misc{yan2024learned-dropout,
+  title={Learned Dropout},
+  author={Yan, Yifei},
+  year={2024},
+  url={https://github.com/yiphei/yif-AI/tree/main/learned_dropout}
+}
+```
+
 ---
 ## Appendix
 ### Run configs
