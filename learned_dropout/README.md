@@ -174,7 +174,7 @@ These are some further things to look forward to:
 - evaluate on different datasets
 - evaluate on non-language tasks
 
-## Results
+## Conclusions
 
 the new dropout can be implemented in a way that reduces the actual FLOPS, 
 
