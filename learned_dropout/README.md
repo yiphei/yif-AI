@@ -91,3 +91,23 @@ First, we evaluate the difference between including the L1 norm penalty and excl
 |---|----------|----------|----------|
 | **with penalty** [(config)](#) | **2.993** | 3.387 | 8.564e-9 |
 | **without penalty** [(config)](#) | 2.998 | **3.385** | 4.138e-9 |
+
+Then, we evaluate with different shift inits
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+    <img src="assets/shift_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/shift_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/shift_l1_norm.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | $M_{rounded}$'s % of 1s |
+|---|----------|----------|----------|
+| **shift_init = 0** [(config)](#) | **2.937** | **3.384** | 0.6167 |
+| **shift_init = pi/2** [(config)](#) | 2.967 | 3.405 | 0.5955 |
+| **shift_init = pi** [(config)](#) | 3.005 | 3.457 | 0.2507 |
