@@ -1,11 +1,11 @@
 # Learned Dropout [WIP readme]
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Dropout is a very effective yet simple regularization technique. However, its random implementation relegates it to model training only and renders it invariant to input. Here, I present $LearnedDropout$, a parametrized dropout module that learns the best dropout for each unique input (i.e. variant to input). Results demonstrate its efficacy and its competitiveness with both the canonical $Dropout$ and MoE (Mixture of Experts).
+Dropout is a very effective yet simple regularization technique. However, its random implementation relegates it to model training only and renders it invariant to input. Here, I present $LearnedDropout$, a parametrized dropout module that learns the best dropout for each unique input (i.e. variant to input). Results demonstrate its efficacy and competitiveness with both the canonical $Dropout$ and MoE (Mixture of Experts).
 
 ## Motivations
 
-$Dropout$ is a very popular technique that regularizes the model training to be more robust against overfitting and thus yields improved generalization. It simply works by randomly setting some values of a tensor to zero, with the ratio of zero values determined by a hyperparameter. When a value is set to zero, it becomes effectively detached from the computational graph, so all the parameters that contributed to that value will have a gradient of 0 w.r.t. that value. In doing so, $Dropout$ essentially creates a subgraph of the model because setting values to zeroes practically turns off part of the model. Given the randomness, every forward pass results in a different (transient) subgraph. Then, the final pre-trained model constitutes the ensemble of all the different subgraphs $Dropout$ created. Furthermore, observe that this outcome is not so conceptually removed from MoE's outcome. Each subgraph can be loosely thought of an expert, and through these subgraphs, $Dropout$ (very weakly) partitions the model into different experts, like MoE.
+$Dropout$ is a very popular technique that regularizes the model training to be more robust against overfitting and thus yields improved generalization. It simply works by randomly setting some values of a tensor to zero, with the ratio of zero values determined by a hyperparameter. When a value is set to zero, it becomes effectively detached from the computational graph, so all the parameters that contributed to that value will have a gradient of 0 w.r.t. that value. In doing so, $Dropout$ essentially creates a subgraph of the model because setting values to zeroes practically turns off part of the model. Given the randomness, every forward pass results in a different (transient) subgraph. Then, the final pre-trained model constitutes the ensemble of all the different subgraphs $Dropout$ created. Furthermore, observe that this outcome is not so conceptually removed from MoE's outcome. Each subgraph can be loosely thought of as an expert, and through these subgraphs, $Dropout$ (very weakly) partitions the model into different experts, like MoE.
 
 Yet, unlike MoE, the random implementation means that 1) it cannot be used during inference and 2) it is invariant to input. 1) limits the benefit of $Dropout$ to pre-training only, but 2) represents the larger reason why MoE produces better performance than $Dropout$. To overcome these deficits, $Dropout$ needs to be parametrized to permit the model to learn the best dropout, for every unique input. This should make it a compelling alternative to MoE.
 
@@ -67,7 +67,7 @@ $$
 \end{aligned}
 $$
 
-At the end, the output of the module is the element-wise product between $X$ and $M_{rounded}$
+In the end, the output of the module is the element-wise product between $X$ and $M_{rounded}$
 
 $$ out_{dropout} =  X \odot M_{rounded} $$
 
@@ -77,7 +77,7 @@ Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition ste
 
 $$ L_{1}\\\_norm\\\_penalty = \left|\frac{M^2}{2}\right|_1$$
 
-Note that the unrounded $M$ is used because it is deterministic. The squaring of $M$ serves to create an non-linear penalty: as $M$ approaches 0, the penalty should decay. The decay and the $\frac{1}{2}$ scaling ensure that the penalty does not take precedence over next token prediction.
+Note that the unrounded $M$ is used because it is deterministic. The squaring of $M$ serves to create a non-linear penalty: as $M$ approaches 0, the penalty should decay. The decay and the $\frac{1}{2}$ scaling ensure that the penalty does not take precedence over next token prediction.
 
 ## Results
 
@@ -104,7 +104,7 @@ First, the inclusion and exclusion of ${L_1}$ norm penalty were compared. Both h
 | **with penalty** [(config)](#) | 2.937 | **3.384** | **0.6167** |
 | **without penalty** [(config)](#without-penalty) | **2.911** | 3.403 | 0.9609 |
 
-Next, using the ${L_1}$ norm penalty, different initialization values for the shift bias $B$ were evaluated. The $0$ initialization performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuition because initializing with $0$ means that $M$ starts with values closer to 1, and it is easier to go from no dropout to better dropout than viceversa.
+Next, using the ${L_1}$ norm penalty, different initialization values for the shift bias $B$ were evaluated. The $0$ initialization performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuition because initializing with $0$ means that $M$ starts with values closer to 1, and it is easier to go from no dropout to better dropout than vice versa.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -143,7 +143,7 @@ Compared to a canonical decoder-only transformer (baseline) with no dropout, the
 | **shift_init = 0** [(config)](#shift_init--0) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#baseline) | **2.845** | 3.475 | NA | 15,441,192 |
 
-Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 dropout baseline", and "0.4 dropout baseline". The new model outperformed all in validation loss except for "0.2 dropout baseline". Note that even the new model has some $Dropout$ modules and at more places and they were not used. So the model demontrantes its competitiveness with $Dropout$.
+Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 dropout baseline", and "0.4 dropout baseline". The new model outperformed all in validation loss except for "0.2 dropout baseline". Note that even the new model has some $Dropout$ modules and at more places and they were not used. So the model demonstrates its competitiveness with $Dropout$.
 
 
 <div>
