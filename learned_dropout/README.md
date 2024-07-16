@@ -92,7 +92,7 @@ First, we evaluate the difference between including the L1 norm penalty and excl
 | **with penalty** [(config)](#) | **2.993** | 3.387 | 8.564e-9 |
 | **without penalty** [(config)](#) | 2.998 | **3.385** | 4.138e-9 |
 
-Then, we evaluate with different shift inits, all using the L1 norm penalty.
+Next, using the ${L_1}$ norm penalty, different initialization values for $B$ (named shift_init in the charts) are evaluated. The initialization with $0$ performed the best, followed by $\frac{pi}{2}$ and $pi$. This is intuitive because initializing with $0$ means that $M$ starts with values close to 1, and it is easier to go from no dropout to more dropout than viceversa.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -112,7 +112,7 @@ Then, we evaluate with different shift inits, all using the L1 norm penalty.
 | **shift_init = pi/2** [(config)](#) | 2.967 | 3.405 | 0.5955 |
 | **shift_init = pi** [(config)](#) | 3.055 | 3.457 | **0.2507** |
 
-Then, we compare against a baseline
+Compared to a canonical decoder-only transformer (baseline), the new model outperformed the baseline in validation loss only. Both completed in a similar amount of time with similar memory demands, but the baseline had more parameters.
 
 
 <div>
@@ -131,7 +131,7 @@ Then, we compare against a baseline
 | **shift_init = 0** [(config)](#) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#) | **2.845** | 3.475 | NA | 15,441,192 |
 
-Then, it is tested against more dropout
+Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 dropout baseline", and "0.4 dropout baseline". The new mode outperformed all except for "0.2 dropout baseline" in validation loss. Note that even the new model has some $Dropout$ modules and at more places and they were not used. So the model demontrantes its competitiveness with $Dropout$
 
 
 <div>
