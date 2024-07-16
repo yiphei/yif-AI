@@ -78,3 +78,16 @@ Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition ste
 $$ L_{1}\\\_norm\\\_penalty = \left|\frac{M^2}{2}\right|_1$$
 
 Note that the unrounded $M$ is used because it is more determinative of more dropout. The squaring of $M$ serves to create an non-linear penalty: as $M$ approaches 0, the penalty should decay. The scaling of $M$ serves to scale down the gradients.
+
+## Results
+
+> All training runs below were done on a wikipedia dataset for 26k steps on a single A100 GPU, unless otherwise stated.
+> 
+> Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
+
+First, we evaluate the difference between including the L1 norm penalty and excluding it.
+
+|   | Train loss | Val loss | $M_{rounded}$'s % of 1s |
+|---|----------|----------|----------|
+| **with penalty** [(config)](#) | **2.993** | 3.387 | 8.564e-9 |
+| **without penalty** [(config)](#) | 2.998 | **3.385** | 4.138e-9 |
