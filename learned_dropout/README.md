@@ -169,3 +169,10 @@ the new dropout can be implemented in a way that reduces the actual FLOPS,
 ---
 ## Appendix
 ### Run configs
+#### "shift_init = 0"
+#### "shift_init = pi/2"
+#### "shift_init = pi"
+#### "baseline"
+#### "0.2 dropout baseline"
+#### "0.3 dropout baseline"
+#### "0.4 dropout baseline"
