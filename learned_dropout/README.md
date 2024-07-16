@@ -129,8 +129,8 @@ Compared to a canonical decoder-only transformer (baseline) with no dropout, the
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
-    <img src="assets/baseline_train_loss.svg" alt="Image 1" style="width: 45%;"/>
-    <img src="assets/baseline_val_loss.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/baseline_train_loss_a.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/baseline_val_loss_a.svg" alt="Image 2" style="width: 45%;"/>
   </div>
     <div align="center">
       <em>Safari may not render the charts above. Chrome is advised.</em>
