@@ -195,10 +195,10 @@ class LearnedDropout(SubModuleStats):
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
         if self.config.dropout_input_type in [
-                DropoutInputType.EMBED_WITH_LN,
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES,
-            ]:
+            DropoutInputType.EMBED_WITH_LN,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES,
+        ]:
             self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         self.l1_norm_fn = self.get_l1_norm_penalty_fn(l1_norm_penalty_type)
