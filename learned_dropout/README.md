@@ -171,6 +171,7 @@ Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 
 
 These are some further things to look forward to:
 - implement tensor operations that take advantage of highly sparse tensors caused by $LearnedDropout$. This should greatly reduce compute time
+  - this won't be a small effort since `torch.compile` does not currently support sparse tensors
 - instead of a single cosine function that maps values to $\[0, 1\]$, use a Fourier series
 - try bigger models, at least GPT-2 size
 - run training for longer to observe long-term behavior
