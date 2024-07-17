@@ -731,24 +731,25 @@ def train(model_cls, local_dir, wandb_project):
     parser = argparse.ArgumentParser(
         description="Training script for transformer model."
     )
-    parser.add_argument("--train", type=str)
-    parser.add_argument("--config_file", type=str, required=True)
-    parser.add_argument("--checkpoint_path", type=str)
-    parser.add_argument("--model_path", type=str)
+    parser.add_argument("--train", type=str, help = "path of the training data")
+    parser.add_argument("--config_file", type=str, required=True, help = "path of the config file")
+    parser.add_argument("--checkpoint_path", type=str, help = "path to save the checkpoints")
+    parser.add_argument("--model_path", type=str, help = "path to save the model")
     parser.add_argument(
-        "--platform_type", type=PlatformType, default=PlatformType.LOCAL
+        "--platform_type", type=PlatformType, default=PlatformType.LOCAL,
+        help = "the local environment of the training"
     )
-    parser.add_argument("--resume_from_checkpoint", type=lambda v: bool(strtobool(v)))
-    parser.add_argument("--aws_access_key_id", type=str)
-    parser.add_argument("--aws_secret_access_key", type=str)
-    parser.add_argument("--sweep_id", type=str, default=None)
-    parser.add_argument("--sweep_count", type=int, default=None)
-    parser.add_argument("--save_code", type=lambda v: bool(strtobool(v)), default=False)
-    parser.add_argument("--profile", type=lambda v: bool(strtobool(v)), default=True)
-    parser.add_argument("--profile_model", type=lambda v: bool(strtobool(v)))
-    parser.add_argument("--sync_profile_live", type=lambda v: bool(strtobool(v)))
-    parser.add_argument("--save_checkpoint", type=lambda v: bool(strtobool(v)))
-    parser.add_argument("--save_model", type=lambda v: bool(strtobool(v)))
+    parser.add_argument("--resume_from_checkpoint", type=lambda v: bool(strtobool(v)), help = "whether to resume training from a checkpoint")
+    parser.add_argument("--aws_access_key_id", type=str, help = "AWS credentials to save model artifacts to S3")
+    parser.add_argument("--aws_secret_access_key", type=str, help = "AWS credentials to save model artifacts to S3")
+    parser.add_argument("--sweep_id", type=str, default=None, help = "wandb sweep id")
+    parser.add_argument("--sweep_count", type=int, default=None, help = "number of runs to execute for the sweep on current machine")
+    parser.add_argument("--save_code", type=lambda v: bool(strtobool(v)), default=False, help = "whether to save the code to wandb")
+    parser.add_argument("--profile", type=lambda v: bool(strtobool(v)), default=True, help = "whether to track the training in wandb")
+    parser.add_argument("--profile_model", type=lambda v: bool(strtobool(v)), help = "whether to track model parameters and gradients in wandb")
+    parser.add_argument("--sync_profile_live", type=lambda v: bool(strtobool(v)), help = "whether to track model artifacts in wandb in real-time. If not, it will be synced at the end of training")
+    parser.add_argument("--save_checkpoint", type=lambda v: bool(strtobool(v)), help = "whether to save model checkpoints")
+    parser.add_argument("--save_model", type=lambda v: bool(strtobool(v)), help = "whether to save the model at the end of training")
     args = parser.parse_args()
 
     get_default_args(args, local_dir)
