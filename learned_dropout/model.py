@@ -48,7 +48,9 @@ class DropoutInputType(IntMappedEnum):
         "EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES"
     )
     EMBED_WITH_TRANSFORMATION_WITH_INIT_LN = "EMBED_WITH_TRANSFORMATION_WITH_INIT_LN"
-    EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN = "EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN"
+    EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN = (
+        "EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN"
+    )
 
 
 class L1NormPenaltyType(IntMappedEnum):
@@ -470,7 +472,7 @@ class LearnedDropoutTransformer(BaseModel):
             )
             if config.learned_dropout_config.dropout_input_type in [
                 DropoutInputType.EMBED_WITH_TRANSFORMATION_WITH_INIT_LN,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
+                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
             ]:
                 self.embed_transform_ln = LayerNorm(config.n_embed, config.use_bias)
 
@@ -533,8 +535,8 @@ class LearnedDropoutTransformer(BaseModel):
             DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
         ]:
             if self.config.learned_dropout_config.dropout_input_type in [
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_WITH_INIT_LN,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
+                DropoutInputType.EMBED_WITH_TRANSFORMATION_WITH_INIT_LN,
+                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
             ]:
                 embed = self.embed_transform_ln(embed)
 
