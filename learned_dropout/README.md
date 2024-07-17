@@ -55,7 +55,7 @@ M_{i,j} - M_{(i,j)}.detached()  & \text{if } N_{i,j} > M_{i,j} \\
 \end{aligned}
 $$
 
-The detachment serves to reduce gradient magnitude. Also, the probabilistic rounding is only used during training. During evaluation or inference, the rounding becomes deterministic in the following way
+The detachment is necessary because otherwise, the gradients cancel out. Also, the probabilistic rounding is only used during training. During evaluation or inference, the rounding becomes deterministic in the following way
 
 $$
 \begin{aligned}
