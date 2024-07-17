@@ -43,6 +43,8 @@ class DropoutInputType(IntMappedEnum):
     EMBED_WITH_LN = "EMBED_WITH_LN"
     EMBED_WITH_TRANSFORMATION = "EMBED_WITH_TRANSFORMATION"
     EMBED_WITH_TRANSFORMATION_AND_LN = "EMBED_WITH_TRANSFORMATION_AND_LN"
+    EMBED_WITH_TRANSFORMATION_AND_RES = "EMBED_WITH_TRANSFORMATION_AND_RES"
+    EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES = "EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES"
 
 
 class L1NormPenaltyType(IntMappedEnum):
@@ -246,11 +248,14 @@ class LearnedDropout(SubModuleStats):
             DropoutInputType.EMBED_WITH_LN,
             DropoutInputType.EMBED_WITH_TRANSFORMATION,
             DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES
         ]:
             dropout_input = embed
             if self.config.dropout_input_type in [
                 DropoutInputType.EMBED_WITH_LN,
                 DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
+                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES,
             ]:
                 dropout_input = self.embed_ln(dropout_input)
 
@@ -440,6 +445,8 @@ class LearnedDropoutTransformer(BaseModel):
         if config.learned_dropout_config.dropout_input_type in [
             DropoutInputType.EMBED_WITH_TRANSFORMATION,
             DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES
         ]:
             self.embed_transform = EmbedAttentionHead(
                 config.n_embed,
@@ -503,8 +510,17 @@ class LearnedDropoutTransformer(BaseModel):
         if self.config.learned_dropout_config.dropout_input_type in [
             DropoutInputType.EMBED_WITH_TRANSFORMATION,
             DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES
         ]:
-            embed = self.embed_transform(embed)
+            transformed = self.embed_transform(embed)
+            if self.config.learned_dropout_config.dropout_input_type in [
+                            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES
+            ]:
+                embed = embed + transformed
+            else:
+                embed = transformed
 
         for transformer_block in self.transformer_blocks:
             x = transformer_block(x, embed)
