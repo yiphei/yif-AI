@@ -248,7 +248,10 @@ class LearnedDropout(SubModuleStats):
             DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
         ]:
             dropout_input = embed
-            if self.config.dropout_input_type in [DropoutInputType.EMBED_WITH_LN, DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN]:
+            if self.config.dropout_input_type in [
+                DropoutInputType.EMBED_WITH_LN,
+                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
+            ]:
                 dropout_input = self.embed_ln(dropout_input)
 
         dropout_input = (
@@ -360,7 +363,7 @@ class TransformerBlock(nn.Module):
         x = x + self.multi_attn_head(self.ln1(x))
         x = x + self.feed_forward(self.ln2(x), embed)
         return x
-    
+
 
 class EmbedAttentionHead(nn.Module):
     def __init__(
@@ -422,7 +425,6 @@ class EmbedAttentionHead(nn.Module):
         return new_x
 
 
-
 class LearnedDropoutTransformer(BaseModel):
     model_config_cls = ModelConfig
 
@@ -435,7 +437,10 @@ class LearnedDropoutTransformer(BaseModel):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
-        if config.learned_dropout_config.dropout_input_type in [DropoutInputType.EMBED_WITH_TRANSFORMATION, DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN]:
+        if config.learned_dropout_config.dropout_input_type in [
+            DropoutInputType.EMBED_WITH_TRANSFORMATION,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
+        ]:
             self.embed_transform = EmbedAttentionHead(
                 config.n_embed,
                 config.n_head,
@@ -495,7 +500,10 @@ class LearnedDropoutTransformer(BaseModel):
         embed = self.dropout(embed)
         x = embed
 
-        if self.config.learned_dropout_config.dropout_input_type in [DropoutInputType.EMBED_WITH_TRANSFORMATION, DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN ]:
+        if self.config.learned_dropout_config.dropout_input_type in [
+            DropoutInputType.EMBED_WITH_TRANSFORMATION,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
+        ]:
             embed = self.embed_transform(embed)
 
         for transformer_block in self.transformer_blocks:
