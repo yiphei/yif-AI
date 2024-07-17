@@ -464,7 +464,7 @@ def _train(
 
     model.to(DEVICE)
     filename_prefix = (
-        f"{Path(args.config_file).stem}_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}"
+        f"{Path(args.config_file).stem}_{datetime.now().strftime('%y-%m-%d--%H-%M-%S')}"
     )
     ctx = create_training_context(model, iter_num, device_type, ptdtype)
 
