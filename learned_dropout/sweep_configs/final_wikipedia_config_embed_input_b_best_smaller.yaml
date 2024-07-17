@@ -47,7 +47,7 @@ parameters:
     batch_size: 
         value: 50
     train_steps: 
-        value: 26000
+        value: 27000
     lr: 
         value: 9e-4
     warmup_iters:
