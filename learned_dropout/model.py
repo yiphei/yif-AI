@@ -50,6 +50,27 @@ class L1NormPenaltyType(IntMappedEnum):
 
 @custom_dataclass
 class LearnedDropoutConfig:
+    """The default field values are the suggested ones for the best performance.
+
+    NB: there are more hyperparameters here than described in the README. This is because
+        either they were found to be detrimental or were trivial additions.
+
+    Args:
+        use_bias: whether to use bias. Best to be consistent with
+            the rest of the model
+        n_head: number of attention heads. Best to be consistent with
+            the rest of the model
+        mask_rounding_type: the type of rounding applied to the dropout mask.
+            MaskRoundingType.NOISE_AND_LINEAR performed better.
+        sigmoid_scale: the scaling factor for the sigmoid rounding function.
+            This is only used if mask_rounding_type is MaskRoundingType.SIGMOID or
+            MaskRoundingType.SIGMOID_DETACH.
+        shift_init: the initialization value for the shift bias parameter.
+        use_detached_input: whether to detach the dropout input first.
+        dropout_input_type: the type of input used for dropout.
+            DropoutInputType.HIDDEN_STATE performed better.
+    """
+
     use_bias: Optional[bool] = None
     n_head: Optional[int] = None
     mask_rounding_type: Optional[MaskRoundingType] = MaskRoundingType.NOISE_AND_LINEAR
@@ -80,6 +101,25 @@ class LearnedDropoutConfig:
 
 @custom_dataclass
 class ModelConfig(BaseModelConfig):
+    """The default field values are the suggested ones for the best performance.
+    Fine-tuning dropout_l1_norm_coeff_config may improve performance.
+
+    NB: there are more hyperparameters here than described in the README. This is because
+        either they were found to be detrimental or were trivial additions.
+
+    Args:
+        learned_dropout_config: config for the LearnedDropout module.
+        use_dropout_entropy_penalty: whether to apply the (Shannon's information theory)
+            entropy of dropout as penalty. This proved detrimental because it conflicts with
+            l1 norm penalty.
+        use_dropout_l1_norm_penalty: whether to apply the L1 norm penalty.
+        l1_norm_penalty_type: the type of L1 norm penalty applied.
+            L1NormPenaltyType.SQUARED performed better.
+        dropout_entropy_coeff_config: config for the dropout entropy penalty coefficient.
+        dropout_l1_norm_coeff_config: config for the dropout L1 norm penalty coefficient.
+            This may be fine-tuned for best performance.
+    """
+
     learned_dropout_config: LearnedDropoutConfig = field(
         default_factory=LearnedDropoutConfig
     )

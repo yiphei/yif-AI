@@ -229,6 +229,19 @@ For 2), the future attention loss uses $out_{future}^{\*}$ as ground truth, whic
 
 The first reason is amenable to change, but the second one is probably inevitable. Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
+## Citation
+
+If you use this codebase, or otherwise found my work valuable, please cite:
+
+```
+@misc{yan2024future-attention,
+  title={Future Attention},
+  author={Yan, Yifei},
+  year={2024},
+  url={https://github.com/yiphei/yif-AI/tree/main/future_attention}
+}
+```
+
 ---
 ## Appendix
 ### Run configs
