@@ -293,11 +293,11 @@ class LearnedDropout(SubModuleStats):
                 )
                 dropout_mask = dropout_mask.to(dtype=torch.float32)
 
-        dropout_mask = dropout_mask.to_sparse()
         if self.training:
             self.update_rounded_stats(dropout_mask)
 
-        return torch.sparse.mul(dropout_mask, x)
+        dropout_mask = dropout_mask.to_sparse()
+        return dropout_mask * x
 
 
 class FeedForward(nn.Module):
