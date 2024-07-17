@@ -578,14 +578,9 @@ def _train(
                 )
 
             ckpt_index = math.ceil((iter_num + 1) / TRAIN_CONFIG.est_interval)
-            filenames = (
-                [f"{filename_prefix}_ckpt_{ckpt_index}.pt"]
-                if not should_save_best_val_loss_checkpoint
-                else [
-                    f"{filename_prefix}_best_ckpt.pt",
-                    f"{filename_prefix}_ckpt_{ckpt_index}.pt",
-                ]
-            )
+            filenames = [f"{filename_prefix}_ckpt_{ckpt_index}.pt"]
+            if should_save_best_val_loss_checkpoint:
+                filenames.append(f"{filename_prefix}_best_ckpt.pt")
 
             if args.save_checkpoint:
                 save_model_artifact(
