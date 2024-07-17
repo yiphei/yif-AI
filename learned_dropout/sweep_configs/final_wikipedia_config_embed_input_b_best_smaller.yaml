@@ -35,7 +35,7 @@ parameters:
                     use_bias:
                         value: False
                     n_head:
-                        value: 9
+                        value: 11
                     mask_rounding_type:
                         value: 3
                     shift_init:
