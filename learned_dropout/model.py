@@ -42,6 +42,7 @@ class DropoutInputType(IntMappedEnum):
     EMBED = "EMBED"
     EMBED_WITH_LN = "EMBED_WITH_LN"
     EMBED_WITH_TRANSFORMATION = "EMBED_WITH_TRANSFORMATION"
+    EMBED_WITH_TRANSFORMATION_AND_LN = "EMBED_WITH_TRANSFORMATION_AND_LN"
 
 
 class L1NormPenaltyType(IntMappedEnum):
@@ -244,9 +245,10 @@ class LearnedDropout(SubModuleStats):
             DropoutInputType.EMBED,
             DropoutInputType.EMBED_WITH_LN,
             DropoutInputType.EMBED_WITH_TRANSFORMATION,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
         ]:
             dropout_input = embed
-            if self.config.dropout_input_type == DropoutInputType.EMBED_WITH_LN:
+            if self.config.dropout_input_type in [DropoutInputType.EMBED_WITH_LN, DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN]:
                 dropout_input = self.embed_ln(dropout_input)
 
         dropout_input = (
@@ -433,7 +435,7 @@ class LearnedDropoutTransformer(BaseModel):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
-        if config.learned_dropout_config.dropout_input_type == DropoutInputType.EMBED_WITH_TRANSFORMATION:
+        if config.learned_dropout_config.dropout_input_type in [DropoutInputType.EMBED_WITH_TRANSFORMATION, DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN]:
             self.embed_transform = EmbedAttentionHead(
                 config.n_embed,
                 config.n_head,
@@ -493,7 +495,7 @@ class LearnedDropoutTransformer(BaseModel):
         embed = self.dropout(embed)
         x = embed
 
-        if self.config.learned_dropout_config.dropout_input_type == DropoutInputType.EMBED_WITH_TRANSFORMATION:
+        if self.config.learned_dropout_config.dropout_input_type in [DropoutInputType.EMBED_WITH_TRANSFORMATION, DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN ]:
             embed = self.embed_transform(embed)
 
         for transformer_block in self.transformer_blocks:
