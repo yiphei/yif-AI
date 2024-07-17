@@ -463,7 +463,9 @@ def _train(
         best_val_loss = checkpoint["best_val_loss"]
 
     model.to(DEVICE)
-    filename_prefix = f"{Path(args.config_file).stem}_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}"
+    filename_prefix = (
+        f"{Path(args.config_file).stem}_{datetime.now().strftime('%y-%m-%d-%H-%M-%S')}"
+    )
     ctx = create_training_context(model, iter_num, device_type, ptdtype)
 
     MODEL_NUM_PARAMS = model.get_num_params()
@@ -579,7 +581,10 @@ def _train(
             filenames = (
                 [f"{filename_prefix}_ckpt_{ckpt_index}.pt"]
                 if not should_save_best_val_loss_checkpoint
-                else [f"{filename_prefix}_best_ckpt.pt", f"{filename_prefix}_ckpt_{ckpt_index}.pt"]
+                else [
+                    f"{filename_prefix}_best_ckpt.pt",
+                    f"{filename_prefix}_ckpt_{ckpt_index}.pt",
+                ]
             )
 
             if args.save_checkpoint:
