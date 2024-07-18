@@ -384,7 +384,15 @@ class BulkLearnedDropoutV2(SubModuleStats):
             torch.randn(self.n_layer, embed_dim, embed_dim * 3)
         )
         self.shift = nn.Parameter(
-            torch.full((n_layer, 1, embed_dim,), config.shift_init, dtype=torch.float32)
+            torch.full(
+                (
+                    n_layer,
+                    1,
+                    embed_dim,
+                ),
+                config.shift_init,
+                dtype=torch.float32,
+            )
         )
         if self.config.dropout_input_type in [
             DropoutInputType.EMBED_WITH_LN,
@@ -465,29 +473,22 @@ class BulkLearnedDropoutV2(SubModuleStats):
 
         B, T, C = dropout_input.shape
         dropout_input = dropout_input.unsqueeze(1)
-        q, k , v = (dropout_input @ self.batch_attn_weights).split(
-            self.embed_dim, dim = 3
+        q, k, v = (dropout_input @ self.batch_attn_weights).split(self.embed_dim, dim=3)
+        k = k.view(B, self.n_layer, T, self.config.n_head, self.head_size).transpose(
+            2, 3
         )
-        k = (
-            k.view(B, self.n_layer, T, self.config.n_head, self.head_size)
-            .transpose(2, 3)
+        q = q.view(B, self.n_layer, T, self.config.n_head, self.head_size).transpose(
+            2, 3
         )
-        q = (
-            q.view(B, self.n_layer, T, self.config.n_head, self.head_size)
-            .transpose(2, 3)
-        )
-        v = (
-            v.view(B, self.n_layer, T, self.config.n_head, self.head_size)
-            .transpose(2, 3)
+        v = v.view(B, self.n_layer, T, self.config.n_head, self.head_size).transpose(
+            2, 3
         )
 
         dropout_values = F.scaled_dot_product_attention(
             q, k, v, attn_mask=None, is_causal=True
         )
         dropout_values = (
-            dropout_values.transpose(2, 3)
-            .contiguous()
-            .view(B, self.n_layer, T, C)
+            dropout_values.transpose(2, 3).contiguous().view(B, self.n_layer, T, C)
         )
         dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
 
@@ -530,7 +531,7 @@ class BulkLearnedDropoutV2(SubModuleStats):
             self.update_rounded_stats(dropout_mask)
 
         # all_dropout_masks = dropout_mask.split(self.embed_dim, dim=2)
-        all_dropout_masks = dropout_mask.view(B, self.n_layer, T, C).transpose(0,1)
+        all_dropout_masks = dropout_mask.view(B, self.n_layer, T, C).transpose(0, 1)
         return all_dropout_masks
 
 
