@@ -11,9 +11,9 @@ parameters:
             use_bias:
                 value: False
             context_size:
-                value: 400
+                value: 500
             n_embed: 
-                value: 250
+                value: 350
             n_layer: 
                 value: 26
             n_head: 
