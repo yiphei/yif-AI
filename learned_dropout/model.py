@@ -87,7 +87,7 @@ class LearnedDropoutConfig:
     sigmoid_scale: Optional[float] = None
     shift_init: float = 0
     use_detached_input: bool = False
-    dropout_input_type: DropoutInputType = DropoutInputType.HIDDEN_STATE
+    dropout_input_type: DropoutInputType = DropoutInputType.EMBED_WITH_TRANSFORMATION
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
@@ -254,10 +254,8 @@ class BulkLearnedDropout(SubModuleStats):
                 torch.norm(rounded_dropout_mask, p=1) / rounded_dropout_mask.numel()
             )
 
-    def forward(self, x, embed):
-        if self.config.dropout_input_type == DropoutInputType.HIDDEN_STATE:
-            dropout_input = x
-        elif self.config.dropout_input_type in [
+    def forward(self, embed):
+        if self.config.dropout_input_type in [
             DropoutInputType.EMBED,
             DropoutInputType.EMBED_WITH_LN,
             DropoutInputType.EMBED_WITH_TRANSFORMATION,
@@ -348,9 +346,8 @@ class BulkLearnedDropout(SubModuleStats):
         if self.training:
             self.update_rounded_stats(dropout_mask)
 
-        individual_dropout_masks = dropout_mask.split(self.embed_dim, dim=2)
-
-        return individual_dropout_masks
+        all_dropout_masks = dropout_mask.split(self.embed_dim, dim=2)
+        return all_dropout_masks
 
 
 class FeedForward(nn.Module):
@@ -366,20 +363,12 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
-        self.dropout = LearnedDropout(
-            config.n_embed,
-            config.context_size,
-            config.learned_dropout_config,
-            config.use_dropout_entropy_penalty,
-            config.use_dropout_l1_norm_penalty,
-            config.l1_norm_penalty_type,
-        )
 
-    def forward(self, x, embed):
+    def forward(self, x, ld_mask):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        x = self.dropout(x, embed)
+        x = x * ld_mask
         return x
 
 
@@ -401,9 +390,9 @@ class TransformerBlock(nn.Module):
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, x, embed):
+    def forward(self, x, ld_mask):
         x = x + self.multi_attn_head(self.ln1(x))
-        x = x + self.feed_forward(self.ln2(x), embed)
+        x = x + self.feed_forward(self.ln2(x), ld_mask)
         return x
 
 
@@ -501,6 +490,16 @@ class LearnedDropoutTransformer(BaseModel):
             ]:
                 self.embed_transform_ln = LayerNorm(config.n_embed, config.use_bias)
 
+        self.bulk_learned_dropout = BulkLearnedDropout(
+            config.n_embed,
+            config.context_size,
+            config.learned_dropout_config,
+            config.use_dropout_entropy_penalty,
+            config.use_dropout_l1_norm_penalty,
+            config.l1_norm_penalty_type,
+            config.n_layer,
+        )
+
         self.transformer_blocks = nn.ModuleList(
             [TransformerBlock(config) for _ in range(config.n_layer)]
         )
@@ -575,8 +574,10 @@ class LearnedDropoutTransformer(BaseModel):
             else:
                 embed = transformed
 
-        for transformer_block in self.transformer_blocks:
-            x = transformer_block(x, embed)
+        all_dropout_masks = self.bulk_learned_dropout(embed)
+
+        for i, transformer_block in enumerate(self.transformer_blocks):
+            x = transformer_block(x, all_dropout_masks[i])
         out = self.ln(x)
 
         if targets is None:
