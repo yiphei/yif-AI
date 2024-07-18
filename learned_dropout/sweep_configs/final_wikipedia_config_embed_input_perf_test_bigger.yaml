@@ -13,7 +13,7 @@ parameters:
             context_size:
                 value: 500
             n_embed: 
-                value: 350
+                value: 300
             n_layer: 
                 value: 26
             n_head: 
