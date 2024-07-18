@@ -237,6 +237,8 @@ class LearnedDropout(SubModuleStats):
             ).sum() / dropout_mask.numel()
 
             if self.prev_dropout_mask.nelement() != 0:
+                # this does not work well with torch.compile. You won't get any errors
+                # but dropout_change_rate_from_prev will probably have NaNs
                 matching_1s = (dropout_mask >= 0.5) & (self.prev_dropout_mask >= 0.5)
                 matching_0s = (dropout_mask < 0.5) & (self.prev_dropout_mask < 0.5)
                 self.dropout_change_rate_from_prev = (
