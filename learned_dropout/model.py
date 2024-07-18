@@ -381,7 +381,7 @@ class BulkLearnedDropoutV2(SubModuleStats):
         self.n_layer = n_layer
 
         self.batch_attn_weights = nn.Parameter(
-            torch.randn(self.n_layer, embed_dim, embed_dim * 3)
+            torch.randn(self.n_layer, embed_dim, embed_dim * 3) * 0.02
         )
         self.shift = nn.Parameter(
             torch.full(
@@ -675,7 +675,7 @@ class LearnedDropoutTransformer(BaseModel):
             ]:
                 self.embed_transform_ln = LayerNorm(config.n_embed, config.use_bias)
 
-        self.bulk_learned_dropout = BulkLearnedDropout(
+        self.bulk_learned_dropout = BulkLearnedDropoutV2(
             config.n_embed,
             config.context_size,
             config.learned_dropout_config,
