@@ -304,7 +304,7 @@ class BulkLearnedDropout(SubModuleStats):
         )
         dropout_values = (
             dropout_values.transpose(2, 3)
-            .tranpose(1, 2)
+            .transpose(1, 2)
             .contiguous()
             .view(B, T, C * self.n_layer)
         )
