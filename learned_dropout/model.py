@@ -164,7 +164,7 @@ class ModelConfig(BaseModelConfig):
                 raise ValueError(f"{attr_name} is set but {flag_attr_name} is False")
 
 
-class LearnedDropout(SubModuleStats):
+class BulkLearnedDropout(SubModuleStats):
     extra_stats = [
         "dropout_entropy",
         "dropout_l1_norm",
@@ -182,6 +182,7 @@ class LearnedDropout(SubModuleStats):
         use_dropout_entropy_penalty,
         use_dropout_l1_norm_penalty,
         l1_norm_penalty_type,
+        n_layer,
     ):
         super().__init__()
         assert embed_dim % config.n_head == 0
@@ -191,12 +192,13 @@ class LearnedDropout(SubModuleStats):
         self.head_size = embed_dim // config.n_head
         self.use_dropout_entropy_penalty = use_dropout_entropy_penalty
         self.use_dropout_l1_norm_penalty = use_dropout_l1_norm_penalty
+        self.n_layer = n_layer
 
         self.batch_attn_weights = nn.Linear(
-            embed_dim, embed_dim * 3, bias=config.use_bias
+            embed_dim, embed_dim * 3 * n_layer, bias=config.use_bias
         )
         self.shift = nn.Parameter(
-            torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
+            torch.full((embed_dim * n_layer,), config.shift_init, dtype=torch.float32)
         )
         if self.config.dropout_input_type in [
             DropoutInputType.EMBED_WITH_LN,
@@ -278,15 +280,15 @@ class LearnedDropout(SubModuleStats):
         )
 
         B, T, C = dropout_input.shape
-        q, k, v = self.batch_attn_weights(dropout_input).split(self.embed_dim, dim=2)
-        k = k.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
-        q = q.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
-        v = v.view(B, T, self.config.n_head, self.head_size).transpose(1, 2)
+        q, k, v = self.batch_attn_weights(dropout_input).split(self.n_layer * self.embed_dim, dim=2)
+        k = k.view(B, T, self.n_layer, self.config.n_head, self.head_size).transpose(1, 2).transpose(2, 3)
+        q = q.view(B, T, self.n_layer, self.config.n_head, self.head_size).transpose(1, 2).transpose(2, 3)
+        v = v.view(B, T, self.n_layer, self.config.n_head, self.head_size).transpose(1, 2).transpose(2, 3)
 
         dropout_values = F.scaled_dot_product_attention(
             q, k, v, attn_mask=None, is_causal=True
         )
-        dropout_values = dropout_values.transpose(1, 2).contiguous().view(B, T, C)
+        dropout_values = dropout_values.transpose(2, 3).tranpose(1,2).contiguous().view(B, T, C * self.n_layer)
         dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
 
         if self.training:
@@ -326,8 +328,10 @@ class LearnedDropout(SubModuleStats):
 
         if self.training:
             self.update_rounded_stats(dropout_mask)
+        
+        individual_dropout_masks = dropout_mask.split(self.embed_dim, dim=2)
 
-        return x * dropout_mask
+        return individual_dropout_masks
 
 
 class FeedForward(nn.Module):
