@@ -12,5 +12,5 @@ if __name__ == "__main__":
     train(
         LearnedDropoutTransformer,
         f"{os.path.dirname(os.path.abspath(__file__))}/",
-        "ultimate_attention_dropout_transformer_new_embed",
+        "ultimate_attention_dropout_transformer_new_embed_everywhere",
     )
