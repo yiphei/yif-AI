@@ -759,11 +759,13 @@ class LearnedDropoutTransformer(BaseModel):
         if self.config.optimization_type != Optimization.NONE:
             all_dropout_masks = self.bulk_learned_dropout(embed)
 
-        for i, transformer_block in enumerate(self.transformer_blocks):
-            if self.config.optimization_type != Optimization.NONE:
+        if self.config.optimization_type != Optimization.NONE:
+            for i, transformer_block in enumerate(self.transformer_blocks):
                 x = transformer_block(x, embed, all_dropout_masks[i])
-            else:
+        else:
+            for i, transformer_block in enumerate(self.transformer_blocks):
                 x = transformer_block(x, embed)
+
         out = self.ln(x)
 
         if targets is None:
