@@ -120,7 +120,7 @@ class ModelConfig(BaseModelConfig):
         dropout_l1_norm_coeff_config: config for the dropout L1 norm penalty coefficient.
             This may be fine-tuned for best performance.
     """
-
+    use_bulk_learned_dropout: bool = True
     learned_dropout_config: LearnedDropoutConfig = field(
         default_factory=LearnedDropoutConfig
     )
@@ -542,20 +542,25 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
-        self.dropout = LearnedDropout(
-            config.n_embed,
-            config.context_size,
-            config.learned_dropout_config,
-            config.use_dropout_entropy_penalty,
-            config.use_dropout_l1_norm_penalty,
-            config.l1_norm_penalty_type,
-        )
+        self.use_bulk_learned_dropout = config.use_bulk_learned_dropout
+        if not config.use_bulk_learned_dropout:
+            self.dropout = LearnedDropout(
+                config.n_embed,
+                config.context_size,
+                config.learned_dropout_config,
+                config.use_dropout_entropy_penalty,
+                config.use_dropout_l1_norm_penalty,
+                config.l1_norm_penalty_type,
+            )
 
-    def forward(self, x, embed):
+    def forward(self, x, embed, dropout_mask):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        x = self.dropout(x, embed)
+        if not self.use_bulk_learned_dropout:
+            x = self.dropout(x, embed)
+        else:
+            x = x * dropout_mask
         return x
 
 
@@ -577,9 +582,9 @@ class TransformerBlock(nn.Module):
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, x, embed):
+    def forward(self, x, embed, dropout_mask=None):
         x = x + self.multi_attn_head(self.ln1(x))
-        x = x + self.feed_forward(self.ln2(x), embed)
+        x = x + self.feed_forward(self.ln2(x), embed, dropout_mask)
         return x
 
 
@@ -668,6 +673,17 @@ class LearnedDropoutTransformer(BaseModel):
                 True,
             )
 
+        if config.use_bulk_learned_dropout:
+            self.bulk_learned_dropout = BulkLearnedDropoutV2(
+                config.n_embed,
+                config.context_size,
+                config.learned_dropout_config,
+                config.use_dropout_entropy_penalty,
+                config.use_dropout_l1_norm_penalty,
+                config.l1_norm_penalty_type,
+                config.n_layer,
+            )
+
         self.transformer_blocks = nn.ModuleList(
             [TransformerBlock(config) for _ in range(config.n_layer)]
         )
@@ -732,8 +748,15 @@ class LearnedDropoutTransformer(BaseModel):
             else:
                 embed = transformed
 
-        for transformer_block in self.transformer_blocks:
-            x = transformer_block(x, embed)
+        all_dropout_masks = None
+        if self.config.use_bulk_learned_dropout:
+            all_dropout_masks = self.bulk_learned_dropout(embed)
+
+        for i, transformer_block in enumerate(self.transformer_blocks):
+            if self.config.use_bulk_learned_dropout:
+                x = transformer_block(x, embed, all_dropout_masks[i])
+            else:
+                x = transformer_block(x, embed)
         out = self.ln(x)
 
         if targets is None:
