@@ -238,15 +238,7 @@ class LearnedDropout(SubModuleStats):
             )
 
     def forward(self, x, embed):
-        if self.config.dropout_input_type == DropoutInputType.HIDDEN_STATE:
-            dropout_input = x
-        elif self.config.dropout_input_type in [
-            DropoutInputType.EMBED,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
-        ]:
-            dropout_input = embed
-
+        dropout_input = embed
         dropout_input = (
             dropout_input.detach() if self.config.use_detached_input else dropout_input
         )
@@ -347,13 +339,7 @@ class BulkLearnedDropout(LearnedDropout):
             raise ValueError(f"Unknown l1_norm_penalty_type: {l1_norm_penalty_type}")
 
     def forward(self, embed):
-        if self.config.dropout_input_type in [
-            DropoutInputType.EMBED,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
-        ]:
-            dropout_input = embed
-
+        dropout_input = embed
         dropout_input = (
             dropout_input.detach() if self.config.use_detached_input else dropout_input
         )
@@ -472,13 +458,7 @@ class BulkLearnedDropoutV2(LearnedDropout):
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
 
     def forward(self, embed):
-        if self.config.dropout_input_type in [
-            DropoutInputType.EMBED,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
-        ]:
-            dropout_input = embed
-
+        dropout_input = embed
         dropout_input = (
             dropout_input.detach() if self.config.use_detached_input else dropout_input
         )
