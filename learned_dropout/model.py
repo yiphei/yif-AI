@@ -120,6 +120,7 @@ class ModelConfig(BaseModelConfig):
         dropout_l1_norm_coeff_config: config for the dropout L1 norm penalty coefficient.
             This may be fine-tuned for best performance.
     """
+
     use_bulk_learned_dropout: bool = True
     learned_dropout_config: LearnedDropoutConfig = field(
         default_factory=LearnedDropoutConfig
