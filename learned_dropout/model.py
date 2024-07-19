@@ -84,7 +84,7 @@ class LearnedDropoutConfig:
     sigmoid_scale: Optional[float] = None
     shift_init: float = 0
     use_detached_input: bool = False
-    dropout_input_type: DropoutInputType = DropoutInputType.HIDDEN_STATE
+    dropout_input_type: DropoutInputType = DropoutInputType.EMBED_WITH_TRANSFORMATION
 
     def __post_init__(self):
         assert 0 <= self.shift_init <= torch.pi
@@ -168,7 +168,7 @@ class LearnedDropout(SubModuleStats):
         "dropout_l1_norm",
         "dropout_near_one_percent",
         "dropout_near_zero_percent",
-        "dropout_change_rate_from_prev",
+        # "dropout_change_rate_from_prev",
         "rounded_dropout_l1_norm",
     ]
 
@@ -315,7 +315,7 @@ class BulkLearnedDropout(LearnedDropout):
         l1_norm_penalty_type,
         n_layer,
     ):
-        super(SubModuleStats).__init__()
+        super(SubModuleStats, self).__init__()
         assert embed_dim % config.n_head == 0
         self.embed_dim = embed_dim
         self.context_size = context_size
@@ -335,16 +335,6 @@ class BulkLearnedDropout(LearnedDropout):
         self.l1_norm_fn = self.get_l1_norm_penalty_fn(l1_norm_penalty_type)
 
         self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
-
-    def get_l1_norm_penalty_fn(self, l1_norm_penalty_type):
-        if l1_norm_penalty_type == L1NormPenaltyType.LINEAR:
-            return lambda x: torch.norm(x, p=1)
-        elif l1_norm_penalty_type == L1NormPenaltyType.SQUARED:
-            return lambda x: torch.norm((x**2) / 2, p=1)
-        elif l1_norm_penalty_type is None:
-            return lambda x: torch.norm(x, p=1)
-        else:
-            raise ValueError(f"Unknown l1_norm_penalty_type: {l1_norm_penalty_type}")
 
     def forward(self, embed):
         dropout_input = embed
@@ -437,7 +427,7 @@ class BulkLearnedDropoutV2(LearnedDropout):
         l1_norm_penalty_type,
         n_layer,
     ):
-        super(SubModuleStats).__init__()
+        super(SubModuleStats, self).__init__()
         assert embed_dim % config.n_head == 0
         self.embed_dim = embed_dim
         self.context_size = context_size
