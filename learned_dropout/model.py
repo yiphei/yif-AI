@@ -499,9 +499,7 @@ class LearnedDropoutTransformer(BaseModel):
         ]:
 
             transformed = self.embed_transform(embed)
-            if self.config.learned_dropout_config.dropout_input_type in [
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
-            ]:
+            if self.config.learned_dropout_config.dropout_input_type == DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES:
                 embed = embed + transformed
             else:
                 embed = transformed
