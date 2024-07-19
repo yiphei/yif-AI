@@ -48,10 +48,12 @@ class L1NormPenaltyType(IntMappedEnum):
     LINEAR = "LINEAR"
     SQUARED = "SQUARED"
 
+
 class Optimization(IntMappedEnum):
     NONE = "NONE"
     V1 = "V1"
     V2 = "V2"
+
 
 @custom_dataclass
 class LearnedDropoutConfig:
