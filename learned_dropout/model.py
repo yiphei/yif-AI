@@ -40,17 +40,8 @@ class MaskRoundingType(IntMappedEnum):
 class DropoutInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
     EMBED = "EMBED"
-    EMBED_WITH_LN = "EMBED_WITH_LN"
     EMBED_WITH_TRANSFORMATION = "EMBED_WITH_TRANSFORMATION"
-    EMBED_WITH_TRANSFORMATION_AND_LN = "EMBED_WITH_TRANSFORMATION_AND_LN"
     EMBED_WITH_TRANSFORMATION_AND_RES = "EMBED_WITH_TRANSFORMATION_AND_RES"
-    EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES = (
-        "EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES"
-    )
-    EMBED_WITH_TRANSFORMATION_WITH_INIT_LN = "EMBED_WITH_TRANSFORMATION_WITH_INIT_LN"
-    EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN = (
-        "EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN"
-    )
 
 
 class L1NormPenaltyType(IntMappedEnum):
@@ -198,12 +189,6 @@ class LearnedDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        if self.config.dropout_input_type in [
-            DropoutInputType.EMBED_WITH_LN,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES,
-        ]:
-            self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         self.l1_norm_fn = self.get_l1_norm_penalty_fn(l1_norm_penalty_type)
 
@@ -257,21 +242,10 @@ class LearnedDropout(SubModuleStats):
             dropout_input = x
         elif self.config.dropout_input_type in [
             DropoutInputType.EMBED,
-            DropoutInputType.EMBED_WITH_LN,
             DropoutInputType.EMBED_WITH_TRANSFORMATION,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
             DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_WITH_INIT_LN,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
         ]:
             dropout_input = embed
-            if self.config.dropout_input_type in [
-                DropoutInputType.EMBED_WITH_LN,
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES,
-            ]:
-                dropout_input = self.embed_ln(dropout_input)
 
         dropout_input = (
             dropout_input.detach() if self.config.use_detached_input else dropout_input
@@ -458,11 +432,7 @@ class LearnedDropoutTransformer(BaseModel):
         self.dropout = nn.Dropout(config.dropout_rate)
         if config.learned_dropout_config.dropout_input_type in [
             DropoutInputType.EMBED_WITH_TRANSFORMATION,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
             DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_WITH_INIT_LN,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
         ]:
             self.embed_transform = EmbedAttentionHead(
                 config.n_embed,
@@ -472,11 +442,6 @@ class LearnedDropoutTransformer(BaseModel):
                 config.dropout_rate,
                 True,
             )
-            if config.learned_dropout_config.dropout_input_type in [
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_WITH_INIT_LN,
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
-            ]:
-                self.embed_transform_ln = LayerNorm(config.n_embed, config.use_bias)
 
         self.transformer_blocks = nn.ModuleList(
             [TransformerBlock(config) for _ in range(config.n_layer)]
@@ -530,23 +495,12 @@ class LearnedDropoutTransformer(BaseModel):
 
         if self.config.learned_dropout_config.dropout_input_type in [
             DropoutInputType.EMBED_WITH_TRANSFORMATION,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN,
             DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_WITH_INIT_LN,
-            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
         ]:
-            if self.config.learned_dropout_config.dropout_input_type in [
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_WITH_INIT_LN,
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
-            ]:
-                embed = self.embed_transform_ln(embed)
 
             transformed = self.embed_transform(embed)
             if self.config.learned_dropout_config.dropout_input_type in [
                 DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_LN_AND_RES,
-                DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES_WITH_INIT_LN,
             ]:
                 embed = embed + transformed
             else:
