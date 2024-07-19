@@ -48,6 +48,10 @@ class L1NormPenaltyType(IntMappedEnum):
     LINEAR = "LINEAR"
     SQUARED = "SQUARED"
 
+class Optimization(IntMappedEnum):
+    NONE = "NONE"
+    V1 = "V1"
+    V2 = "V2"
 
 @custom_dataclass
 class LearnedDropoutConfig:
@@ -121,7 +125,7 @@ class ModelConfig(BaseModelConfig):
             This may be fine-tuned for best performance.
     """
 
-    use_bulk_learned_dropout: bool = True
+    optimization_type: Optimization = Optimization.V1
     learned_dropout_config: LearnedDropoutConfig = field(
         default_factory=LearnedDropoutConfig
     )
@@ -543,8 +547,8 @@ class FeedForward(nn.Module):
         self.residual_proj = nn.Linear(
             config.n_embed * 4, config.n_embed, bias=config.use_bias
         )
-        self.use_bulk_learned_dropout = config.use_bulk_learned_dropout
-        if not config.use_bulk_learned_dropout:
+        self.optimization_type = config.optimization_type
+        if config.optimization_type == Optimization.NONE:
             self.dropout = LearnedDropout(
                 config.n_embed,
                 config.context_size,
@@ -558,7 +562,7 @@ class FeedForward(nn.Module):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        if not self.use_bulk_learned_dropout:
+        if self.optimization_type == Optimization.NONE:
             x = self.dropout(x, embed)
         else:
             x = x * dropout_mask
@@ -674,7 +678,17 @@ class LearnedDropoutTransformer(BaseModel):
                 True,
             )
 
-        if config.use_bulk_learned_dropout:
+        if config.optimization_type == Optimization.V1:
+            self.bulk_learned_dropout = BulkLearnedDropout(
+                config.n_embed,
+                config.context_size,
+                config.learned_dropout_config,
+                config.use_dropout_entropy_penalty,
+                config.use_dropout_l1_norm_penalty,
+                config.l1_norm_penalty_type,
+                config.n_layer,
+            )
+        elif config.optimization_type == Optimization.V2:
             self.bulk_learned_dropout = BulkLearnedDropoutV2(
                 config.n_embed,
                 config.context_size,
@@ -750,11 +764,11 @@ class LearnedDropoutTransformer(BaseModel):
                 embed = transformed
 
         all_dropout_masks = None
-        if self.config.use_bulk_learned_dropout:
+        if self.config.optimization_type != Optimization.NONE:
             all_dropout_masks = self.bulk_learned_dropout(embed)
 
         for i, transformer_block in enumerate(self.transformer_blocks):
-            if self.config.use_bulk_learned_dropout:
+            if self.config.optimization_type != Optimization.NONE:
                 x = transformer_block(x, embed, all_dropout_masks[i])
             else:
                 x = transformer_block(x, embed)
