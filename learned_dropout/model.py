@@ -303,6 +303,250 @@ class LearnedDropout(SubModuleStats):
 
         return x * dropout_mask
 
+class BulkLearnedDropout(LearnedDropout):
+
+    def __init__(
+        self,
+        embed_dim,
+        context_size,
+        config,
+        use_dropout_entropy_penalty,
+        use_dropout_l1_norm_penalty,
+        l1_norm_penalty_type,
+        n_layer,
+    ):
+        super(SubModuleStats).__init__()
+        assert embed_dim % config.n_head == 0
+        self.embed_dim = embed_dim
+        self.context_size = context_size
+        self.config = config
+        self.head_size = embed_dim // config.n_head
+        self.use_dropout_entropy_penalty = use_dropout_entropy_penalty
+        self.use_dropout_l1_norm_penalty = use_dropout_l1_norm_penalty
+        self.n_layer = n_layer
+
+        self.batch_attn_weights = nn.Linear(
+            embed_dim, embed_dim * 3 * n_layer, bias=config.use_bias
+        )
+        self.shift = nn.Parameter(
+            torch.full((embed_dim * n_layer,), config.shift_init, dtype=torch.float32)
+        )
+
+        self.l1_norm_fn = self.get_l1_norm_penalty_fn(l1_norm_penalty_type)
+
+        self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
+
+    def get_l1_norm_penalty_fn(self, l1_norm_penalty_type):
+        if l1_norm_penalty_type == L1NormPenaltyType.LINEAR:
+            return lambda x: torch.norm(x, p=1)
+        elif l1_norm_penalty_type == L1NormPenaltyType.SQUARED:
+            return lambda x: torch.norm((x**2) / 2, p=1)
+        elif l1_norm_penalty_type is None:
+            return lambda x: torch.norm(x, p=1)
+        else:
+            raise ValueError(f"Unknown l1_norm_penalty_type: {l1_norm_penalty_type}")
+
+    def forward(self, embed):
+        if self.config.dropout_input_type in [
+            DropoutInputType.EMBED,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
+        ]:
+            dropout_input = embed
+
+        dropout_input = (
+            dropout_input.detach() if self.config.use_detached_input else dropout_input
+        )
+
+        B, T, C = dropout_input.shape
+        q, k, v = self.batch_attn_weights(dropout_input).split(
+            self.n_layer * self.embed_dim, dim=2
+        )
+        k = (
+            k.view(B, T, self.n_layer, self.config.n_head, self.head_size)
+            .transpose(1, 2)
+            .transpose(2, 3)
+        )
+        q = (
+            q.view(B, T, self.n_layer, self.config.n_head, self.head_size)
+            .transpose(1, 2)
+            .transpose(2, 3)
+        )
+        v = (
+            v.view(B, T, self.n_layer, self.config.n_head, self.head_size)
+            .transpose(1, 2)
+            .transpose(2, 3)
+        )
+
+        dropout_values = F.scaled_dot_product_attention(
+            q, k, v, attn_mask=None, is_causal=True
+        )
+        dropout_values = (
+            dropout_values.transpose(2, 3)
+            .transpose(1, 2)
+            .contiguous()
+            .view(B, T, C * self.n_layer)
+        )
+        dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
+
+        if self.training:
+            self.update_stats(dropout_mask)
+
+        if self.config.mask_rounding_type:
+            if self.config.mask_rounding_type == MaskRoundingType.SIGMOID:
+                dropout_mask = torch.sigmoid(
+                    self.config.sigmoid_scale * (dropout_mask - 0.5)
+                )
+            elif self.config.mask_rounding_type == MaskRoundingType.SIGMOID_DETACH:
+                dropout_mask_scaling = (
+                    torch.sigmoid(
+                        self.config.sigmoid_scale * (dropout_mask.detach() - 0.5)
+                    )
+                    - dropout_mask.detach()
+                )
+                dropout_mask = dropout_mask + dropout_mask_scaling
+            elif self.config.mask_rounding_type == MaskRoundingType.NOISE_AND_LINEAR:
+                complement_mask = 1 - dropout_mask.detach()
+                if self.training:
+                    noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
+                    scaling = torch.where(
+                        noise <= dropout_mask, complement_mask, -dropout_mask.detach()
+                    )
+                else:
+                    scaling = torch.where(
+                        dropout_mask >= 0.5, complement_mask, -dropout_mask.detach()
+                    )
+
+                # scaling + dropout_mask should produce either 0s or 1s, but because of
+                # precision, it may not. Reducing the precision helps.
+                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
+                    dtype=torch.float16
+                )
+                dropout_mask = dropout_mask.to(dtype=torch.float32)
+
+        if self.training:
+            self.update_rounded_stats(dropout_mask)
+
+        all_dropout_masks = dropout_mask.split(self.embed_dim, dim=2)
+        return all_dropout_masks
+
+class BulkLearnedDropoutV2(LearnedDropout):
+
+    def __init__(
+        self,
+        embed_dim,
+        context_size,
+        config,
+        use_dropout_entropy_penalty,
+        use_dropout_l1_norm_penalty,
+        l1_norm_penalty_type,
+        n_layer,
+    ):
+        super(SubModuleStats).__init__()
+        assert embed_dim % config.n_head == 0
+        self.embed_dim = embed_dim
+        self.context_size = context_size
+        self.config = config
+        self.head_size = embed_dim // config.n_head
+        self.use_dropout_entropy_penalty = use_dropout_entropy_penalty
+        self.use_dropout_l1_norm_penalty = use_dropout_l1_norm_penalty
+        self.n_layer = n_layer
+
+        self.batch_attn_weights = nn.Parameter(
+            torch.randn(self.n_layer, embed_dim, embed_dim * 3) * 0.02
+        )
+        self.shift = nn.Parameter(
+            torch.full(
+                (
+                    n_layer,
+                    1,
+                    embed_dim,
+                ),
+                config.shift_init,
+                dtype=torch.float32,
+            )
+        )
+
+        self.l1_norm_fn = self.get_l1_norm_penalty_fn(l1_norm_penalty_type)
+
+        self.register_buffer("prev_dropout_mask", torch.empty(0), persistent=False)
+
+    def forward(self, embed):
+        if self.config.dropout_input_type in [
+            DropoutInputType.EMBED,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION,
+            DropoutInputType.EMBED_WITH_TRANSFORMATION_AND_RES,
+        ]:
+            dropout_input = embed
+
+        dropout_input = (
+            dropout_input.detach() if self.config.use_detached_input else dropout_input
+        )
+
+        B, T, C = dropout_input.shape
+        dropout_input = dropout_input.unsqueeze(1)
+        q, k, v = (dropout_input @ self.batch_attn_weights).split(self.embed_dim, dim=3)
+        k = k.view(B, self.n_layer, T, self.config.n_head, self.head_size).transpose(
+            2, 3
+        )
+        q = q.view(B, self.n_layer, T, self.config.n_head, self.head_size).transpose(
+            2, 3
+        )
+        v = v.view(B, self.n_layer, T, self.config.n_head, self.head_size).transpose(
+            2, 3
+        )
+
+        dropout_values = F.scaled_dot_product_attention(
+            q, k, v, attn_mask=None, is_causal=True
+        )
+        dropout_values = (
+            dropout_values.transpose(2, 3).contiguous().view(B, self.n_layer, T, C)
+        )
+        dropout_mask = 0.5 * torch.cos(dropout_values + self.shift) + 0.5
+
+        if self.training:
+            self.update_stats(dropout_mask)
+
+        if self.config.mask_rounding_type:
+            if self.config.mask_rounding_type == MaskRoundingType.SIGMOID:
+                dropout_mask = torch.sigmoid(
+                    self.config.sigmoid_scale * (dropout_mask - 0.5)
+                )
+            elif self.config.mask_rounding_type == MaskRoundingType.SIGMOID_DETACH:
+                dropout_mask_scaling = (
+                    torch.sigmoid(
+                        self.config.sigmoid_scale * (dropout_mask.detach() - 0.5)
+                    )
+                    - dropout_mask.detach()
+                )
+                dropout_mask = dropout_mask + dropout_mask_scaling
+            elif self.config.mask_rounding_type == MaskRoundingType.NOISE_AND_LINEAR:
+                complement_mask = 1 - dropout_mask.detach()
+                if self.training:
+                    noise = torch.rand(dropout_mask.shape, device=dropout_mask.device)
+                    scaling = torch.where(
+                        noise <= dropout_mask, complement_mask, -dropout_mask.detach()
+                    )
+                else:
+                    scaling = torch.where(
+                        dropout_mask >= 0.5, complement_mask, -dropout_mask.detach()
+                    )
+
+                # scaling + dropout_mask should produce either 0s or 1s, but because of
+                # precision, it may not. Reducing the precision helps.
+                dropout_mask = dropout_mask.to(dtype=torch.float16) + scaling.to(
+                    dtype=torch.float16
+                )
+                dropout_mask = dropout_mask.to(dtype=torch.float32)
+
+        if self.training:
+            self.update_rounded_stats(dropout_mask)
+
+        # all_dropout_masks = dropout_mask.split(self.embed_dim, dim=2)
+        all_dropout_masks = dropout_mask.view(B, self.n_layer, T, C).transpose(0, 1)
+        return all_dropout_masks
+
+
 
 class FeedForward(nn.Module):
     def __init__(
