@@ -295,6 +295,7 @@ class LearnedDropout(SubModuleStats):
 
         return x * dropout_mask
 
+
 class BulkLearnedDropout(LearnedDropout):
 
     def __init__(
@@ -416,6 +417,7 @@ class BulkLearnedDropout(LearnedDropout):
         all_dropout_masks = dropout_mask.split(self.embed_dim, dim=2)
         return all_dropout_masks
 
+
 class BulkLearnedDropoutV2(LearnedDropout):
 
     def __init__(
@@ -525,7 +527,6 @@ class BulkLearnedDropoutV2(LearnedDropout):
         # all_dropout_masks = dropout_mask.split(self.embed_dim, dim=2)
         all_dropout_masks = dropout_mask.view(B, self.n_layer, T, C).transpose(0, 1)
         return all_dropout_masks
-
 
 
 class FeedForward(nn.Module):
