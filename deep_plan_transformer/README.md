@@ -216,6 +216,19 @@ Another potential benefit of explicit planning is accelerated inference. A canon
 
 Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
+## Citation
+
+If you use this codebase, or otherwise found my work valuable, please cite:
+
+```
+@misc{yan2024deep-plan,
+  title={DeepPlan},
+  author={Yan, Yifei},
+  year={2024},
+  url={https://github.com/yiphei/yif-AI/tree/main/deep_plan_transformer}
+}
+```
+
 ---
 ## Appendix
 ### Run configs
