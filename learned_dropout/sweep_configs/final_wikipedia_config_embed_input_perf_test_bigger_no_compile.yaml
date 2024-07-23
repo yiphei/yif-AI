@@ -43,7 +43,7 @@ parameters:
                     use_detached_input:
                         value: True
                     dropout_input_type:
-                        value: 4
+                        value: 3
     batch_size: 
         value: 50
     train_steps: 
