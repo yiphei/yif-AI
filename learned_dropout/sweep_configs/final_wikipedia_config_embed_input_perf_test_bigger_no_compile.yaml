@@ -30,6 +30,8 @@ parameters:
                 parameters:
                     max_coeff:
                         value: 0.1
+            optimization_type:
+                values: [1,2,3]
             learned_dropout_config:
                 parameters:
                     use_bias:
