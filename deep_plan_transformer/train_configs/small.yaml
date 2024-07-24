@@ -5,6 +5,7 @@ model_config:
   n_head: 3
   use_bias: false
   dropout_rate: 0
+  future_context_size: 6
 batch_size: 15
 train_steps: 500
 lr: 0.0003
