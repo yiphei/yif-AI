@@ -18,6 +18,7 @@ from typing import Optional
 
 import boto3
 import torch
+import yaml
 from torch.distributed import destroy_process_group, init_process_group
 from torch.utils.data import DataLoader
 
@@ -35,6 +36,35 @@ class PlatformType(str, Enum):
 
     def __str__(self):
         return self.value
+
+
+def load_config_from_py_file(filepath):
+    config_dict = {}
+    with open(filepath, "r") as file:
+        exec(file.read(), {}, config_dict)
+    # Filter out built-in items
+    config_dict = {
+        k.lower(): v
+        for k, v in config_dict.items()
+        if not k.startswith("__") and not inspect.ismodule(v)
+    }
+    return config_dict
+
+
+def load_from_yaml_file(filepath):
+    with open(filepath, "r") as file:
+        config_dict = yaml.safe_load(file)
+
+    return config_dict
+
+
+def load_config_from_file(filepath):
+    if filepath.endswith(".py"):
+        return load_config_from_py_file(filepath)
+    elif filepath.endswith(".yaml"):
+        return load_from_yaml_file(filepath)
+    else:
+        raise ValueError(f"Unsupported file format: {filepath}")
 
 
 @dataclass
@@ -89,28 +119,12 @@ class TrainConfig:
     def create_from_config_file(
         cls, config_file: str, model_config_cls, is_sweep=False
     ):
-        config_dict = {}
-        with open(config_file, "r") as file:
-            exec(file.read(), {}, config_dict)
-        # Filter out built-in items
-        config_dict = {
-            k.lower(): v
-            for k, v in config_dict.items()
-            if not k.startswith("__") and not inspect.ismodule(v)
-        }
-
-        model_config_fields = [f.name for f in fields(model_config_cls)]
+        config_dict = load_config_from_file(config_file)
         if not is_sweep:
-            model_config_dict = {
-                k: v for k, v in config_dict.items() if k in model_config_fields
-            }
-            model_config = model_config_cls(**model_config_dict)
+            model_config = model_config_cls(**config_dict["model_config"])
         else:
             model_config = None
 
-        config_dict = {
-            k: v for k, v in config_dict.items() if k not in model_config_fields
-        }
         config_dict["model_config"] = model_config
         return cls(**config_dict)
 
