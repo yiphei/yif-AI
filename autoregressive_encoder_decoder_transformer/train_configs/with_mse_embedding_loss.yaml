@@ -15,16 +15,16 @@ model_config:
   cross_attn_config:
     n_head: 10
     use_bias: false
-  detach_type: 3
+  detach_type: "ENCODER_OUT"
   dropout_rate: 0
-  embedding_ln_type: 2
+  embedding_ln_type: "INIT"
   embedding_loss_coeff: 1
-  embedding_loss_type: 2
+  embedding_loss_type: "MSE"
   n_embed: 150
   n_head: 5
   n_layer: 13
-  order_type: 1
-  sub_pos_embed_to_decoder: 1
+  order_type: "ORIGINAL"
+  sub_pos_embed_to_decoder: "NO"
   use_bias: false
   use_ln_on_encoder_out: true
 train_steps: 9000

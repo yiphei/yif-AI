@@ -19,12 +19,12 @@ model_config:
   dropout_rate: 0
   embedding_ln_type: null
   embedding_loss_coeff: null
-  embedding_loss_type: 1
+  embedding_loss_type: "NONE"
   n_embed: 150
   n_head: 5
   n_layer: 13
-  order_type: 1
-  sub_pos_embed_to_decoder: 2
+  order_type: "ORIGINAL"
+  sub_pos_embed_to_decoder: "YES_NO_LN"
   use_bias: false
   use_ln_on_encoder_out: null
 train_steps: 9000
