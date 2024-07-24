@@ -120,18 +120,11 @@ class TrainConfig:
         cls, config_file: str, model_config_cls, is_sweep=False
     ):
         config_dict = load_config_from_file(config_file)
-        model_config_fields = [f.name for f in fields(model_config_cls)]
         if not is_sweep:
-            model_config_dict = {
-                k: v for k, v in config_dict.items() if k in model_config_fields
-            }
-            model_config = model_config_cls(**model_config_dict)
+            model_config = model_config_cls(**config_dict["model_config"])
         else:
             model_config = None
 
-        config_dict = {
-            k: v for k, v in config_dict.items() if k not in model_config_fields
-        }
         config_dict["model_config"] = model_config
         return cls(**config_dict)
 
