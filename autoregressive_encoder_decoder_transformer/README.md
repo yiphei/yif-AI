@@ -396,67 +396,70 @@ weight_decay: 0.1
  ```
 #### "baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 10,
-                  'n_embed': 160,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 200,
-                  'dropout_rate': 0},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_rate: 0
+  n_embed: 160
+  n_head: 10
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
 ```
 #### "smaller baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 12,
-                  'n_embed': 156,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 200,
-                  'dropout_rate': 0},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_rate: 0
+  n_embed: 156
+  n_head: 12
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
 ```
 #### "0.2 dropout baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 10,
-                  'n_embed': 160,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 200,
-                  'dropout_rate': 0.2},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_rate: 0.2
+  n_embed: 160
+  n_head: 10
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
 ```
