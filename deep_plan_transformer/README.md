@@ -11,11 +11,11 @@ This project explores how planning many steps beyond the next token can be formu
 
 ## Architecture
 
-At the high level, the architecture consists of an encoder-decoder transformer adapted for end-to-end autoregressive tasks (for those who have read my other model *Auto-regressive Encoder-Decoder Transformer*, it shares the same core architecture but without the positional embedding subtraction). The encoder-decoder separation is necessary for the formulation of the planning objective.
+At the high level, the architecture consists of an encoder-decoder transformer adapted for end-to-end autoregressive tasks (for those who have read my other model [*Auto-regressive Encoder-Decoder Transformer*](../autoregressive_encoder_decoder_transformer), it shares the same core architecture but without the positional embedding subtraction). The encoder-decoder separation is necessary for the formulation of the planning objective.
 
 ### Encoder-Decoder
 
-> This section reiterates verbatim the respective section in *Auto-regressive Encoder-Decoder Transformer*. You can skip it if you have already read that one
+> This section reiterates verbatim the [respective section](../autoregressive_encoder_decoder_transformer#encoder-decoder) in *Auto-regressive Encoder-Decoder Transformer*. You can skip it if you have already read that one
 
 In the canonical encoder-decoder transformer, the encoder runs once on an input, and the decoder runs auto-regressively on its own output while attending to the encoder output. It looks like the figure below.
 
@@ -177,7 +177,7 @@ Two more baselines were compared: "smaller baseline" and "0.3 dropout baseline".
 | **smaller baseline** [(config)](#smaller-baseline) | 2.811 | 3.387| 15,441,192 |
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.173 | 3.364 | 16,036,800 |
 
-Finally, the *Auto-regressive Encoder-Decoder Transformer* model was compared. That model beat the baseline in validation loss, and it beat the baseline again here. The new model beat *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
+Finally, the [*Auto-regressive Encoder-Decoder Transformer*](../autoregressive_encoder_decoder_transformer) model was compared. That model beat the baseline in validation loss, and it beat the baseline again here. The new model beat *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
