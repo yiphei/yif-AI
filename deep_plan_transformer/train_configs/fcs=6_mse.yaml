@@ -1,0 +1,29 @@
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: 2
+  future_context_size: 6
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: 3
+  planning_loss_coeff: 1
+  planning_loss_type: 2
+  present_future_context_aggregation_type: 1
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
