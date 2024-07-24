@@ -1,0 +1,16 @@
+model_config:
+  context_size: 200
+  n_embed: 200
+  n_layer: 4
+  n_head: 4
+  use_bias: false
+  dropout_rate: 0
+batch_size: 15
+train_steps: 500
+lr: 0.003
+warmup_iters: 50
+min_lr: 0.0003
+gradient_accumulation_steps: 16
+lr_decay_iters: 500
+est_interval: 50
+est_steps: 50
