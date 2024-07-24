@@ -92,7 +92,7 @@ Neither option affects the calculations for the next token prediction loss.
 
 > All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU, unless otherwise stated.
 > 
-> Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
+> Implementation of decoder-only transformer model (baseline) can be found in the [`baseline_transformer`](../baseline_transformer/) directory in this repo
 
 The MSE planning loss outperformed cosine dissimilarity planning loss in both validation and train loss. Both had $\delta = 11$ (chosen arbitrarily). MSE also strictly outperformed an equivalent model without planning loss, and cosine dissimilarity outperformed the same equivalent model in train loss but fell marginally short in validation loss. In general, the planning loss proved beneficial to model performance. 
 

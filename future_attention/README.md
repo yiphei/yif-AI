@@ -148,7 +148,7 @@ Once all $future\\\_attn\\\_loss$'s are computed, it gets aggregated with a mean
 
 > All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU, unless otherwise stated.
 > 
-> Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
+> Implementation of decoder-only transformer model (baseline) can be found in the [`baseline_transformer`](../baseline_transformer/) directory in this repo
 
 The MSE future attention loss outperformed cosine dissimilarity in validation loss and matched it in train loss. Both had $future\\\_dim = 50$.
 
