@@ -14,7 +14,7 @@ model_config:
   dropout_rate: 0
   end_layer: 28
   future_attn_loss_coeff: 1
-  future_attn_loss_type: 2
+  future_attn_loss_type: "COSINE"
   future_dim: 50
   n_embed: 144
   n_head: 9
