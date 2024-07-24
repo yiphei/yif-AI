@@ -555,10 +555,10 @@ model_config:
     n_head: 10
     use_bias: false
   dropout_rate: 0
-  encoder_embed_detach_type: 3
-  encoder_embed_ln_type: 2
-  encoder_embed_loss_coeff: 8
-  encoder_embed_loss_type: 2
+  detach_type: 3
+  embedding_ln_type: 2
+  embedding_loss_coeff: 8
+  embedding_loss_type: 2
   n_embed: 150
   n_head: 5
   n_layer: 13
