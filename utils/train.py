@@ -18,6 +18,7 @@ from typing import Optional
 
 import boto3
 import torch
+import yaml
 from torch.distributed import destroy_process_group, init_process_group
 from torch.utils.data import DataLoader
 
@@ -25,7 +26,7 @@ import wandb
 from utils.common import (create_autocast_context, get_default_device,
                           set_random_seed)
 from utils.data_loading import MapLocalDataset
-import yaml
+
 
 class PlatformType(str, Enum):
     LOCAL = "LOCAL"
@@ -51,18 +52,20 @@ def load_config_from_py_file(filepath):
 
 
 def load_from_yaml_file(filepath):
-    with open(filepath, 'r') as file:
+    with open(filepath, "r") as file:
         config_dict = yaml.safe_load(file)
 
     return config_dict
 
+
 def load_config_from_file(filepath):
-    if filepath.endswith('.py'):
+    if filepath.endswith(".py"):
         return load_config_from_py_file(filepath)
-    elif filepath.endswith('.yaml'):
+    elif filepath.endswith(".yaml"):
         return load_from_yaml_file(filepath)
     else:
         raise ValueError(f"Unsupported file format: {filepath}")
+
 
 @dataclass
 class TrainConfig:
