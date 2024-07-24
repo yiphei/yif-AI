@@ -25,7 +25,7 @@ import wandb
 from utils.common import (create_autocast_context, get_default_device,
                           set_random_seed)
 from utils.data_loading import MapLocalDataset
-
+import yaml
 
 class PlatformType(str, Enum):
     LOCAL = "LOCAL"
@@ -36,6 +36,33 @@ class PlatformType(str, Enum):
     def __str__(self):
         return self.value
 
+
+def load_config_from_py_file(filepath):
+    config_dict = {}
+    with open(filepath, "r") as file:
+        exec(file.read(), {}, config_dict)
+    # Filter out built-in items
+    config_dict = {
+        k.lower(): v
+        for k, v in config_dict.items()
+        if not k.startswith("__") and not inspect.ismodule(v)
+    }
+    return config_dict
+
+
+def load_from_yaml_file(filepath):
+    with open(filepath, 'r') as file:
+        config_dict = yaml.safe_load(file)
+
+    return config_dict
+
+def load_config_from_file(filepath):
+    if filepath.endswith('.py'):
+        return load_config_from_py_file(filepath)
+    elif filepath.endswith('.yaml'):
+        return load_from_yaml_file(filepath)
+    else:
+        raise ValueError(f"Unsupported file format: {filepath}")
 
 @dataclass
 class TrainConfig:
@@ -89,16 +116,7 @@ class TrainConfig:
     def create_from_config_file(
         cls, config_file: str, model_config_cls, is_sweep=False
     ):
-        config_dict = {}
-        with open(config_file, "r") as file:
-            exec(file.read(), {}, config_dict)
-        # Filter out built-in items
-        config_dict = {
-            k.lower(): v
-            for k, v in config_dict.items()
-            if not k.startswith("__") and not inspect.ismodule(v)
-        }
-
+        config_dict = load_config_from_file(config_file)
         model_config_fields = [f.name for f in fields(model_config_cls)]
         if not is_sweep:
             model_config_dict = {
