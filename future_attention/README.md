@@ -247,132 +247,142 @@ If you use this codebase, or otherwise found my work valuable, please cite:
 ### Run configs
 #### "future_dim = 50 Cosine"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 9,
-                  'n_embed': 144,
-                  'n_layer': 28,
-                  'use_bias': False,
-                  'end_layer': 28,
-                  'future_dim': 50,
-                  'start_layer': 1,
-                  'context_size': 200,
-                  'dropout_rate': 0,
-                  'use_future_attn_loss': True,
-                  'future_attn_loss_type': 2,
-                  'future_attn_loss_coeff': 1,
-                  'detach_future_ground_truth': True},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  detach_future_ground_truth: true
+  dropout_rate: 0
+  end_layer: 28
+  future_attn_loss_coeff: 1
+  future_attn_loss_type: "COSINE"
+  future_dim: 50
+  n_embed: 144
+  n_head: 9
+  n_layer: 28
+  start_layer: 1
+  use_bias: false
+  use_future_attn_loss: true
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
 ```
 #### "future_dim = 50 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 9,
-                  'n_embed': 144,
-                  'n_layer': 28,
-                  'use_bias': False,
-                  'end_layer': 28,
-                  'future_dim': 50,
-                  'start_layer': 1,
-                  'context_size': 200,
-                  'dropout_rate': 0,
-                  'use_future_attn_loss': True,
-                  'future_attn_loss_type': 1,
-                  'future_attn_loss_coeff': 1,
-                  'detach_future_ground_truth': True},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  detach_future_ground_truth: true
+  dropout_rate: 0
+  end_layer: 28
+  future_attn_loss_coeff: 1
+  future_attn_loss_type: "MSE"
+  future_dim: 50
+  n_embed: 144
+  n_head: 9
+  n_layer: 28
+  start_layer: 1
+  use_bias: false
+  use_future_attn_loss: true
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "future_dim = 100 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 9,
-                  'n_embed': 144,
-                  'n_layer': 28,
-                  'use_bias': False,
-                  'end_layer': 28,
-                  'future_dim': 100,
-                  'start_layer': 1,
-                  'context_size': 200,
-                  'dropout_rate': 0,
-                  'use_future_attn_loss': True,
-                  'future_attn_loss_type': 1,
-                  'future_attn_loss_coeff': 1,
-                  'detach_future_ground_truth': True},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  detach_future_ground_truth: true
+  dropout_rate: 0
+  end_layer: 28
+  future_attn_loss_coeff: 1
+  future_attn_loss_type: "MSE"
+  future_dim: 100
+  n_embed: 144
+  n_head: 9
+  n_layer: 28
+  start_layer: 1
+  use_bias: false
+  use_future_attn_loss: true
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
 ```
 #### "baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 10,
-                  'n_embed': 160,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 200,
-                  'dropout_rate': 0},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_rate: 0
+  n_embed: 160
+  n_head: 10
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "smaller baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 12,
-                  'n_embed': 156,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 200,
-                  'dropout_rate': 0},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_rate: 0
+  n_embed: 156
+  n_head: 12
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```

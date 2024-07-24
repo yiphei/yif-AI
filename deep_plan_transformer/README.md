@@ -234,302 +234,340 @@ If you use this codebase, or otherwise found my work valuable, please cite:
 ### Run configs
 #### "FCS=11 Cosine"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 3,
-                  'future_context_size': 11,
-                  'planning_loss_coeff': 1,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 11
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "COSINE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
 ```
 #### "FCS=11 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 11,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 11
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
 ```
 #### "no planning loss"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'future_context_size': None,
-                  'planning_context_ln_type': None,
-                  'planning_loss_type': 1,
-                  'planning_loss_coeff': None,
-                  'future_context_aggregation_type': None,
-                  'present_future_context_aggregation_type': None},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: null
+  future_context_size: null
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: null
+  planning_loss_coeff: null
+  planning_loss_type: "NONE"
+  present_future_context_aggregation_type: null
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "FCS=3 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 3,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 3
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "FCS=6 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 6,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 6
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "FCS=16 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 16,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 16
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "FCS=26 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 26,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 26
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 10,
-                  'n_embed': 160,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  dropout_rate: 0
+  n_embed: 160
+  n_head: 10
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "smaller baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 12,
-                  'n_embed': 156,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  dropout_rate: 0
+  n_embed: 156
+  n_head: 12
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "0.3 dropout baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 10,
-                  'n_embed': 160,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0.3},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  dropout_rate: 0.3
+  n_embed: 160
+  n_head: 10
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "autoregressive enc-dec"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'order_type': 1,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'encoder_embed_ln_type': 2,
-                  'use_ln_on_encoder_out': True,
-                  'encoder_embed_loss_type': 2,
-                  'add_ln_before_decoder_ff': False,
-                  'add_pos_embed_to_decoder': False,
-                  'encoder_embed_loss_coeff': 8,
-                  'sub_pos_embed_to_decoder': 2,
-                  'encoder_embed_detach_type': 3},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  add_ln_before_decoder_ff: false
+  add_pos_embed_to_decoder: false
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  detach_type: 3
+  embedding_ln_type: 2
+  embedding_loss_coeff: 8
+  embedding_loss_type: 2
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  order_type: 1
+  sub_pos_embed_to_decoder: 2
+  use_bias: false
+  use_ln_on_encoder_out: true
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
