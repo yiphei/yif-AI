@@ -21,7 +21,7 @@ model_config:
   n_layer: 13
   planning_context_ln_type: null
   planning_loss_coeff: null
-  planning_loss_type: 1
+  planning_loss_type: "NONE"
   present_future_context_aggregation_type: null
   use_bias: false
 train_steps: 9000

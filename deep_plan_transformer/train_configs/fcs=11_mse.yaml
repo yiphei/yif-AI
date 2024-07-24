@@ -14,15 +14,15 @@ model_config:
     n_head: 10
     use_bias: false
   dropout_rate: 0
-  future_context_aggregation_type: 2
+  future_context_aggregation_type: "DECAY"
   future_context_size: 11
   n_embed: 150
   n_head: 5
   n_layer: 13
-  planning_context_ln_type: 3
+  planning_context_ln_type: "POST_AGGR"
   planning_loss_coeff: 1
-  planning_loss_type: 2
-  present_future_context_aggregation_type: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
   use_bias: false
 train_steps: 9000
 warmup_iters: 300
