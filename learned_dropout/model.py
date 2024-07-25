@@ -41,6 +41,7 @@ class DropoutInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
     EMBED = "EMBED"
 
+
 class L1NormPenaltyType(IntMappedEnum):
     LINEAR = "LINEAR"
     SQUARED = "SQUARED"
@@ -483,7 +484,10 @@ class LearnedDropoutTransformer(BaseModel):
         embed = self.dropout(embed)
         x = embed
 
-        if self.config.learned_dropout_config.dropout_input_type == DropoutInputType.EMBED:
+        if (
+            self.config.learned_dropout_config.dropout_input_type
+            == DropoutInputType.EMBED
+        ):
             transformed = self.embed_transform(embed)
             embed = transformed
 
