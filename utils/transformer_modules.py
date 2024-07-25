@@ -171,7 +171,7 @@ class BaseModel(nn.Module):
             else:
                 sub_module_stats = list(stat_to_module_class.keys())
                 assert len(set(self.extra_stats) & set(sub_module_stats)) == 0
-                self.extra_stats.extend(sub_module_stats)
+                self.extra_stats = sub_module_stats + self.extra_stats
 
         # Ensure that the extra stats are not already registered as buffers
         assert len(set(self.extra_stats) & set(non_extra_stats_buffer_names)) == 0
