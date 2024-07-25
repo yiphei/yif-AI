@@ -234,6 +234,7 @@ class BaseModel(nn.Module):
             for stat in self.extra_stats:
                 full_stat_name = RUNNING_STAT_PREFIX + stat
                 stat = getattr(self, full_stat_name)
+                # torch.new_empty preserves device
                 setattr(self, full_stat_name, stat.new_empty(0))
 
     def dump_extra_stats(self):
