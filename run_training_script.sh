@@ -48,7 +48,7 @@ process_address() {
     tmux wait-for setup_done
 
     export_cmd="export WANDB_API_KEY='${api_key}'"
-    torch_cmd="torchrun --standalone --nproc_per_node=1 -m learned_dropout.training_script --config_file learned_dropout/train_configs/small.py --train datasets/wikipedia/ --platform_type LAMBDA --aws_access_key_id ${aws_access_key} --aws_secret_access_key ${aws_secret_key} --sweep_id a5e8ggsj --sweep_count 1 --sync_profile_live True"
+    torch_cmd="torchrun --standalone --nproc_per_node=1 -m learned_dropout.training_script --config_file learned_dropout/train_configs/small.yaml --train datasets/wikipedia/ --platform_type LAMBDA --aws_access_key_id ${aws_access_key} --aws_secret_access_key ${aws_secret_key} --sweep_id a5e8ggsj --sweep_count 1 --sync_profile_live True"
 
     if [ $gpu_processes -gt 1 ]; then
         for i in \$(seq 0 $((gpu_processes-1))); do
