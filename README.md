@@ -21,7 +21,7 @@ python -m <model_dir>.training_script --train datasets/<dataset_dir> --config_fi
 For instance,
 
 ```
-python -m deep_plan_transformer.training_script --train datasets/wikipedia/ --config_file deep_plan_transformer/train_configs/small.py
+python -m deep_plan_transformer.training_script --train datasets/wikipedia/ --config_file deep_plan_transformer/train_configs/small.yaml
 ```
 
 You can find additional args available in [utils/train.py](utils/train.py)
