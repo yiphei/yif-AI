@@ -328,7 +328,11 @@ def _train(
     )
     DEVICE = get_default_device()
 
-    using_DDP = DEVICE == "cuda" and torch.cuda.device_count() > 1 and "LOCAL_RANK" in os.environ
+    using_DDP = (
+        DEVICE == "cuda"
+        and torch.cuda.device_count() > 1
+        and "LOCAL_RANK" in os.environ
+    )
     ddp_world_size = None
     if using_DDP:
         init_process_group(backend="nccl")
