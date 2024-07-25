@@ -232,7 +232,9 @@ class BaseModel(nn.Module):
     def reset_running_stats(self):
         if self.is_master_process:
             for stat in self.extra_stats:
-                setattr(self, RUNNING_STAT_PREFIX + stat, torch.empty(0))
+                full_stat_name = RUNNING_STAT_PREFIX + stat
+                stat_device = getattr(self, full_stat_name).device
+                setattr(self, full_stat_name, torch.empty(0, device=stat_device))
 
     def dump_extra_stats(self):
         return {
