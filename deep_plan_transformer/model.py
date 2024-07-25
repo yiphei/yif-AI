@@ -189,7 +189,7 @@ class DecoderTransformerBlock(nn.Module):
         return decoder_x
 
 
-class DeepSight(BaseModel):
+class DeepPlan(BaseModel):
     model_config_cls = ModelConfig
     extra_stats = ["planning_loss", "scaled_planning_loss"]
 

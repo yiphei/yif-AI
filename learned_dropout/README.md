@@ -85,7 +85,7 @@ Note that the unrounded $M$ is used because it is deterministic. The squaring of
 
 > All training runs below were done on a wikipedia dataset for 26k steps on a single A100 GPU, unless otherwise stated.
 > 
-> Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
+> Implementation of decoder-only transformer model (baseline) can be found in the [`baseline_transformer`](../baseline_transformer/) directory in this repo
 
 First, the inclusion and exclusion of ${L_1}$ norm penalty were compared. Both had the shift bias $B$ initialized to $0$. The inclusion of the penalty outperformed its exclusion in validation loss but underperformed it in train loss. Surprisingly, the penalty absence did not detract the model from having more dropout over time, though at a much slower rate. This is promising because it means that more dropout is naturally aligned with better next token prediction.
 

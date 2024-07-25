@@ -1,21 +1,21 @@
-# DeepSight
+# DeepPlan
 > NB: LaTeX here is optimized for Github's Markdown, so please view it on Github. Also, Safari does not render Github's LaTeX and some SVG files well, so Chrome is advised.
 
-Virtually all autoregressive transformer models are trained with the singular objective of next token prediction. They don't possess an explicit objective to think – or better, plan – beyond the next token (though they implicitly do). Here, I present a new transformer model, DeepSight, that includes an explicit objective of planning beyond the next token, in addition to next token prediction. DeepSight beats, with fewer parameters, a canonical decoder-only transformer, both in train and validation loss.
+Virtually all autoregressive transformer models are trained with the singular objective of next token prediction. They don't possess an explicit objective to think – or better, plan – beyond the next token (though they implicitly do). Here, I present a new transformer model, DeepPlan, that includes an explicit objective of planning beyond the next token, in addition to next token prediction. DeepPlan outperforms, with fewer parameters, a canonical decoder-only transformer, both in train and validation loss.
 
 ## Motivations
 
-Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token via the attention mechanism. Yet, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I narrowly define planning as anything that happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
+Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token via the attention mechanism. However, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I narrowly define planning as anything that happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
 
-This project explores how planning many steps beyond the next token can be formulated as an objective function during training, in addition to the regular next token prediction. Why focus on planning? The (perhaps anthropomorphic) intuition is that deliberate planning can improve next token prediction. After all, planning for $n$ future tokens includes the next token. Why as a new objective function? Because that is perhaps the simplest and best way to induce any model behavior.
+This project explores how planning many steps beyond the next token can be formulated as an objective function during training, in addition to the regular next token prediction. The (perhaps anthropomorphic) intuition is that deliberate planning can improve next token prediction. After all, planning for $n$ future tokens includes the next token. And the objective function formulation is usually the simplest and best way to induce any model behavior.
 
 ## Architecture
 
-At the high level, the architecture consists of an encoder-decoder transformer adapted for end-to-end autoregressive tasks (for those who have read my other model *Auto-regressive Encoder-Decoder Transformer*, it shares the same core architecture but without the positional embedding subtraction). The encoder-decoder separation is necessary for the formulation of the planning objective.
+At the high level, the architecture consists of an encoder-decoder transformer adapted for end-to-end autoregressive tasks (for those who have read my other model [*Auto-regressive Encoder-Decoder Transformer*](../autoregressive_encoder_decoder_transformer), it shares the same core architecture but without the positional embedding subtraction). The encoder-decoder separation is necessary for the formulation of the planning objective.
 
 ### Encoder-Decoder
 
-> This section reiterates verbatim the respective section in *Auto-regressive Encoder-Decoder Transformer*. You can skip it if you have already read that one
+> This section reiterates verbatim the [respective section](../autoregressive_encoder_decoder_transformer#encoder-decoder) in *Auto-regressive Encoder-Decoder Transformer*. You can skip it if you have already read that one
 
 In the canonical encoder-decoder transformer, the encoder runs once on an input, and the decoder runs auto-regressively on its own output while attending to the encoder output. It looks like the figure below.
 
@@ -38,7 +38,7 @@ When transitioning from encoder to decoder, the input to the first decoder layer
 
 ### Planning loss
 
-To improve the model's planning abilities, an explicit planning objective function must be added. To this end, planning must be first expressed as something that the model can generate. Remember that transformers are excellent at contextual understanding. Normally, the contextual understanding of any hidden state $h_{t}$ spans the tokens $\\{x_i \mid 1 \leq i \leq t\\}$. Under this paradigm, the simplest and most natural way to introduce planning is to express it as an extension of understanding that includes future tokens as well. Thus, good planning is defined as predicting well the latent representation $h^{*}\_{t}$ that captures the contextual understanding of $\\{x_i \mid 1 \leq i \leq t+\delta\\}$, where $\delta$ is a scalar hyperparameter. Let's call the context encompassing $\\{x_i \mid 1 \leq i \leq t+\delta\\}$ the **planning context**, of which $\\{x_i \mid 1 \leq i \leq t\\}$ is the **present context** and $\\{x_i \mid t+1 \leq i \leq t+\delta\\}$ is the **future context**. $\delta$ is the **future context size** (FCS). Note that this planning definition doesn't imply that the future becomes somewhat exposed to the present (e.g. by removing the causal mask in attention), but rather that it becomes part of an objective that the model maximizes.
+To improve the model's planning abilities, an explicit planning objective function must be added. To this end, planning must be first expressed as something that the model can generate. Remember that transformers are excellent at contextual understanding. Normally, the contextual understanding of any hidden state $h_{t}$ spans the tokens $\\{x_i \mid 1 \leq i \leq t\\}$. Under this paradigm, the simplest and most natural way to introduce planning is to express it as an extension of understanding that includes future tokens as well. Thus, planning is defined as predicting the latent representation $h^{*}\_{t}$ that captures the contextual understanding of $\\{x_i \mid 1 \leq i \leq t+\delta\\}$, where $\delta$ is a scalar hyperparameter. Let's denote the context encompassing $\\{x_i \mid 1 \leq i \leq t+\delta\\}$ the **planning context**, of which $\\{x_i \mid 1 \leq i \leq t\\}$ is the **present context** and $\\{x_i \mid t+1 \leq i \leq t+\delta\\}$ is the **future context**. $\delta$ is the **future context size** (FCS). Crucially, this planning definition doesn't imply that the future becomes somewhat exposed to the present (e.g. by removing the causal mask in attention), but rather that it becomes part of an objective that the model maximizes.
 
 Next, let's proceed to the three components of any objective function: model output, ground truth, and a minimization function.
 
@@ -92,7 +92,7 @@ Neither option affects the calculations for the next token prediction loss.
 
 > All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU, unless otherwise stated.
 > 
-> Implementation of decoder-only transformer model (baseline) can be found in the `baseline_transformer` directory in this repo
+> Implementation of decoder-only transformer model (baseline) can be found in the [`baseline_transformer`](../baseline_transformer/) directory in this repo
 
 The MSE planning loss outperformed cosine dissimilarity planning loss in both validation and train loss. Both had $\delta = 11$ (chosen arbitrarily). MSE also strictly outperformed an equivalent model without planning loss, and cosine dissimilarity outperformed the same equivalent model in train loss but fell marginally short in validation loss. In general, the planning loss proved beneficial to model performance. 
 
@@ -177,7 +177,7 @@ Two more baselines were compared: "smaller baseline" and "0.3 dropout baseline".
 | **smaller baseline** [(config)](#smaller-baseline) | 2.811 | 3.387| 15,441,192 |
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.173 | 3.364 | 16,036,800 |
 
-Finally, the *Auto-regressive Encoder-Decoder Transformer* model was compared. That model beat the baseline in validation loss, and it beat the baseline again here. The new model beat *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
+Finally, the [*Auto-regressive Encoder-Decoder Transformer*](../autoregressive_encoder_decoder_transformer) model was compared. That model beat the baseline in validation loss, and it beat the baseline again here. The new model beat *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -216,307 +216,358 @@ Another potential benefit of explicit planning is accelerated inference. A canon
 
 Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
+## Citation
+
+If you use this codebase, or otherwise found my work valuable, please cite:
+
+```
+@misc{yan2024deep-plan,
+  title={DeepPlan},
+  author={Yan, Yifei},
+  year={2024},
+  url={https://github.com/yiphei/yif-AI/tree/main/deep_plan_transformer}
+}
+```
+
 ---
 ## Appendix
 ### Run configs
 #### "FCS=11 Cosine"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 3,
-                  'future_context_size': 11,
-                  'planning_loss_coeff': 1,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 11
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "COSINE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
 ```
 #### "FCS=11 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 11,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 11
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
 ```
 #### "no planning loss"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'future_context_size': None,
-                  'planning_context_ln_type': None,
-                  'planning_loss_type': 1,
-                  'planning_loss_coeff': None,
-                  'future_context_aggregation_type': None,
-                  'present_future_context_aggregation_type': None},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: null
+  future_context_size: null
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: null
+  planning_loss_coeff: null
+  planning_loss_type: "NONE"
+  present_future_context_aggregation_type: null
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "FCS=3 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 3,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 3
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "FCS=6 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 6,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 6
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "FCS=16 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 16,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 16
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "FCS=26 MSE"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'planning_loss_type': 2,
-                  'planning_loss_coeff': 1,
-                  'future_context_size': 26,
-                  'planning_context_ln_type': 3,
-                  'future_context_aggregation_type': 2,
-                  'present_future_context_aggregation_type': 1},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  future_context_aggregation_type: "DECAY"
+  future_context_size: 26
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  planning_context_ln_type: "POST_AGGR"
+  planning_loss_coeff: 1
+  planning_loss_type: "MSE"
+  present_future_context_aggregation_type: "EQUAL"
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 10,
-                  'n_embed': 160,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  dropout_rate: 0
+  n_embed: 160
+  n_head: 10
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "smaller baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 12,
-                  'n_embed': 156,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  dropout_rate: 0
+  n_embed: 156
+  n_head: 12
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "0.3 dropout baseline"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 10,
-                  'n_embed': 160,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 400,
-                  'dropout_rate': 0.3},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 400
+  dropout_rate: 0.3
+  n_embed: 160
+  n_head: 10
+  n_layer: 26
+  use_bias: false
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```
 #### "autoregressive enc-dec"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 9000,
- 'est_interval': 500,
- 'model_config': {'n_head': 5,
-                  'n_embed': 150,
-                  'n_layer': 13,
-                  'use_bias': False,
-                  'order_type': 1,
-                  'context_size': 400,
-                  'dropout_rate': 0,
-                  'cross_attn_config': {'n_head': 10, 'use_bias': False},
-                  'encoder_embed_ln_type': 2,
-                  'use_ln_on_encoder_out': True,
-                  'encoder_embed_loss_type': 2,
-                  'add_ln_before_decoder_ff': False,
-                  'add_pos_embed_to_decoder': False,
-                  'encoder_embed_loss_coeff': 8,
-                  'sub_pos_embed_to_decoder': 2,
-                  'encoder_embed_detach_type': 3},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  add_ln_before_decoder_ff: false
+  add_pos_embed_to_decoder: false
+  context_size: 400
+  cross_attn_config:
+    n_head: 10
+    use_bias: false
+  dropout_rate: 0
+  detach_type: 3
+  embedding_ln_type: 2
+  embedding_loss_coeff: 8
+  embedding_loss_type: 2
+  n_embed: 150
+  n_head: 5
+  n_layer: 13
+  order_type: 1
+  sub_pos_embed_to_decoder: 2
+  use_bias: false
+  use_ln_on_encoder_out: true
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
+
  ```

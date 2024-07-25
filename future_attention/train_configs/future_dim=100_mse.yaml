@@ -1,0 +1,27 @@
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  detach_future_ground_truth: true
+  dropout_rate: 0
+  end_layer: 28
+  future_attn_loss_coeff: 1
+  future_attn_loss_type: "MSE"
+  future_dim: 100
+  n_embed: 144
+  n_head: 9
+  n_layer: 28
+  start_layer: 1
+  use_bias: false
+  use_future_attn_loss: true
+train_steps: 9000
+warmup_iters: 300
+weight_decay: 0.1
