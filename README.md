@@ -25,3 +25,9 @@ python -m deep_plan_transformer.training_script --train datasets/wikipedia/ --co
 ```
 
 You can find additional training script args in [utils/train.py](utils/train.py)
+
+If you have GPUs, you can use them by prepending `torchrun --standalone --nproc_per_node=<gpu_num> -m` instead of `python -m`. For instance,
+
+```
+torchrun --standalone --nproc_per_node=2 -m deep_plan_transformer.training_script --train datasets/wikipedia/ --config_file deep_plan_transformer/train_configs/small.yaml
+```
