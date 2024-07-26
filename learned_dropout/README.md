@@ -82,7 +82,7 @@ Dropout masks $M_{rounded}$ are computed synchronously and serially because they
 $$
 \begin{aligned}
 & W_{Q}, W_{K} ,W_{V} \coloneqq \text{attention weights} \\
-& E \coloneqq \text{model input embedding (detached), comprised of token and positional embedding}\\\\[0.5cm]
+& E \coloneqq \text{model input embedding, comprised of token and positional embedding}\\\\[0.5cm]
 & Q = E \cdot W_{Q} \\
 & K = E \cdot W_{K} \\
 & V = E \cdot W_{V} \\
