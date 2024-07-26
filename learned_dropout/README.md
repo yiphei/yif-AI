@@ -75,6 +75,25 @@ In the end, the output of the module is the element-wise product between $X$ and
 
 $$ out_{dropout} =  X \odot M_{rounded} $$
 
+#### A faster implementation
+
+Dropout masks $M_{rounded}$ are computed synchronously and serially because they are dependent on the mask target $X$. To precompute all $M_{rounded}$'s at the beginning of the forward pass, one can use a close derivation of the input embeddings $E$ as a proxy for $X$. Let's denote the $E$'s derivation $E_{dropout}$. $E_{dropout}$ is computed as a multi-headed attention pass on $E$. More formally,
+
+$$
+\begin{aligned}
+& W_{Q}, W_{K} ,W_{V} \coloneqq \text{attention weights} \\
+& E \coloneqq \text{model input embedding (detached), comprised of token and positional embedding}\\\\[0.5cm]
+& Q = E \cdot W_{Q} \\
+& K = E \cdot W_{K} \\
+& V = E \cdot W_{V} \\
+& Attn = Q \cdot K^{T} \\
+& out_{attn} = softmax(Attn) \cdot V \\
+& E_{dropout} = Linear(out_{attn}) \\
+\end{aligned}
+$$
+
+Then, use $E_{dropout}$ to compute $M_{rounded}$ for all layers. 
+
 ### Dropout L1 norm penalty
 
 Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition stems from the Occam's razor or Minimum Description Length principle. This is also analogous to desiring fewer experts per token in MoE. Yet, the model does not intrinsically favor more dropout. In fact, the opposite could happen because the next token prediction loss function can incentivize the model to use as much compute as possible, hence less dropout. To counter this, a dropout ${L_1}$ norm penalty is added to the final model loss, calculated in the following way
