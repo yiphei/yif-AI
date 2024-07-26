@@ -103,7 +103,7 @@ First, the inclusion and exclusion of ${L_1}$ norm penalty were compared. Both h
 
 |   | Train loss | Val loss | average % of 1s in $M_{rounded}$ |
 |---|----------|----------|----------|
-| **with penalty** [(config)](#) | 2.937 | **3.384** | **0.6167** |
+| **with penalty** [(config)](#with-penalty--shift_init--0) | 2.937 | **3.384** | **0.6167** |
 | **without penalty** [(config)](#without-penalty) | **2.911** | 3.403 | 0.9609 |
 
 Next, using the ${L_1}$ norm penalty, different initialization values for the shift bias $B$ were evaluated. The $0$ initialization performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuition because initializing with $0$ means that $M$ starts with values closer to 1, and it is easier to go from no dropout to better dropout than vice versa. Yet, the $\pi$ initialization performed very competitively despite dropping out about 75% of values on average.
@@ -122,7 +122,7 @@ Next, using the ${L_1}$ norm penalty, different initialization values for the sh
 
 |   | Train loss | Val loss | average % of 1s in $M_{rounded}$ |
 |---|----------|----------|----------|
-| **shift_init = 0** [(config)](#shift_init--0) | **2.937** | **3.384** | 0.6167 |
+| **shift_init = 0** [(config)](#with-penalty--shift_init--0) | **2.937** | **3.384** | 0.6167 |
 | **shift_init = pi/2** [(config)](#shift_init--pi2) | 2.967 | 3.405 | 0.5955 |
 | **shift_init = pi** [(config)](#shift_init--pi) | 3.055 | 3.457 | **0.2507** |
 
@@ -142,7 +142,7 @@ Compared to a canonical decoder-only transformer (baseline) with no dropout, the
 
 |   | Train loss | Val loss | average % of 1s in $M_{rounded}$ | Size (params) |
 |---|----------|----------|----------|----------|
-| **shift_init = 0** [(config)](#shift_init--0) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
+| **shift_init = 0** [(config)](#with-penalty--shift_init--0) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#baseline) | **2.845** | 3.475 | NA | 15,441,192 |
 
 Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 dropout baseline", and "0.4 dropout baseline". The new model outperformed all in validation loss except for "0.2 dropout baseline". Note that even the new model has some $Dropout$ modules and at more places and they were not used. So the model demonstrates its competitiveness with $Dropout$.
@@ -161,7 +161,7 @@ Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 
 
 |   | Train loss | Val loss | average % of 1s in $M_{rounded}$ | Size (params) |
 |---|----------|----------|----------|----------|
-| **shift_init = 0** [(config)](#shift_init--0) | 2.937 | 3.384 | 0.6167 | 15,335,424 |
+| **shift_init = 0** [(config)](#with-penalty--shift_init--0) | 2.937 | 3.384 | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#baseline) | **2.845** | 3.475 | NA | 15,441,192 |
 | **0.2 dropout baseline** [(config)](#02-dropout-baseline) | 3.1 | **3.354** | NA | 15,441,192 |
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.213 | 3.425 | NA | 15,441,192 |
