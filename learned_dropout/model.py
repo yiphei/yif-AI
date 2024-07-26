@@ -352,7 +352,7 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class EmbedAttentionHead(nn.Module):
+class DropoutEmbedAttention(nn.Module):
     def __init__(
         self, dim_in, n_head, use_bias, context_size, dropout_rate=0, use_flash=True
     ):
@@ -425,7 +425,7 @@ class LearnedDropoutTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
         if config.learned_dropout_config.dropout_input_type == DropoutInputType.EMBED:
-            self.dropout_embed_attn = EmbedAttentionHead(
+            self.dropout_embed_attn = DropoutEmbedAttention(
                 config.n_embed,
                 config.n_head,
                 config.use_bias,
