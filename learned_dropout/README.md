@@ -122,7 +122,7 @@ First, the inclusion and exclusion of ${L_1}$ norm penalty were compared. Both h
 </div>
 <br>
 
-|   | Train loss | Val loss | average % of 1s in $M_{rounded}$ |
+|   | Train loss | Val loss | average % of 1s in all $M_{rounded}$ |
 |---|----------|----------|----------|
 | **with penalty** [(config)](#with-penalty--shift_init--0) | 2.937 | **3.384** | **0.6167** |
 | **without penalty** [(config)](#without-penalty) | **2.911** | 3.403 | 0.9609 |
@@ -141,7 +141,7 @@ Next, using the ${L_1}$ norm penalty, different initialization values for the sh
 </div>
 <br>
 
-|   | Train loss | Val loss | average % of 1s in $M_{rounded}$ |
+|   | Train loss | Val loss | average % of 1s in all $M_{rounded}$ |
 |---|----------|----------|----------|
 | **shift_init = 0** [(config)](#with-penalty--shift_init--0) | **2.937** | **3.384** | 0.6167 |
 | **shift_init = pi/2** [(config)](#shift_init--pi2) | 2.967 | 3.405 | 0.5955 |
@@ -161,7 +161,7 @@ Compared to a canonical decoder-only transformer (baseline) with no dropout, the
 </div>
 <br>
 
-|   | Train loss | Val loss | average % of 1s in $M_{rounded}$ | Size (params) |
+|   | Train loss | Val loss | average % of 1s in all $M_{rounded}$ | Size (params) |
 |---|----------|----------|----------|----------|
 | **shift_init = 0** [(config)](#with-penalty--shift_init--0) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#baseline) | **2.845** | 3.475 | NA | 15,441,192 |
@@ -180,7 +180,7 @@ Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 
 </div>
 <br>
 
-|   | Train loss | Val loss | average % of 1s in $M_{rounded}$ | Size (params) |
+|   | Train loss | Val loss | average % of 1s in all $M_{rounded}$ | Size (params) |
 |---|----------|----------|----------|----------|
 | **shift_init = 0** [(config)](#with-penalty--shift_init--0) | 2.937 | 3.384 | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#baseline) | **2.845** | 3.475 | NA | 15,441,192 |
