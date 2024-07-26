@@ -92,7 +92,7 @@ $$
 \end{aligned}
 $$
 
-Then, use $E_{dropout}$ to compute $M_{rounded}$ for all layers. 
+Then, use $E_{dropout}$ to pre-compute $M_{rounded}$ for all $LearnedDropout$ modules. 
 
 ### Dropout L1 norm penalty
 
