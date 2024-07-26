@@ -1,5 +1,5 @@
 program: attention_dropout_transformer/training_script.py
-name: final_wikipedia_config_embed_input
+name: final_wikipedia_config_embed_input_perf_test_bigger
 project: ultimate_attention_dropout_transformer_new_embed
 method: grid
 metric:
@@ -11,13 +11,13 @@ parameters:
             use_bias:
                 value: False
             context_size:
-                value: 200
+                value: 500
             n_embed: 
-                value: 144
+                value: 300
             n_layer: 
                 value: 26
             n_head: 
-                value: 9
+                value: 10
             dropout_rate:
                 value: 0
             use_dropout_entropy_penalty:
@@ -35,15 +35,15 @@ parameters:
                     use_bias:
                         value: False
                     n_head:
-                        value: 9
+                        value: 10
                     mask_rounding_type:
                         value: 3
                     shift_init:
                         value: 0
                     use_detached_input:
-                        values: [False, True]
+                        value: True
                     dropout_input_type:
-                        values: [2, 3]
+                        value: 4
     batch_size: 
         value: 50
     train_steps: 

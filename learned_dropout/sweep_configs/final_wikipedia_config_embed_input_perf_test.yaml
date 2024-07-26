@@ -1,5 +1,5 @@
 program: attention_dropout_transformer/training_script.py
-name: final_wikipedia_config_embed_input
+name: final_wikipedia_config_embed_input_perf_test
 project: ultimate_attention_dropout_transformer_new_embed
 method: grid
 metric:
@@ -41,9 +41,9 @@ parameters:
                     shift_init:
                         value: 0
                     use_detached_input:
-                        values: [False, True]
+                        value: True
                     dropout_input_type:
-                        values: [2, 3]
+                        value: 4
     batch_size: 
         value: 50
     train_steps: 

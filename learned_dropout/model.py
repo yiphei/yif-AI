@@ -148,7 +148,7 @@ class ModelConfig(BaseModelConfig):
         ]:
             attr_value = getattr(self, attr_name)
             if attr_value is None and getattr(self, flag_attr_name):
-                setattr(self, attr_name, PenaltyCoeffConfig(max_coeff=1))
+                setattr(self, attr_name, PenaltyCoeffConfig(max_coeff=0.1))
             elif not getattr(self, flag_attr_name) and attr_value is not None:
                 raise ValueError(f"{attr_name} is set but {flag_attr_name} is False")
 
@@ -187,8 +187,6 @@ class LearnedDropout(SubModuleStats):
         self.shift = nn.Parameter(
             torch.full((embed_dim,), config.shift_init, dtype=torch.float32)
         )
-        if self.config.dropout_input_type == DropoutInputType.EMBED:
-            self.embed_ln = LayerNorm(embed_dim, config.use_bias)
 
         self.l1_norm_fn = self.get_l1_norm_penalty_fn(l1_norm_penalty_type)
 
@@ -237,12 +235,11 @@ class LearnedDropout(SubModuleStats):
                 torch.norm(rounded_dropout_mask, p=1) / rounded_dropout_mask.numel()
             )
 
-    def forward(self, x, embed):
+    def forward(self, x, dropout_embed):
         if self.config.dropout_input_type == DropoutInputType.HIDDEN_STATE:
             dropout_input = x
         elif self.config.dropout_input_type == DropoutInputType.EMBED:
-            dropout_input = embed
-            dropout_input = self.embed_ln(dropout_input)
+            dropout_input = dropout_embed
 
         dropout_input = (
             dropout_input.detach() if self.config.use_detached_input else dropout_input
@@ -323,11 +320,11 @@ class FeedForward(nn.Module):
             config.l1_norm_penalty_type,
         )
 
-    def forward(self, x, embed):
+    def forward(self, x, dropout_embed):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        x = self.dropout(x, embed)
+        x = self.dropout(x, dropout_embed)
         return x
 
 
@@ -349,10 +346,70 @@ class TransformerBlock(nn.Module):
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, x, embed):
+    def forward(self, x, dropout_embed):
         x = x + self.multi_attn_head(self.ln1(x))
-        x = x + self.feed_forward(self.ln2(x), embed)
+        x = x + self.feed_forward(self.ln2(x), dropout_embed)
         return x
+
+
+class DropoutEmbedAttention(nn.Module):
+    def __init__(
+        self, dim_in, n_head, use_bias, context_size, dropout_rate=0, use_flash=True
+    ):
+        super().__init__()
+        assert dim_in % n_head == 0
+        self.dim_in = dim_in
+        self.head_size = dim_in // n_head
+        self.n_head = n_head
+        self.dropout_rate = dropout_rate
+
+        self.batch_attn_weights = nn.Linear(self.dim_in, self.dim_in * 3, bias=use_bias)
+        self.linear = nn.Linear(self.dim_in, self.dim_in, bias=use_bias)
+
+        self.dropout_1 = nn.Dropout(dropout_rate)
+        self.dropout_2 = nn.Dropout(dropout_rate)
+
+        self.using_flash = False
+        if not hasattr(F, "scaled_dot_product_attention") or not use_flash:
+            self.register_buffer(
+                "tril",
+                torch.tril(
+                    torch.ones(context_size, context_size).view(
+                        1, 1, context_size, context_size
+                    )
+                ),
+            )
+        else:
+            print("Using flash attention.")
+            self.using_flash = True
+
+    def forward(self, x):
+        B, T, C = x.shape
+
+        q, k, v = self.batch_attn_weights(x).split(self.dim_in, dim=2)
+        k = k.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        q = q.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+        v = v.view(B, T, self.n_head, self.head_size).transpose(1, 2)
+
+        if self.using_flash:
+            new_x = F.scaled_dot_product_attention(
+                q, k, v, attn_mask=None, dropout_p=self.dropout_rate, is_causal=True
+            )
+        else:
+            attn = (q @ k.transpose(-2, -1)) * (
+                self.head_size**-0.5
+            )  # B,H,T,S @ B,H,S,T ->B, H, T, T
+            causal_attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, float("-inf"))
+            causal_attn_probs = F.softmax(causal_attn, dim=-1)
+            causal_attn_probs = self.dropout_1(causal_attn_probs)
+            new_x = causal_attn_probs @ v  # B,H,T,T @ B,H,T,S -> B,H,T,S
+
+        new_x = (
+            new_x.transpose(1, 2).contiguous().view(B, T, C)
+        )  # B,H,T,S -> B,T,H,S -> B,T,C
+        new_x = self.linear(new_x)
+        new_x = self.dropout_2(new_x)
+        return new_x
 
 
 class LearnedDropoutTransformer(BaseModel):
@@ -367,6 +424,16 @@ class LearnedDropoutTransformer(BaseModel):
         self.token_embedding = nn.Embedding(config.alphabet_size, config.n_embed)
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
+        if config.learned_dropout_config.dropout_input_type == DropoutInputType.EMBED:
+            self.dropout_embed_attn = DropoutEmbedAttention(
+                config.n_embed,
+                config.n_head,
+                config.use_bias,
+                config.context_size,
+                config.dropout_rate,
+                True,
+            )
+
         self.transformer_blocks = nn.ModuleList(
             [TransformerBlock(config) for _ in range(config.n_layer)]
         )
@@ -416,8 +483,16 @@ class LearnedDropoutTransformer(BaseModel):
         embed = token_embed + pos_embed
         embed = self.dropout(embed)
         x = embed
+
+        dropout_embed = None
+        if (
+            self.config.learned_dropout_config.dropout_input_type
+            == DropoutInputType.EMBED
+        ):
+            dropout_embed = self.dropout_embed_attn(embed)
+
         for transformer_block in self.transformer_blocks:
-            x = transformer_block(x, embed)
+            x = transformer_block(x, dropout_embed)
         out = self.ln(x)
 
         if targets is None:
