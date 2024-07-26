@@ -148,7 +148,7 @@ class ModelConfig(BaseModelConfig):
         ]:
             attr_value = getattr(self, attr_name)
             if attr_value is None and getattr(self, flag_attr_name):
-                setattr(self, attr_name, PenaltyCoeffConfig(max_coeff=1))
+                setattr(self, attr_name, PenaltyCoeffConfig(max_coeff=0.1))
             elif not getattr(self, flag_attr_name) and attr_value is not None:
                 raise ValueError(f"{attr_name} is set but {flag_attr_name} is False")
 
