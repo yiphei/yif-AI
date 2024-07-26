@@ -77,7 +77,7 @@ $$ out_{dropout} =  X \odot M_{rounded} $$
 
 #### A faster implementation
 
-Dropout masks $M_{rounded}$ are computed synchronously and serially because they are dependent on the mask target $X$. To precompute all $M_{rounded}$'s at the beginning of the forward pass, a close derivation of the input embeddings $E$ can be used as a proxy for $X$. Let's denote this derivation $E_{dropout}$. Since $X$ is a product of attention (among other things), $E_{dropout}$ should as well. Therefore, $E_{dropout}$ is computed as a multi-headed attention pass on $E$. More formally,
+Dropout masks $M_{rounded}$ are computed serially because they are dependent on the mask target $X$. An obvious speedup can be gained from pre-computing all $M_{rounded}$'s at the beginning of the forward pass. To do so, a close derivation of the input embeddings $E$ can be used as a proxy for $X$. Let's denote this derivation $E_{dropout}$. Since $X$ is a product of the attention mechanism, $E_{dropout}$ should be as well. Therefore, $E_{dropout}$ is computed as a multi-headed attention pass on $E$. More formally,
 
 $$
 \begin{aligned}
@@ -92,7 +92,7 @@ $$
 \end{aligned}
 $$
 
-Then, use the same $E_{dropout}$ to pre-compute $M_{rounded}$ for all $LearnedDropout$ modules. At the synchronous level, $LearnedDropout$ simply applies the pre-computed $M_{rounded}$ to $X$.
+Then, use the same $E_{dropout}$ to pre-compute $M_{rounded}$ for all $LearnedDropout$ modules. Suprisingly, detaching $E_{dropout}$ before pre-computing $M_{rounded}$ improved performance. At the synchronous level, $LearnedDropout$ simply applies the pre-computed $M_{rounded}$ to $X$.
 
 ### Dropout L1 norm penalty
 
