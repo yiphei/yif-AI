@@ -235,11 +235,11 @@ class LearnedDropout(SubModuleStats):
                 torch.norm(rounded_dropout_mask, p=1) / rounded_dropout_mask.numel()
             )
 
-    def forward(self, x, embed):
+    def forward(self, x, dropout_embed):
         if self.config.dropout_input_type == DropoutInputType.HIDDEN_STATE:
             dropout_input = x
         elif self.config.dropout_input_type == DropoutInputType.EMBED:
-            dropout_input = embed
+            dropout_input = dropout_embed
 
         dropout_input = (
             dropout_input.detach() if self.config.use_detached_input else dropout_input
@@ -320,11 +320,11 @@ class FeedForward(nn.Module):
             config.l1_norm_penalty_type,
         )
 
-    def forward(self, x, embed):
+    def forward(self, x, dropout_embed):
         x = self.linear(x)
         x = self.gelu(x)
         x = self.residual_proj(x)
-        x = self.dropout(x, embed)
+        x = self.dropout(x, dropout_embed)
         return x
 
 
@@ -346,9 +346,9 @@ class TransformerBlock(nn.Module):
         self.ln1 = LayerNorm(config.n_embed, config.use_bias)
         self.ln2 = LayerNorm(config.n_embed, config.use_bias)
 
-    def forward(self, x, embed):
+    def forward(self, x, dropout_embed):
         x = x + self.multi_attn_head(self.ln1(x))
-        x = x + self.feed_forward(self.ln2(x), embed)
+        x = x + self.feed_forward(self.ln2(x), dropout_embed)
         return x
 
 
@@ -425,7 +425,7 @@ class LearnedDropoutTransformer(BaseModel):
         self.positional_embedding = nn.Embedding(config.context_size, config.n_embed)
         self.dropout = nn.Dropout(config.dropout_rate)
         if config.learned_dropout_config.dropout_input_type == DropoutInputType.EMBED:
-            self.embed_transform = EmbedAttentionHead(
+            self.dropout_embed_attn = EmbedAttentionHead(
                 config.n_embed,
                 config.n_head,
                 config.use_bias,
@@ -484,15 +484,15 @@ class LearnedDropoutTransformer(BaseModel):
         embed = self.dropout(embed)
         x = embed
 
+        dropout_embed = None
         if (
             self.config.learned_dropout_config.dropout_input_type
             == DropoutInputType.EMBED
         ):
-            transformed = self.embed_transform(embed)
-            embed = transformed
+            dropout_embed = self.dropout_embed_attn(embed)
 
         for transformer_block in self.transformer_blocks:
-            x = transformer_block(x, embed)
+            x = transformer_block(x, dropout_embed)
         out = self.ln(x)
 
         if targets is None:
