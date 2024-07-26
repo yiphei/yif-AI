@@ -11,11 +11,13 @@ Yet, unlike MoE, the random implementation means that 1) it is not useful during
 
 ## Architecture
 
-At the high-level, the architecture consists of a canonical decoder-only transformer with the new dropout module $LearnedDropout$. To encourage more dropout, a dropout ${L_1}$ norm penalty is added to the model loss.
+At the high-level, the architecture consists of a canonical decoder-only transformer with the new dropout module $LearnedDropout$ substituting for $Dropout$. $LearnedDropout$ is more computationally demanding than $Dropout$, so instead of a complete substitution, the model here limited it to the FeedForward blocks, after the last linear pass.
 
 <div align="center">
   <img src="assets/decoder_diagram_2.svg" alt="sdasd" width="40%">
 </div>
+
+To encourage more dropout, a dropout ${L_1}$ norm penalty is added to the model loss.
 
 ### LearnedDropout
 
