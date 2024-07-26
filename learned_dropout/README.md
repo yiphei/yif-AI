@@ -233,7 +233,7 @@ If you use this codebase, or otherwise found my work valuable, please cite:
  'lr_decay_iters': 700000,
  'gradient_accumulation_steps': 16}
 ```
-#### "shift_init = 0"
+#### "with penalty / shift_init = 0"
 ```
 {'lr': 0.0009,
  'beta1': 0.9,
