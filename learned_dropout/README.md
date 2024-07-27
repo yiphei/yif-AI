@@ -92,7 +92,7 @@ $$
 \end{aligned}
 $$
 
-Then, use the same $E_{dropout}$ to pre-compute $M_{rounded}$ for all $LearnedDropout$ modules. Suprisingly, detaching $E_{dropout}$ before pre-computing $M_{rounded}$ improved performance. During the forward pass, $LearnedDropout$ simply applies the pre-computed $M_{rounded}$ to $X$.
+Then, use the same $E_{dropout}$ to pre-compute $M_{rounded}$ for all $LearnedDropout$ modules. Because each $LearnedDropout$ has its own attention weights, the $M_{rounded}$ masks will still be different. Also, detaching $E_{dropout}$ before pre-computing $M_{rounded}$ improved performance. During the forward pass, $LearnedDropout$ simply applies the pre-computed $M_{rounded}$ to $X$.
 
 ### Dropout L1 norm penalty
 
