@@ -226,130 +226,141 @@ If you use this codebase, or otherwise found my work valuable, please cite:
 ### Run configs
 #### "without penalty"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 26000,
- 'est_interval': 500,
- 'model_config': {'n_head': 9,
-                  'n_embed': 144,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 200,
-                  'dropout_rate': 0,
-                  'l1_norm_penalty_type': None,
-                  'learned_dropout_config': {'n_head': 9,
-                                             'use_bias': False,
-                                             'shift_init': 0,
-                                             'dropout_input_type': 1,
-                                             'mask_rounding_type': 3,
-                                             'use_detached_input': False},
-                  'use_dropout_entropy_penalty': False,
-                  'use_dropout_l1_norm_penalty': False},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_rate: 0
+  l1_norm_penalty_type: null
+  learned_dropout_config:
+    dropout_input_type: "HIDDEN_STATE"
+    mask_rounding_type: "NOISE_AND_LINEAR"
+    n_head: 9
+    shift_init: 0
+    use_bias: false
+    use_detached_input: false
+  n_embed: 144
+  n_head: 9
+  n_layer: 26
+  use_bias: false
+  use_dropout_entropy_penalty: false
+  use_dropout_l1_norm_penalty: false
+train_steps: 26000
+warmup_iters: 300
+weight_decay: 0.1
 ```
 #### "with penalty / shift_init = 0"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 26000,
- 'est_interval': 500,
- 'model_config': {'n_head': 9,
-                  'n_embed': 144,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 200,
-                  'dropout_rate': 0,
-                  'l1_norm_penalty_type': 2,
-                  'learned_dropout_config': {'n_head': 9,
-                                             'use_bias': False,
-                                             'shift_init': 0,
-                                             'dropout_input_type': 1,
-                                             'mask_rounding_type': 3,
-                                             'use_detached_input': False},
-                  'use_dropout_entropy_penalty': False,
-                  'use_dropout_l1_norm_penalty': True,
-                  'dropout_l1_norm_coeff_config': {'max_coeff': 0.1}},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_l1_norm_coeff_config:
+    max_coeff: 0.1
+  dropout_rate: 0
+  l1_norm_penalty_type: "SQUARED"
+  learned_dropout_config:
+    dropout_input_type: "HIDDEN_STATE"
+    mask_rounding_type: "NOISE_AND_LINEAR"
+    n_head: 9
+    shift_init: 0
+    use_bias: false
+    use_detached_input: false
+  n_embed: 144
+  n_head: 9
+  n_layer: 26
+  use_bias: false
+  use_dropout_entropy_penalty: false
+  use_dropout_l1_norm_penalty: true
+train_steps: 26000
+warmup_iters: 300
+weight_decay: 0.1
 ```
 #### "shift_init = pi/2"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 26000,
- 'est_interval': 500,
- 'model_config': {'n_head': 9,
-                  'n_embed': 144,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 200,
-                  'dropout_rate': 0,
-                  'l1_norm_penalty_type': 2,
-                  'learned_dropout_config': {'n_head': 9,
-                                             'use_bias': False,
-                                             'shift_init': 1.57079,
-                                             'dropout_input_type': 1,
-                                             'mask_rounding_type': 3,
-                                             'use_detached_input': False},
-                  'use_dropout_entropy_penalty': False,
-                  'use_dropout_l1_norm_penalty': True,
-                  'dropout_l1_norm_coeff_config': {'max_coeff': 0.1}},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_l1_norm_coeff_config:
+    max_coeff: 0.1
+  dropout_rate: 0
+  l1_norm_penalty_type: "SQUARED"
+  learned_dropout_config:
+    dropout_input_type: "HIDDEN_STATE"
+    mask_rounding_type: "NOISE_AND_LINEAR"
+    n_head: 9
+    shift_init: 1.57079
+    use_bias: false
+    use_detached_input: false
+  n_embed: 144
+  n_head: 9
+  n_layer: 26
+  use_bias: false
+  use_dropout_entropy_penalty: false
+  use_dropout_l1_norm_penalty: true
+train_steps: 26000
+warmup_iters: 300
+weight_decay: 0.1
 ```
 #### "shift_init = pi"
 ```
-{'lr': 0.0009,
- 'beta1': 0.9,
- 'beta2': 0.95,
- 'min_lr': 9e-05,
- 'decay_lr': True,
- 'est_steps': 200,
- 'batch_size': 50,
- 'train_steps': 26000,
- 'est_interval': 500,
- 'model_config': {'n_head': 9,
-                  'n_embed': 144,
-                  'n_layer': 26,
-                  'use_bias': False,
-                  'context_size': 200,
-                  'dropout_rate': 0,
-                  'l1_norm_penalty_type': 2,
-                  'learned_dropout_config': {'n_head': 9,
-                                             'use_bias': False,
-                                             'shift_init': 3.14159,
-                                             'dropout_input_type': 1,
-                                             'mask_rounding_type': 3,
-                                             'use_detached_input': False},
-                  'use_dropout_entropy_penalty': False,
-                  'use_dropout_l1_norm_penalty': True,
-                  'dropout_l1_norm_coeff_config': {'max_coeff': 0.1}},
- 'warmup_iters': 300,
- 'weight_decay': 0.1,
- 'lr_decay_iters': 700000,
- 'gradient_accumulation_steps': 16}
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_l1_norm_coeff_config:
+    max_coeff: 0.1
+  dropout_rate: 0
+  l1_norm_penalty_type: "SQUARED"
+  learned_dropout_config:
+    dropout_input_type: "HIDDEN_STATE"
+    mask_rounding_type: "NOISE_AND_LINEAR"
+    n_head: 9
+    shift_init: 3.14159
+    use_bias: false
+    use_detached_input: false
+  n_embed: 144
+  n_head: 9
+  n_layer: 26
+  use_bias: false
+  use_dropout_entropy_penalty: false
+  use_dropout_l1_norm_penalty: true
+train_steps: 26000
+warmup_iters: 300
+weight_decay: 0.1
 ```
 #### "baseline"
 ```
