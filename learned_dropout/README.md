@@ -192,8 +192,8 @@ Finally, we compare it with the efficient implementation
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
-    <img src="assets/embed_train_loss_a.svg" alt="Image 1" style="width: 45%;"/>
-    <img src="assets/embed_val_loss_a.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/embed_train_loss.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/embed_val_loss.svg" alt="Image 2" style="width: 45%;"/>
     <img src="assets/embed_l1_norm.svg" alt="Image 2" style="width: 45%;"/>
     <img src="assets/embed_time.svg" alt="Image 2" style="width: 45%;"/>
   </div>
