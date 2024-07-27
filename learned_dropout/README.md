@@ -104,7 +104,7 @@ Note that the unrounded $M$ is used because it is deterministic. The squaring of
 
 ## Results
 
-> All training runs below were done on a wikipedia dataset for 26k steps on a single A100 GPU, unless otherwise stated.
+> All training runs below were done on a [wikipedia dataset](../datasets/wikipedia/) for 26k steps on a single A100 GPU, unless otherwise stated.
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the [`baseline_transformer`](../baseline_transformer/) directory in this repo
 
