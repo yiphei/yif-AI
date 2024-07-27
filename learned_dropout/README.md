@@ -188,6 +188,26 @@ Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.213 | 3.425 | NA | 15,441,192 |
 | **0.4 dropout baseline** [(config)](#04-dropout-baseline) | 3.319 | 3.512 | NA | 15,441,192 |
 
+Finally, we compare it with the efficient implementation
+
+<div>
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
+    <img src="assets/embed_train_loss_a.svg" alt="Image 1" style="width: 45%;"/>
+    <img src="assets/embed_val_loss_a.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/embed_l1_norm.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/embed_time.svg" alt="Image 2" style="width: 45%;"/>
+  </div>
+    <div align="center">
+      <em>Safari may not render the charts above. Chrome is advised.</em>
+    </div>
+</div>
+<br>
+
+|   | Train loss | Val loss | average % of 1s in all $M_{rounded}$ |
+|---|----------|----------|----------|
+| **shift_init = 0** [(config)](#with-penalty--shift_init--0) | **2.937** | **3.384** | **0.6167** |
+| **pre-computed masks** [(config)](#) | **2.937** | 3.425 | 0.7752 |
+
 ## Next steps
 
 These are some further things to look forward to:
