@@ -1,0 +1,32 @@
+batch_size: 50
+beta1: 0.9
+beta2: 0.95
+decay_lr: true
+est_interval: 500
+est_steps: 200
+gradient_accumulation_steps: 16
+lr: 0.0009
+lr_decay_iters: 700000
+min_lr: 9.0e-05
+model_config:
+  context_size: 200
+  dropout_l1_norm_coeff_config:
+    max_coeff: 0.1
+  dropout_rate: 0
+  l1_norm_penalty_type: "SQUARED"
+  learned_dropout_config:
+    dropout_input_type: "HIDDEN_STATE"
+    mask_rounding_type: "NOISE_AND_LINEAR"
+    n_head: 9
+    shift_init: 1.57079
+    use_bias: false
+    use_detached_input: false
+  n_embed: 144
+  n_head: 9
+  n_layer: 26
+  use_bias: false
+  use_dropout_entropy_penalty: false
+  use_dropout_l1_norm_penalty: true
+train_steps: 26000
+warmup_iters: 300
+weight_decay: 0.1
