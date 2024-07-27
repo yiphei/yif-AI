@@ -203,10 +203,10 @@ Finally, the faster implementation with $E_{dropout}$ was compared. It had compa
 </div>
 <br>
 
-|   | Train loss | Val loss | average % of 1s in all $M_{rounded}$ |
-|---|----------|----------|----------|
-| **shift_init = 0** [(config)](#with-penalty--shift_init--0) | **2.937** | **3.384** | **0.6167** |
-| **pre-computed masks** [(config)](#) | **2.937** | 3.425 | 0.7752 |
+|   | Train loss | Val loss | average % of 1s in all $M_{rounded}$ | Size (params) |
+|---|----------|----------|----------|----------|
+| **shift_init = 0** [(config)](#with-penalty--shift_init--0) | **2.937** | **3.384** | **0.6167** | 15,335,424 |
+| **pre-computed masks** [(config)](#) | **2.937** | 3.425 | 0.7752 | 15,418,368 |
 
 ## Next steps
 
