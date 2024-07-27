@@ -96,11 +96,11 @@ Next, use the same $E_{dropout}$ to pre-compute $M_{rounded}$ for all $LearnedDr
 
 ### Dropout L1 norm penalty
 
-Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition stems from the Occam's razor or Minimum Description Length principle. This is also analogous to desiring fewer experts per token in MoE. Yet, the model does not intrinsically favor more dropout. In fact, the opposite could happen because the next token prediction loss function can incentivize the model to use as much compute as possible, hence less dropout. To counter this, a dropout ${L_1}$ norm penalty is added to the final model loss, calculated in the following way
+Intuitively, more dropout (i.e. more 0s in $M$) is desirable. This intuition stems from the Occam's razor or Minimum Description Length principle. This is also analogous to desiring fewer experts per token in MoE. Yet, the model does not intrinsically favor more dropout. In fact, the opposite could happen because the next token prediction loss function can incentivize the model to use as much compute as possible, hence less dropout. To counter this, a dropout ${L_1}$ norm penalty is calculated in the following way for each $LearnedDropout$
 
 $$ L_{1}\\\_norm\\\_penalty = \left|\frac{M^2}{2}\right|_1$$
 
-Note that the unrounded $M$ is used because it is deterministic. The squaring of $M$ serves to create a non-linear penalty: as $M$ approaches 0, the penalty should decay. The decay and the $\frac{1}{2}$ scaling ensure that the penalty does not take precedence over next token prediction.
+The final penalty added to the model loss is the average of all $L_{1}\\\_norm\\\_penalty$'s. Note that the unrounded $M$ is used because it is deterministic. The squaring of $M$ serves to create a non-linear penalty: as $M$ approaches 0, the penalty should decay. The decay and the $\frac{1}{2}$ scaling ensure that the penalty does not take precedence over next token prediction.
 
 ## Results
 
