@@ -37,7 +37,7 @@ $$
 \end{aligned}
 $$
 
-Afterwards, the attention output $out_{attn}$ needs to be mapped to $\[0, 1\]$. For this, the following cosine function is employed
+Afterwards, the attention output $out_{attn}$ is mapped to $\[0, 1\]$. For this, the following cosine function is employed
 
 $$M =  0.5 \cos(out_{attn} + B) + 0.5$$
 
