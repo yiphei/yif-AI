@@ -78,7 +78,7 @@ $$embedding\\\_loss = 1- \frac{cosine\\\_similarity(out_{enc\\\_ln}, E_{avg\\\_s
 
 ## Results
 
-> All training runs below were done on a wikipedia dataset for 9k steps on a single A100 GPU, unless otherwise stated.
+> All training runs below were done on a [wikipedia dataset](../datasets/wikipedia/) for 9k steps on a single A100 GPU, unless otherwise stated.
 > 
 > Implementation of decoder-only transformer model (baseline) can be found in the [`baseline_transformer`](../baseline_transformer/) directory in this repo
 
