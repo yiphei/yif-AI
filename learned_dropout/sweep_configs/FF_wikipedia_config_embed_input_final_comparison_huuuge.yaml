@@ -11,13 +11,13 @@ parameters:
             use_bias:
                 value: False
             context_size:
-                value: 200
+                value: 500
             n_embed: 
-                value: 143
+                value: 300
             n_layer: 
                 value: 26
             n_head: 
-                value: 11
+                value: 10
             dropout_rate:
                 value: 0
             use_dropout_entropy_penalty:
@@ -35,7 +35,7 @@ parameters:
                     use_bias:
                         value: False
                     n_head:
-                        value: 11
+                        value: 10
                     mask_rounding_type:
                         value: 3
                     shift_init:
