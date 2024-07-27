@@ -13,8 +13,8 @@ model_config:
   dropout_rate: 0
   l1_norm_penalty_type: null
   learned_dropout_config:
-    dropout_input_type: 1
-    mask_rounding_type: 3
+    dropout_input_type: "HIDDEN_STATE"
+    mask_rounding_type: "NOISE_AND_LINEAR"
     n_head: 9
     shift_init: 0
     use_bias: false
