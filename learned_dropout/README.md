@@ -195,7 +195,7 @@ Finally, we compare it with the efficient implementation
     <img src="assets/embed_train_loss.svg" alt="Image 1" style="width: 45%;"/>
     <img src="assets/embed_val_loss.svg" alt="Image 2" style="width: 45%;"/>
     <img src="assets/embed_l1_norm.svg" alt="Image 2" style="width: 45%;"/>
-    <img src="assets/embed_time.svg" alt="Image 2" style="width: 45%;"/>
+    <img src="assets/embed_time_2.svg" alt="Image 2" style="width: 45%;"/>
   </div>
     <div align="center">
       <em>Safari may not render the charts above. Chrome is advised.</em>
