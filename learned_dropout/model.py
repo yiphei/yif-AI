@@ -39,7 +39,7 @@ class MaskRoundingType(IntMappedEnum):
 
 class DropoutInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
-    EMBED = "EMBED"
+    EMBED = "EMBED" # this results in a faster forward pass
 
 
 class L1NormPenaltyType(IntMappedEnum):
@@ -68,6 +68,7 @@ class LearnedDropoutConfig:
         use_detached_input: whether to detach the dropout input first.
         dropout_input_type: the type of input used for dropout.
             DropoutInputType.HIDDEN_STATE performed better.
+            DropoutInputType.EMBED is faster.
     """
 
     use_bias: Optional[bool] = None
