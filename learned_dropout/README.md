@@ -218,6 +218,7 @@ These are some further things to look forward to:
 - run training for longer to observe long-term behavior
 - evaluate on different datasets
 - evaluate on non-language tasks
+- empirically evaluate $LearnedDropout$ against MoE
 
 ## Conclusions
 
