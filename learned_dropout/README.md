@@ -188,7 +188,7 @@ Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.213 | 3.425 | NA | 15,441,192 |
 | **0.4 dropout baseline** [(config)](#04-dropout-baseline) | 3.319 | 3.512 | NA | 15,441,192 |
 
-Finally, we compare it with the efficient implementation
+Finally, the faster implementation with $E_{dropout}$ was compared. It had comparable train loss performance but did worse on val loss. As predicted, it had a faster forward pass time, despite having more parameters because of the extra attention operation to compute $E_{dropout}$. Also, this speedup gain simply resulted from `torch.compile` (which both models had), so more can probably be gained from explicit code optimization.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
