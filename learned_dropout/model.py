@@ -39,7 +39,7 @@ class MaskRoundingType(IntMappedEnum):
 
 class DropoutInputType(IntMappedEnum):
     HIDDEN_STATE = "HIDDEN_STATE"
-    EMBED = "EMBED" # this results in a faster forward pass
+    EMBED = "EMBED"  # this results in a faster forward pass
 
 
 class L1NormPenaltyType(IntMappedEnum):
