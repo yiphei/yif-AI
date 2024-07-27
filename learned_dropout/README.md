@@ -222,9 +222,9 @@ These are some further things to look forward to:
 
 ## Conclusions
 
-Instead of setting a hyperparameter like dropout rate or top-k experts in MoE, $LearnedDropout$ permits the model to learn the best dropout/experts for each unique input. As demonstrated by the results, this produces both competitive performances and more efficient models.
+Instead of setting a hyperparameter like dropout rate or top-k experts in MoE, $LearnedDropout$ permits the model to learn the best dropout/experts for each unique input. As demonstrated by the results, $LearnedDropout$ produces very competitive performances with a high dropout percentage.
 
-The result of $LearnedDropout$ is adaptive sparsity, very similar to MoE. Unlike MoE, though, it doesn't require dictating a pre-defined sparsity target. With more sparsity, fine-tuning can improve since sparsity can reduce catastrophic forgetting. Furthermore, the adaptive sparsity can also enable the training paradigm whereby an over-parametrized dense model is used and is sparsified over time by $LearnedDropout$.
+The result of $LearnedDropout$ is adaptive sparsity, very similar to MoE. Unlike MoE, though, it doesn't require dictating a pre-defined sparsity target. This adaptive sparsity should enable the training paradigm that starts with a very over-parametrized dense model and becomes sparsified over time by $LearnedDropout$. Furthermore, more sparsity also makes fine-tuning easier.
 
 Alas, the principal limitation is my personal compute budget, so this project cannot avail itself of further analysis and experimentation.
 
