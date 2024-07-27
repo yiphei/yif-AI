@@ -166,7 +166,7 @@ Compared to a canonical decoder-only transformer (baseline) with no dropout, the
 | **shift_init = 0** [(config)](#with-penalty--shift_init--0) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#baseline) | **2.845** | 3.475 | NA | 15,441,192 |
 
-Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 dropout baseline", and "0.4 dropout baseline". The new model outperformed them in validation loss except for "0.2 dropout baseline", but it did outperform them all in train loss (excluding the baseline with no dropout). This is a very competitive result for $LearnedDropout$, paricularly considering the fact that the new model only has one $LearnedDropout$ per layer and no other dropouts (technically, other dropouts are present in the code but were turned off), while the baseline has 3 $Dropout$ per layer.
+Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 dropout baseline", and "0.4 dropout baseline". The new model outperformed them in validation loss except for "0.2 dropout baseline", but it did outperform them all in train loss (excluding the baseline with no dropout). This is a very competitive result for $LearnedDropout$, particularly because the new model only has one $LearnedDropout$ per layer and no other dropouts (technically, other dropouts are present in the code but were turned off), while the baseline has 3 $Dropout$ per layer.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
