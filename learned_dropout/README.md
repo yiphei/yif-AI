@@ -21,7 +21,7 @@ To encourage more dropout, a dropout ${L_1}$ norm penalty is added to the model 
 
 ### LearnedDropout
 
-Like every dropout implementation, the new $LearnedDropout$s module computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X = \\{x_1, x_2, \ldots, x_n\\}$. The crux lies in the mask $M$'s computation. The canonical $Dropout$ module randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, $LearnedDropout$ needs to generate the mask in a fully differentiable way. Normally, differentiability comes at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$. However, the implementation presented below suffers no such fate.
+Like every dropout implementation, the new $LearnedDropout$ module computes a dropout mask $M \in \\{0, 1\\}$ that is applied to the dropout input $X = \\{x_1, x_2, \ldots, x_n\\}$. The crux lies in the mask $M$'s computation. The canonical $Dropout$ module randomly generates the dropout mask $M$ from a Bernoulli distribution $M \sim \text{Bernoulli}(r)$, where $r$ is the dropout rate hyperparameter. To enable learning, $LearnedDropout$ needs to generate the mask in a fully differentiable way. Normally, differentiability comes at the cost of loosing the $\in \\{0, 1\\}$ guarantee in favor of $M \in \[0, 1\]$. However, the implementation presented below suffers no such fate.
 
 First, for a dropout to be highly variant to input $X$, it needs to leverage the causal dependencies between the input constituents $\\{x_i \mid x_i \in X\\}$ (i.e. across the T dimension). Therefore, a multi-headed attention operation is performed on the dropout input (without residual connection and other secondary operations). Stated more formally,
 
@@ -77,7 +77,7 @@ $$ X_{dropped} =  X \odot M_{rounded} $$
 
 #### A faster implementation
 
-Dropout masks $M_{rounded}$s are computed serially because they are dependent on the mask target $X$. However, pre-computing all $M_{rounded}$'s at the beginning of the forward pass would result in an obvious speedup. To do so, a close derivation of the input embeddings $E$ can be used as a proxy for $X$. Let's denote this derivation $E_{dropout}$. Since $X$ is a product of the attention mechanism, $E_{dropout}$ should be as well. Therefore, $E_{dropout}$ is computed as a multi-headed attention pass on $E$. More formally,
+Dropout masks $M_{rounded}$ are computed serially because they are dependent on the mask target $X$. However, pre-computing all $M_{rounded}$'s at the beginning of the forward pass would result in an obvious speedup. To do so, a close derivation of the input embeddings $E$ can be used as a proxy for $X$. Let's denote this derivation $E_{dropout}$. Since $X$ is a product of the attention mechanism, $E_{dropout}$ should be as well. Therefore, $E_{dropout}$ is computed as a multi-headed attention pass on $E$. More formally,
 
 $$
 \begin{aligned}
