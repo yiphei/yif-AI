@@ -169,3 +169,6 @@ cython_debug/
 **/download_s3.py
 
 .python-version
+config_script.ipynb
+helper_check.ipynb
+helper_config.ipynb
