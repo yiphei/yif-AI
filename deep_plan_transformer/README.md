@@ -177,7 +177,7 @@ Two more baselines were compared: "smaller baseline" and "0.3 dropout baseline".
 | **smaller baseline** [(config)](#smaller-baseline) | 2.811 | 3.387| 15,441,192 |
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.173 | 3.364 | 16,036,800 |
 
-Finally, the [*Auto-regressive Encoder-Decoder Transformer*](../autoregressive_encoder_decoder_transformer) model was compared. That model beat the baseline in validation loss, and it beat the baseline again here. The new model beat *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
+Finally, the [*Auto-regressive Encoder-Decoder Transformer*](../autoregressive_encoder_decoder_transformer) model was compared. That model outperformed the baseline in validation loss, and it outperformed the baseline again here. The new model outperformed *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
