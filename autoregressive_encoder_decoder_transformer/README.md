@@ -53,14 +53,14 @@ In the canonical decoder-encoder model, the loss function is evaluated over the 
 
 Since the encoder better captures contextual understanding, the encoder output may be interpreted as representing contextual embeddings. Furthermore, observe that all the transformations that occur in the encoder amount to an aggregation of the model input embeddings in a different latent space. Therefore, it is reasonable to expect some affinity between the encoder output and a more direct aggregation of the model input embeddings. This affinity is precisely what the embedding loss maximizes, or in minimization terms, it minimizes the disaffinity.
 
-There are many ways to directly aggregate model input embeddings to generate contextual embeddings, but the simplest is the mean operator. Given the full embedding (token + positional) $E$ of the model input and encoder output $out_{enc}$, they are both first normalized with separate LayerNorm layers to become $E_{ln}$ and $out_{enc\\\_ln}$, respectively. Crucially, the LayerNorm normalization of $E$ before the averaging does allow the model to learn a non-uniform aggregation of $E$. Then, the model computes the cumulative average of $E_{ln}$ along the token dimension (i.e. T dimension). Finally, the embedding loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally,
+There are many ways to directly aggregate model input embeddings to generate contextual embeddings, but the simplest is the mean operator. Given the full embedding (token + positional) $E$ of the model input and encoder output $out_{enc}$, they are both first normalized with separate LayerNorm operations to become $E_{ln}$ and $out_{enc\\\_ln}$, respectively. Crucially, the LayerNorm normalization of $E$ before the averaging does allow the model to learn a non-uniform aggregation of $E$. Then, the model computes the cumulative average of $E_{ln}$ along the token dimension (i.e. T dimension). Finally, the embedding loss is calculated as a disaffinity score between the cumulative average and the encoder output. Stated more formally,
 
 $$
 \begin{aligned}
 & out_{enc} \coloneqq \text{encoder output (detached)} \\
 & E \coloneqq \text{model input embedding, comprised of token and positional embedding} \\
-& E_{ln} = LayerNorm(E)\\
-& out_{enc\\\_ln} = LayerNorm(out_{enc})\\\\[0.5cm]
+& E_{ln} = LayerNorm_{a}(E)\\
+& out_{enc\\\_ln} = LayerNorm_{b}(out_{enc})\\\\[0.5cm]
 & E_{avg\\\_sum} \coloneqq \text{cumulative average of }E_{ln}\text{ along T dimension, where } E_{avg\\\_sum_{(i,j)}} = \frac{1}{i} \sum_{k=1}^{i}E_{ln_{(k,j)}} \\
 & embedding\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{avg\\\_sum})
 \end{aligned}

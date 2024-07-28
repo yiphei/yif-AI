@@ -46,7 +46,7 @@ On model output, first note that it is hard to make one output – or two closel
 
 Next, generating the ground truth of planning contexts is necessary. Since the encoder output is selected, observe that all the transformations that occur in encoder layers amount to an aggregation of the model input embeddings in a different latent space. This aggregation forms the basis of (present) contextual understanding. Hence, one can expect an affinity between encoder output and a more direct aggregation of the model input embeddings. Given the planning objective function, this affinity can be extended to include future model input embeddings as well. This affinity is precisely what the planning objective function maximizes, or in minimization terms, it minimizes the disaffinity. 
 
-Consequently, the ground truth can be generated as planning context embeddings. First, generate present and future context embeddings through cumulative aggregation of model input embeddings. Then, aggregate these two to form planning context embeddings. There are many ways of doing these cumulative aggregations. Here, two different aggregation weightings are used for the present and future. The present context embeddings are cumulatively aggregated with the mean operator. The future context embeddings are cumulatively aggregated with a decaying factor, to reflect the intuition that near-future tokens are easier to predict than distant-future ones. Next, the planning context embeddings average present and future context embeddings. Finally, both encoder output and planning context embeddings are normalized with separate LayerNorm layers, and their disaffinity score becomes the planning loss. Stated more formally,
+Consequently, the ground truth can be generated as planning context embeddings. First, generate present and future context embeddings through cumulative aggregation of model input embeddings. Then, aggregate these two to form planning context embeddings. There are many ways of doing these cumulative aggregations. Here, two different aggregation weightings are used for the present and future. The present context embeddings are cumulatively aggregated with the mean operator. The future context embeddings are cumulatively aggregated with a decaying factor, to reflect the intuition that near-future tokens are easier to predict than distant-future ones. Next, the planning context embeddings average present and future context embeddings. Finally, both encoder output and planning context embeddings are normalized with separate LayerNorm operations, and their disaffinity score becomes the planning loss. Stated more formally,
 
 $$
 \begin{aligned}
@@ -56,8 +56,8 @@ $$
 & E_{present} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present_{(i,j)}} = \frac{1}{i} \sum_{k=1}^{i}E_{k,j}\\\\[0.2cm]
 & E_{future} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future_{(i,j)}} = \sum_{k=1}^{\delta}k^{-1}\cdot E_{i+k,j}\\\\[0.5cm]
 & E_{plan} = \frac{E_{present} +  E_{future}}{2} \\
-& E_{plan\\\_ln} = LayerNorm(E_{plan}) \\
-& out_{enc\\\_ln} = LayerNorm(out_{enc}) \\
+& E_{plan\\\_ln} = LayerNorm_{a}(E_{plan}) \\
+& out_{enc\\\_ln} = LayerNorm_{b}(out_{enc}) \\
 & planning\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{plan\\\_ln})
 \end{aligned}
 $$
