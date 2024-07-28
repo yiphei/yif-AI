@@ -92,7 +92,7 @@ $$
 \end{aligned}
 $$
 
-Next, use the same $E_{dropout}$ to pre-compute $M_{rounded}$ for all $LearnedDropout$ modules. Because each $LearnedDropout$ has its own attention weights, the pre-computed $M_{rounded}$ masks will still be different. Inexplicably, detaching $E_{dropout}$ before pre-computing $M_{rounded}$ resulted in slightly better performance (at small scale). Then, at every layer, $LearnedDropout$ simply applies the pre-computed $M_{rounded}$ to $X$.
+Next, use the same $E_{dropout}$ to pre-compute $M_{rounded}$ for all $LearnedDropout$ modules. Because each $LearnedDropout$ has its own attention weights, the pre-computed $M_{rounded}$ masks will still be different. Inexplicably, detaching $E_{dropout}$ before pre-computing $M_{rounded}$ resulted in slightly better performance (at least at a smaller scale). Then, at every layer, $LearnedDropout$ simply applies the pre-computed $M_{rounded}$ to $X$.
 
 ### Dropout L1 norm penalty
 
@@ -166,7 +166,7 @@ Compared to a canonical decoder-only transformer (baseline) with no dropout, the
 | **shift_init = 0** [(config)](#with-penalty--shift_init--0) | 2.937 | **3.384** | 0.6167 | 15,335,424 |
 | **baseline** [(config)](#baseline) | **2.845** | 3.475 | NA | 15,441,192 |
 
-Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 dropout baseline", and "0.4 dropout baseline". The new model outperformed them in validation loss except for "0.2 dropout baseline", but it did outperform them all in train loss (excluding the baseline with no dropout). This is a very competitive result for $LearnedDropout$, particularly because the new model only has one $LearnedDropout$ per layer and no other dropouts (technically, other dropouts are present in the code but were turned off), while the baseline has 3 $Dropout$ per layer.
+Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 dropout baseline", and "0.4 dropout baseline". The new model outperformed them in validation loss except for "0.2 dropout baseline", but it did outperform them all in train loss (excluding the baseline with no dropout). This is a very competitive result for $LearnedDropout$, particularly because the new model only has one $LearnedDropout$ per layer and no other dropouts (technically, other dropouts are present in the code but were inactive), while the baseline has 3 $Dropout$'s per layer.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
@@ -187,7 +187,7 @@ Three more baselines with $Dropout$ were compared: "0.2 dropout baseline", "0.3 
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.213 | 3.425 | NA | 15,441,192 |
 | **0.4 dropout baseline** [(config)](#04-dropout-baseline) | 3.319 | 3.512 | NA | 15,441,192 |
 
-Finally, the faster implementation with $E_{dropout}$ was compared. It had comparable train loss performance but underperformed on val loss. As predicted, it had a faster forward pass time, despite having more parameters because of the extra attention operation to compute $E_{dropout}$. Also, this speedup gain simply resulted from `torch.compile` (which both models had), so more can probably be gained from explicit code optimization.
+Finally, the faster implementation with $E_{dropout}$ was compared. It had comparable train loss performance but underperformed on val loss. It also had less dropout on average. As predicted, it had a faster forward pass time, despite having more parameters because of the extra attention operation to compute $E_{dropout}$. Also, this speedup gain simply resulted from `torch.compile` (which both models had), so more can probably be gained from explicit code optimization.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">

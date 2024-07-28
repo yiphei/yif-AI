@@ -5,7 +5,7 @@ Virtually all autoregressive transformer models are trained with the singular ob
 
 ## Motivations
 
-Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token via the attention mechanism. However, this ability is rather weak and many failure modes can be attributed to this weakness. Note that I narrowly define planning as anything that happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
+Despite being trained on next token prediction, autoregressive transformer models do develop abilities to plan beyond the next token via the attention mechanism. However, this ability is rather weak, and many failure modes can be attributed to this weakness. Note that I narrowly define planning as anything that happens within a forward pass. Indeed, models can exhibit better planning at the prompt level once you introduce chaining or other clever orchestration logic. 
 
 This project explores how planning many steps beyond the next token can be formulated as an objective function during training, in addition to the regular next token prediction. The (perhaps anthropomorphic) intuition is that deliberate planning can improve next token prediction. After all, planning for $n$ future tokens includes the next token. And the objective function formulation is usually the simplest and best way to induce any model behavior.
 
@@ -46,7 +46,7 @@ On model output, first note that it is hard to make one output – or two closel
 
 Next, generating the ground truth of planning contexts is necessary. Since the encoder output is selected, observe that all the transformations that occur in encoder layers amount to an aggregation of the model input embeddings in a different latent space. This aggregation forms the basis of (present) contextual understanding. Hence, one can expect an affinity between encoder output and a more direct aggregation of the model input embeddings. Given the planning objective function, this affinity can be extended to include future model input embeddings as well. This affinity is precisely what the planning objective function maximizes, or in minimization terms, it minimizes the disaffinity. 
 
-Consequently, the ground truth can be generated as planning context embeddings. First, generate present and future context embeddings through cumulative aggregation of model input embeddings. Then, aggregate these two to form planning context embeddings. There are many ways of doing these cumulative aggregations. Here, two different aggregation weightings are used for the present and future. The present context embeddings are cumulatively aggregated with the mean operator. The future context embeddings are cumulatively aggregated with a decaying factor, to reflect the intuition that near-future tokens are easier to predict than distant-future ones. Next, the planning context embeddings average present and future context embeddings. Finally, both encoder output and planning context embeddings are normalized with separate LayerNorm layers, and their disaffinity score becomes the planning loss. Stated more formally,
+Consequently, the ground truth can be generated as planning context embeddings. First, generate present and future context embeddings through cumulative aggregation of model input embeddings. Then, aggregate these two to form planning context embeddings. There are many ways of doing these cumulative aggregations. Here, two different aggregation weightings are used for the present and future. The present context embeddings are cumulatively aggregated with the mean operator. The future context embeddings are cumulatively aggregated with a decaying factor, to reflect the intuition that near-future tokens are easier to predict than distant-future ones. Next, the planning context embeddings average present and future context embeddings. Finally, both encoder output and planning context embeddings are normalized with separate LayerNorm operations, and their disaffinity score becomes the planning loss. Stated more formally,
 
 $$
 \begin{aligned}
@@ -56,8 +56,8 @@ $$
 & E_{present} \coloneqq \text{cumulative average of }E\text{ along T dimension, where } E_{present_{(i,j)}} = \frac{1}{i} \sum_{k=1}^{i}E_{k,j}\\\\[0.2cm]
 & E_{future} \coloneqq \text{cumulative aggregation of }E\text{ along T dimension, where } E_{future_{(i,j)}} = \sum_{k=1}^{\delta}k^{-1}\cdot E_{i+k,j}\\\\[0.5cm]
 & E_{plan} = \frac{E_{present} +  E_{future}}{2} \\
-& E_{plan\\\_ln} = LayerNorm(E_{plan}) \\
-& out_{enc\\\_ln} = LayerNorm(out_{enc}) \\
+& E_{plan\\\_ln} = LayerNorm_{a}(E_{plan}) \\
+& out_{enc\\\_ln} = LayerNorm_{b}(out_{enc}) \\
 & planning\\\_loss = disaffinity\\\_score(out_{enc\\\_ln}, E_{plan\\\_ln})
 \end{aligned}
 $$
@@ -177,7 +177,7 @@ Two more baselines were compared: "smaller baseline" and "0.3 dropout baseline".
 | **smaller baseline** [(config)](#smaller-baseline) | 2.811 | 3.387| 15,441,192 |
 | **0.3 dropout baseline** [(config)](#03-dropout-baseline) | 3.173 | 3.364 | 16,036,800 |
 
-Finally, the [*Auto-regressive Encoder-Decoder Transformer*](../autoregressive_encoder_decoder_transformer) model was compared. That model beat the baseline in validation loss, and it beat the baseline again here. The new model beat *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
+Finally, the [*Auto-regressive Encoder-Decoder Transformer*](../autoregressive_encoder_decoder_transformer) model was compared. That model outperformed the baseline in validation loss, and it outperformed the baseline again here. The new model outperformed *Auto-regressive Encoder-Decoder Transformer* in both validation and train loss.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
