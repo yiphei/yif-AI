@@ -1,20 +1,20 @@
 # yif-AI
 
-This repo contains four AI models that I researched: [***Auto-regressive Encoder-Decoder Transformer***](autoregressive_encoder_decoder_transformer/), ***DeepPlan***, ***Future Attention***, and ***Learned Dropout***. Each model directory contains an extensive technical exposition along with the complete code implementation required to replicate the reported results.
+This repo contains four AI models that I researched: [***Auto-regressive Encoder-Decoder Transformer***](autoregressive_encoder_decoder_transformer/), [***DeepPlan***](deep_plan_transformer/), [***Future Attention***](future_attention/), and [***Learned Dropout***](learned_dropout/). Each model directory contains an extensive technical exposition along with the complete code implementation required to replicate the reported results.
 
 If you don't know which model to start with, let me help you with two rankings: one by performance against baseline and one by theoretical merits.
 
 Performance against baseline ranking:
-1. ***DeepPlan***
-2. ***Auto-regressive Encoder-Decoder Transformer***
-3. ***Learned Dropout***
-4. ***Future Attention***
+1. [***DeepPlan***](deep_plan_transformer/)
+2. [***Auto-regressive Encoder-Decoder Transformer***](autoregressive_encoder_decoder_transformer/)
+3. [***Learned Dropout***](learned_dropout/)
+4. [***Future Attention***](future_attention/)
 
 Theoretical merits ranking:
-1. ***DeepPlan***
-2. ***Learned Dropout***
-3. ***Auto-regressive Encoder-Decoder Transformer***
-4. ***Future Attention***
+1. [***DeepPlan***](deep_plan_transformer/)
+2. [***Learned Dropout***](learned_dropout/)
+3. [***Auto-regressive Encoder-Decoder Transformer***](autoregressive_encoder_decoder_transformer/)
+4. [***Future Attention***](future_attention/)
 
 ## Setup
 
