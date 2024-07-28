@@ -77,7 +77,7 @@ $$ X_{dropped} =  X \odot M_{rounded} $$
 
 #### A faster implementation
 
-Dropout masks $M_{rounded}$ are computed serially because they are dependent on the mask target $X$. However, pre-computing all $M_{rounded}$'s at the beginning of the forward pass would result in an obvious speedup. To do so, a close derivation of the input embeddings $E$ can be used as a proxy for $X$. Let's denote this derivation $E_{dropout}$. Since $X$ is a product of the attention mechanism, $E_{dropout}$ should be as well. Therefore, $E_{dropout}$ is computed as a multi-headed attention pass on $E$. More formally,
+Dropout masks $M_{rounded}$s are computed serially because they are dependent on the mask target $X$. However, pre-computing all $M_{rounded}$'s at the beginning of the forward pass would result in an obvious speedup. To do so, a close derivation of the input embeddings $E$ can be used as a proxy for $X$. Let's denote this derivation $E_{dropout}$. Since $X$ is a product of the attention mechanism, $E_{dropout}$ should be as well. Therefore, $E_{dropout}$ is computed as a multi-headed attention pass on $E$. More formally,
 
 $$
 \begin{aligned}
