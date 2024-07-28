@@ -1,6 +1,6 @@
 # yif-AI
 
-This repo contains four AI models that I researched: [***Auto-regressive Encoder-Decoder Transformer***](autoregressive_encoder_decoder_transformer/), [***DeepPlan***](deep_plan_transformer/), [***Future Attention***](future_attention/), and [***Learned Dropout***](learned_dropout/). Each model directory contains an extensive technical exposition along with the complete code implementation required to replicate the reported results.
+This repo contains four AI models that I researched independently: [***Auto-regressive Encoder-Decoder Transformer***](autoregressive_encoder_decoder_transformer/), [***DeepPlan***](deep_plan_transformer/), [***Future Attention***](future_attention/), and [***Learned Dropout***](learned_dropout/). Each model directory contains an extensive technical exposition along with the complete code implementation necessary to replicate the reported results.
 
 If you don't know which model to start with, let me help you with two rankings: one by performance against baseline and one by theoretical merits.
 
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 ## Train
 
-To run a model training, the required args are: the model training script, the dataset, and the training config file. The general pattern is the following
+To run a model training, the required args are: the model training script, the dataset, and the training config file. The general pattern is the following (run from the repo root)
 
 ```
 python -m <model_dir>.training_script --train datasets/<dataset_dir> --config_file <model_dir>/train_configs/<config_filename>
@@ -39,6 +39,8 @@ python -m deep_plan_transformer.training_script --train datasets/wikipedia/ --co
 ```
 
 You can find additional training script args in [utils/train.py](utils/train.py)
+
+### GPUs
 
 If you have GPUs, you can use them by prepending `torchrun --standalone --nproc_per_node=<gpu_num> -m` instead of `python -m`. For instance,
 
