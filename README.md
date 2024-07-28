@@ -2,7 +2,7 @@
 
 This repo contains four AI models that I researched: ***Auto-regressive Encoder-Decoder Transformer***, ***DeepPlan***, ***Future Attention***, and ***Learned Dropout***. Each model directory contains an extensive technical exposition along with the complete code implementation required to replicate the reported results.
 
-If you don't know where to start, let me help you with two rankings: one by performance against baseline and one by theoretical merits.
+If you don't know which model to start with, let me help you with two rankings: one by performance against baseline and one by theoretical merits.
 
 Performance against baseline ranking:
 1. ***DeepPlan***
