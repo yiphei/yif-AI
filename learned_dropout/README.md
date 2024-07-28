@@ -211,6 +211,8 @@ Finally, the faster implementation with $E_{dropout}$ was compared. It had compa
 
 These are some further things to look forward to:
 - substitute all $Dropout$'s for $LearnedDropout$
+- scale the ${L_1}$ norm penalty on an exponential schedule: the penalty is smaller earlier in the training and grows larger later in the training
+  - this is already implemented. I just didn't have enough compute to test this
 - implement tensor operations that take advantage of highly sparse tensors caused by $LearnedDropout$. This should greatly reduce compute time
   - this probably won't be a small effort since `torch.compile` does not currently support sparse tensors
 - instead of a single cosine function that maps values to $\[0, 1\]$, use a Fourier series
