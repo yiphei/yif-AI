@@ -5,7 +5,7 @@ Decoder-only transformer models apply a causal mask in attention operations to e
 
 ## Motivations
 
-In the canonical decoder-only transformer, the attention layer computes an attention matrix $A$ for each head, like the figure below.
+In the canonical decoder-only transformer, the attention operation computes an attention matrix $A$ for each head, like the figure below.
 
 <div align="center">
   <img src="assets/unmasked.svg" alt="sdasd" width="400">
