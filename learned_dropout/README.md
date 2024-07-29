@@ -127,7 +127,7 @@ First, the inclusion and exclusion of ${L_1}$ norm penalty were compared. Both h
 | **with penalty** [(config)](#with-penalty--shift_init--0) | 2.937 | **3.384** | **0.6167** |
 | **without penalty** [(config)](#without-penalty) | **2.911** | 3.403 | 0.9609 |
 
-Next, using the ${L_1}$ norm penalty, different initialization values for the shift bias $B$ were evaluated. The $0$ initialization performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuition because initializing with $0$ means that $M$ starts with values closer to 1, thus affording the model more compute. However, if training had run for longer, particularly with a very over-parametrized model, $pi$ initialization might have triumphed in the end. Nevertheless, the $\pi$ initialization here performed very competitively despite dropping out about 75% of values on average.
+Next, using the ${L_1}$ norm penalty, different initialization values for the shift bias $B$ were evaluated. The $0$ initialization performed the best, followed by $\frac{\pi}{2}$ and $\pi$. This matches intuition because initializing with $0$ means that $M$ starts with values closer to 1, thus affording the model more compute. However, if training had run for longer, particularly with a very over-parametrized model, $\pi$ initialization might have triumphed in the end. Nevertheless, the $\pi$ initialization here performed very competitively despite dropping out about 75% of values on average.
 
 <div>
   <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; align-content: flex-start;">
